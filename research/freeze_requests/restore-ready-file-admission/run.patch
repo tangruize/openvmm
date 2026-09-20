@@ -1,0 +1,35 @@
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -4,6 +4,16 @@
+       "kind": "symbol",
+       "value": "InitializedVm::load",
+       "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExRestoreReadyFile",
++      "marker": "external_type_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExRestoreReadyFile",
++      "marker": "external_body"
+     }
+   ]
+ }
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.proof.rs b/openvmm/openvmm_core/src/worker/dispatch.proof.rs
+--- a/openvmm/openvmm_core/src/worker/dispatch.proof.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.proof.rs
+@@ -17,6 +17,11 @@ use vstd::prelude::*;
+ 
+ verus! {
+ 
++// Only the carried type is opaque; no file operations are specified or trusted.
++#[verifier::external_type_specification]
++#[verifier::external_body]
++pub struct ExRestoreReadyFile(std::fs::File);
++
+ // This bridge exposes only SavedState-owned state and the restore-time policy.
+ // Prepared memory, compatibility, resources, and VP selection are already
+ // represented by the pre-state of LoadedVm at this TOP boundary.

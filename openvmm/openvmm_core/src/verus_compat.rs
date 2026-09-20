@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// UNSAFETY: Verus generates unsafe proxy functions and calls for
+// assume_specification; these are erased from non-verification builds.
 #![cfg_attr(verus_keep_ghost, allow(unsafe_code))]
 
 use vstd::prelude::*;
