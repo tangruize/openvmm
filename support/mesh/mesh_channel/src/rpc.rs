@@ -249,6 +249,7 @@ pub trait TryRpcSend: Sized {
 /// An error from an RPC call, via
 /// [`RpcSend::call_failable`] or [`RpcSend::call`].
 #[derive(Debug, Error)]
+#[vstd::prelude::verus_verify]
 pub enum RpcError<E = Infallible> {
     #[error(transparent)]
     Call(E),
@@ -301,3 +302,6 @@ impl<T: 'static + Send> RpcSend for &mesh_channel_core::Sender<T> {
         self.send(message);
     }
 }
+
+#[cfg(verus_keep_ghost)]
+include!("rpc.spec.rs");
