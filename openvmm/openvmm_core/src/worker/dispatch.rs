@@ -3782,7 +3782,7 @@ impl LoadedVm {
     /// Destination construction and VP instantiation happen before this
     /// boundary. This helper owns state-unit restore, permitted time
     /// adjustments, and acquisition of the pre-execution restore guard.
-    // #[verus_verify]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             restore_proof::decoded_restore_request_view(
