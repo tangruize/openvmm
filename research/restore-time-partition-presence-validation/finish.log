@@ -1,0 +1,7 @@
+Exact three-file package retained; candidate source and build cache removed.
+Authoritative production/spec/proof/manifests match HEAD.
+?? research/GROUND_TRUTH.md
+?? research/freeze_requests/restore-time-partition-presence/
+?? research/restore-time-partition-presence-validation/
+?? research/restore-tsc-consistency/
+?? research/restore-unsaved-vp-frame/

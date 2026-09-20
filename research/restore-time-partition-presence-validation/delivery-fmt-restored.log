@@ -1,0 +1,10 @@
+error: rustc 1.94.0 is not supported by the following packages:
+  ci_logger@0.0.0 requires rustc 1.95
+  clap_dyn_complete@0.0.0 requires rustc 1.95
+  guid@0.0.0 requires rustc 1.95
+  petri_artifacts_common@0.0.0 requires rustc 1.95
+  petri_artifacts_core@0.0.0 requires rustc 1.95
+  petri_artifacts_vmm_test@0.0.0 requires rustc 1.95
+  vmm_test_images@0.0.0 requires rustc 1.95
+  xtask@0.0.0 requires rustc 1.95
+

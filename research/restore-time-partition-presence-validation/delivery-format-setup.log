@@ -1,0 +1,5 @@
++ test -d toolchain/verus-src/source/vstd
++ test -f research/restore-time-partition-presence-validation/target/delivery-precommit/.git
++ mkdir -p research/restore-time-partition-presence-validation/target/delivery-precommit/toolchain
++ ln -s /home/ruize/openvmm-restore-v1/toolchain/verus-src research/restore-time-partition-presence-validation/target/delivery-precommit/toolchain/verus-src
++ test -f research/restore-time-partition-presence-validation/target/delivery-precommit/toolchain/verus-src/source/vstd/Cargo.toml

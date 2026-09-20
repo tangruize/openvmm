@@ -1,0 +1,99 @@
++ cmp research/restore-time-partition-presence-validation/validate_candidate.py research/restore-time-partition-presence-validation/target/delivery-precommit/research/restore-time-partition-presence-validation/validate_candidate.py
++ git -C research/restore-time-partition-presence-validation/target/delivery-precommit --no-pager diff --name-only
+research/restore-time-partition-presence-validation/validate_candidate.py
++ cp research/restore-time-partition-presence-validation/target/delivery-formatting-rust195.patch research/restore-time-partition-presence-validation/delivery-formatting.patch
++ git worktree remove --force /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/target/delivery-precommit
++ rm research/restore-time-partition-presence-validation/target/delivery-input.tar
++ git --no-pager diff --exit-code HEAD
++ git add -- research/freeze_requests/restore-time-partition-presence research/restore-time-partition-presence-validation research/GROUND_TRUTH.md research/restore-tsc-consistency research/restore-unsaved-vp-frame
++ git --no-pager diff --cached --stat
+ research/GROUND_TRUTH.md                           |  642 +++++++
+ .../restore-time-partition-presence/freeze.patch   |   33 +
+ .../restore-time-partition-presence/rationale.md   |  152 ++
+ .../restore-time-partition-presence/run.patch      |   33 +
+ .../.gitignore                                     |    1 +
+ .../boundary.command                               |    1 +
+ .../boundary.full.log                              |   12 +
+ .../boundary.log                                   |    5 +
+ .../candidate-compile-import.log                   |  813 ++++++++
+ .../candidate-patch-syntax.log                     |   21 +
+ .../candidate.log                                  | 2029 ++++++++++++++++++++
+ .../candidate_status.sh                            |    5 +
+ .../candidate_tests.rs                             |  234 +++
+ .../check.sh                                       |   18 +
+ .../delivery-artifact-paths.log                    |   13 +
+ .../delivery-fmt-restored.log                      |   10 +
+ .../delivery-fmt-rust195.log                       |  129 ++
+ .../delivery-fmt.log                               |   13 +
+ .../delivery-format-ready-receipt.json             |    1 +
+ .../delivery-format-ready-status.json              |   25 +
+ .../delivery-format-ready-status.stderr            |    0
+ .../delivery-format-ready-submit.stderr            |    0
+ .../delivery-format-receipt.json                   |    1 +
+ .../delivery-format-rust195-receipt.json           |    1 +
+ .../delivery-format-rust195-status.json            |   25 +
+ .../delivery-format-rust195-status.stderr          |    0
+ .../delivery-format-rust195-submit.stderr          |    0
+ .../delivery-format-setup.log                      |    5 +
+ .../delivery-format-status.json                    |   25 +
+ .../delivery-format-status.stderr                  |    0
+ .../delivery-format-submit.stderr                  |    0
+ .../delivery-formatting.patch                      |   13 +
+ .../delivery-intake.log                            |   73 +
+ .../delivery-package-identity.log                  |   12 +
+ .../delivery-precommit-receipt.json                |    1 +
+ .../delivery-precommit-status.json                 |   25 +
+ .../delivery-precommit-status.stderr               |    0
+ .../delivery-precommit-submit.stderr               |    0
+ .../delivery-precommit.log                         |    9 +
+ .../delivery-precommit.sh                          |   46 +
+ .../delivery-stage.log                             |    8 +
+ .../delivery-tools.log                             |   42 +
+ .../delivery-unapplied.log                         |    5 +
+ .../exec_drift.command                             |    1 +
+ .../exec_drift.full.log                            |    6 +
+ .../exec_drift.log                                 |    3 +
+ .../finish.log                                     |    7 +
+ .../finish.sh                                      |   32 +
+ .../freeze.patch                                   |   33 +
+ .../instrumentation.patch                          |   39 +
+ .../intake.log                                     |   20 +
+ .../intake.sh                                      |   11 +
+ .../launch_candidate.sh                            |    7 +
+ .../make_verify.command                            |    1 +
+ .../make_verify.full.log                           |  235 +++
+ .../make_verify.log                                |    4 +
+ .../partition_instrumentation.rs                   |   27 +
+ .../rationale.md                                   |  152 ++
+ .../relaunch_candidate.sh                          |    6 +
+ .../resume_candidate.sh                            |    6 +
+ .../run.patch                                      |   33 +
+ .../run_candidate.sh                               |    5 +
+ .../runner-completed.json                          |   25 +
+ .../runner-receipt-corrected-patch.json            |    1 +
+ .../runner-receipt-corrected-test.json             |    1 +
+ .../runner-receipt-launched.json                   |    1 +
+ .../runner-receipt.json                            |    1 +
+ .../runner-status.json                             |   21 +
+ .../spec_drift.command                             |    1 +
+ .../spec_drift.full.log                            |    6 +
+ .../spec_drift.log                                 |    4 +
+ .../submit.log                                     |    8 +
+ .../submit.sh                                      |    9 +
+ .../tools.log                                      |   56 +
+ .../tools.sh                                       |   15 +
+ .../validate_candidate.py                          |  106 +
+ research/restore-tsc-consistency/policy-image.log  |   71 +
+ .../restore-tsc-consistency/production-path.log    |   47 +
+ .../restore-tsc-consistency/production_path.rs     |  297 +++
+ research/restore-tsc-consistency/run.sh            |   21 +
+ .../restore-tsc-consistency/test-overlay.patch     |   14 +
+ research/restore-unsaved-vp-frame/check-spec.sh    |   10 +
+ .../frozen-precondition.log                        |    1 +
+ .../frozen_precondition.rs                         |   57 +
+ .../restore-unsaved-vp-frame/partition_payload.rs  |   21 +
+ .../restore-unsaved-vp-frame/production-frame.log  |  569 ++++++
+ .../restore-unsaved-vp-frame/production_frame.rs   |  202 ++
+ research/restore-unsaved-vp-frame/run.sh           |   21 +
+ .../restore-unsaved-vp-frame/test-overlay.patch    |   27 +
+ 89 files changed, 6722 insertions(+)

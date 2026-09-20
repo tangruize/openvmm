@@ -1,0 +1,9 @@
+No Cargo package is modified: only research artifacts will be committed.
+Package-scoped clippy and doc steps therefore have no modified-package targets.
+Run the required full formatter on an isolated copy; preserve all original artifacts.
+Preparing worktree (detached HEAD 35a03bfb)
+HEAD is now at 35a03bfb [verus][argus] proposed working result
++ cargo xtask fmt --fix (isolated checkout)
+cargo xtask fmt --fix exit=101
+formatter output: research/restore-time-partition-presence-validation/delivery-fmt.log
+isolated changes: research/restore-time-partition-presence-validation/target/delivery-formatting.patch

@@ -1,0 +1,20 @@
+?? research/GROUND_TRUTH.md
+?? research/restore-time-partition-presence-validation/
+?? research/restore-tsc-consistency/
+?? research/restore-unsaved-vp-frame/
+argus/restore-v1-run
+usage: freeze_request [-h] [--project-root PROJECT_ROOT]
+                      [--baseline-dir BASELINE_DIR]
+                      {submit,validate,list,show,apply} ...
+
+Submit two patches and verify that they produce the same frozen specifications
+and executable behavior.
+
+positional arguments:
+  {submit,validate,list,show,apply}
+
+options:
+  -h, --help            show this help message and exit
+  --project-root PROJECT_ROOT
+  --baseline-dir BASELINE_DIR
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'

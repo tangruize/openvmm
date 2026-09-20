@@ -1,0 +1,13 @@
+error: failed to get `vstd` as a dependency of package `openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/target/delivery-precommit/openvmm/openvmm_core)`
+
+Caused by:
+  failed to load source for dependency `vstd`
+
+Caused by:
+  Unable to update /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/target/delivery-precommit/toolchain/verus-src/source/vstd
+
+Caused by:
+  failed to read `/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/target/delivery-precommit/toolchain/verus-src/source/vstd/Cargo.toml`
+
+Caused by:
+  No such file or directory (os error 2)

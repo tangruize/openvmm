@@ -1,0 +1,73 @@
++ git --no-pager status --short --untracked-files=all
+?? research/GROUND_TRUTH.md
+?? research/freeze_requests/restore-time-partition-presence/freeze.patch
+?? research/freeze_requests/restore-time-partition-presence/rationale.md
+?? research/freeze_requests/restore-time-partition-presence/run.patch
+?? research/restore-time-partition-presence-validation/.gitignore
+?? research/restore-time-partition-presence-validation/boundary.command
+?? research/restore-time-partition-presence-validation/boundary.full.log
+?? research/restore-time-partition-presence-validation/boundary.log
+?? research/restore-time-partition-presence-validation/candidate-compile-import.log
+?? research/restore-time-partition-presence-validation/candidate-patch-syntax.log
+?? research/restore-time-partition-presence-validation/candidate.log
+?? research/restore-time-partition-presence-validation/candidate_status.sh
+?? research/restore-time-partition-presence-validation/candidate_tests.rs
+?? research/restore-time-partition-presence-validation/check.sh
+?? research/restore-time-partition-presence-validation/delivery-intake.log
+?? research/restore-time-partition-presence-validation/exec_drift.command
+?? research/restore-time-partition-presence-validation/exec_drift.full.log
+?? research/restore-time-partition-presence-validation/exec_drift.log
+?? research/restore-time-partition-presence-validation/finish.log
+?? research/restore-time-partition-presence-validation/finish.sh
+?? research/restore-time-partition-presence-validation/freeze.patch
+?? research/restore-time-partition-presence-validation/instrumentation.patch
+?? research/restore-time-partition-presence-validation/intake.log
+?? research/restore-time-partition-presence-validation/intake.sh
+?? research/restore-time-partition-presence-validation/launch_candidate.sh
+?? research/restore-time-partition-presence-validation/make_verify.command
+?? research/restore-time-partition-presence-validation/make_verify.full.log
+?? research/restore-time-partition-presence-validation/make_verify.log
+?? research/restore-time-partition-presence-validation/partition_instrumentation.rs
+?? research/restore-time-partition-presence-validation/rationale.md
+?? research/restore-time-partition-presence-validation/relaunch_candidate.sh
+?? research/restore-time-partition-presence-validation/resume_candidate.sh
+?? research/restore-time-partition-presence-validation/run.patch
+?? research/restore-time-partition-presence-validation/run_candidate.sh
+?? research/restore-time-partition-presence-validation/runner-completed.json
+?? research/restore-time-partition-presence-validation/runner-receipt-corrected-patch.json
+?? research/restore-time-partition-presence-validation/runner-receipt-corrected-test.json
+?? research/restore-time-partition-presence-validation/runner-receipt-launched.json
+?? research/restore-time-partition-presence-validation/runner-receipt.json
+?? research/restore-time-partition-presence-validation/runner-status.json
+?? research/restore-time-partition-presence-validation/spec_drift.command
+?? research/restore-time-partition-presence-validation/spec_drift.full.log
+?? research/restore-time-partition-presence-validation/spec_drift.log
+?? research/restore-time-partition-presence-validation/submit.log
+?? research/restore-time-partition-presence-validation/submit.sh
+?? research/restore-time-partition-presence-validation/tools.log
+?? research/restore-time-partition-presence-validation/tools.sh
+?? research/restore-time-partition-presence-validation/validate_candidate.py
+?? research/restore-tsc-consistency/policy-image.log
+?? research/restore-tsc-consistency/production-path.log
+?? research/restore-tsc-consistency/production_path.rs
+?? research/restore-tsc-consistency/run.sh
+?? research/restore-tsc-consistency/test-overlay.patch
+?? research/restore-unsaved-vp-frame/check-spec.sh
+?? research/restore-unsaved-vp-frame/frozen-precondition.log
+?? research/restore-unsaved-vp-frame/frozen_precondition.rs
+?? research/restore-unsaved-vp-frame/partition_payload.rs
+?? research/restore-unsaved-vp-frame/production-frame.log
+?? research/restore-unsaved-vp-frame/production_frame.rs
+?? research/restore-unsaved-vp-frame/run.sh
+?? research/restore-unsaved-vp-frame/test-overlay.patch
++ git --no-pager log -5 --oneline
+35a03bfb [verus][argus] proposed working result
+921cdc19 Prepare restore File admission request for review
+53dbe68d Initialize Argus restore proof campaign
+aeec64e4 Freeze snapshot restore proof scaffold
+62acaa5a refine snapshot restore verification boundary
++ git ls-files research/freeze_requests/restore-time-partition-presence research/restore-time-partition-presence-validation research/restore-tsc-consistency research/restore-unsaved-vp-frame research/GROUND_TRUTH.md
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -c 'import sys, argus_verus, argus_skill; print("python:", sys.executable); print("argus_verus:", list(argus_verus.__path__)); print("argus_skill:", list(argus_skill.__path__))'
+python: /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python
+argus_verus: ['/home/ruize/openvmm-restore-v1/.argus-runtime/lib/python3.12/site-packages/argus_verus']
+argus_skill: ['/home/ruize/openvmm-restore-v1/.argus-runtime/lib/python3.12/site-packages/argus_skill']

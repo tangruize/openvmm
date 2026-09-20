@@ -1,0 +1,47 @@
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.17s
+────────────
+ Nextest run ID 9cebfe8d-fc01-466c-a567-7e7fdff72808 with nextest profile: agent
+    Starting 2 tests across 1 binary (31 tests skipped)
+  stdout ───
+
+    running 1 test
+      2026-09-20T03:23:52.341063Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    selected_vp=0 saved_tsc=1000 restored_tsc=1000 final_serialized_tsc=1000 policy_request_tsc=1000 adjustment=None
+      2026-09-20T03:23:52.341458Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 162µs, time.idle: 239µs
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000]
+    test partition_unit::vp_set::restore_tsc_consistency_probe::production_restore_without_tsc_adjustment ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+
+  stdout ───
+
+    running 1 test
+      2026-09-20T03:23:52.341330Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:23:52.341652Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 2000, observed_tsc: 2000, cycles: 1000, frequency_hz: 4000, duration: 250ms
+        at vmm_core/src/partition_unit/vp_set.rs:287
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    selected_vp=0 saved_tsc=1000 restored_tsc=1000 final_serialized_tsc=2000 policy_request_tsc=2000 adjustment=Some((250ms, 4000))
+      2026-09-20T03:23:52.341835Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 247µs, time.idle: 264µs
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 2000]
+    test partition_unit::vp_set::restore_tsc_consistency_probe::production_restore_with_nonzero_tsc_adjustment ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+
+────────────
+     Summary [   0.006s] 2 tests run: 2 passed, 31 skipped

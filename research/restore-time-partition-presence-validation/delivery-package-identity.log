@@ -1,0 +1,12 @@
++ cmp research/freeze_requests/restore-time-partition-presence/freeze.patch research/restore-time-partition-presence-validation/freeze.patch
++ cmp research/freeze_requests/restore-time-partition-presence/run.patch research/restore-time-partition-presence-validation/run.patch
++ cmp research/freeze_requests/restore-time-partition-presence/rationale.md research/restore-time-partition-presence-validation/rationale.md
++ git diff --exit-code HEAD -- openvmm/openvmm_core/src/worker/dispatch.rs openvmm/openvmm_core/src/worker/dispatch.spec.rs openvmm/openvmm_core/src/worker/dispatch.proof.rs
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -c 'import json; from pathlib import Path; from argus_verus.tools.operator import freeze_request; root = Path.cwd(); request = freeze_request.load(root, "restore-time-partition-presence"); print("package loaded:", request.request_id); print("scope:", json.loads((root / ".verus_agent/scope_manifest.json").read_text())); print("TCB:", json.loads((root / ".verus_agent/tcb_manifest.json").read_text()))'
+package loaded: restore-time-partition-presence
+scope: {'frozen_branch': 'argus/restore-v1-frozen', 'top_spec': ['openvmm/openvmm_core/src/worker/dispatch.spec.rs'], 'goal': [{'file': 'openvmm/openvmm_core/src/worker/dispatch.rs', 'symbol': 'LoadedVm::restore_snapshot_state'}], 'src_roots': ['openvmm/openvmm_core/src/worker']}
+TCB: {'sanctioned': [{'kind': 'symbol', 'value': 'InitializedVm::load', 'marker': 'external_body'}, {'kind': 'symbol', 'value': 'ExRestoreReadyFile', 'marker': 'external_type_specification'}, {'kind': 'symbol', 'value': 'ExRestoreReadyFile', 'marker': 'external_body'}]}
++ git show-ref --heads
+cfb404516911ef4218864b02fcbb5ee758474b2b refs/heads/argus/restore-v1-frozen
+35a03bfb65d360524720caf66e7c212a321e6040 refs/heads/argus/restore-v1-run
+62acaa5aebe19853286c056683bb372bd8f8b34a refs/heads/verus/snapshot-restore-spec-bootstrap

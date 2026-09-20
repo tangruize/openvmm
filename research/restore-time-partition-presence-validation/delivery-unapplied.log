@@ -1,0 +1,5 @@
++ git -C research/restore-time-partition-presence-validation/target/delivery-precommit --no-pager diff --numstat
+4	0	research/restore-time-partition-presence-validation/validate_candidate.py
++ git --no-pager diff --exit-code HEAD
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -c 'import json; from pathlib import Path; from argus_verus.tools.operator import freeze_request; root = Path.cwd(); request = freeze_request.load(root, "restore-time-partition-presence"); result = freeze_request._recorded_application(root, root / ".verus_agent", request); print("recorded application:", result); assert result is None'
+recorded application: None

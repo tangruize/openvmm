@@ -1,0 +1,27 @@
+diff --git a/vmm_core/src/partition_unit/vp_set.rs b/vmm_core/src/partition_unit/vp_set.rs
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -3,6 +3,10 @@
+ 
+ //! Virtual processor state management.
+ 
++#[cfg(all(test, guest_arch = "x86_64", not(feature = "gdb")))]
++#[path = "../../../research/restore-unsaved-vp-frame/production_frame.rs"]
++mod restore_unsaved_vp_frame_probe;
++
+ use super::HaltReason;
+ use super::HaltReasonReceiver;
+ use super::InternalHaltReason;
+diff --git a/vmm_core/src/partition_unit.rs b/vmm_core/src/partition_unit.rs
+--- a/vmm_core/src/partition_unit.rs
++++ b/vmm_core/src/partition_unit.rs
+@@ -688,6 +688,9 @@ mod save_restore {
+     use virt::VpIndex;
+     use vmcore::save_restore::RestoreError;
+     use vmcore::save_restore::SaveError;
+ 
++    #[cfg(all(test, guest_arch = "x86_64", not(feature = "gdb")))]
++    include!("../../research/restore-unsaved-vp-frame/partition_payload.rs");
++
+     mod state {
+         use mesh::payload::Protobuf;

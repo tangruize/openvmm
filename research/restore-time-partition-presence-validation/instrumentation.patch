@@ -1,0 +1,39 @@
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.rs b/openvmm/openvmm_core/src/worker/dispatch.rs
+--- a/openvmm/openvmm_core/src/worker/dispatch.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.rs
+@@ -1,5 +1,9 @@
+ // Copyright (c) Microsoft Corporation.
+ // Licensed under the MIT License.
+ 
++#[cfg(all(test, guest_arch = "x86_64"))]
++#[path = "../../../../research/restore-time-partition-presence-validation/candidate_tests.rs"]
++mod restore_partition_presence_probe;
++
+ mod amd_iommu_wiring;
+ mod dump;
+diff --git a/openvmm/openvmm_core/Cargo.toml b/openvmm/openvmm_core/Cargo.toml
+--- a/openvmm/openvmm_core/Cargo.toml
++++ b/openvmm/openvmm_core/Cargo.toml
+@@ -124,5 +124,8 @@
+ [build-dependencies]
+ build_rs_guest_arch.workspace = true
+ 
++[dev-dependencies]
++test_with_tracing.workspace = true
++
+ [lints]
+ workspace = true
+diff --git a/vmm_core/src/partition_unit.rs b/vmm_core/src/partition_unit.rs
+--- a/vmm_core/src/partition_unit.rs
++++ b/vmm_core/src/partition_unit.rs
+@@ -683,7 +683,9 @@
+     }
+ }
+ 
+-mod save_restore {
++pub mod save_restore {
++    include!("../../research/restore-time-partition-presence-validation/partition_instrumentation.rs");
++
+     use super::PartitionUnitRunner;
+     use virt::VpIndex;
+     use vmcore::save_restore::RestoreError;

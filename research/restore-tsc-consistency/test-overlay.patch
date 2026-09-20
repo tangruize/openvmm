@@ -1,0 +1,14 @@
+diff --git a/vmm_core/src/partition_unit/vp_set.rs b/vmm_core/src/partition_unit/vp_set.rs
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -3,6 +3,10 @@
+ 
+ //! Virtual processor state management.
+ 
++#[cfg(all(test, guest_arch = "x86_64"))]
++#[path = "../../../research/restore-tsc-consistency/production_path.rs"]
++mod restore_tsc_consistency_probe;
++
+ use super::HaltReason;
+ use super::HaltReasonReceiver;
+ use super::InternalHaltReason;

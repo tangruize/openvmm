@@ -1,0 +1,2029 @@
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.001
++ git archive --format=tar HEAD cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.159
++ git show argus/restore-v1-frozen:openvmm/openvmm_core/src/worker/dispatch.rs cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.003
+Both branch inputs have identical dispatch.rs; the two candidate patches are identical.
++ git apply --check /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ git apply /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
+Candidate TOP calls the guard before frequency setup, restore, and VP adjustment.
++ git apply --check /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/instrumentation.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ git apply /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/instrumentation.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ cargo nextest run --profile agent -p openvmm_core -E 'test(restore_partition_presence_probe::)' --success-output immediate cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: requested on the command line with `-W unexpected-cfgs`
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: `vstd` (lib) generated 20 warnings
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core)
+   Compiling openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/openvmm_core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.78s
+────────────
+ Nextest run ID 44dd4347-4d29-4ff0-b7d7-8c1de467ce94 with nextest profile: agent
+    Starting 2 tests across 1 binary (55 tests skipped)
+  stdout ───
+
+    running 1 test
+    test worker::dispatch::restore_partition_presence_probe::payload_presence_is_not_inventory_presence ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 0.00s
+
+
+  stdout ───
+
+    running 1 test
+      2026-09-20T04:30:16.411093Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411154Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411197Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.411390Z DEBUG state_unit: device state change complete, duration: 215.835µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411431Z  INFO state_unit: close, time.busy: 50.3µs, time.idle: 227µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411463Z  INFO state_unit: state change complete, duration: 332.72µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411500Z  INFO state_unit: close, time.busy: 154µs, time.idle: 260µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411553Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.411579Z  INFO state_unit: state change complete, duration: 10.522µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.411600Z  INFO state_unit: close, time.busy: 28.9µs, time.idle: 18.5µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.411665Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411688Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411814Z DEBUG state_unit: device state change complete, duration: 109.514µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411844Z  INFO state_unit: close, time.busy: 31.9µs, time.idle: 123µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411867Z  INFO state_unit: state change complete, duration: 187.161µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.411890Z  INFO state_unit: close, time.busy: 106µs, time.idle: 119µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=None initial_tsc=77 final_tsc=77 guard_rejected=false partition_restores=0
+      2026-09-20T04:30:16.412094Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 147µs, time.idle: 752µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.412344Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412373Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412401Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.412552Z DEBUG state_unit: device state change complete, duration: 160.998µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412583Z  INFO state_unit: close, time.busy: 34.3µs, time.idle: 176µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412608Z  INFO state_unit: state change complete, duration: 245.065µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412630Z  INFO state_unit: close, time.busy: 114µs, time.idle: 174µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.412699Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.412724Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.412874Z DEBUG state_unit: device state change complete, duration: 133.981µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.412905Z  INFO state_unit: close, time.busy: 33.3µs, time.idle: 148µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.412930Z  INFO state_unit: state change complete, duration: 215.255µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.412952Z  INFO state_unit: close, time.busy: 110µs, time.idle: 143µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.413008Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413032Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413163Z DEBUG state_unit: device state change complete, duration: 115.191µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413193Z  INFO state_unit: close, time.busy: 32.4µs, time.idle: 129µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413217Z  INFO state_unit: state change complete, duration: 193.579µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413239Z  INFO state_unit: close, time.busy: 107µs, time.idle: 124µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=None initial_tsc=77 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.413550Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 216µs, time.idle: 931µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000]
+      2026-09-20T04:30:16.413704Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413730Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413757Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.413865Z DEBUG state_unit: device state change complete, duration: 118.726µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413894Z  INFO state_unit: close, time.busy: 31.1µs, time.idle: 132µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413916Z  INFO state_unit: state change complete, duration: 194.469µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413936Z  INFO state_unit: close, time.busy: 103µs, time.idle: 130µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413975Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.413996Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414099Z DEBUG state_unit: device state change complete, duration: 87.879µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414126Z  INFO state_unit: close, time.busy: 29.0µs, time.idle: 100µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414147Z  INFO state_unit: state change complete, duration: 157.951µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414167Z  INFO state_unit: close, time.busy: 95.5µs, time.idle: 96.8µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(0ns) initial_tsc=77 final_tsc=77 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.414320Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 98.8µs, time.idle: 464µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.414548Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414574Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414600Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.414717Z DEBUG state_unit: device state change complete, duration: 126.787µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414747Z  INFO state_unit: close, time.busy: 33.0µs, time.idle: 140µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414772Z  INFO state_unit: state change complete, duration: 206.589µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414794Z  INFO state_unit: close, time.busy: 109µs, time.idle: 138µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.414858Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.414883Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.415022Z DEBUG state_unit: device state change complete, duration: 122.665µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.415053Z  INFO state_unit: close, time.busy: 32.5µs, time.idle: 137µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.415077Z  INFO state_unit: state change complete, duration: 203.186µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.415099Z  INFO state_unit: close, time.busy: 108µs, time.idle: 133µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.415133Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415157Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415195Z DEBUG state_unit: device state change complete, duration: 21.715µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415222Z  INFO state_unit: close, time.busy: 28.3µs, time.idle: 36.2µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415245Z  INFO state_unit: state change complete, duration: 96.388µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415266Z  INFO state_unit: close, time.busy: 99.7µs, time.idle: 33.6µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.415317Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 1000, observed_tsc: 1000, cycles: 0, frequency_hz: 4003, duration: 0ns
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.415378Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.415402Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.415548Z DEBUG state_unit: device state change complete, duration: 129.246µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.415578Z  INFO state_unit: close, time.busy: 32.2µs, time.idle: 144µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.415602Z  INFO state_unit: state change complete, duration: 208.284µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.415624Z  INFO state_unit: close, time.busy: 107µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(0ns) initial_tsc=77 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.415906Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 242µs, time.idle: 1.06ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 1000]
+      2026-09-20T04:30:16.416062Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416090Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416118Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.416234Z DEBUG state_unit: device state change complete, duration: 126.583µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416264Z  INFO state_unit: close, time.busy: 32.6µs, time.idle: 141µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416288Z  INFO state_unit: state change complete, duration: 207.626µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416310Z  INFO state_unit: close, time.busy: 110µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416347Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416370Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416523Z DEBUG state_unit: device state change complete, duration: 136.177µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416561Z  INFO state_unit: close, time.busy: 41.7µs, time.idle: 149µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416587Z  INFO state_unit: state change complete, duration: 225.016µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.416609Z  INFO state_unit: close, time.busy: 119µs, time.idle: 144µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(1ns) initial_tsc=77 final_tsc=77 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.416783Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 115µs, time.idle: 550µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.417017Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417045Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417074Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.417193Z DEBUG state_unit: device state change complete, duration: 129.911µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417224Z  INFO state_unit: close, time.busy: 33.5µs, time.idle: 144µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417248Z  INFO state_unit: state change complete, duration: 211.843µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417270Z  INFO state_unit: close, time.busy: 112µs, time.idle: 142µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417334Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417359Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417523Z DEBUG state_unit: device state change complete, duration: 147.67µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417554Z  INFO state_unit: close, time.busy: 33.1µs, time.idle: 162µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417579Z  INFO state_unit: state change complete, duration: 229.017µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417601Z  INFO state_unit: close, time.busy: 110µs, time.idle: 157µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.417636Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417659Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417697Z DEBUG state_unit: device state change complete, duration: 21.938µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417724Z  INFO state_unit: close, time.busy: 28.2µs, time.idle: 36.7µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417747Z  INFO state_unit: state change complete, duration: 96.099µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417768Z  INFO state_unit: close, time.busy: 99.1µs, time.idle: 34.1µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.417813Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 1000, observed_tsc: 1000, cycles: 0, frequency_hz: 4003, duration: 1ns
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.417873Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.417897Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418017Z DEBUG state_unit: device state change complete, duration: 103.748µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418047Z  INFO state_unit: close, time.busy: 31.6µs, time.idle: 118µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418071Z  INFO state_unit: state change complete, duration: 181.766µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418092Z  INFO state_unit: close, time.busy: 106µs, time.idle: 114µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(1ns) initial_tsc=77 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.418363Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 216µs, time.idle: 1.07ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 1000]
+      2026-09-20T04:30:16.418534Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418562Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418590Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.418705Z DEBUG state_unit: device state change complete, duration: 126.251µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418736Z  INFO state_unit: close, time.busy: 33.3µs, time.idle: 141µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418760Z  INFO state_unit: state change complete, duration: 207.683µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418782Z  INFO state_unit: close, time.busy: 111µs, time.idle: 138µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418820Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418843Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418955Z DEBUG state_unit: device state change complete, duration: 96.373µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.418984Z  INFO state_unit: close, time.busy: 31.3µs, time.idle: 110µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419007Z  INFO state_unit: state change complete, duration: 172.288µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419029Z  INFO state_unit: close, time.busy: 103µs, time.idle: 106µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(250ms) initial_tsc=77 final_tsc=77 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.419185Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 107µs, time.idle: 487µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.419406Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419434Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419462Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.419600Z DEBUG state_unit: device state change complete, duration: 147.924µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419630Z  INFO state_unit: close, time.busy: 34.2µs, time.idle: 162µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419655Z  INFO state_unit: state change complete, duration: 229.576µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419677Z  INFO state_unit: close, time.busy: 112µs, time.idle: 159µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.419740Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.419766Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.419905Z DEBUG state_unit: device state change complete, duration: 122.512µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.419935Z  INFO state_unit: close, time.busy: 32.1µs, time.idle: 137µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.419960Z  INFO state_unit: state change complete, duration: 203.051µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.419981Z  INFO state_unit: close, time.busy: 109µs, time.idle: 133µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.420015Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420039Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420076Z DEBUG state_unit: device state change complete, duration: 21.719µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420103Z  INFO state_unit: close, time.busy: 27.7µs, time.idle: 36.1µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420125Z  INFO state_unit: state change complete, duration: 94.659µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420147Z  INFO state_unit: close, time.busy: 98.0µs, time.idle: 33.7µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.420185Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 2000, observed_tsc: 2000, cycles: 1000, frequency_hz: 4003, duration: 250ms
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.420242Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420267Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420391Z DEBUG state_unit: device state change complete, duration: 107.987µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420421Z  INFO state_unit: close, time.busy: 33.2µs, time.idle: 121µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420445Z  INFO state_unit: state change complete, duration: 186.721µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420467Z  INFO state_unit: close, time.busy: 111µs, time.idle: 114µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(250ms) initial_tsc=77 final_tsc=2000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.420755Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 212µs, time.idle: 1.08ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 2000]
+      2026-09-20T04:30:16.420912Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420940Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.420968Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.421082Z DEBUG state_unit: device state change complete, duration: 124.657µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421112Z  INFO state_unit: close, time.busy: 32.8µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421136Z  INFO state_unit: state change complete, duration: 205.615µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421158Z  INFO state_unit: close, time.busy: 110µs, time.idle: 137µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421197Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.421219Z  INFO state_unit: state change complete, duration: 6.764µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.421240Z  INFO state_unit: close, time.busy: 25.1µs, time.idle: 18.5µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.421294Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421317Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421431Z DEBUG state_unit: device state change complete, duration: 97.218µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421460Z  INFO state_unit: close, time.busy: 31.5µs, time.idle: 111µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421552Z  INFO state_unit: state change complete, duration: 242.308µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421576Z  INFO state_unit: close, time.busy: 175µs, time.idle: 107µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=None initial_tsc=78 final_tsc=78 guard_rejected=false partition_restores=0
+      2026-09-20T04:30:16.421738Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 110µs, time.idle: 661µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.421963Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.421991Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422019Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.422137Z DEBUG state_unit: device state change complete, duration: 128.157µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422167Z  INFO state_unit: close, time.busy: 33.3µs, time.idle: 143µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422192Z  INFO state_unit: state change complete, duration: 209.755µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422214Z  INFO state_unit: close, time.busy: 111µs, time.idle: 141µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422276Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422300Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422437Z DEBUG state_unit: device state change complete, duration: 120.118µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422468Z  INFO state_unit: close, time.busy: 32.1µs, time.idle: 135µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422506Z  INFO state_unit: state change complete, duration: 214.348µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422528Z  INFO state_unit: close, time.busy: 123µs, time.idle: 130µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.422584Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422608Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422726Z DEBUG state_unit: device state change complete, duration: 101.96µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422756Z  INFO state_unit: close, time.busy: 31.4µs, time.idle: 116µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422780Z  INFO state_unit: state change complete, duration: 179.904µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.422801Z  INFO state_unit: close, time.busy: 106µs, time.idle: 112µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=None initial_tsc=78 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.423065Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 181µs, time.idle: 865µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000]
+      2026-09-20T04:30:16.423223Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423251Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423279Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.423393Z DEBUG state_unit: device state change complete, duration: 125.089µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423423Z  INFO state_unit: close, time.busy: 32.8µs, time.idle: 140µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423448Z  INFO state_unit: state change complete, duration: 206.39µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423470Z  INFO state_unit: close, time.busy: 111µs, time.idle: 137µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423523Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423546Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423659Z DEBUG state_unit: device state change complete, duration: 96.899µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423688Z  INFO state_unit: close, time.busy: 30.8µs, time.idle: 111µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423711Z  INFO state_unit: state change complete, duration: 172.813µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.423733Z  INFO state_unit: close, time.busy: 103µs, time.idle: 107µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(0ns) initial_tsc=78 final_tsc=78 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.423888Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 108µs, time.idle: 501µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.424106Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424134Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424162Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.424278Z DEBUG state_unit: device state change complete, duration: 125.912µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424308Z  INFO state_unit: close, time.busy: 33.1µs, time.idle: 141µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424332Z  INFO state_unit: state change complete, duration: 206.959µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424354Z  INFO state_unit: close, time.busy: 110µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424416Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424441Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424604Z DEBUG state_unit: device state change complete, duration: 146.079µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424635Z  INFO state_unit: close, time.busy: 33.7µs, time.idle: 161µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424660Z  INFO state_unit: state change complete, duration: 227.317µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424681Z  INFO state_unit: close, time.busy: 111µs, time.idle: 155µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.424716Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424739Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424777Z DEBUG state_unit: device state change complete, duration: 21.815µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424804Z  INFO state_unit: close, time.busy: 27.8µs, time.idle: 36.6µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424826Z  INFO state_unit: state change complete, duration: 95.702µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424848Z  INFO state_unit: close, time.busy: 98.7µs, time.idle: 34.0µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.424892Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 1000, observed_tsc: 1000, cycles: 0, frequency_hz: 4003, duration: 0ns
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.424951Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.424976Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425094Z DEBUG state_unit: device state change complete, duration: 101.535µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425124Z  INFO state_unit: close, time.busy: 31.8µs, time.idle: 116µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425148Z  INFO state_unit: state change complete, duration: 180.038µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425169Z  INFO state_unit: close, time.busy: 106µs, time.idle: 112µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(0ns) initial_tsc=78 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.425435Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 216µs, time.idle: 1.06ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 1000]
+      2026-09-20T04:30:16.425607Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425634Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425662Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.425777Z DEBUG state_unit: device state change complete, duration: 124.745µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425807Z  INFO state_unit: close, time.busy: 32.8µs, time.idle: 140µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425831Z  INFO state_unit: state change complete, duration: 206.052µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425853Z  INFO state_unit: close, time.busy: 110µs, time.idle: 137µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425890Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.425913Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426023Z DEBUG state_unit: device state change complete, duration: 94.75µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426052Z  INFO state_unit: close, time.busy: 31.0µs, time.idle: 109µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426075Z  INFO state_unit: state change complete, duration: 170.4µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426097Z  INFO state_unit: close, time.busy: 103µs, time.idle: 104µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(1ns) initial_tsc=78 final_tsc=78 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.426251Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 106µs, time.idle: 482µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.426466Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426515Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426544Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.426704Z DEBUG state_unit: device state change complete, duration: 170.421µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426740Z  INFO state_unit: close, time.busy: 40.0µs, time.idle: 185µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426768Z  INFO state_unit: state change complete, duration: 264.211µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426791Z  INFO state_unit: close, time.busy: 126µs, time.idle: 200µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.426862Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.426889Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.427040Z DEBUG state_unit: device state change complete, duration: 134.545µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.427071Z  INFO state_unit: close, time.busy: 33.2µs, time.idle: 149µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.427096Z  INFO state_unit: state change complete, duration: 216.593µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.427118Z  INFO state_unit: close, time.busy: 111µs, time.idle: 145µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.427153Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427176Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427214Z DEBUG state_unit: device state change complete, duration: 21.708µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427240Z  INFO state_unit: close, time.busy: 27.9µs, time.idle: 36.2µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427263Z  INFO state_unit: state change complete, duration: 95.208µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427284Z  INFO state_unit: close, time.busy: 98.5µs, time.idle: 33.5µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.427330Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 1000, observed_tsc: 1000, cycles: 0, frequency_hz: 4003, duration: 1ns
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.427389Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.427414Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.427563Z DEBUG state_unit: device state change complete, duration: 132.917µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.427593Z  INFO state_unit: close, time.busy: 32.7µs, time.idle: 147µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.427618Z  INFO state_unit: state change complete, duration: 212.565µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.427640Z  INFO state_unit: close, time.busy: 108µs, time.idle: 143µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(1ns) initial_tsc=78 final_tsc=1000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.427913Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 263µs, time.idle: 1.11ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 1000]
+      2026-09-20T04:30:16.428072Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428100Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428128Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.428244Z DEBUG state_unit: device state change complete, duration: 126.542µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428274Z  INFO state_unit: close, time.busy: 33.0µs, time.idle: 141µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428299Z  INFO state_unit: state change complete, duration: 208.197µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428321Z  INFO state_unit: close, time.busy: 111µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428358Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428381Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428516Z DEBUG state_unit: device state change complete, duration: 119.089µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428545Z  INFO state_unit: close, time.busy: 31.8µs, time.idle: 132µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428569Z  INFO state_unit: state change complete, duration: 195.649µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428591Z  INFO state_unit: close, time.busy: 105µs, time.idle: 128µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Omitted downtime=Some(250ms) initial_tsc=78 final_tsc=78 guard_rejected=true partition_restores=0
+      2026-09-20T04:30:16.428748Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 107µs, time.idle: 512µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T04:30:16.428968Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.428996Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429024Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.429140Z DEBUG state_unit: device state change complete, duration: 127.211µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429171Z  INFO state_unit: close, time.busy: 33.1µs, time.idle: 142µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429195Z  INFO state_unit: state change complete, duration: 208.243µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429217Z  INFO state_unit: close, time.busy: 111µs, time.idle: 140µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429279Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429305Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429440Z DEBUG state_unit: device state change complete, duration: 118.577µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429471Z  INFO state_unit: close, time.busy: 32.5µs, time.idle: 134µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429512Z  INFO state_unit: state change complete, duration: 216.689µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429534Z  INFO state_unit: close, time.busy: 127µs, time.idle: 129µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.429569Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429592Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429630Z DEBUG state_unit: device state change complete, duration: 21.728µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429656Z  INFO state_unit: close, time.busy: 27.5µs, time.idle: 36.3µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429678Z  INFO state_unit: state change complete, duration: 94.624µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429700Z  INFO state_unit: close, time.busy: 97.6µs, time.idle: 33.6µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T04:30:16.429744Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 1000, requested_tsc: 2000, observed_tsc: 2000, cycles: 1000, frequency_hz: 4003, duration: 250ms
+        at vmm_core/src/partition_unit/vp_set.rs:283
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.429804Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429828Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429946Z DEBUG state_unit: device state change complete, duration: 101.354µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.429976Z  INFO state_unit: close, time.busy: 31.8µs, time.idle: 116µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430001Z  INFO state_unit: state change complete, duration: 181.5µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430023Z  INFO state_unit: close, time.busy: 108µs, time.idle: 112µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=Complete downtime=Some(250ms) initial_tsc=78 final_tsc=2000 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.430291Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 211µs, time.idle: 1.06ms
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1000, 2000]
+      2026-09-20T04:30:16.430445Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430472Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430513Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T04:30:16.430629Z DEBUG state_unit: device state change complete, duration: 127.078µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430660Z  INFO state_unit: close, time.busy: 33.1µs, time.idle: 154µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430684Z  INFO state_unit: state change complete, duration: 220.921µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430706Z  INFO state_unit: close, time.busy: 123µs, time.idle: 139µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430766Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430791Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430844Z DEBUG state_unit: device state change complete, duration: 37.017µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430872Z  INFO state_unit: close, time.busy: 29.3µs, time.idle: 51.9µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430895Z  INFO state_unit: state change complete, duration: 113.107µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430917Z  INFO state_unit: close, time.busy: 102µs, time.idle: 49.7µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T04:30:16.430965Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.430988Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.431104Z DEBUG state_unit: device state change complete, duration: 100.135µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.431134Z  INFO state_unit: close, time.busy: 31.4µs, time.idle: 114µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.431157Z  INFO state_unit: state change complete, duration: 177.298µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T04:30:16.431179Z  INFO state_unit: close, time.busy: 105µs, time.idle: 110µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    payload=MissingVp downtime=Some(250ms) initial_tsc=77 final_tsc=77 guard_rejected=false partition_restores=1
+      2026-09-20T04:30:16.431335Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 111µs, time.idle: 711µs
+        at vmm_core/src/partition_unit/vp_set.rs:1509
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+    test worker::dispatch::restore_partition_presence_probe::candidate_partition_presence_matrix ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 0.02s
+
+
+────────────
+     Summary [   0.026s] 2 tests run: 2 passed, 55 skipped
+exit=0 elapsed_s=5.455
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.002
+Authoritative TOP/spec/proof/manifests and branch refs unchanged; candidate copy removed.

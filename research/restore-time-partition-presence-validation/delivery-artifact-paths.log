@@ -1,0 +1,13 @@
++ git ls-files -- research/freeze_requests/restore-time-partition-presence research/restore-time-partition-presence-validation research/restore-tsc-consistency research/restore-unsaved-vp-frame research/GROUND_TRUTH.md
++ du -sh research/freeze_requests/restore-time-partition-presence research/restore-tsc-consistency research/restore-unsaved-vp-frame
+20K	research/freeze_requests/restore-time-partition-presence
+32K	research/restore-tsc-consistency
+64K	research/restore-unsaved-vp-frame
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -c 'from pathlib import Path; import re; root = Path.cwd(); rationale = (root / "research/freeze_requests/restore-time-partition-presence/rationale.md").read_text(); references = sorted(set(re.findall(r"research/[A-Za-z0-9_./-]+", rationale))); missing = [p for p in references if not (root / p).exists()]; print("rationale research paths:"); print("\n".join(references)); print("missing:", missing); raise SystemExit(bool(missing))'
+rationale research paths:
+research/GROUND_TRUTH.md
+research/restore-time-partition-presence-validation/
+research/restore-time-partition-presence-validation/validate_candidate.py
+research/restore-tsc-consistency/production_path.rs
+research/restore-unsaved-vp-frame/
+missing: []

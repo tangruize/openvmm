@@ -1,0 +1,21 @@
+{
+  "state": "error",
+  "task_id": "restore-time-partition-presence-candidate",
+  "run_id": "restore-time-partition-presence-candidate-1789878387756819811",
+  "description": "background task",
+  "command": "\"${ARGUS_SKILL_PYTHON:-python3}\" research/restore-time-partition-presence-validation/validate_candidate.py > research/restore-time-partition-presence-validation/candidate.log 2>&1",
+  "error": "launch executable is not available on PATH: ${ARGUS_SKILL_PYTHON:-python3}",
+  "preflight": true,
+  "elapsed_seconds": 0.0,
+  "completed_at": 1789878387.7644215,
+  "mode": "direct",
+  "worker_pid": 3373393,
+  "run_dir": null,
+  "supervisor_usage_model": "",
+  "supervisor_input_tokens": 0,
+  "supervisor_cached_input_tokens": 0,
+  "supervisor_output_tokens": 0,
+  "supervisor_reasoning_output_tokens": 0,
+  "cwd": "/home/ruize/openvmm-restore-v1",
+  "live": false
+}

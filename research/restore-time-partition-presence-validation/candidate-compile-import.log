@@ -1,0 +1,813 @@
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.001
++ git archive --format=tar HEAD cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.155
++ git show argus/restore-v1-frozen:openvmm/openvmm_core/src/worker/dispatch.rs cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.003
+Both branch inputs have identical dispatch.rs; the two candidate patches are identical.
++ git apply --check /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ git apply /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
+Candidate TOP calls the guard before frequency setup, restore, and VP adjustment.
++ git apply --check /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/instrumentation.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ git apply /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/instrumentation.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+exit=0 elapsed_s=0.002
++ cargo nextest run --profile agent -p openvmm_core -E 'test(restore_partition_presence_probe::)' --success-output immediate cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.18
+   Compiling cfg-if v1.0.3
+   Compiling libc v0.2.184
+   Compiling thiserror v2.0.16
+   Compiling pin-project-lite v0.2.16
+   Compiling autocfg v1.5.0
+   Compiling zerocopy v0.8.27
+   Compiling once_cell v1.21.3
+   Compiling smallvec v1.15.1
+   Compiling futures-core v0.3.31
+   Compiling parking_lot_core v0.9.11
+   Compiling scopeguard v1.2.0
+   Compiling memchr v2.7.5
+   Compiling futures-io v0.3.31
+   Compiling open_enum v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/open_enum)
+   Compiling heck v0.5.0
+   Compiling futures-sink v0.3.31
+   Compiling slab v0.4.11
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_protobuf)
+   Compiling futures-task v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling getrandom v0.4.2
+   Compiling linkme-impl v0.3.33
+   Compiling anyhow v1.0.99
+   Compiling static_assertions v1.1.0
+   Compiling thiserror v1.0.69
+   Compiling parking v2.2.1
+   Compiling crossbeam-utils v0.8.21
+   Compiling bitflags v2.9.3
+   Compiling io-uring v0.7.11
+   Compiling syn v1.0.109
+   Compiling smallbox v0.8.8
+   Compiling fastrand v2.3.0
+   Compiling async-task v4.7.1
+   Compiling cordyceps v0.3.4
+   Compiling diatomic-waker v0.2.3
+   Compiling loan_cell v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/loan_cell)
+   Compiling spin v0.10.0
+   Compiling fixedbitset v0.5.7
+   Compiling jiff v0.2.15
+   Compiling lazy_static v1.5.0
+   Compiling either v1.15.0
+   Compiling hashbrown v0.15.5
+   Compiling equivalent v1.0.2
+   Compiling rustix v0.38.44
+   Compiling bytes v1.11.1
+   Compiling getrandom v0.3.3
+   Compiling rustix v1.0.8
+   Compiling prettyplease v0.1.25
+   Compiling linux-raw-sys v0.4.15
+   Compiling linux-raw-sys v0.9.4
+   Compiling regex-syntax v0.8.6
+   Compiling home v0.5.11
+   Compiling fixedbitset v0.4.2
+   Compiling multimap v0.8.3
+   Compiling log v0.4.27
+   Compiling heck v0.4.1
+   Compiling build_rs_guest_arch v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/build_rs_guest_arch)
+   Compiling nu-ansi-term v0.50.1
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling stackfuture v0.3.0
+   Compiling shlex v1.3.0
+   Compiling crc32fast v1.5.0
+   Compiling typenum v1.18.0
+   Compiling serde_json v1.0.143
+   Compiling wchar v0.11.1
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.32
+   Compiling itoa v1.0.15
+   Compiling ryu v1.0.20
+   Compiling range_map_vec v0.2.0
+   Compiling paste v1.0.15
+   Compiling object v0.37.3
+   Compiling uniset v0.2.4
+   Compiling verus_syn v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/dependencies/syn)
+   Compiling foreign-types-shared v0.1.1
+   Compiling openssl v0.10.80
+   Compiling arrayvec v0.7.6
+   Compiling cfg_aliases v0.2.1
+   Compiling cpufeatures v0.3.0
+   Compiling crypto v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/crypto)
+   Compiling verus_prettyplease v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/dependencies/prettyplease)
+   Compiling uuid v1.23.3
+   Compiling hex v0.4.3
+   Compiling device_emulators v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/support/device_emulators)
+   Compiling arc_cyclic_builder v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/arc_cyclic_builder)
+   Compiling thread_local v1.1.9
+   Compiling safe_intrinsics v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/safe_intrinsics)
+   Compiling headervec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/headervec)
+   Compiling futures-channel v0.3.31
+   Compiling tracing-core v0.1.35
+   Compiling cc v1.2.34
+   Compiling nix v0.30.1
+   Compiling convert_case v0.4.0
+   Compiling vfio-bindings v0.4.0
+   Compiling vstd v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/source/vstd)
+   Compiling verus_builtin v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/source/builtin)
+   Compiling debug_ptr v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/debug_ptr)
+   Compiling futures-lite v2.6.1
+   Compiling fs-err v3.1.1
+   Compiling lock_api v0.4.13
+   Compiling sharded-slab v0.1.7
+   Compiling foreign-types v0.3.2
+   Compiling itertools v0.10.5
+   Compiling vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/vm_topology)
+   Compiling virt v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/virt)
+   Compiling loader v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/loader)
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core)
+   Compiling vm_loader v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/vm_loader)
+   Compiling openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/openvmm_core)
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+   Compiling futures-buffered v0.2.12
+   Compiling indexmap v2.11.0
+   Compiling tracing-log v0.2.0
+   Compiling concurrent-queue v2.5.0
+   Compiling tracing-subscriber v0.3.22
+   Compiling event-listener v5.4.1
+   Compiling quote v1.0.40
+   Compiling event-listener-strategy v0.5.4
+   Compiling syn v2.0.106
+   Compiling async-channel v2.5.0
+   Compiling petgraph v0.6.5
+   Compiling hybrid-array v0.4.10
+   Compiling regex-automata v0.4.14
+   Compiling openssl-sys v0.9.116
+   Compiling block-buffer v0.12.0
+   Compiling crypto-common v0.2.1
+   Compiling seccompiler v0.5.0
+   Compiling unix_socket v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/unix_socket)
+   Compiling socket2 v0.6.0
+   Compiling parking_lot v0.12.4
+   Compiling tempfile v3.21.0
+   Compiling which v4.4.2
+   Compiling fast_select v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/fast_select)
+   Compiling unicycle v0.10.2
+   Compiling closeable_mutex v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/closeable_mutex)
+   Compiling digest v0.11.2
+   Compiling sha2 v0.11.0
+   Compiling resource_dll_parser v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/resource_dll_parser)
+   Compiling regex v1.12.3
+   Compiling hyperv_secure_boot_templates v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/hyperv_secure_boot_templates)
+   Compiling prost-derive v0.11.9
+   Compiling wchar-impl v0.11.0
+   Compiling synstructure v0.13.2
+   Compiling thiserror-impl v2.0.16
+   Compiling zerocopy-derive v0.8.27
+   Compiling tracing-attributes v0.1.31
+   Compiling bitfield-struct v0.11.0
+   Compiling futures-macro v0.3.31
+   Compiling mesh_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_derive)
+   Compiling inspect_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/inspect_derive)
+   Compiling async-trait v0.1.89
+   Compiling thiserror-impl v1.0.69
+   Compiling enumflags2_derive v0.7.12
+   Compiling pin-project-internal v1.1.10
+   Compiling pal_async_test v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/pal/pal_async_test)
+   Compiling save_restore_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/save_restore_derive)
+   Compiling serde_derive v1.0.228
+   Compiling open-enum-derive v0.5.2
+   Compiling openssl-macros v0.1.1
+   Compiling bitfield-struct v0.12.1
+   Compiling corim-macros v0.1.3
+   Compiling test_with_tracing_macro v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/test_with_tracing/test_with_tracing_macro)
+   Compiling prost v0.11.9
+   Compiling enumflags2 v0.7.12
+   Compiling prost-types v0.11.9
+   Compiling open-enum v0.5.2
+   Compiling futures-util v0.3.31
+   Compiling linkme v0.3.33
+   Compiling pin-project v1.1.10
+   Compiling tracing v0.1.43
+   Compiling futures-concurrency v7.6.3
+   Compiling caps v0.5.5
+   Compiling landlock v0.4.2
+   Compiling trycopy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/trycopy)
+   Compiling ucs2 v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/ucs2)
+   Compiling cache_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/cache_topology)
+   Compiling tracelimit v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/tracelimit)
+   Compiling cvm_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/cvm_tracing)
+   Compiling tracing_helpers v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/tracing_helpers)
+   Compiling test_with_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/test_with_tracing)
+   Compiling pal v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/pal)
+   Compiling prost-build v0.11.9
+   Compiling tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/tdisp_proto)
+   Compiling hvdef v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/hv1/hvdef)
+   Compiling sparse_mmap v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/sparse_mmap)
+   Compiling safeatomic v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/safeatomic)
+   Compiling x86defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/x86/x86defs)
+   Compiling aarch64defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/aarch64/aarch64defs)
+   Compiling scsi_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/scsi_defs)
+   Compiling igvm_defs v0.4.0 (https://github.com/microsoft/igvm?rev=7184dce1086956342c1bf561f82ff268d06d2c73#7184dce1)
+   Compiling hvs_file v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/hvs_file)
+   Compiling acpi_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/acpi_spec)
+   Compiling page_table v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/loader/page_table)
+   Compiling fdt v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/fdt)
+   Compiling verus_state_machines_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/source/state_machines_macros)
+   Compiling verus_builtin_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/toolchain/verus-src/source/builtin_macros)
+   Compiling corim v0.1.3
+   Compiling openssl_kdf v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/openssl_kdf)
+   Compiling futures-executor v0.3.31
+   Compiling futures v0.3.31
+   Compiling mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_node)
+   Compiling pal_event v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/pal/pal_event)
+   Compiling product_policy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openhcl/product_policy)
+   Compiling pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/pal/pal_async)
+   Compiling mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_channel_core)
+   Compiling mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_channel)
+   Compiling igvm v0.4.0 (https://github.com/microsoft/igvm?rev=7184dce1086956342c1bf561f82ff268d06d2c73#7184dce1)
+   Compiling mesh v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh)
+   Compiling inspect v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/inspect)
+   Compiling openvmm_pcat_locator v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/openvmm_pcat_locator)
+   Compiling vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/vm_resource)
+   Compiling guestmem v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/guestmem)
+   Compiling guid v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/guid)
+   Compiling memory_range v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore/memory_range)
+   Compiling inspect_counters v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/inspect_counters)
+   Compiling task_control v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/task_control)
+   Compiling local_clock v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/local_clock)
+   Compiling vmgs_format v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmgs/vmgs_format)
+   Compiling hcl_compat_uefi_nvram_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/hcl_compat_uefi_nvram_resources)
+   Compiling address_filter v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/address_filter)
+   Compiling mesh_worker v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/mesh/mesh_worker)
+   Compiling storage_string v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/storage_string)
+   Compiling virtio_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/virtio/virtio_spec)
+   Compiling uefi_specs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/uefi_specs)
+   Compiling vpci_protocol v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/vpci_protocol)
+   Compiling hybrid_vsock v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/support/hybrid_vsock)
+   Compiling vfio_sys v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/user_driver/vfio_sys)
+   Compiling tdisp v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/tdisp)
+   Compiling chipset_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/chipset_resources)
+   Compiling input_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/input_core)
+   Compiling serial_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/serial/serial_core)
+   Compiling power_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/power_resources)
+   Compiling video_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/video_core)
+   Compiling missing_dev_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/missing_dev_resources)
+   Compiling ide_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/ide_resources)
+   Compiling net_backend_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/net/net_backend_resources)
+   Compiling floppy_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/floppy_resources)
+   Compiling scsidisk_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/scsidisk_resources)
+   Compiling hypervisor_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/hypervisor_resources)
+   Compiling vfio_assigned_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/vfio_assigned_device_resources)
+   Compiling serial_16550_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/serial/serial_16550_resources)
+   Compiling vmgs_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmgs/vmgs_resources)
+   Compiling scsi_buffers v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/scsi_buffers)
+   Compiling vmbus_ring v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vmbus/vmbus_ring)
+   Compiling chipset_device_worker_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/workers/chipset_device_worker_defs)
+   Compiling get_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/get/get_resources)
+   Compiling virtio_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/virtio/virtio_resources)
+   Compiling firmware_uefi_custom_vars v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/firmware_uefi_custom_vars)
+   Compiling uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/uefi_nvram_storage)
+   Compiling hcl_compat_uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/hcl_compat_uefi_nvram_storage)
+   Compiling vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmcore)
+   Compiling vmbus_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vmbus/vmbus_core)
+   Compiling loader_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/loader/loader_defs)
+   Compiling chipset_device v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/chipset_device)
+   Compiling disk_backend v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/disk_backend)
+   Compiling scsi_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/scsi_core)
+   Compiling vmbus_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vmbus/vmbus_channel)
+   Compiling generation_id v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/generation_id)
+   Compiling state_unit v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/state_unit)
+   Compiling watchdog_vmgs_format v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/watchdog/watchdog_vmgs_format)
+   Compiling watchdog_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/watchdog/watchdog_core)
+   Compiling pci_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/pci_core)
+   Compiling chipset_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/chipset_device_resources)
+   Compiling framebuffer v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/framebuffer)
+   Compiling floppy_pcat_stub v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/floppy_pcat_stub)
+   Compiling floppy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/floppy)
+   Compiling vmgs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmgs/vmgs)
+   Compiling scsidisk v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/scsidisk)
+   Compiling firmware_uefi_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/firmware_uefi_resources)
+   Compiling chipset v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/chipset)
+   Compiling chipset_device_worker v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/workers/chipset_device_worker)
+   Compiling vmgs_broker v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/vmgs/vmgs_broker)
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: requested on the command line with `-W unexpected-cfgs`
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+   Compiling vmbus_async v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vmbus/vmbus_async)
+warning: `vstd` (lib) generated 20 warnings
+   Compiling vmbus_server v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vmbus/vmbus_server)
+   Compiling pci_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/pci_resources)
+   Compiling pci_bus v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/pci_bus)
+   Compiling vga v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/vga)
+   Compiling ide v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/storage/ide)
+   Compiling iommu_common v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/iommu/iommu_common)
+   Compiling missing_dev v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/missing_dev)
+   Compiling vpci v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/vpci)
+   Compiling pci_resource_assignment v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/pci_resource_assignment)
+   Compiling cxl_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/cxl)
+   Compiling virtio v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/virtio/virtio)
+   Compiling smmu v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/iommu/smmu)
+   Compiling amd_iommu v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/iommu/amd_iommu)
+   Compiling intel_vtd v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/iommu/intel_vtd)
+   Compiling chipset_legacy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/chipset_legacy)
+   Compiling pcie v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/pcie)
+   Compiling acpi v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/acpi)
+   Compiling firmware_pcat v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/firmware/firmware_pcat)
+   Compiling vmotherboard v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/vmotherboard)
+   Compiling vmm_core_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/vmm_core_defs)
+   Compiling membacking v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/membacking)
+   Compiling hyperv_dump v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vmm_core/hyperv_dump)
+   Compiling openvmm_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/openvmm/openvmm_defs)
+   Compiling vfio_assigned_device v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace/vm/devices/pci/vfio_assigned_device)
+error[E0659]: `test` is ambiguous
+   --> openvmm/openvmm_core/src/worker/../../../../research/restore-time-partition-presence-validation/candidate_tests.rs:222:3
+    |
+222 | #[test]
+    |   ^^^^ ambiguous name
+    |
+    = note: ambiguous because of a conflict between a macro-expanded name and a less macro-expanded name from outer scope during import or macro resolution
+note: `test` could refer to the attribute macro imported here
+   --> openvmm/openvmm_core/src/worker/../../../../research/restore-time-partition-presence-validation/accepted_backend.rs:7:5
+    |
+  7 | use test_with_tracing::test;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+    = help: use `self::test` to refer to this attribute macro unambiguously
+note: `test` could also refer to the attribute macro defined here
+   --> /home/ruize/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/prelude/mod.rs:162:13
+    |
+162 |     pub use super::v1::*;
+    |             ^^^^^^^^^
+
+error[E0659]: `test` is ambiguous
+   --> openvmm/openvmm_core/src/worker/../../../../research/restore-time-partition-presence-validation/candidate_tests.rs:206:3
+    |
+206 | #[test]
+    |   ^^^^ ambiguous name
+    |
+    = note: ambiguous because of a conflict between a macro-expanded name and a less macro-expanded name from outer scope during import or macro resolution
+note: `test` could refer to the attribute macro imported here
+   --> openvmm/openvmm_core/src/worker/../../../../research/restore-time-partition-presence-validation/accepted_backend.rs:7:5
+    |
+  7 | use test_with_tracing::test;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+    = help: use `self::test` to refer to this attribute macro unambiguously
+note: `test` could also refer to the attribute macro defined here
+   --> /home/ruize/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/prelude/mod.rs:162:13
+    |
+162 |     pub use super::v1::*;
+    |             ^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0659`.
+error: could not compile `openvmm_core` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: command `/home/ruize/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --message-format json-render-diagnostics --package openvmm_core` exited with code 101
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.002
+Authoritative TOP/spec/proof/manifests and branch refs unchanged; candidate copy removed.
+Traceback (most recent call last):
+  File "/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/validate_candidate.py", line 89, in <module>
+    run(
+  File "/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/validate_candidate.py", line 32, in run
+    result = subprocess.run(command, cwd=cwd, check=True, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['cargo', 'nextest', 'run', '--profile', 'agent', '-p', 'openvmm_core', '-E', 'test(restore_partition_presence_probe::)', '--success-output', 'immediate']' returned non-zero exit status 101.

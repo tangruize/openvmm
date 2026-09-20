@@ -1,0 +1,21 @@
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.001
++ git archive --format=tar HEAD cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.159
++ git show argus/restore-v1-frozen:openvmm/openvmm_core/src/worker/dispatch.rs cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.003
+Both branch inputs have identical dispatch.rs; the two candidate patches are identical.
++ git apply --check /home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch cwd=/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/candidate-workspace
+error: corrupt patch at line 24
++ git show-ref --heads cwd=/home/ruize/openvmm-restore-v1
+exit=0 elapsed_s=0.001
+Authoritative TOP/spec/proof/manifests and branch refs unchanged; candidate copy removed.
+Traceback (most recent call last):
+  File "/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/validate_candidate.py", line 65, in <module>
+    run(["git", "apply", "--check", EVIDENCE / "run.patch"], cwd=WORKSPACE)
+  File "/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/validate_candidate.py", line 32, in run
+    result = subprocess.run(command, cwd=cwd, check=True, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['git', 'apply', '--check', PosixPath('/home/ruize/openvmm-restore-v1/research/restore-time-partition-presence-validation/run.patch')]' returned non-zero exit status 128.

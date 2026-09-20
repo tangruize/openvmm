@@ -1,0 +1,569 @@
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.79s
+────────────
+ Nextest run ID 60ceed31-e54d-43f5-a63f-7383edf28b9d with nextest profile: agent
+    Starting 3 tests across 1 binary (33 tests skipped)
+  stdout ───
+
+    running 1 test
+      2026-09-20T03:52:37.166556Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166597Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166641Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.166902Z DEBUG state_unit: device state change complete, duration: 283.606µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166931Z  INFO state_unit: close, time.busy: 39.5µs, time.idle: 296µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166960Z  INFO state_unit: state change complete, duration: 379.759µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166983Z  INFO state_unit: close, time.busy: 132µs, time.idle: 301µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167171Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167189Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167241Z DEBUG state_unit: device state change complete, duration: 42.23µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167262Z  INFO state_unit: close, time.busy: 25.2µs, time.idle: 48.0µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167278Z  INFO state_unit: state change complete, duration: 96.935µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167301Z  INFO state_unit: close, time.busy: 81.4µs, time.idle: 48.5µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+    omitted_partition=false inventory_valid=true saved_vp_entries=0 restore_rejected=true adjustment_not_reached=true error=restore failed: {partition: saved state is invalid: snapshot is missing state for vp0}
+      2026-09-20T03:52:37.167392Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 162µs, time.idle: 591µs
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+    test partition_unit::vp_set::restore_unsaved_vp_frame_probe::unsaved_frame::present_partition_with_missing_vp_is_rejected ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.00s
+
+
+  stdout ───
+
+    running 1 test
+      2026-09-20T03:52:37.166556Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166597Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166636Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.166903Z DEBUG state_unit: device state change complete, duration: 286.81µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166932Z  INFO state_unit: close, time.busy: 40.1µs, time.idle: 295µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166964Z  INFO state_unit: state change complete, duration: 383.176µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166983Z  INFO state_unit: close, time.busy: 132µs, time.idle: 302µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167156Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167182Z  INFO state_unit: state change complete, duration: 10.766µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167200Z  INFO state_unit: close, time.busy: 26.3µs, time.idle: 18.7µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167223Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167248Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167374Z DEBUG state_unit: device state change complete, duration: 113.665µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167404Z  INFO state_unit: close, time.busy: 31.7µs, time.idle: 124µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167433Z  INFO state_unit: state change complete, duration: 193.214µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167453Z  INFO state_unit: close, time.busy: 108µs, time.idle: 122µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167628Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167658Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167775Z DEBUG state_unit: device state change complete, duration: 105.148µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167805Z  INFO state_unit: close, time.busy: 34.2µs, time.idle: 113µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167833Z  INFO state_unit: state change complete, duration: 184.4µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167850Z  INFO state_unit: close, time.busy: 108µs, time.idle: 115µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    omitted_partition=true inventory_valid=true saved_vp_entries=0 partition_restore_calls=0 initial_tsc=77 final_serialized_tsc=77 adjustment=false stop_guard_acquired=true
+      2026-09-20T03:52:37.168009Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 276µs, time.idle: 1.10ms
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+      2026-09-20T03:52:37.168125Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168153Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168183Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.168307Z DEBUG state_unit: device state change complete, duration: 134.565µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168340Z  INFO state_unit: close, time.busy: 35.3µs, time.idle: 151µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168361Z  INFO state_unit: state change complete, duration: 217.439µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168382Z  INFO state_unit: close, time.busy: 110µs, time.idle: 147µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168540Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168561Z  INFO state_unit: state change complete, duration: 7.367µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168576Z  INFO state_unit: close, time.busy: 19.7µs, time.idle: 17.4µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168599Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168611Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168725Z DEBUG state_unit: device state change complete, duration: 104.747µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168755Z  INFO state_unit: close, time.busy: 30.9µs, time.idle: 112µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168775Z  INFO state_unit: state change complete, duration: 168.426µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168796Z  INFO state_unit: close, time.busy: 89.6µs, time.idle: 107µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168939Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168965Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169087Z DEBUG state_unit: device state change complete, duration: 102.867µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169120Z  INFO state_unit: close, time.busy: 37.5µs, time.idle: 117µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169147Z  INFO state_unit: state change complete, duration: 190.294µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169171Z  INFO state_unit: close, time.busy: 121µs, time.idle: 112µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    omitted_partition=true inventory_valid=true saved_vp_entries=0 partition_restore_calls=0 initial_tsc=78 final_serialized_tsc=78 adjustment=false stop_guard_acquired=true
+      2026-09-20T03:52:37.169329Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 173µs, time.idle: 972µs
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[]
+    test partition_unit::vp_set::restore_unsaved_vp_frame_probe::unsaved_frame::omitted_partition_without_adjustment ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.00s
+
+
+  stdout ───
+
+    running 1 test
+      2026-09-20T03:52:37.166542Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166600Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166636Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.166902Z DEBUG state_unit: device state change complete, duration: 285.947µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166937Z  INFO state_unit: close, time.busy: 43.3µs, time.idle: 294µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166964Z  INFO state_unit: state change complete, duration: 386.741µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.166978Z  INFO state_unit: close, time.busy: 131µs, time.idle: 312µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167155Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167185Z  INFO state_unit: state change complete, duration: 10.42µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167204Z  INFO state_unit: close, time.busy: 27.5µs, time.idle: 22.1µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.167232Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167244Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167373Z DEBUG state_unit: device state change complete, duration: 113.572µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167398Z  INFO state_unit: close, time.busy: 28.2µs, time.idle: 125µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167414Z  INFO state_unit: state change complete, duration: 175.13µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167426Z  INFO state_unit: close, time.busy: 81.1µs, time.idle: 113µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167571Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167604Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167650Z DEBUG state_unit: device state change complete, duration: 27.568µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167681Z  INFO state_unit: close, time.busy: 32.9µs, time.idle: 44.2µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167707Z  INFO state_unit: state change complete, duration: 115.349µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167725Z  INFO state_unit: close, time.busy: 112µs, time.idle: 43.3µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.167780Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 77, requested_tsc: 1077, observed_tsc: 1077, cycles: 1000, frequency_hz: 4003, duration: 250ms
+        at vmm_core/src/partition_unit/vp_set.rs:287
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.167833Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167847Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.167967Z DEBUG state_unit: device state change complete, duration: 103.834µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168000Z  INFO state_unit: close, time.busy: 37.5µs, time.idle: 115µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168027Z  INFO state_unit: state change complete, duration: 184.21µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168051Z  INFO state_unit: close, time.busy: 113µs, time.idle: 105µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    omitted_partition=true inventory_valid=true saved_vp_entries=0 partition_restore_calls=0 initial_tsc=77 final_serialized_tsc=1077 adjustment=true stop_guard_acquired=true
+      2026-09-20T03:52:37.168209Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 309µs, time.idle: 1.27ms
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1077]
+      2026-09-20T03:52:37.168332Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168361Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168383Z DEBUG vmm_core::partition_unit::vp_set: new
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.168520Z DEBUG state_unit: device state change complete, duration: 143.955µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168554Z  INFO state_unit: close, time.busy: 36.6µs, time.idle: 156µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168581Z  INFO state_unit: state change complete, duration: 230.087µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168605Z  INFO state_unit: close, time.busy: 118µs, time.idle: 156µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168749Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168776Z  INFO state_unit: state change complete, duration: 7.726µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168795Z  INFO state_unit: close, time.busy: 24.3µs, time.idle: 22.7µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "restore"
+
+      2026-09-20T03:52:37.168829Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168854Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.168977Z DEBUG state_unit: device state change complete, duration: 105.713µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169009Z  INFO state_unit: close, time.busy: 34.2µs, time.idle: 121µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169035Z  INFO state_unit: state change complete, duration: 189.671µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169059Z  INFO state_unit: close, time.busy: 114µs, time.idle: 117µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169185Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169203Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169246Z DEBUG state_unit: device state change complete, duration: 25.719µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169276Z  INFO state_unit: close, time.busy: 32.7µs, time.idle: 39.3µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169296Z  INFO state_unit: state change complete, duration: 98.519µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169317Z  INFO state_unit: close, time.busy: 97.3µs, time.idle: 34.9µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "advance_time"
+
+      2026-09-20T03:52:37.169365Z DEBUG vmm_core::partition_unit::vp_set: adjusted restored vCPU TSC, previous_tsc: 78, requested_tsc: 1078, observed_tsc: 1078, cycles: 1000, frequency_hz: 4003, duration: 250ms
+        at vmm_core/src/partition_unit/vp_set.rs:287
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+      2026-09-20T03:52:37.169427Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169453Z  INFO state_unit: new
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169591Z DEBUG state_unit: device state change complete, duration: 122.565µs
+        at vmm_core/state_unit/src/lib.rs:1262
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169624Z  INFO state_unit: close, time.busy: 37.1µs, time.idle: 134µs
+        at vmm_core/state_unit/src/lib.rs:1255
+        in state_unit::device_state_change with device: "partition"
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169650Z  INFO state_unit: state change complete, duration: 205.879µs
+        at vmm_core/state_unit/src/lib.rs:1139
+        in state_unit::state_change with operation: "save"
+
+      2026-09-20T03:52:37.169675Z  INFO state_unit: close, time.busy: 117µs, time.idle: 131µs
+        at vmm_core/state_unit/src/lib.rs:1142
+        in state_unit::state_change with operation: "save"
+
+    omitted_partition=true inventory_valid=true saved_vp_entries=0 partition_restore_calls=0 initial_tsc=78 final_serialized_tsc=1078 adjustment=true stop_guard_acquired=true
+      2026-09-20T03:52:37.169835Z DEBUG vmm_core::partition_unit::vp_set: close, time.busy: 210µs, time.idle: 1.24ms
+        at vmm_core/src/partition_unit/vp_set.rs:1513
+        in vmm_core::partition_unit::vp_set::run_vp with vp_index: 0
+
+    committed_tsc=[1078]
+    test partition_unit::vp_set::restore_unsaved_vp_frame_probe::unsaved_frame::omitted_partition_with_nonzero_adjustment ... ok
+
+    test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.00s
+
+
+────────────
+     Summary [   0.009s] 3 tests run: 3 passed, 33 skipped

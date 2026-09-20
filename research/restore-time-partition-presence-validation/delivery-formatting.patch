@@ -1,0 +1,13 @@
+diff --git a/research/restore-time-partition-presence-validation/validate_candidate.py b/research/restore-time-partition-presence-validation/validate_candidate.py
+index 39a18ae5..404f2a9c 100644
+--- a/research/restore-time-partition-presence-validation/validate_candidate.py
++++ b/research/restore-time-partition-presence-validation/validate_candidate.py
+@@ -1,4 +1,8 @@
+ #!/usr/bin/env python3
++
++# Copyright (c) Microsoft Corporation.
++# Licensed under the MIT License.
++
+ """Compile and exercise the proposed production guard only in a disposable copy."""
+ 
+ import os
