@@ -1,0 +1,3 @@
+Production vmtime.rs and rpc.rs match intake bytes.
+Both exact annotation overlays apply to the restored current sources.
+All three new Python entrypoints parse; no native verification repeated.

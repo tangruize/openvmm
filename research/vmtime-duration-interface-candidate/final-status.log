@@ -1,0 +1,9 @@
+ M research/GROUND_TRUTH.md
+ M vm/vmcore/Cargo.toml
+ M vm/vmcore/src/vmtime.rs
+?? research/vmtime-duration-binding/
+?? research/vmtime-duration-interface-candidate/
+?? research/vmtime-scalar-interface/
+?? vm/vmcore/src/vmtime.proof.rs
+
+No submitted request directory: confirmed

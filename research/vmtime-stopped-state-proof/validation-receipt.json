@@ -1,0 +1,1 @@
+{"state": "submitted", "task_id": "vmtime-stopped-validation", "run_id": "vmtime-stopped-validation-1789907448759047909", "pid": 258741, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id vmtime-stopped-validation"}

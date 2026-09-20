@@ -1,0 +1,11 @@
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/constructor_value.rs --crate-type lib --edition 2024 --rlimit 50 --num-threads 1
+Lifetime checking enabled; rlimit=50; no new trust.
+error: The verifier does not yet support the following Rust feature: using a datatype constructor as a function value
+  --> /home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/constructor_value.rs:17:24
+   |
+17 |     let result = apply(Request::Reset, input);
+   |                        ^^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+
+exit=1, seconds=0.414

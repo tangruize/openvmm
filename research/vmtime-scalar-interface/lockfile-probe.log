@@ -1,0 +1,1 @@
+error: the `resolver.lockfile-path` must be a path to a Cargo.lock file

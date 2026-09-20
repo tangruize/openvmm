@@ -1,0 +1,13 @@
+spec_drift: FAIL - run.patch result differs from freeze.patch result
+spec_drift: freeze.patch result -> run.patch result
+  [BOTTOM MISMATCH: CHANGED] research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs::VpIndex::view
+  [BOTTOM MISMATCH: CHANGED] vm/vmcore/src/vmtime.proof.rs::VmTime::view
+  [BOTTOM MISMATCH: CHANGED] vm/vmcore/vm_topology/src/processor.proof.rs::VpIndex::view
+  checked 1 explicit TOP file(s) and 21 module(s); 1.3s total
+spec_drift: DRIFT - freeze.patch result and run.patch result differ
+freeze_request: INVALID
+freeze.patch: APPLIES
+run.patch: APPLIES
+exec_drift: PASS - both patch results have the same executable behavior
+
+exit=1 elapsed_s=8

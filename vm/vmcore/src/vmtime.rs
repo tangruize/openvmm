@@ -49,24 +49,34 @@ use std::task::Poll;
 use std::task::Waker;
 use std::time::Duration;
 use thiserror::Error;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("vmtime.proof.rs");
 
 /// Roughly analogous to [`std::time::Instant`], but for VM time.
+#[verus_verify]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Protobuf, Inspect)]
 #[inspect(transparent)]
 #[mesh(transparent)]
 pub struct VmTime(#[inspect(hex)] u64);
 
+#[verus_verify]
 impl VmTime {
     /// Converts from a time in 100ns units.
+    #[verus_spec(result => ensures result@ == n,)]
     pub fn from_100ns(n: u64) -> Self {
         Self(n)
     }
 
     /// Gets the time from VM boot (or some other origin) in 100ns units.
+    #[verus_spec(result => ensures result == self@,)]
     pub const fn as_100ns(&self) -> u64 {
         self.0
     }
+}
 
+impl VmTime {
     /// Adds `d` to the time.
     pub fn wrapping_add(self, d: Duration) -> Self {
         Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
@@ -147,6 +157,7 @@ impl WaiterState {
     }
 }
 
+#[verus_verify]
 #[derive(Copy, Clone, Debug, Protobuf)]
 struct Timestamp {
     vmtime: VmTime,
@@ -369,6 +380,7 @@ mod saved_state {
     }
 }
 
+#[verus_verify]
 #[derive(Debug, MeshPayload, Copy, Clone)]
 enum TimeState {
     Stopped(VmTime),
@@ -390,11 +402,21 @@ impl Inspect for TimeState {
     }
 }
 
+#[verus_verify]
 impl TimeState {
+    #[verus_spec(result =>
+        ensures result == matches!(*self, TimeState::Started(_)),
+    )]
     fn is_started(&self) -> bool {
         self.start_time().is_some()
     }
 
+    #[verus_spec(result =>
+        ensures match *self {
+            TimeState::Stopped(time) => result.is_some() && result.unwrap()@ == time@,
+            TimeState::Started(_) => result.is_none(),
+        },
+    )]
     fn stop_time(&self) -> Option<VmTime> {
         match *self {
             TimeState::Stopped(time) => Some(time),
@@ -402,13 +424,21 @@ impl TimeState {
         }
     }
 
+    #[verus_spec(result =>
+        ensures match *self {
+            TimeState::Stopped(_) => result == None,
+            TimeState::Started(time) => result == Some(time),
+        },
+    )]
     fn start_time(&self) -> Option<Timestamp> {
         match *self {
             TimeState::Stopped(_) => None,
             TimeState::Started(time) => Some(time),
         }
     }
+}
 
+impl TimeState {
     fn now(&self, now_os: Instant) -> Timestamp {
         match *self {
             TimeState::Stopped(time) => Timestamp::new(time, now_os),

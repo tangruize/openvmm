@@ -1,0 +1,8 @@
+Native conservative View reachability (not another package validation):
+{"function": "research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs::View for VpIndex::view", "trust_protectors": ["InitializedVm::load"]}
+{"function": "vm/vmcore/vm_topology/src/processor.proof.rs::View for VpIndex::view", "trust_protectors": ["InitializedVm::load"]}
+{"function": "research/vmtime-duration-interface-candidate/workspace/vm/vmcore/src/vmtime.proof.rs::View for VmTime::view", "trust_protectors": ["InitializedVm::load"]}
+Existing View source presence at the branch tips:
+{"path": "research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs", "frozen": false, "working": true}
+{"path": "vm/vmcore/vm_topology/src/processor.proof.rs", "frozen": false, "working": true}
+{"path": "vm/vmcore/src/vmtime.proof.rs", "frozen": false, "working": false}

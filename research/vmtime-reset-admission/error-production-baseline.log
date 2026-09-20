@@ -1,0 +1,53 @@
+cargo verus focus --offline --locked -p mesh_channel -- --verify-only-module rpc --verify-function *source* --rlimit 50 --num-threads 1 --multiple-errors 8 --log vir --log-dir /home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-baseline-vir
+   Compiling libc v0.2.184
+    Checking futures-io v0.3.31
+   Compiling thiserror v2.0.16
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-workspace/support/mesh/mesh_protobuf)
+    Checking futures-util v0.3.31
+    Checking parking_lot_core v0.9.11
+    Checking getrandom v0.4.2
+    Checking parking_lot v0.12.4
+    Checking futures-executor v0.3.31
+    Checking futures v0.3.31
+    Checking mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-workspace/support/mesh/mesh_node)
+    Checking mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-workspace/support/mesh/mesh_channel_core)
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-workspace/support/mesh/mesh_channel)
+warning: cannot use external trait core::error::Error as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+   --> support/mesh/mesh_channel/src/rpc.rs:257:17
+    |
+257 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+    = note: this warning originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: trait core::error::Error not declared to Verus
+   --> support/mesh/mesh_channel/src/rpc.rs:257:17
+    |
+257 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot use type `mesh_channel_core::error::RecvError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> support/mesh/mesh_channel/src/rpc.rs:257:17
+    |
+257 |   #[derive(Debug, Error)]
+    |                   ^^^^^
+258 |   #[verus_verify]
+259 | / pub enum RpcError<E = Infallible> {
+260 | |     #[error(transparent)]
+261 | |     Call(E),
+262 | |     #[error(transparent)]
+263 | |     Channel(RecvError),
+264 | | }
+    | |_-
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExRecvError(mesh_channel_core::RecvError);
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `mesh_channel` (lib) generated 1 warning
+error: could not compile `mesh_channel` (lib) due to 2 previous errors; 1 warning emitted
+exit=101, seconds=4.323

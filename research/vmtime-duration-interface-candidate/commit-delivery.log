@@ -1,0 +1,9 @@
+[argus/restore-v1-run 760c26fd] Prepare minimal Duration observation freeze request
+ 3 files changed, 467 insertions(+)
+ create mode 100644 research/freeze_requests/restore-duration-nanoseconds-interface/freeze.patch
+ create mode 100644 research/freeze_requests/restore-duration-nanoseconds-interface/rationale.md
+ create mode 100644 research/freeze_requests/restore-duration-nanoseconds-interface/run.patch
+Committed package: 760c26fd4557e52df7f876d5a0634e10fe185e7b
+Parent working base: ca2d1263f5b48ab63be23f042722017c03ddeed1
+Frozen base: 4fb5e66997f616c239aefbc28ccc3f3a29b2226d
+Exactly three request files committed; file contents match HEAD; frozen branch and existing dirty work unchanged.

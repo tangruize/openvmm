@@ -1,0 +1,190 @@
+Verus
+  Version: 0.2026.09.18.8ed93e5
+  Profile: release
+  Platform: linux_x86_64
+  Toolchain: 1.98.1-x86_64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+
+
+Verifier-selected sysroot with the production Cargo override
+/home/ruize/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu
+/home/ruize/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu
+
+Compiler matching that sysroot
+rustc 1.98.1 (48a229cea 2026-09-01)
+binary: rustc
+commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+commit-date: 2026-09-01
+host: x86_64-unknown-linux-gnu
+release: 1.98.1
+LLVM version: 22.1.8
+
+Cargo wrapper selects the sibling Verus launcher
+fn get_verus_driver_path() -> PathBuf {
+    let mut path =
+        env::current_exe().expect("current executable path invalid").with_file_name("verus");
+
+    if cfg!(windows) {
+        path.set_extension("exe");
+    }
+
+    path
+}
+
+Launcher explicitly selects its compiled-in toolchain
+    let mut cmd = if use_rustup {
+        let mut cmd = Command::new("rustup");
+        cmd.arg("run");
+        cmd.arg(TOOLCHAIN);
+        cmd.arg("--");
+        cmd.arg(verus_root.join(RUST_VERIFY_FILE_NAME));
+        cmd
+    } else {
+        Command::new(verus_root.join(RUST_VERIFY_FILE_NAME))
+    };
+
+
+Actual std reexport
+//! ```
+
+#![stable(feature = "time", since = "1.3.0")]
+
+#[stable(feature = "time", since = "1.3.0")]
+pub use core::time::Duration;
+#[stable(feature = "duration_checked_float", since = "1.66.0")]
+pub use core::time::TryFromFloatSecsError;
+
+Actual core Duration fields, scale and method
+use crate::fmt;
+use crate::iter::Sum;
+use crate::num::niche_types::Nanoseconds;
+use crate::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+
+const NANOS_PER_SEC: u32 = 1_000_000_000;
+const NANOS_PER_MILLI: u32 = 1_000_000;
+const NANOS_PER_MICRO: u32 = 1_000;
+#[stable(feature = "duration", since = "1.3.0")]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[rustc_diagnostic_item = "Duration"]
+pub struct Duration {
+    secs: u64,
+    nanos: Nanoseconds, // Always 0 <= nanos < NANOS_PER_SEC
+}
+
+    /// ```
+    #[stable(feature = "duration_as_u128", since = "1.33.0")]
+    #[rustc_const_stable(feature = "duration_as_u128", since = "1.33.0")]
+    #[must_use]
+    #[inline]
+    pub const fn as_nanos(&self) -> u128 {
+        self.secs as u128 * NANOS_PER_SEC as u128 + self.nanos.as_inner() as u128
+    }
+
+Actual Nanoseconds representation and as_inner body
+macro_rules! define_valid_range_type {
+    ($(
+        $(#[$m:meta])*
+        $vis:vis struct $name:ident($int:ident is $pat:pat);
+    )+) => {$(
+        #[derive(Clone, Copy)]
+        #[repr(transparent)]
+        $(#[$m])*
+        $vis struct $name(pattern_type!($int is $pat));
+        impl $name {
+            #[inline]
+            pub const fn new(val: $int) -> Option<Self> {
+            #[inline]
+            pub const fn as_inner(self) -> $int {
+                // SAFETY: pattern types are always legal values of their base type
+                // (Not using `.0` because that has perf regressions.)
+                unsafe { crate::mem::transmute(self) }
+            }
+        }
+}
+
+define_valid_range_type! {
+    pub struct Nanoseconds(u32 is 0..=999_999_999);
+}
+
+Actual transmute reexport and bodyless declaration
+// This one has to be a re-export (rather than wrapping the underlying intrinsic) so that we can do
+// the special magic "types have equal size" check at the call site.
+#[stable(feature = "rust1", since = "1.0.0")]
+#[doc(inline)]
+pub use crate::intrinsics::transmute;
+
+#[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_allowed_through_unstable_modules = "import this function via `std::mem` instead"]
+#[rustc_const_stable(feature = "const_transmute", since = "1.56.0")]
+#[rustc_diagnostic_item = "transmute"]
+#[rustc_nounwind]
+#[rustc_intrinsic]
+pub const unsafe fn transmute<Src, Dst>(src: Src) -> Dst;
+
+Frozen opaque Duration declaration
+// I don't really expect this to be particularly useful;
+// this is mostly here because I wanted an easy way to test
+// the combination of external_type_specification & external_body
+// in a cross-crate context.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExDuration(core::time::Duration);
+
+Native-core import support (not an automatic source import)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Vstd {
+    /// The current crate is vstd.
+    IsVstd,
+    /// There is no vstd (only verus_builtin). Really only used for testing.
+    NoVstd,
+    /// Imports the vstd crate like usual.
+    Imported,
+    /// Embed vstd and verus_builtin as modules, necessary for verifying the `core` library.
+    IsCore,
+    /// For other crates in stdlib verification that import core
+    ImportedViaCore,
+}
+
+
+Datatype opacity and duplicate-declaration checks
+    match &dt.x.transparency {
+        DatatypeTransparency::Never => {
+            // This can only happen if the datatype is 'external_body'
+            return Err(error_with_label(
+                span,
+                format!("disallowed: {:} for an opaque datatype", access_type),
+                format!("this {:} is disallowed", access_type),
+            )
+            .secondary_label(
+                &dt.span,
+                "Verus treats this datatype as 'opaque' because it is marked 'external_body'",
+            ));
+        }
+        DatatypeTransparency::WhenVisible(vis) => {
+
+/// Similar to above, for datatypes
+fn datatype_conflict_error(dt1: &Datatype, dt2: &Datatype) -> Message {
+    let add_label = |err: Message, dt: &Datatype| match &dt.x.proxy {
+        Some(proxy) => err
+            .primary_label(&proxy.span, "specification declared via `external_type_specification`"),
+        None => err.primary_label(&dt.span, "declared here (and not marked as `external`)"),
+    };
+
+    let err = crate::messages::error_bare(format!(
+        "duplicate specification for `{:}`",
+        crate::ast_util::dt_as_friendly_rust_name(&dt1.x.name)
+    ));
+    let err = add_label(err, dt1);
+    let err = add_label(err, dt2);
+    err
+}
+
+
+Pattern-type translation boundary
+        TyKind::Infer(..) => unsupported_err!(span, "type inference Infer types"),
+        TyKind::Error(..) => unsupported_err!(span, "type inference error types"),
+        TyKind::CoroutineClosure(_, _) => unsupported_err!(span, "coroutine closure types"),
+        TyKind::Pat(_, _) => unsupported_err!(span, "pattern types"),
+        TyKind::UnsafeBinder(_) => unsupported_err!(span, "unsafe binder types"),
+
+Existing native semantic-interface search
+toolchain/verus-src/source/vstd/std_specs/core.rs:157:pub struct ExDuration(core::time::Duration);

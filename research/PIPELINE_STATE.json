@@ -1,6 +1,267 @@
 {
   "current_stage": "prove",
   "vertical": "verus",
+  "vmtime_stopped_state_proof": {
+    "state": "blocked",
+    "integration_state": "done",
+    "accepted": false,
+    "result": "Local TimeState body proofs are established; mission acceptance remains blocked by the Reviewer's independent executable-drift finding. No TOP proof established.",
+    "native_proof": {
+      "state": "done",
+      "task_id": "vmtime-stopped-native",
+      "run_id": "vmtime-stopped-native-1789907394666771062",
+      "command": "bash research/vmtime-stopped-state-proof/verify.command > research/vmtime-stopped-state-proof/native.log 2>&1",
+      "exit_code": 0,
+      "elapsed_seconds": 2.5,
+      "status": ".argus_subagents/vmtime-stopped-native.json",
+      "stdout_log": ".argus_subagents/vmtime-stopped-native_logs/stdout.log",
+      "stderr_log": ".argus_subagents/vmtime-stopped-native_logs/stderr.log",
+      "log": "research/vmtime-stopped-state-proof/native.log",
+      "verified": 8,
+      "errors": 0,
+      "scope": "Native vmtime module verification establishes the local TimeState body proofs, not the TOP restore body or its outstanding caller and lifecycle obligations."
+    },
+    "required_checks": {
+      "state": "done",
+      "task_id": "vmtime-stopped-validation",
+      "run_id": "vmtime-stopped-validation-1789907448759047909",
+      "command": "bash research/vmtime-stopped-state-proof/validate.command",
+      "exit_code": 0,
+      "elapsed_seconds": 24.1,
+      "status": ".argus_subagents/vmtime-stopped-validation.json",
+      "stdout_log": ".argus_subagents/vmtime-stopped-validation_logs/stdout.log",
+      "stderr_log": ".argus_subagents/vmtime-stopped-validation_logs/stderr.log",
+      "checks_json": "research/vmtime-stopped-state-proof/checks.json",
+      "result": "The Engineer's validation driver completed with exit 0; this does not mean every individual check passed or resolve the Reviewer's independent failure.",
+      "regression": {
+        "log": "research/vmtime-stopped-state-proof/regression.log",
+        "tests_run": 2,
+        "passed": 2,
+        "skipped": 23
+      },
+      "outcomes": {
+        "make_verify": {
+          "exit_code": 0,
+          "result": "0 verified, 0 errors under partial verification of the scaffolded TOP; not proof of the real TOP body.",
+          "complete_log": "research/vmtime-stopped-state-proof/make_verify.complete.log"
+        },
+        "boundary": {
+          "exit_code": 1,
+          "result": "Existing TCB-manifest provenance rejection and 7 temporary trust locations remain; separate from the Reviewer's executable-drift finding.",
+          "complete_log": "research/vmtime-stopped-state-proof/boundary.complete.log"
+        },
+        "spec_drift": {
+          "exit_code": 0,
+          "result": "Frozen specifications match the frozen branch.",
+          "complete_log": "research/vmtime-stopped-state-proof/spec_drift.complete.log"
+        },
+        "exec_drift": {
+          "exit_code": 0,
+          "result": "Engineer log reports 20 exec files checked, 0 body edits and 0 unknown functions; executable bodies unchanged vs frozen branch.",
+          "complete_log": "research/vmtime-stopped-state-proof/exec_drift.complete.log"
+        }
+      }
+    },
+    "reviewer": {
+      "status": "blocked",
+      "handoff": "/home/ruize/.argus-skill/projects/9b3370b0cf02/handoffs/94b94a17eb73/round-0001.json",
+      "decision_reused": true,
+      "result": "The bounded TimeState body proofs are established, but the independent exec_drift check fails because its function matching conflates two unchanged generic implementations. This is an external check/setup blocker, not a demonstrated executable change or proof defect.",
+      "independent_exec_drift": {
+        "status": "failed",
+        "finding": "Reviewer reports that the authoritative checker conflates the two ProcessorTopology<T>::to_config implementations.",
+        "evidence": "/home/ruize/.argus-skill/projects/9b3370b0cf02/handoffs/94b94a17eb73/round-0001.json"
+      }
+    },
+    "exec_drift_reconciliation": {
+      "status": "unresolved",
+      "result": "Retain both the Engineer's recorded pass and the Reviewer's independent failure without adjudicating or suppressing either. The Engineer result does not supersede the blocked review or supply the requested passing current authoritative evidence."
+    },
+    "blocker": {
+      "fingerprint": "94b94a17eb73:round-0001:exec-drift-generic-implementation-matching",
+      "active": true,
+      "classification": "reviewer_reported_external_check_setup",
+      "resume_mode": "event_driven",
+      "resume_when": "Passing current authoritative executable-drift evidence is recorded under research/vmtime-stopped-state-proof after the checker distinguishes the two ProcessorTopology<T>::to_config implementations.",
+      "polling": false,
+      "review_requires_changed_evidence": true
+    },
+    "outstanding_proof_debt": {
+      "top_external_body": "LoadedVm::restore_snapshot_state",
+      "uninterpreted_representation_bridges": [
+        "decoded_load_restore_request_view",
+        "decoded_restore_request_view",
+        "initialized_vm_representation",
+        "loaded_vm_representation"
+      ],
+      "remaining_obligations": [
+        "Prove the real callers and their required contracts.",
+        "Prove stopped-zero keeper time at TOP entry and lifecycle preservation through registration, ownership transfer, other-unit restore and omission.",
+        "Prove real restore RPC installation and completion, including keeper/primary/secondary handlers and source lifetime obligations.",
+        "Prove runtime Duration correspondence to decoded downtime, including truncation, wrapping and abstract elapsed time."
+      ]
+    },
+    "temporary_markers_added_or_removed": 0,
+    "completed_checks_rerun": false,
+    "duplicate_submission_or_review_requested": false,
+    "production_proof_frozen_or_checker_files_changed": false,
+    "next_action": "Preserve the query proofs and frozen inputs. Once the authoritative checker can distinguish the two ProcessorTopology<T>::to_config implementations, obtain passing current executable-drift evidence and record it under research/vmtime-stopped-state-proof. No production proof repair or boundary change is requested."
+  },
+  "omitted_vmtime_saved_state_binding": {
+    "state": "done",
+    "result": "Accepted diagnostic reconciled for the existing prove-stage planning handoff; no TOP proof established",
+    "report": "research/vmtime-saved-state-binding/README.md",
+    "runtime_log": "research/vmtime-saved-state-binding/runtime.log",
+    "checks_log": "research/vmtime-saved-state-binding/checks.log",
+    "production_probe": {
+      "state": "done",
+      "task_id": "omitted-vmtime-production-probe",
+      "run_id": "omitted-vmtime-production-probe-1789906296045015940",
+      "command": "bash research/vmtime-saved-state-binding/run.sh > research/vmtime-saved-state-binding/runtime.log 2>&1",
+      "exit_code": 0,
+      "elapsed_seconds": 21.0,
+      "status": ".argus_subagents/omitted-vmtime-production-probe.json",
+      "stdout_log": ".argus_subagents/omitted-vmtime-production-probe_logs/stdout.log",
+      "stderr_log": ".argus_subagents/omitted-vmtime-production-probe_logs/stderr.log",
+      "result": "Two passing production-path tests cover four cases: omitted blobs retain 0 or 37 ticks; valid supplied blobs install 91 ticks from either initial value. Advancement by 1234 ns adds 12 ticks. This is not execution of the entire TOP."
+    },
+    "required_checks": {
+      "state": "done",
+      "task_id": "omitted-vmtime-required-checks",
+      "run_id": "omitted-vmtime-required-checks-1789906323321730727",
+      "command": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python research/vmtime-saved-state-binding/checks.py > research/vmtime-saved-state-binding/checks.log 2>&1",
+      "exit_code": 0,
+      "elapsed_seconds": 10.0,
+      "status": ".argus_subagents/omitted-vmtime-required-checks.json",
+      "stdout_log": ".argus_subagents/omitted-vmtime-required-checks_logs/stdout.log",
+      "stderr_log": ".argus_subagents/omitted-vmtime-required-checks_logs/stderr.log",
+      "result": "The driver completed with exit 0; this does not mean all individual checks passed",
+      "outcomes": {
+        "make_verify": {
+          "exit_code": 0,
+          "result": "0 verified, 0 errors on the scaffolded TOP; not proof of the real TOP body",
+          "log": "research/vmtime-saved-state-binding/make_verify.log",
+          "complete_log": "research/vmtime-saved-state-binding/make_verify.complete.log"
+        },
+        "boundary": {
+          "exit_code": 1,
+          "result": "Existing provenance rejection: tcb_manifest.json was last modified by an autonomous agent commit; 7 temporary trust locations remain. Separate from the omitted-blob semantic finding.",
+          "log": "research/vmtime-saved-state-binding/boundary.log",
+          "complete_log": "research/vmtime-saved-state-binding/boundary.complete.log"
+        },
+        "spec_drift": {
+          "exit_code": 0,
+          "result": "Frozen specifications match the frozen branch",
+          "log": "research/vmtime-saved-state-binding/spec_drift.log",
+          "complete_log": "research/vmtime-saved-state-binding/spec_drift.complete.log"
+        },
+        "exec_drift": {
+          "exit_code": 0,
+          "result": "Executable bodies unchanged vs frozen branch",
+          "log": "research/vmtime-saved-state-binding/exec_drift.log",
+          "complete_log": "research/vmtime-saved-state-binding/exec_drift.complete.log"
+        }
+      },
+      "initial_preflight": {
+        "state": "superseded",
+        "run_id": "omitted-vmtime-required-checks-1789906296048073696",
+        "result": "The literal unexpanded ${ARGUS_SKILL_PYTHON:-python3} launch executable was rejected before any check ran; resolving the executable enabled the one completed checks run",
+        "evidence": "research/vmtime-saved-state-binding/README.md",
+        "superseded_by": "omitted-vmtime-required-checks-1789906323321730727",
+        "active_blocker": false
+      }
+    },
+    "reviewer": {
+      "status": "done",
+      "handoff": "/home/ruize/.argus-skill/projects/9b3370b0cf02/handoffs/f20dbf255dd2/round-0001.json",
+      "decision_reused": true,
+      "result": "The bounded diagnostic establishes omitted-blob behavior and a source-supported TOP-specific interpretation, while preserving explicit proof obligations and separately reporting check/setup failures."
+    },
+    "accepted_semantic_finding": "Omission retains the pre-existing stopped keeper time; it is not a reset. Zero-on-omission is source-supported only for the current TOP construction, whose sole caller constructs a fresh stopped-zero keeper and enters restore before starting it. This interpretation still depends on unproved lifecycle, representation and decoding facts. A nonzero unrestricted StateUnits pre-state is not a demonstrated reachable TOP counterexample.",
+    "bridge_definition_established": false,
+    "lifecycle_proved": false,
+    "frozen_boundary_conflict_demonstrated": false,
+    "outstanding_proof_debt": {
+      "top_external_body": "LoadedVm::restore_snapshot_state",
+      "uninterpreted_representation_bridges": [
+        "decoded_load_restore_request_view",
+        "decoded_restore_request_view",
+        "initialized_vm_representation",
+        "loaded_vm_representation"
+      ],
+      "remaining_obligations": [
+        "Define exact successful saved-input name/type/byte decoding, including omission, and prove real selection and parsing implement it; zero-on-omission requires the construction invariant.",
+        "Prove stopped-zero keeper time at actual TOP entry and preservation through registration, ownership transfer, other-unit restore and omission; connect concrete keeper state, PreparingRestore and LoadedVmView.virtual_time without excluding real behavior.",
+        "Admit and prove run_op, RPC completion, keeper/primary/secondary handlers and the initial-source lifetime argument; other or remote source coverage remains separate.",
+        "Prove runtime Duration corresponds to decoded downtime, including truncation, wrapping and abstract elapsed time."
+      ],
+      "existing_declaration_cuts": "InitializedVm and LoadedVmInner remain unchanged"
+    },
+    "temporary_markers_added_or_removed": 0,
+    "completed_checks_rerun": false,
+    "duplicate_submission_or_review_requested": false,
+    "production_proof_frozen_or_request_files_changed": false,
+    "next_action": "Return this accepted diagnostic and its remaining obligations to the existing prove-stage planning handoff using the recorded Reviewer done decision. Do not reopen review, repeat completed jobs, create another submission, or treat this reconciliation as a bridge definition, lifecycle proof or frozen-boundary conflict.",
+    "reconciliation_validation": {
+      "scope": "Read-only pipeline/evidence consistency, not a rerun of the completed experiments, Verus checks or review",
+      "command": "\"${ARGUS_SKILL_PYTHON:-python3}\" -c 'import json; from pathlib import Path; s=json.loads(Path(\"research/PIPELINE_STATE.json\").read_text()); d=s[\"omitted_vmtime_saved_state_binding\"]; jobs=(d[\"production_probe\"],d[\"required_checks\"]); fields=(\"state\",\"task_id\",\"run_id\",\"command\",\"exit_code\",\"elapsed_seconds\",\"stdout_log\",\"stderr_log\"); receipts=[json.loads(Path(j[\"status\"]).read_text()) for j in jobs]; assert all(j[k]==r[k] for j,r in zip(jobs,receipts) for k in fields); assert all(j[\"state\"]==\"done\" and j[\"exit_code\"]==0 for j in jobs); outcomes=d[\"required_checks\"][\"outcomes\"]; expected={\"make_verify\":0,\"boundary\":1,\"spec_drift\":0,\"exec_drift\":0}; logged={line.split(\":\")[0]:int(line.split(\"exit=\")[1].split(\",\")[0]) for line in Path(d[\"checks_log\"]).read_text().splitlines()}; assert logged==expected=={k:v[\"exit_code\"] for k,v in outcomes.items()}; paths=[d[\"report\"],d[\"runtime_log\"],d[\"checks_log\"],d[\"reviewer\"][\"handoff\"]]+[j[k] for j in jobs for k in (\"status\",\"stdout_log\",\"stderr_log\")]+[v[k] for v in outcomes.values() for k in (\"log\",\"complete_log\")]; assert all(Path(p).is_file() for p in paths); assert all(\"Exit code : \"+str(v[\"exit_code\"]) in Path(v[\"complete_log\"]).read_text() for v in outcomes.values()); assert \"0 verified, 0 errors\" in Path(outcomes[\"make_verify\"][\"complete_log\"]).read_text(); boundary=Path(outcomes[\"boundary\"][\"complete_log\"]).read_text(); assert \"tcb_manifest.json was last modified by an autonomous agent commit\" in boundary; assert \"2 tests run: 2 passed, 0 skipped\" in Path(d[\"runtime_log\"]).read_text(); review=json.loads(Path(d[\"reviewer\"][\"handoff\"]).read_text())[\"review\"]; assert d[\"reviewer\"][\"status\"]==review[\"status\"]==\"done\" and d[\"reviewer\"][\"result\"]==review[\"reason\"] and d[\"reviewer\"][\"decision_reused\"]; preflight=d[\"required_checks\"][\"initial_preflight\"]; assert preflight[\"state\"]==\"superseded\" and not preflight[\"active_blocker\"] and preflight[\"superseded_by\"]==jobs[1][\"run_id\"]; debt=d[\"outstanding_proof_debt\"]; assert debt[\"top_external_body\"]==\"LoadedVm::restore_snapshot_state\"; assert set(debt[\"uninterpreted_representation_bridges\"])=={\"decoded_load_restore_request_view\",\"decoded_restore_request_view\",\"initialized_vm_representation\",\"loaded_vm_representation\"}; assert all(symbol in boundary for symbol in [debt[\"top_external_body\"]]+debt[\"uninterpreted_representation_bridges\"]); assert s[\"current_stage\"]==\"prove\" and d[\"state\"]==\"done\" and d[\"temporary_markers_added_or_removed\"]==0; assert not any(d[k] for k in (\"bridge_definition_established\",\"lifecycle_proved\",\"frozen_boundary_conflict_demonstrated\",\"completed_checks_rerun\",\"duplicate_submission_or_review_requested\",\"production_proof_frozen_or_request_files_changed\")); print(\"PASS: pipeline reconciliation matches both completed jobs, individual check outcomes, the accepted review and outstanding proof debt.\")'"
+    }
+  },
+  "restore_reset_constructor_normalization_delivery": {
+    "state": "done",
+    "result": "Request delivery complete; Human authorization and production proof remain outstanding",
+    "request": "research/freeze_requests/restore-reset-constructor-normalization",
+    "request_commit": "ac63f273",
+    "submission_state": "submitted",
+    "submission_log": "research/vmtime-reset-normalization-request/submit.log",
+    "commit_log": "research/vmtime-reset-normalization-request/commit.log",
+    "postcommit_audit_log": "research/vmtime-reset-normalization-request/postcommit-audit.log",
+    "rationale": "research/vmtime-reset-normalization-request/rationale.md",
+    "precommit": {
+      "state": "done",
+      "task_id": "reset-constructor-request-precommit",
+      "run_id": "reset-constructor-request-precommit-1789905053813848201",
+      "exit_code": 0,
+      "elapsed_seconds": 65.4,
+      "status": ".argus_subagents/reset-constructor-request-precommit.json",
+      "stdout_log": ".argus_subagents/reset-constructor-request-precommit_logs/stdout.log",
+      "stderr_log": ".argus_subagents/reset-constructor-request-precommit_logs/stderr.log",
+      "result": "Isolated proposal clippy/doc passed; full formatter succeeded; proposal and package bytes unchanged"
+    },
+    "postcommit_validation": {
+      "log": "research/vmtime-reset-normalization-request/postcommit-validate.log",
+      "freeze_request": "VALID - semantic checks are advisory",
+      "freeze_patch": "APPLIES",
+      "run_patch": "APPLIES",
+      "spec_drift": "PASS - both patch results have the same frozen TOP and BOTTOM specifications",
+      "exec_drift": "DRIFT (advisory): ProcessorTopology::to_config in openvmm/openvmm_core/src/worker/dispatch.rs has an executable body mismatch between the two patch results",
+      "semantic_equivalence_proved": false,
+      "interpretation": "Mechanical validity is not semantic equivalence; retain this postcommit warning alongside the earlier submission log's PASS"
+    },
+    "reviewer": {
+      "status": "done",
+      "handoff": "/home/ruize/.argus-skill/projects/9b3370b0cf02/handoffs/6d275e8fabdf/round-0001.json",
+      "decision_reused": true,
+      "result": "Committed, unapplied three-file request is mechanically valid and source-supported; production admission and the restore proof are not established"
+    },
+    "human_authorization": "pending_explicit_decision",
+    "freeze_patch_applied": false,
+    "run_patch_applied": false,
+    "outstanding_proof_debt": {
+      "top_external_body": "LoadedVm::restore_snapshot_state",
+      "uninterpreted_representation_bridges": [
+        "decoded_load_restore_request_view",
+        "decoded_restore_request_view",
+        "initialized_vm_representation",
+        "loaded_vm_representation"
+      ],
+      "remaining_work": "Production declaration admission, real reset installation/lifecycle proofs, other-source coverage, and saved-state/Duration correspondence remain open"
+    },
+    "temporary_markers_added_or_removed": 0,
+    "completed_checks_rerun": false,
+    "duplicate_submission_or_review_requested": false,
+    "next_action": "Retain the existing submitted request and completed Reviewer decision for explicit Human assessment. Neither task completion nor Reviewer status done authorizes applying either patch or discharges proof debt."
+  },
   "restore_vp_bitmap_delivery": {
     "request": "research/freeze_requests/restore-vp-bitmap-native-update",
     "normalization_applied": false,

@@ -1,0 +1,28 @@
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'
+callgraph exit=1
+usage: callers.py [-h] [--project-dir PROJECT_DIR] [--json] [--markdown] [-v]
+                  [-o OUTPUT] [--daemon] [--stop-daemon] [--daemon-status]
+                  [--daemon-timeout DAEMON_TIMEOUT]
+                  [source_file]
+
+Find callers using rust-analyzer LSP (type-aware).
+
+positional arguments:
+  source_file           Target Rust source file.
+
+options:
+  -h, --help            show this help message and exit
+  --project-dir PROJECT_DIR
+                        Project root with Cargo.toml.
+  --json                Output as JSON.
+  --markdown            Output as Markdown (default).
+  -v, --verbose         Verbose LSP output.
+  -o OUTPUT, --output OUTPUT
+                        Write to file.
+  --daemon              Start a persistent RA daemon for --project-dir.
+                        Indexes once, stays alive for subsequent runs.
+  --stop-daemon         Stop a running RA daemon for --project-dir.
+  --daemon-status       Check if a daemon is running for --project-dir.
+  --daemon-timeout DAEMON_TIMEOUT
+                        Idle timeout in seconds for daemon (default: 43200 =
+                        12h).

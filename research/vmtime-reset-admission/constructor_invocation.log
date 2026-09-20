@@ -1,0 +1,5 @@
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/constructor_invocation.rs --crate-type lib --edition 2024 --rlimit 50 --num-threads 1
+Lifetime checking enabled; rlimit=50; no new trust.
+VERUS_Z3_PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/z3
+verification results:: 2 verified, 0 errors
+exit=0, seconds=0.565

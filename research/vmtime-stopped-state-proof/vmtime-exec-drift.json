@@ -1,0 +1,21 @@
+{
+  "source": "vm/vmcore/src/vmtime.rs",
+  "baseline": "argus/restore-v1-frozen",
+  "summary": {
+    "functions": {
+      "matched": 59,
+      "mismatched": 0,
+      "missing_in_verus": 0,
+      "extra_in_verus": 0,
+      "unknown": 0,
+      "total_source": 59,
+      "total_verus": 59
+    },
+    "structs": {
+      "matched": 13,
+      "mismatched": 0
+    },
+    "consistent": true
+  },
+  "nonmatching": []
+}

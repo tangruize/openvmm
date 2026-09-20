@@ -1,0 +1,84 @@
+cargo verus focus -p vmcore -- --verify-only-module vmtime --verify-function VmTimeKeeper::reset_to --rlimit 50 --num-threads 1
+Lifetime checking enabled; rlimit=50; no new trust.
+VERUS_Z3_PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/z3
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/workspace/vm/vmcore)
+error: cannot use type `vmcore::vmtime::VmTimeKeeper` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:505:23
+    |
+505 |     async fn reset_to(&mut self, vmtime: VmTime) {
+    |                       ^^^^^^^^^
+506 |         assert!(!self.time.is_started(), "should be stopped");
+    |                  ---------
+507 |         self.time = TimeState::Stopped(vmtime);
+    |         ---------
+508 |         self.req_send
+    |         -------------
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExVmTimeKeeper(crate::vmtime::VmTimeKeeper);
+
+error: cannot use function `vmcore::vmtime::TimeState::is_started` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:506:18
+    |
+506 |         assert!(!self.time.is_started(), "should be stopped");
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: The following declaration may resolve this error:
+            assume_specification [crate::vmtime::TimeState::is_started] (_0: &crate::vmtime::TimeState) -> bool;
+
+error: cannot use type `vmcore::vmtime::TimeState` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:506:18
+    |
+506 |         assert!(!self.time.is_started(), "should be stopped");
+    |                  ^^^^^^^^^
+507 |         self.time = TimeState::Stopped(vmtime);
+    |         ---------   --------------------------
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            struct ExTimeState(crate::vmtime::TimeState);
+
+error: cannot use type `mesh_channel::rpc::RpcError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:508:9
+    |
+508 | //         self.req_send
+509 | ||             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+510 | ||             .await
+    | ||__________________-
+511 | |              .unwrap();
+    | |______________________^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::reject_recursive_types(E)]
+            #[verifier::external_type_specification]
+            pub struct ExRpcError<E>(mesh::rpc::RpcError<E>);
+
+error: `mesh_channel::rpc::impl&%6%default%call` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> vm/vmcore/src/vmtime.rs:508:9
+    |
+508 | /         self.req_send
+509 | |             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+    | |__________________________________________________________^
+
+error: cannot use type `mesh_channel::rpc::PendingRpc` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:508:9
+    |
+508 | /         self.req_send
+509 | |             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+    | |__________________________________________________________^
+
+error: cannot use type `vmcore::vmtime::KeeperRequest` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:508:9
+    |
+508 |           self.req_send
+    |  _________^------------
+509 | |             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+    | |___________________-------------------------------________^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            struct ExKeeperRequest(crate::vmtime::KeeperRequest);
+
+error: could not compile `vmcore` (lib) due to 7 previous errors
+exit=101, seconds=2.669

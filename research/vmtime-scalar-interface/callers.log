@@ -1,0 +1,1046 @@
+# Caller Analysis (LSP): vmtime.rs
+
+- **Source file:** `vm/vmcore/src/vmtime.rs`
+- **Project dir:** `.`
+- **Parser:** rust-analyzer LSP
+- **Crate:** `vmcore`
+- **Depended on by:** `openvmm_entry`, `cxl_spec`, `chipset_device`, `pci_core`, `pci_resources`, `chipset_device_resources`, `virt`, `watchdog_core`, `watchdog_vmgs_format`, `framebuffer`, `openvmm_defs`, `state_unit`, `vmotherboard`, `chipset`, `chipset_legacy`, `floppy`, `disk_backend`, `floppy_pcat_stub`, `pci_bus`, `firmware_pcat`, `generation_id`, `ide`, `scsi_core`, `storage_tests`, `disk_layered`, `nvme_driver`, `user_driver`, `nvme`, `nvme_test`, `page_pool_alloc`, `scsidisk`, `storvsc_driver`, `vmbus_channel`, `storvsp`, `missing_dev`, `pcie`, `vga`, `vga_proxy`, `virt_whp`, `hv1_emulator`, `virt_support_apic`, `virt_mshv`, `openvmm_resources`, `disk_delay`, `firmware_uefi`, `hcl_compat_uefi_nvram_storage`, `uefi_nvram_storage`, `vmm_core`, `vmbus_server`, `vpci`, `gdma`, `guest_crash_device`, `guest_emulation_device`, `guest_emulation_log`, `guest_watchdog`, `hyperv_ic`, `netvsp`, `openvmm_core`, `amd_iommu`, `chipset_device_worker`, `intel_vtd`, `membacking`, `smmu`, `virtio`, `vmgs_broker`, `vfio_assigned_device`, `tpm_device`, `uidevices`, `virtio_blk`, `virtio_console`, `virtio_net`, `virtio_p9`, `virtio_pmem`, `virtio_rng`, `virtio_vsock`, `virtiofs`, `vmbfs`, `vmbus_serial_host`, `virt_hvf`, `serial_pl011`, `serial_16550`, `serial_debugcon`, `vhost_user_frontend`, `vhost_user_backend`, `virt_kvm`, `openvmm_vhost`, `openvmm_hcl_resources`, `underhill_core`, `guest_emulation_transport`, `hyperv_ic_guest`, `vmbus_relay_intercept_device`, `vmbus_client`, `vmbus_relay`, `mana_driver`, `net_mana`, `openhcl_dma_manager`, `virt_mshv_vtl`, `vpci_relay`, `vpci_client`, `tmk_vmm`, `petri`, `fuzz_chipset`, `fuzz_pcie`, `fuzz_nvme_driver`, `fuzz_ide`
+
+## Module Summary
+
+| Category | Count |
+|----------|------:|
+| Total exec functions | 59 |
+| Public / trait-pub | 34 |
+| Private | 25 |
+| Types | 18 |
+
+## Implicit Callers (runtime/compiler)
+
+### impl Drop for VmTimeAccess
+- **Trait:** `Drop`
+- **Description:** Compiler inserts call to drop() when value goes out of scope
+- **Methods dispatched:** `drop`
+
+> These functions have **no explicit call sites** in source code. The Rust runtime dispatches to them via vtable / lang items.
+
+## Public API — External Callers
+
+### `from_100ns` (impl `VmTime`) [pub] — 12 external caller(s)
+```
+pub fn from_100ns(n: u64) -> Self
+```
+> Converts from a time in 100ns units.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 37 | `let mut vm_time_keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));` |
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 59 | `let mut fake_vmtime = VmTime::from_100ns(0);` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1099 | `.map(|n| n.mem.as_ref().map_or(0, |m| m.mem_size))` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 409 | `last_time: VmTime::from_100ns(0),` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 2061 | `VmTime::from_100ns(0)` |
+| `openhcl/underhill_core/src/worker.rs` | 2288 | `let vmtime_keeper = VmTimeKeeper::new(tp.driver(0), VmTime::from_100ns(0));` |
+| `tmk/tmk_vmm/src/run.rs` | 284 | `let mut vmtime_keeper = VmTimeKeeper::new(&self.driver, VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1284 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1625 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1657 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1687 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 219 | `vmcore::vmtime::VmTimeKeeper::new(&driver, vmcore::vmtime::VmTime::from_100ns(0)` |
+
+*Internal callers (5):*
+- **VmTimeKeeper::reset** (L505): `self.reset_to(VmTime::from_100ns(0)).await`
+- **VmTimeSourceBuilder::build** (L565): `let mut state = Arc::new(RwLock::new(TimerState::new(driver, VmTime::from_100ns(`
+- **test_vmtime** (L989): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+- **test_multi_vmtime** (L1044): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+- **test_multi_vmtime** (L1063): `let zero = VmTime::from_100ns(0);`
+
+### `is_before` (impl `VmTime`) [pub] — **0 external callers**
+```
+pub fn is_before(self, t: Self) -> bool
+```
+> Returns whether `self` is before `t`.
+
+Note that this is a relative comparison in the 64-bit space and is not
+transitive: if `a` is before `b`, and `b` is before `c`, `a` still may
+be after `c`.
+
+*Internal callers (12):*
+- **VmTime::min** (L106): `if self.is_before(t) { self } else { t }`
+- **VmTime::max** (L111): `if self.is_before(t) { t } else { self }`
+- **TimerState::set_next** (L235): `.is_none_or(|current_next| next.is_before(current_next))`
+- **TimerState::wake** (L245): `assert!(!now.vmtime.is_before(self.last));`
+- **TimerState::wake** (L251): `if next.is_none_or(|next| this_next.is_before(next)) {`
+- **TimerState::update_timeout** (L273): `if time.is_before(self.last) {`
+- **TimerState::update_timeout** (L283): `if self.next.is_some_and(|next| next.is_before(time)) {`
+- **TimerState::poll_timeout** (L299): `if next.is_some_and(|next| next.is_before(now.vmtime)) {`
+- **VmTimeAccess::set_timeout_if_before** (L847): `if self.timeout.is_none_or(|timeout| time.is_before(timeout)) {`
+- **test_multi_vmtime** (L1054): `assert!(!t2.is_before(t1), "{t1:?} {t2:?}");`
+
+### `wrapping_add` (impl `VmTime`) [pub] — 8 external caller(s)
+```
+pub fn wrapping_add(self, d: Duration) -> Self
+```
+> Adds `d` to the time.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 74 | `fake_vmtime = fake_vmtime.wrapping_add(millis);` |
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 211 | `.wrapping_add(Duration::from_secs(seconds as u64));` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 609 | `.set_timeout(self.vmtime_wait.now().wrapping_add(duration));` |
+| `vm/devices/chipset/src/pit/mod.rs` | 577 | `.wrapping_add(Duration::from_nanos(ticks * NANOS_PER_TICK));` |
+| `vm/devices/chipset/src/pit/mod.rs` | 591 | `.wrapping_add(Duration::from_nanos(next * NANOS_PER_TICK)),` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 560 | `.set_timeout(now.wrapping_add(alarm_duration));` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1702 | `.wrapping_add(Duration::from_nanos(elapsed_nanos));` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1709 | `now.wrapping_add(Duration::from_nanos(ticks * NANOS_PER_TICK))` |
+
+*Internal callers (8):*
+- **TimeState::now** (L420): `.wrapping_add(now_os - start_time.os_time()),`
+- **VmTimeKeeper::advance** (L490): `.wrapping_add(duration);`
+- **PrimaryKeeper::run** (L670): `.wrapping_add(Instant::now() - start_time.os_time());`
+- **VmTimerPeriodic::start** (L933): `let time = self.vmtime.now().wrapping_add(period);`
+- **VmTimerPeriodic::poll_timeout** (L966): `let time = last_timeout.wrapping_add(period);`
+- **test_vmtime** (L999): `access.set_timeout(access.now().wrapping_add(Duration::from_secs(1000)));`
+- **test_vmtime** (L1007): `let deadline = access.now().wrapping_add(Duration::from_millis(10));`
+- **test_vmtime** (L1024): `let deadline = now.wrapping_add(Duration::from_millis(2000));`
+
+### `as_100ns` (impl `VmTime`) [pub] — 3 external caller(s)
+```
+pub const fn as_100ns(&self) -> u64
+```
+> Gets the time from VM boot (or some other origin) in 100ns units.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/pm/mod.rs` | 155 | `(now.as_100ns() as u128 * 3_579_545 / 10_000_000) as u32` |
+| `vm/devices/vga/src/emu.rs` | 1448 | `let us = (time.as_100ns() / 10) as f64;` |
+| `vm/devices/tpm/tpm_device/src/resolver.rs` | 100 | `let n = vmtime.now().as_100ns();` |
+
+
+### `is_after` (impl `VmTime`) [pub] — 2 external caller(s)
+```
+pub fn is_after(self, t: Self) -> bool
+```
+> Returns whether `self` is after `t`.
+
+See the comment about transitivity in [`Self::is_before`].
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/pit/mod.rs` | 889 | `if last.is_after(self.vmtime.now()) {` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1469 | `if now.is_after(next) {` |
+
+*Internal callers (1):*
+- **TimerState::wake** (L250): `if this_next.is_after(now.vmtime) {`
+
+### `checked_sub` (impl `VmTime`) [pub] — 2 external caller(s)
+```
+pub fn checked_sub(self, t: Self) -> Option<Duration>
+```
+> Returns the time between `self` and `t`, returning `None` if `self` is
+before `t`.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/pit/mod.rs` | 573 | `let delta = now.checked_sub(self.last).unwrap_or(Duration::ZERO);` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1666 | `let raw_nanos = now.checked_sub(self.last_time).unwrap().as_nanos() as u64;` |
+
+*Internal callers (1):*
+- **TimerState::timestamp** (L219): `.checked_sub(start_time.vmtime)`
+
+### `min` (impl `VmTime`) [pub] — **0 external callers**
+```
+pub fn min(self, t: Self) -> Self
+```
+> Returns `self` or `t`, whichever is earlier.
+
+
+### `max` (impl `VmTime`) [pub] — **0 external callers**
+```
+pub fn max(self, t: Self) -> Self
+```
+> Returns `self` or `t`, whichever is later.
+
+*Internal callers (1):*
+- **PrimaryKeeper::run** (L678): `.fold(now, |a, b| a.max(b));`
+
+### `from_vmtime` (impl `SavedState`) [pub] — 1 external caller(s)
+```
+pub fn from_vmtime(vmtime: VmTime) -> Self
+```
+> Create a new instance of `SavedState` from an existing `VmTime`.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 77 | `.restore(vmcore::vmtime::SavedState::from_vmtime(fake_vmtime))` |
+
+
+### `inspect` (trait `Inspect` for `TimeState`) [trait-pub] — **0 external callers**
+```
+fn inspect(&self, req: inspect::Request<'_>)
+```
+
+### `new` (impl `VmTimeKeeper`) [pub] — 9 external caller(s)
+```
+pub fn new(driver: &impl SpawnDriver, uptime: VmTime) -> Self
+```
+> Creates a new time keeper with the specified current guest time.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 37 | `let mut vm_time_keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));` |
+| `openhcl/underhill_core/src/worker.rs` | 2288 | `let vmtime_keeper = VmTimeKeeper::new(tp.driver(0), VmTime::from_100ns(0));` |
+| `tmk/tmk_vmm/src/run.rs` | 284 | `let mut vmtime_keeper = VmTimeKeeper::new(&self.driver, VmTime::from_100ns(0));` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1099 | `.map(|n| n.mem.as_ref().map_or(0, |m| m.mem_size))` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 219 | `vmcore::vmtime::VmTimeKeeper::new(&driver, vmcore::vmtime::VmTime::from_100ns(0)` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1284 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1625 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1657 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1687 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+
+*Internal callers (2):*
+- **test_vmtime** (L989): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+- **test_multi_vmtime** (L1044): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+
+### `advance` (impl `VmTimeKeeper`) [pub] — 1 external caller(s)
+```
+pub async fn advance(&mut self, duration: Duration)
+```
+> Advances stopped VM time by `duration`.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vmm_core/src/vmtime_unit.rs` | 44 | `self.0.advance(duration).await;` |
+
+
+### `restore` (impl `VmTimeKeeper`) [pub] — 2 external caller(s)
+```
+pub async fn restore(&mut self, state: SavedState)
+```
+> Restores the time state.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 77 | `.restore(vmcore::vmtime::SavedState::from_vmtime(fake_vmtime))` |
+| `vmm_core/src/vmtime_unit.rs` | 39 | `self.0.restore(state.parse()?).await;` |
+
+
+### `save` (impl `VmTimeKeeper`) [pub] — 1 external caller(s)
+```
+pub fn save(&self) -> SavedState
+```
+> Saves the time state.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vmm_core/src/vmtime_unit.rs` | 35 | `Ok(Some(SavedStateBlob::new(self.0.save())))` |
+
+
+### `reset` (impl `VmTimeKeeper`) [pub] — 1 external caller(s)
+```
+pub async fn reset(&mut self)
+```
+> Reset the VM time to 0.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vmm_core/src/vmtime_unit.rs` | 30 | `self.0.reset().await;` |
+
+*Internal callers (1):*
+- **test_multi_vmtime** (L1066): `keeper.reset().await;`
+
+### `start` (impl `VmTimeKeeper`) [pub] — 4 external caller(s)
+```
+pub async fn start(&mut self)
+```
+> Starts the timer, so that the current time will increase.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 58 | `vm_time_keeper.start().await;` |
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 79 | `vm_time_keeper.start().await;` |
+| `vmm_core/src/vmtime_unit.rs` | 21 | `self.0.start().await;` |
+| `tmk/tmk_vmm/src/run.rs` | 291 | `vmtime_keeper.start().await;` |
+
+*Internal callers (2):*
+- **test_vmtime** (L996): `keeper.start().await;`
+- **test_multi_vmtime** (L1046): `keeper.start().await;`
+
+### `stop` (impl `VmTimeKeeper`) [pub] — 3 external caller(s)
+```
+pub async fn stop(&mut self)
+```
+> Stops the timer, so that the current time will stop increasing.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 75 | `vm_time_keeper.stop().await;` |
+| `vmm_core/src/vmtime_unit.rs` | 26 | `self.0.stop().await;` |
+| `tmk/tmk_vmm/src/run.rs` | 297 | `vmtime_keeper.stop().await;` |
+
+*Internal callers (2):*
+- **test_vmtime** (L1039): `keeper.stop().await;`
+- **test_multi_vmtime** (L1058): `keeper.stop().await;`
+
+### `builder` (impl `VmTimeKeeper`) [pub] — 9 external caller(s)
+```
+pub fn builder(&self) -> &VmTimeSourceBuilder
+```
+> Returns a time source builder, which can be used to spawn tasks that
+back [`VmTimeSource`] instances, all backed by this time keeper's clock.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 38 | `let vm_time_source = vm_time_keeper.builder().build(&driver).await.unwrap();` |
+| `openhcl/underhill_core/src/worker.rs` | 2289 | `let vmtime_source = vmtime_keeper.builder().build(tp.driver(0)).await.unwrap();` |
+| `tmk/tmk_vmm/src/run.rs` | 285 | `let vmtime_source = vmtime_keeper.builder().build(&self.driver).await.unwrap();` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1101 | `` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 221 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1286 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1627 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1659 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1689 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+
+*Internal callers (2):*
+- **test_vmtime** (L991): `.builder()`
+- **test_multi_vmtime** (L1045): `let src1 = keeper.builder().build(&driver).await.unwrap();`
+
+### `build` (impl `VmTimeSourceBuilder`) [pub] — 10 external caller(s)
+```
+pub async fn build(&self, driver: &impl SpawnDriver) -> Result<VmTimeSource, TimeKeeperIsGone>
+```
+> Builds and spawns a backing task for [`VmTimeSource`]s. All
+[`VmTimeSource`] instances cloned from the first one will share a
+backing task.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 38 | `let vm_time_source = vm_time_keeper.builder().build(&driver).await.unwrap();` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1102 | `let vmtime_keeper = VmTimeKeeper::new(&driver_source.simple(), VmTime::from_100n` |
+| `openhcl/underhill_core/src/worker.rs` | 2289 | `let vmtime_source = vmtime_keeper.builder().build(tp.driver(0)).await.unwrap();` |
+| `tmk/tmk_vmm/src/run.rs` | 285 | `let vmtime_source = vmtime_keeper.builder().build(&self.driver).await.unwrap();` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1286 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1627 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1659 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1689 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+| `workers/chipset_device_worker/src/worker.rs` | 128 | `.build(&driver)` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 221 | `.run_until(vm_time_keeper.builder().build(&driver))` |
+
+*Internal callers (3):*
+- **test_vmtime** (L992): `.build(&driver)`
+- **test_multi_vmtime** (L1045): `let src1 = keeper.builder().build(&driver).await.unwrap();`
+- **test_multi_vmtime** (L1047): `let src2 = src1.builder().build(&driver).await.unwrap();`
+
+### `now` (impl `VmTimeAccess`) [pub] — 14 external caller(s)
+```
+pub fn now(&self) -> VmTime
+```
+> Gets the current time.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 210 | `.now()` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 609 | `.set_timeout(self.vmtime_wait.now().wrapping_add(duration));` |
+| `vm/devices/tpm/tpm_device/src/resolver.rs` | 100 | `let n = vmtime.now().as_100ns();` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1468 | `let now = vmtime.now();` |
+| `vm/devices/vga/src/emu.rs` | 1447 | `let time = self.vmtime.now();` |
+| `vm/devices/chipset/src/pit/mod.rs` | 562 | `last: vmtime.now(),` |
+| `vm/devices/chipset/src/pit/mod.rs` | 599 | `self.evaluate(self.vmtime.now());` |
+| `vm/devices/chipset/src/pit/mod.rs` | 609 | `self.last = self.vmtime.now();` |
+| `vm/devices/chipset/src/pit/mod.rs` | 642 | `self.evaluate(self.vmtime.now());` |
+| `vm/devices/chipset/src/pit/mod.rs` | 673 | `self.evaluate(self.vmtime.now());` |
+| `vm/devices/chipset/src/pit/mod.rs` | 889 | `if last.is_after(self.vmtime.now()) {` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 645 | `self.set_alarm_timer(self.vmtime_alarm.now())` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 702 | `self.set_alarm_timer(self.vmtime_alarm.now());` |
+| `vm/devices/chipset/src/pm/mod.rs` | 153 | `let now = vmtime.now();` |
+
+*Internal callers (12):*
+- **VmTimerPeriodic::start** (L933): `let time = self.vmtime.now().wrapping_add(period);`
+- **test_vmtime** (L999): `access.set_timeout(access.now().wrapping_add(Duration::from_secs(1000)));`
+- **test_vmtime** (L1007): `let deadline = access.now().wrapping_add(Duration::from_millis(10));`
+- **test_vmtime** (L1023): `let now = access.now();`
+- **test_multi_vmtime** (L1051): `let t1 = acc1.now();`
+- **test_multi_vmtime** (L1052): `let t2 = acc2.now();`
+- **test_multi_vmtime** (L1053): `let t3 = acc1.now();`
+- **test_multi_vmtime** (L1057): `let now = acc1.now();`
+- **test_multi_vmtime** (L1059): `let t1 = acc1.now();`
+- **test_multi_vmtime** (L1060): `let t2 = acc2.now();`
+
+### `set_timeout_if_before` (impl `VmTimeAccess`) [pub] — 2 external caller(s)
+```
+pub fn set_timeout_if_before(&mut self, time: VmTime)
+```
+> Sets the timeout for [`poll_timeout`](Self::poll_timeout) will return ready,
+but only if `time` is earlier than the current timeout.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/pit/mod.rs` | 589 | `self.vmtime.set_timeout_if_before(` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1474 | `vmtime.set_timeout_if_before(next);` |
+
+
+### `set_timeout` (impl `VmTimeAccess`) [pub] — 3 external caller(s)
+```
+pub fn set_timeout(&mut self, time: VmTime)
+```
+> Sets the timeout [`poll_timeout`](Self::poll_timeout) will return ready.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 214 | `self.vmtime.set_timeout(next_tick);` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 609 | `.set_timeout(self.vmtime_wait.now().wrapping_add(duration));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 560 | `.set_timeout(now.wrapping_add(alarm_duration));` |
+
+*Internal callers (6):*
+- **VmTimeAccess::set_timeout_if_before** (L848): `self.set_timeout(time);`
+- **VmTimerPeriodic::start** (L934): `self.vmtime.set_timeout(time);`
+- **VmTimerPeriodic::poll_timeout** (L967): `self.vmtime.set_timeout(time);`
+- **test_vmtime** (L999): `access.set_timeout(access.now().wrapping_add(Duration::from_secs(1000)));`
+- **test_vmtime** (L1008): `access.set_timeout(deadline);`
+- **test_vmtime** (L1025): `access.set_timeout(deadline);`
+
+### `get_timeout` (impl `VmTimeAccess`) [pub] — 2 external caller(s)
+```
+pub fn get_timeout(&self) -> Option<VmTime>
+```
+> Get the currently set timeout.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 644 | `if self.vmtime_alarm.get_timeout().is_none() {` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 701 | `if self.vmtime_alarm.get_timeout().is_some() {` |
+
+*Internal callers (1):*
+- **VmTimerPeriodic::poll_timeout** (L953): `assert_eq!(self.vmtime.get_timeout(), None);`
+
+### `host_time` (impl `VmTimeAccess`) [pub] — **0 external callers**
+```
+pub fn host_time(&self, time: VmTime) -> Option<Instant>
+```
+> Returns the host time corresponding to a guest time.
+
+If the guest time is before the VM last resumed, then returns the time
+the VM last resumed.
+
+If the VM is not running, returns `None`.
+
+
+### `poll_timeout` (impl `VmTimeAccess`) [pub] — 5 external caller(s)
+```
+pub fn poll_timeout(&mut self, cx: &mut Context<'_>) -> Poll<VmTime>
+```
+> Polls the current time against the current timeout.
+
+Returns `Poll::Ready(self.now())` if the current timeout is before now.
+Returns `Poll::Pending` if there is no current timeout, or if the
+current timeout is after now.
+
+Although this takes `&self`, note that it only stores a single waker,
+meaning that if you poll this from multiple tasks concurrently, only one
+task will be woken when the time elapses. Create another instance of
+this type with [`VmTimeSource`] if you need to poll this from multiple
+tasks.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 223 | `while let Poll::Ready(_now) = self.vmtime.poll_timeout(cx) {` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 815 | `while self.vmtime_wait.poll_timeout(cx).is_ready() {` |
+| `vm/devices/chipset/src/pit/mod.rs` | 625 | `if let Poll::Ready(now) = self.vmtime.poll_timeout(cx) {` |
+| `vm/devices/chipset/src/pit/mod.rs` | 630 | `assert!(self.vmtime.poll_timeout(cx).is_pending());` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1120 | `while let Poll::Ready(now) = self.vmtime_alarm.poll_timeout(cx) {` |
+
+*Internal callers (3):*
+- **VmTimerPeriodic::poll_timeout** (L956): `self.vmtime.poll_timeout(cx)`
+- **VmTimerPeriodic::poll_timeout** (L963): `while let Poll::Ready(now) = self.vmtime.poll_timeout(cx) {`
+- **test_vmtime** (L1017): `poll_fn(|cx| access.poll_timeout(cx))`
+
+### `cancel_timeout` (impl `VmTimeAccess`) [pub] — 3 external caller(s)
+```
+pub fn cancel_timeout(&mut self)
+```
+> Clears the current timeout for [`poll_timeout`](Self::poll_timeout).
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 648 | `self.vmtime_alarm.cancel_timeout();` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 744 | `self.vmtime_alarm.cancel_timeout();` |
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 219 | `self.vmtime.cancel_timeout();` |
+
+*Internal callers (1):*
+- **VmTimerPeriodic::cancel** (L922): `self.vmtime.cancel_timeout();`
+
+### `access` (impl `VmTimeSource`) [pub] — 11 external caller(s)
+```
+pub fn access(&self, name: impl Into<Arc<str>>) -> VmTimeAccess
+```
+> Gets a time accessor.
+
+`name` is used for diagnostics via `inspect`.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/watchdog/guest_watchdog/src/resolver.rs` | 60 | `input.vmtime.access("guest-watchdog-time"),` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 308 | `vmtime_wait: vmtime.access("pcat-wait"),` |
+| `vm/devices/tpm/tpm_device/src/resolver.rs` | 97 | `let vmtime = input.vmtime.access("tpm");` |
+| `vm/devices/chipset_legacy/src/piix4_pm/resolver.rs` | 52 | `input.vmtime.access("piix4-pm"),` |
+| `vm/devices/vga/src/emu.rs` | 596 | `vmtime: vmtime.access("vga"),` |
+| `vm/devices/firmware/firmware_uefi/src/lib.rs` | 185 | `vmtime.access("uefi-watchdog"),` |
+| `vm/devices/chipset/src/pit/resolver.rs` | 33 | `let vmtime = input.vmtime.access("pit");` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 422 | `vmtime_alarm: vmtime_source.access("rtc-alarm"),` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 423 | `vmtimer_periodic: VmTimerPeriodic::new(vmtime_source.access("rtc-periodic")),` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 424 | `vmtimer_update: VmTimerPeriodic::new(vmtime_source.access("rtc-update")),` |
+| `vm/devices/chipset/src/pm/resolver.rs` | 132 | `input.vmtime.access("pm"),` |
+
+*Internal callers (3):*
+- **test_vmtime** (L995): `.access("test");`
+- **test_multi_vmtime** (L1048): `let acc1 = src1.access("test");`
+- **test_multi_vmtime** (L1049): `let acc2 = src2.access("test");`
+
+### `builder` (impl `VmTimeSource`) [pub] — 1 external caller(s)
+```
+pub fn builder(&self) -> &VmTimeSourceBuilder
+```
+> Gets the builder for creating additional time sources backing tasks
+whose times are in sync with this one.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `workers/chipset_device_worker/src/resolver.rs` | 73 | `vmtime: input.vmtime.builder().clone(),` |
+
+*Internal callers (1):*
+- **test_multi_vmtime** (L1047): `let src2 = src1.builder().build(&driver).await.unwrap();`
+
+### `drop` (trait `Drop` for `VmTimeAccess`) [trait-pub] — implicit via `Drop`
+```
+fn drop(&mut self)
+```
+> ⚡ **impl Drop for VmTimeAccess**: Compiler inserts call to drop() when value goes out of scope
+
+
+### `new` (impl `VmTimerPeriodic`) [pub] — 2 external caller(s)
+```
+pub fn new(vmtime_access: VmTimeAccess) -> Self
+```
+> Create a new periodic timer, backed by the given [`VmTimeAccess`].
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 423 | `vmtimer_periodic: VmTimerPeriodic::new(vmtime_source.access("rtc-periodic")),` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 424 | `vmtimer_update: VmTimerPeriodic::new(vmtime_source.access("rtc-update")),` |
+
+
+### `poll_timeout` (impl `VmTimerPeriodic`) [pub] — 2 external caller(s)
+```
+pub fn poll_timeout(&mut self, cx: &mut Context<'_>) -> Poll<VmTime>
+```
+> Polls the timer.
+
+Returns `Poll::Ready(now)` when the timer is past-due, returning
+`Poll::Pending` otherwise.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1124 | `if let Poll::Ready(_now) = self.vmtimer_periodic.poll_timeout(cx) {` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1128 | `if let Poll::Ready(_now) = self.vmtimer_update.poll_timeout(cx) {` |
+
+
+### `is_running` (impl `VmTimerPeriodic`) [pub] — 2 external caller(s)
+```
+pub fn is_running(&self) -> bool
+```
+> Check if the timer is currently running.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 652 | `if !self.vmtimer_periodic.is_running() {` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 660 | `if !self.vmtimer_update.is_running() {` |
+
+
+### `start` (impl `VmTimerPeriodic`) [pub] — 2 external caller(s)
+```
+pub fn start(&mut self, period: Duration)
+```
+> Start the timer, configuring it to fire at the specified period.
+
+If the timer is currently running, the timer will be cancelled +
+restarted.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 594 | `self.vmtimer_periodic.start(tick_period);` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 608 | `self.vmtimer_update.start(Duration::from_secs(1));` |
+
+
+### `cancel` (impl `VmTimerPeriodic`) [pub] — 3 external caller(s)
+```
+pub fn cancel(&mut self)
+```
+> Cancel the timer.
+
+If the timer isn't running, this method is a no-op.
+
+
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 656 | `self.vmtimer_periodic.cancel();` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 664 | `self.vmtimer_update.cancel();` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 749 | `self.vmtimer_periodic.cancel();` |
+
+*Internal callers (1):*
+- **VmTimerPeriodic::start** (L931): `self.cancel();`
+
+## Private Functions — Internal Call Graph
+
+These are implementation details. Listed to show which public functions depend on them.
+
+### `new` (impl `TimerState`) [private]
+```
+fn new(driver: &impl Driver, uptime: VmTime) -> Self
+```
+*Called by (12):*
+- **duration_from_100ns** (L117): `Duration::new(n / NUM_100NS_IN_SEC, (n % NUM_100NS_IN_SEC) as u32 * 100)`
+- **TimerState::new** (L174): `waiters: Slab::new(),`
+- **TimerState::timestamp** (L221): `Some(Timestamp::new(time, start_time.os_time() + since))`
+- **TimeState::now** (L414): `TimeState::Stopped(time) => Timestamp::new(time, now_os),`
+- **TimeState::now** (L417): `Timestamp::new(`
+- **VmTimeKeeper::new** (L457): `keepers: Vec::new(),`
+- **VmTimeKeeper::start** (L511): `let timestamp = Timestamp::new(vmtime, Instant::now());`
+- **VmTimeSourceBuilder::build** (L565): `let mut state = Arc::new(RwLock::new(TimerState::new(driver, VmTime::from_100ns(`
+- **VmTimeSource::access** (L783): `.insert(WaiterState::new(name.clone())),`
+- **test_vmtime** (L989): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+
+### `reset` (impl `TimerState`) [private]
+```
+fn reset(&mut self, time: VmTime)
+```
+> Resets the current time to `time`.
+
+*Called by (3):*
+- **VmTimeSourceBuilder::build** (L570): `TimeState::Stopped(vmtime) => state.reset(vmtime),`
+- **SecondaryKeeper::run** (L749): `state.reset(vmtime);`
+- **test_multi_vmtime** (L1066): `keeper.reset().await;`
+
+### `timestamp` (impl `TimerState`) [private]
+```
+fn timestamp(&self, time: VmTime) -> Option<Timestamp>
+```
+> Returns the timestamp corresponding to the given VM time.
+
+If the VM time is before the last start time, then the timestamp is at
+the host time when the VM last started.
+
+*Called by (2):*
+- **TimerState::set_next** (L237): `let deadline = self.timestamp(next).unwrap().os_time();`
+- **VmTimeAccess::host_time** (L828): `Some(self.state.read().timestamp(time)?.os_time())`
+
+### `start` (impl `TimerState`) [private]
+```
+fn start(&mut self, now: Timestamp)
+```
+> Starts the timer.
+
+*Called by (4):*
+- **VmTimeSourceBuilder::build** (L571): `TimeState::Started(timestamp) => state.start(timestamp),`
+- **SecondaryKeeper::run** (L745): `state.start(start_time);`
+- **test_vmtime** (L996): `keeper.start().await;`
+- **test_multi_vmtime** (L1046): `keeper.start().await;`
+
+### `stop` (impl `TimerState`) [private]
+```
+fn stop(&mut self, now_os: Instant) -> VmTime
+```
+> Stops the timer.
+
+*Called by (3):*
+- **SecondaryKeeper::run** (L753): `state.stop(Instant::now())`
+- **test_vmtime** (L1039): `keeper.stop().await;`
+- **test_multi_vmtime** (L1058): `keeper.stop().await;`
+
+### `now` (impl `TimerState`) [private]
+```
+fn now(&self, now_os: Instant) -> Timestamp
+```
+> Returns the current guest time given a host time.
+
+*Called by (22):*
+- **TimerState::stop** (L192): `let now = self.now(now_os);`
+- **TimerState::now** (L226): `self.time.now(now_os)`
+- **TimerState::poll_timeout** (L297): `let now = self.now(now_os);`
+- **TimerState::poll** (L323): `let deadline = Instant::now() + Duration::from_secs(86400);`
+- **TimerState::poll** (L330): `self.wake(self.now(now));`
+- **TimeState::inspect** (L389): `.field("now", self.now(Instant::now()).vmtime);`
+- **VmTimeKeeper::start** (L511): `let timestamp = Timestamp::new(vmtime, Instant::now());`
+- **PrimaryKeeper::run** (L670): `.wrapping_add(Instant::now() - start_time.os_time());`
+- **SecondaryKeeper::run** (L753): `state.stop(Instant::now())`
+- **VmTimeAccess::now** (L817): `let now = Instant::now();`
+
+### `set_next` (impl `TimerState`) [private]
+```
+fn set_next(&mut self, next: VmTime)
+```
+*Called by (3):*
+- **TimerState::wake** (L260): `self.set_next(next);`
+- **TimerState::update_timeout** (L286): `self.set_next(time);`
+- **TimerState::poll_timeout** (L307): `self.set_next(next);`
+
+### `wake` (impl `TimerState`) [private]
+```
+fn wake(&mut self, now: Timestamp)
+```
+*Called by (5):*
+- **TimerState::start** (L186): `self.wake(now);`
+- **TimerState::reset** (L207): `waker.wake();`
+- **TimerState::wake** (L255): `waker.wake();`
+- **TimerState::update_timeout** (L277): `waker.wake();`
+- **TimerState::poll** (L330): `self.wake(self.now(now));`
+
+### `cancel_timeout` (impl `TimerState`) [private]
+```
+fn cancel_timeout(&mut self, index: usize)
+```
+*Called by (2):*
+- **VmTimeAccess::cancel_timeout** (L855): `self.state.write().cancel_timeout(self.index);`
+- **VmTimerPeriodic::cancel** (L922): `self.vmtime.cancel_timeout();`
+
+### `update_timeout` (impl `TimerState`) [private]
+```
+fn update_timeout(&mut self, index: usize, time: VmTime)
+```
+> Updates the next timeout for an individual waiter.
+
+*Called by (1):*
+- **VmTimeAccess::set_timeout** (L840): `self.state.write().update_timeout(self.index, time);`
+
+### `poll_timeout` (impl `TimerState`) [private]
+```
+fn poll_timeout(
+        &mut self,
+        cx: &mut Context<'_>,
+        index: usize,
+        now_os: Instant,
+        next: Option<VmTime>,
+    ) -> Poll<Timestamp>
+```
+> Polls a single waiter.
+
+*Called by (3):*
+- **VmTimeAccess::poll_timeout** (L873): `match self`
+- **VmTimerPeriodic::poll_timeout** (L956): `self.vmtime.poll_timeout(cx)`
+- **VmTimerPeriodic::poll_timeout** (L963): `while let Poll::Ready(now) = self.vmtime.poll_timeout(cx) {`
+
+### `poll` (impl `TimerState`) [private]
+```
+fn poll(&mut self, cx: &mut Context<'_>)
+```
+> Polls the timer, waking any waiters whose timeout has expired.
+
+*Called by (1):*
+- **SecondaryKeeper::run** (L734): `state.write().poll(cx);`
+
+### `new` (impl `Timestamp`) [private]
+```
+fn new(vmtime: VmTime, os_time: Instant) -> Self
+```
+*Called by (12):*
+- **duration_from_100ns** (L117): `Duration::new(n / NUM_100NS_IN_SEC, (n % NUM_100NS_IN_SEC) as u32 * 100)`
+- **TimerState::new** (L174): `waiters: Slab::new(),`
+- **TimerState::timestamp** (L221): `Some(Timestamp::new(time, start_time.os_time() + since))`
+- **TimeState::now** (L414): `TimeState::Stopped(time) => Timestamp::new(time, now_os),`
+- **TimeState::now** (L417): `Timestamp::new(`
+- **VmTimeKeeper::new** (L457): `keepers: Vec::new(),`
+- **VmTimeKeeper::start** (L511): `let timestamp = Timestamp::new(vmtime, Instant::now());`
+- **VmTimeSourceBuilder::build** (L565): `let mut state = Arc::new(RwLock::new(TimerState::new(driver, VmTime::from_100ns(`
+- **VmTimeSource::access** (L783): `.insert(WaiterState::new(name.clone())),`
+- **test_vmtime** (L989): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+
+### `os_time` (impl `Timestamp`) [private]
+```
+fn os_time(&self) -> Instant
+```
+*Called by (7):*
+- **TimerState::timestamp** (L221): `Some(Timestamp::new(time, start_time.os_time() + since))`
+- **TimerState::set_next** (L237): `let deadline = self.timestamp(next).unwrap().os_time();`
+- **TimeState::now** (L416): `if now_os >= start_time.os_time() {`
+- **TimeState::now** (L420): `.wrapping_add(now_os - start_time.os_time()),`
+- **TimeState::now** (L431): `let delta = start_time.os_time() - now_os;`
+- **PrimaryKeeper::run** (L670): `.wrapping_add(Instant::now() - start_time.os_time());`
+- **VmTimeAccess::host_time** (L828): `Some(self.state.read().timestamp(time)?.os_time())`
+
+### `new` (impl `WaiterState`) [private]
+```
+fn new(name: Arc<str>) -> Self
+```
+*Called by (12):*
+- **duration_from_100ns** (L117): `Duration::new(n / NUM_100NS_IN_SEC, (n % NUM_100NS_IN_SEC) as u32 * 100)`
+- **TimerState::new** (L174): `waiters: Slab::new(),`
+- **TimerState::timestamp** (L221): `Some(Timestamp::new(time, start_time.os_time() + since))`
+- **TimeState::now** (L414): `TimeState::Stopped(time) => Timestamp::new(time, now_os),`
+- **TimeState::now** (L417): `Timestamp::new(`
+- **VmTimeKeeper::new** (L457): `keepers: Vec::new(),`
+- **VmTimeKeeper::start** (L511): `let timestamp = Timestamp::new(vmtime, Instant::now());`
+- **VmTimeSourceBuilder::build** (L565): `let mut state = Arc::new(RwLock::new(TimerState::new(driver, VmTime::from_100ns(`
+- **VmTimeSource::access** (L783): `.insert(WaiterState::new(name.clone())),`
+- **test_vmtime** (L989): `let mut keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));`
+
+### `is_started` (impl `TimeState`) [private]
+```
+fn is_started(&self) -> bool
+```
+*Called by (2):*
+- **TimerState::set_next** (L230): `if !self.time.is_started() {`
+- **TimerState::poll** (L314): `while self.time.is_started() {`
+
+### `now` (impl `TimeState`) [private]
+```
+fn now(&self, now_os: Instant) -> Timestamp
+```
+*Called by (22):*
+- **TimerState::stop** (L192): `let now = self.now(now_os);`
+- **TimerState::now** (L226): `self.time.now(now_os)`
+- **TimerState::poll_timeout** (L297): `let now = self.now(now_os);`
+- **TimerState::poll** (L323): `let deadline = Instant::now() + Duration::from_secs(86400);`
+- **TimerState::poll** (L330): `self.wake(self.now(now));`
+- **TimeState::inspect** (L389): `.field("now", self.now(Instant::now()).vmtime);`
+- **VmTimeKeeper::start** (L511): `let timestamp = Timestamp::new(vmtime, Instant::now());`
+- **PrimaryKeeper::run** (L670): `.wrapping_add(Instant::now() - start_time.os_time());`
+- **SecondaryKeeper::run** (L753): `state.stop(Instant::now())`
+- **VmTimeAccess::now** (L817): `let now = Instant::now();`
+
+### `stop_time` (impl `TimeState`) [private]
+```
+fn stop_time(&self) -> Option<VmTime>
+```
+*Called by (4):*
+- **TimerState::start** (L182): `let vmtime = self.time.stop_time().expect("should be stopped");`
+- **VmTimeKeeper::save** (L474): `vmtime: self.time.stop_time().expect("should be stopped"),`
+- **VmTimeKeeper::advance** (L486): `let vmtime = self`
+- **VmTimeKeeper::start** (L510): `let vmtime = self.time.stop_time().expect("should be stopped");`
+
+### `start_time` (impl `TimeState`) [private]
+```
+fn start_time(&self) -> Option<Timestamp>
+```
+*Called by (3):*
+- **TimerState::timestamp** (L217): `let start_time = self.time.start_time()?;`
+- **TimeState::is_started** (L395): `self.start_time().is_some()`
+- **PrimaryKeeper::run** (L667): `let start_time = self.time.start_time().expect("should be running");`
+
+### `reset_to` (impl `VmTimeKeeper`) [private]
+```
+async fn reset_to(&mut self, vmtime: VmTime)
+```
+*Called by (3):*
+- **VmTimeKeeper::restore** (L481): `self.reset_to(vmtime).await`
+- **VmTimeKeeper::advance** (L491): `self.reset_to(vmtime).await;`
+- **VmTimeKeeper::reset** (L505): `self.reset_to(VmTime::from_100ns(0)).await`
+
+### `run` (impl `PrimaryKeeper`) [private]
+```
+async fn run(&mut self)
+```
+*Called by (2):*
+- **VmTimeKeeper::new** (L461): `primary.run().await;`
+- **VmTimeSourceBuilder::build** (L579): `.spawn("vm-time", async move { keeper.run().await })`
+
+### `run` (impl `SecondaryKeeper`) [private]
+```
+async fn run(&mut self)
+```
+*Called by (2):*
+- **VmTimeKeeper::new** (L461): `primary.run().await;`
+- **VmTimeSourceBuilder::build** (L579): `.spawn("vm-time", async move { keeper.run().await })`
+
+### `test_vmtime` [private]
+```
+async fn test_vmtime(driver: DefaultDriver)
+```
+*No internal callers found (may be called via macro, closure, or conditional compilation).*
+
+### `test_multi_vmtime` [private]
+```
+async fn test_multi_vmtime(driver: DefaultDriver)
+```
+*No internal callers found (may be called via macro, closure, or conditional compilation).*
+
+### `duration_from_100ns` [private]
+```
+fn duration_from_100ns(n: u64) -> Duration
+```
+*Called by (1):*
+- **VmTime::checked_sub** (L98): `Some(duration_from_100ns(delta))`
+
+## Type References
+
+### `VmTimeAccess` [pub] — 23 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 31 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 184 | `vmtime_alarm: VmTimeAccess,` |
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 21 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 113 | `vmtime: VmTimeAccess,` |
+| `vm/devices/watchdog/watchdog_core/src/lib.rs` | 125 | `vmtime: VmTimeAccess,` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 46 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 216 | `vmtime_wait: VmTimeAccess,` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 25 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1462 | `pub fn scan(&mut self, vmtime: &mut VmTimeAccess, scan_irr: bool) -> ApicWork {` |
+| `vm/devices/vga/src/emu.rs` | 34 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/vga/src/emu.rs` | 47 | `vmtime: VmTimeAccess,` |
+| `vmm_core/virt_kvm/src/lib.rs` | 40 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/chipset/src/pit/mod.rs` | 23 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/chipset/src/pit/mod.rs` | 539 | `vmtime: VmTimeAccess,` |
+| `vm/devices/chipset/src/pit/mod.rs` | 553 | `pub fn new(interrupt: LineInterrupt, vmtime: VmTimeAccess) -> Self {` |
+| `vm/devices/firmware/firmware_uefi/src/service/uefi_watchdog.rs` | 6 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/firmware/firmware_uefi/src/service/uefi_watchdog.rs` | 17 | `vmtime: VmTimeAccess,` |
+| `vm/devices/chipset/src/pm/mod.rs` | 45 | `use vmcore::vmtime::VmTimeAccess;` |
+| `vm/devices/chipset/src/pm/mod.rs` | 137 | `fn read_dynamic(&mut self, vmtime: &VmTimeAccess, offset: u8) -> u32 {` |
+| `vm/devices/chipset/src/pm/mod.rs` | 347 | `vmtime: VmTimeAccess,` |
+
+### `VmTimerPeriodic` [pub] — 5 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/src/cmos_rtc.rs` | 33 | `use vmcore::vmtime::VmTimerPeriodic;` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 185 | `vmtimer_periodic: VmTimerPeriodic,` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 186 | `vmtimer_update: VmTimerPeriodic,` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 423 | `vmtimer_periodic: VmTimerPeriodic::new(vmtime_source.access("rtc-periodic")),` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 424 | `vmtimer_update: VmTimerPeriodic::new(vmtime_source.access("rtc-update")),` |
+
+### `VmTime` [pub] — 31 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 13 | `use vmcore::vmtime::VmTime;` |
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 37 | `let mut vm_time_keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));` |
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 59 | `let mut fake_vmtime = VmTime::from_100ns(0);` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 158 | `use vmcore::vmtime::VmTime;` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1099 | `.map(|n| n.mem.as_ref().map_or(0, |m| m.mem_size))` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 24 | `use vmcore::vmtime::VmTime;` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 108 | `last_time: VmTime,` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 109 | `next_timeout: Option<VmTime>,` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 409 | `last_time: VmTime::from_100ns(0),` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 665 | `fn now(&mut self) -> VmTime;` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1659 | `fn eval_time(&mut self, now: VmTime) {` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 1705 | `fn update_timeout(&mut self, now: VmTime) {` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 2060 | `fn now(&mut self) -> VmTime {` |
+| `vmm_core/virt_support_apic/src/lib.rs` | 2061 | `VmTime::from_100ns(0)` |
+| `openhcl/underhill_core/src/worker.rs` | 167 | `use vmcore::vmtime::VmTime;` |
+| `openhcl/underhill_core/src/worker.rs` | 2288 | `let vmtime_keeper = VmTimeKeeper::new(tp.driver(0), VmTime::from_100ns(0));` |
+| `tmk/tmk_vmm/src/run.rs` | 25 | `use vmcore::vmtime::VmTime;` |
+| `tmk/tmk_vmm/src/run.rs` | 284 | `let mut vmtime_keeper = VmTimeKeeper::new(&self.driver, VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/pit/mod.rs` | 22 | `use vmcore::vmtime::VmTime;` |
+| `vm/devices/chipset/src/pit/mod.rs` | 549 | `last: VmTime,` |
+
+### `WaiterState` [private] — 0 external reference(s)
+
+### `TimerState` [private] — 0 external reference(s)
+
+### `VmTimeKeeper` [pub] — 23 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 14 | `use vmcore::vmtime::VmTimeKeeper;` |
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 37 | `let mut vm_time_keeper = VmTimeKeeper::new(&driver, VmTime::from_100ns(0));` |
+| `vmm_core/src/vmtime_unit.rs` | 13 | `use vmcore::vmtime::VmTimeKeeper;` |
+| `vmm_core/src/vmtime_unit.rs` | 17 | `struct KeeperUnit<'a>(#[inspect(mut)] &'a mut VmTimeKeeper);` |
+| `vmm_core/src/vmtime_unit.rs` | 51 | `pub async fn run_vmtime(keeper: &mut VmTimeKeeper, recv: Receiver<StateRequest>)` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 159 | `use vmcore::vmtime::VmTimeKeeper;` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 551 | `vps: Vec<Box<dyn BindHvliteVp>>,` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 862 | `partition_unit: PartitionUnit,` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 1099 | `.map(|n| n.mem.as_ref().map_or(0, |m| m.mem_size))` |
+| `openhcl/underhill_core/src/worker.rs` | 168 | `use vmcore::vmtime::VmTimeKeeper;` |
+| `openhcl/underhill_core/src/worker.rs` | 2288 | `let vmtime_keeper = VmTimeKeeper::new(tp.driver(0), VmTime::from_100ns(0));` |
+| `tmk/tmk_vmm/src/run.rs` | 26 | `use vmcore::vmtime::VmTimeKeeper;` |
+| `tmk/tmk_vmm/src/run.rs` | 284 | `let mut vmtime_keeper = VmTimeKeeper::new(&self.driver, VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1277 | `vmcore::vmtime::VmTimeKeeper,` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1284 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1307 | `vmcore::vmtime::VmTimeKeeper,` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1625 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1657 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `vm/devices/chipset/src/cmos_rtc.rs` | 1687 | `vmcore::vmtime::VmTimeKeeper::new(&pool.driver(), VmTime::from_100ns(0));` |
+| `openhcl/underhill_core/src/dispatch/mod.rs` | 69 | `use vmcore::vmtime::VmTimeKeeper;` |
+
+### `Timestamp` [private] — 0 external reference(s)
+
+### `SavedState` [pub] — 1 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/chipset/fuzz/fuzz_cmos_rtc.rs` | 77 | `.restore(vmcore::vmtime::SavedState::from_vmtime(fake_vmtime))` |
+
+### `VmTimeSourceBuilder` [pub] — 1 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `workers/chipset_device_worker/src/worker.rs` | 60 | `pub vmtime: vmcore::vmtime::VmTimeSourceBuilder,` |
+
+### `TimeKeeperIsGone` [pub] — 0 external reference(s)
+
+### `PrimaryKeeper` [private] — 0 external reference(s)
+
+### `SecondaryKeeper` [private] — 0 external reference(s)
+
+### `VmTimeSource` [pub] — 30 external reference(s)
+| File | Line | Context |
+|------|-----:|---------|
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 47 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/devices/firmware/firmware_pcat/src/lib.rs` | 199 | `pub vmtime: &'a VmTimeSource,` |
+| `openhcl/virt_mshv_vtl/src/lib.rs` | 128 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/chipset_device_resources/src/lib.rs` | 19 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/chipset_device_resources/src/lib.rs` | 57 | `pub vmtime: &'a VmTimeSource,` |
+| `vm/devices/firmware/firmware_uefi/src/lib.rs` | 73 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/devices/firmware/firmware_uefi/src/lib.rs` | 112 | `pub vmtime: &'a VmTimeSource,` |
+| `vmm_core/virt/src/generic.rs` | 40 | `use vmcore::vmtime::VmTimeSource;` |
+| `vmm_core/virt/src/generic.rs` | 227 | `pub vmtime: &'a VmTimeSource,` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 19 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/devices/chipset_legacy/src/piix4_cmos_rtc.rs` | 53 | `vmtime_source: &VmTimeSource,` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 160 | `use vmcore::vmtime::VmTimeSource;` |
+| `openvmm/openvmm_core/src/worker/dispatch.rs` | 552 | `vmtime_keeper: VmTimeKeeper,` |
+| `vm/devices/vga/src/emu.rs` | 35 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/devices/vga/src/emu.rs` | 588 | `vmtime: &VmTimeSource,` |
+| `vmm_core/vmotherboard/src/base_chipset.rs` | 898 | `use vmcore::vmtime::VmTimeSource;` |
+| `vmm_core/vmotherboard/src/base_chipset.rs` | 930 | `pub vmtime: &'a VmTimeSource,` |
+| `vm/devices/vga/src/lib.rs` | 43 | `use vmcore::vmtime::VmTimeSource;` |
+| `vm/devices/vga/src/lib.rs` | 61 | `vmtime: &VmTimeSource,` |
+| `vmm_core/vmotherboard/src/chipset/backing/arc_mutex/services.rs` | 26 | `use vmcore::vmtime::VmTimeSource;` |
+
+### `Event` [private] — 0 external reference(s)
+
+### `TimeState` [private] — 0 external reference(s)
+
+### `VmTimerPeriodicInner` [private] — 0 external reference(s)
+
+### `KeeperRequest` [private] — 0 external reference(s)
+
+### `NewKeeperRequest` [private] — 0 external reference(s)
+
+## ⚠️ Public Functions with No External Callers
+
+These are public but have no call sites outside the module. They may be dead code or intended for future use.
+
+- `is_before`
+- `min`
+- `max`
+- `inspect`
+- `host_time`
+

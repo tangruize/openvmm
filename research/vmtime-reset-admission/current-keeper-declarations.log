@@ -1,0 +1,91 @@
+bash research/vmtime-reset-admission/current-native.command
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel)
+    Checking mesh v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh)
+    Checking inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect)
+    Checking vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_resource)
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+error: cannot use type `mesh_channel::rpc::RpcError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:529:9
+    |
+529 | //         self.req_send
+530 | ||             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+531 | ||             .await
+    | ||__________________-
+532 | |              .unwrap();
+    | |______________________^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::reject_recursive_types(E)]
+            #[verifier::external_type_specification]
+            pub struct ExRpcError<E>(mesh::rpc::RpcError<E>);
+
+error: `mesh_channel::rpc::impl&%6%default%call` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> vm/vmcore/src/vmtime.rs:529:9
+    |
+529 | /         self.req_send
+530 | |             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+    | |__________________________________________________________^
+
+error: cannot use type `mesh_channel::rpc::PendingRpc` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:529:9
+    |
+529 | /         self.req_send
+530 | |             .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
+    | |__________________________________________________________^
+
+error: `async_task::task::Task` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> vm/vmcore/src/vmtime.rs:352:1
+    |
+352 | / pub struct VmTimeKeeper {
+353 | |     #[inspect(skip)]
+354 | |     _task: Task<()>,
+355 | |     #[inspect(flatten, send = "KeeperRequest::Inspect")]
+...   |
+360 | |     time: TimeState,
+361 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::reject_recursive_types(M)]
+            #[verifier::reject_recursive_types(T)]
+            #[verifier::external_type_specification]
+            pub struct ExTask<T, M>(async_task::task::Task<T, M>);
+
+error: cannot use type `pal_async::task::TaskMetadata` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> vm/vmcore/src/vmtime.rs:352:1
+    |
+352 | / pub struct VmTimeKeeper {
+353 | |     #[inspect(skip)]
+354 | |     _task: Task<()>,
+355 | |     #[inspect(flatten, send = "KeeperRequest::Inspect")]
+...   |
+360 | |     time: TimeState,
+361 | | }
+    | |_^
+
+error: `inspect::defer::Deferred` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> vm/vmcore/src/vmtime.rs:642:1
+    |
+642 | / enum KeeperRequest {
+643 | |     Start(Rpc<Timestamp, ()>),
+644 | |     Stop(Rpc<(), VmTime>),
+645 | |     Reset(Rpc<VmTime, ()>),
+646 | |     Inspect(inspect::Deferred),
+647 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExDeferred(inspect::Deferred);
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+   --> vm/vmcore/src/vmtime.rs:575:23
+    |
+575 | #[derive(MeshPayload, Clone, Debug)]
+    |                       ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmcore` (lib) generated 1 warning
+error: could not compile `vmcore` (lib) due to 6 previous errors; 1 warning emitted
+exit=101, seconds=2.770

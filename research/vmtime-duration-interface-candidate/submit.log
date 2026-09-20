@@ -1,0 +1,56 @@
+spec_drift: ERROR - could not compare the two patch results
+spec_drift: analysis error: tree-sitter could not completely parse source at 129:37: dyn
+exec_drift: FAIL - run.patch result differs from freeze.patch result
+exec_drift: freeze.patch result -> run.patch result
+  ❌ vm/vmcore/src/interrupt.rs: exec body mismatch (mismatched=1 missing=0 extra=0 unknown=0)
+       - TestTarget::deliver: MISMATCH
+## vm/vmcore/src/interrupt.rs::TestTarget::deliver (exec-only): MISMATCH
+
+--- baseline
++++ working-tree
+@@ -1,3 +1,3 @@
+             fn deliver(&self) {
+-                self.count.fetch_add(1, Ordering::SeqCst);
++                self.0.signal();
+             }
+exec_drift: warning: tree-sitter recovered from parse errors in /tmp/ast_orig__emgq1ib.rs; comparing the recovered AST
+exec_drift: warning: tree-sitter recovered from parse errors in vm/vmcore/src/vm_task.rs; comparing the recovered AST
+  ❌ vm/vmcore/src/vm_task.rs: exec body mismatch (mismatched=2 missing=0 extra=0 unknown=0)
+       - CurrentThreadDriver::new_dyn_wait: MISMATCH
+## vm/vmcore/src/vm_task.rs::CurrentThreadDriver::new_dyn_wait (exec-only): MISMATCH
+
+--- baseline
++++ working-tree
+@@ -1,7 +1,6 @@
+         fn new_dyn_wait(
+             &self,
+-            fd: std::os::fd::RawFd,
+-            read_size: usize,
++            handle: std::os::windows::io::RawHandle,
+         ) -> std::io::Result<pal_async::driver::PollImpl<dyn pal_async::wait::PollWait>> {
+-            self.with_driver(|d| d.new_dyn_wait(fd, read_size))
++            self.with_driver(|d| d.new_dyn_wait(handle))
+         }
+       - VmTaskDriver::new_dyn_wait: MISMATCH
+## vm/vmcore/src/vm_task.rs::VmTaskDriver::new_dyn_wait (exec-only): MISMATCH
+
+--- baseline
++++ working-tree
+@@ -1,7 +1,6 @@
+     fn new_dyn_wait(
+         &self,
+-        fd: std::os::fd::RawFd,
+-        read_size: usize,
++        handle: std::os::windows::io::RawHandle,
+     ) -> std::io::Result<pal_async::driver::PollImpl<dyn pal_async::wait::PollWait>> {
+-        self.inner.driver().new_dyn_wait(fd, read_size)
++        self.inner.driver().new_dyn_wait(handle)
+     }
+exec_drift: warning: tree-sitter recovered from parse errors in vm/vmcore/src/vmtime.rs; comparing the recovered AST
+  checked 37 exec file(s); 2 with body edits; 0 with unknown functions
+exec_drift: DRIFT — freeze.patch result and run.patch result have different executable code.
+freeze_request: INVALID
+freeze.patch: APPLIES
+run.patch: APPLIES
+
+exit=1 elapsed_s=13

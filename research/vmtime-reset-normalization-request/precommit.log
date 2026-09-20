@@ -1,0 +1,5 @@
+Checking the isolated proposed working-base result, not dirty scalar work.
+cargo clippy --all-targets -p vmcore: PASS
+cargo doc --no-deps -p vmcore: PASS
+cargo xtask fmt --fix: exited successfully
+All formatter passes succeeded; proposal and package bytes unchanged.

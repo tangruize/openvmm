@@ -1,0 +1,5 @@
+Package contains exactly three nonempty files; proposals each replace one call argument.
+Frozen and committed working vmtime sources identical; bases unchanged since intake.
+Tracked dirty delta and untracked scalar proof preserved byte-for-byte; index empty.
+Production normalization unapplied; separate committed Duration package untouched.
+Native submit reports independent application and VALID. Drift messages are advisory only.

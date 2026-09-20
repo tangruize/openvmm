@@ -1,0 +1,60 @@
+{
+  "checks": {
+    "make_verify": {
+      "exit": 0,
+      "seconds": 9.784
+    },
+    "boundary": {
+      "exit": 1,
+      "seconds": 1.167
+    },
+    "spec_drift": {
+      "exit": 0,
+      "seconds": 1.316
+    },
+    "exec_drift": {
+      "exit": 1,
+      "seconds": 4.923
+    }
+  },
+  "executables": {
+    "vm/vmcore/src/vmtime.rs": {
+      "summary": {
+        "functions": {
+          "matched": 59,
+          "mismatched": 0,
+          "missing_in_verus": 0,
+          "extra_in_verus": 0,
+          "unknown": 0,
+          "total_source": 59,
+          "total_verus": 59
+        },
+        "structs": {
+          "matched": 13,
+          "mismatched": 0
+        },
+        "consistent": true
+      },
+      "nonmatching": []
+    },
+    "support/mesh/mesh_channel/src/rpc.rs": {
+      "summary": {
+        "functions": {
+          "matched": 19,
+          "mismatched": 0,
+          "missing_in_verus": 0,
+          "extra_in_verus": 0,
+          "unknown": 0,
+          "total_source": 19,
+          "total_verus": 19
+        },
+        "structs": {
+          "matched": 3,
+          "mismatched": 0
+        },
+        "consistent": true
+      },
+      "nonmatching": []
+    }
+  }
+}

@@ -1,0 +1,42 @@
+--- a/vm/vmcore/src/vmtime.rs
++++ b/vm/vmcore/src/vmtime.rs
+@@ -347,6 +347,7 @@
+ }
+ 
+ /// A time keeper, which tracks the current time and all waiters.
++#[verus_verify]
+ #[derive(Debug, InspectMut)]
+ pub struct VmTimeKeeper {
+     #[inspect(skip)]
+@@ -521,6 +522,7 @@
+         self.reset_to(vmtime).await;
+     }
+ 
++    #[verus_verify]
+     async fn reset_to(&mut self, vmtime: VmTime) {
+         assert!(!self.time.is_started(), "should be stopped");
+         self.time = TimeState::Stopped(vmtime);
+@@ -569,6 +571,7 @@
+ /// share a single global monotonic OS clock. This means that if you send this
+ /// across a VM/kernel/network boundary, the resulting time sources will not be
+ /// in sync with each other.
++#[verus_verify]
+ #[derive(MeshPayload, Clone, Debug)]
+ pub struct VmTimeSourceBuilder {
+     new_send: mesh::Sender<NewKeeperRequest>,
+@@ -634,6 +637,7 @@
+     time: TimeState,
+ }
+ 
++#[verus_verify]
+ #[derive(MeshPayload)]
+ enum KeeperRequest {
+     Start(Rpc<Timestamp, ()>),
+@@ -642,6 +646,7 @@
+     Inspect(inspect::Deferred),
+ }
+ 
++#[verus_verify]
+ #[derive(MeshPayload)]
+ enum NewKeeperRequest {
+     New(Rpc<mesh::Sender<KeeperRequest>, TimeState>),

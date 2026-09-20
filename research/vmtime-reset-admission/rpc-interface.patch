@@ -1,0 +1,76 @@
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -18,6 +18,7 @@
+ use std::task::Poll;
+ use std::task::ready;
+ use thiserror::Error;
++use vstd::prelude::*;
+ 
+ /// An RPC message for a request with input of type `I` and output of type `R`.
+ /// The receiver of the message should process the request and return results
+@@ -135,6 +136,7 @@
+ }
+ 
+ /// A trait implemented by objects that can send RPC requests.
++#[verus_verify]
+ pub trait RpcSend: Sized {
+     /// The message type for this sender.
+     type Message;
+@@ -161,6 +163,8 @@
+     ///     assert_eq!(send.call(Request::Add, (3, 4)).await.unwrap(), 7);
+     /// }
+     /// ```
++    // TODO(proof): Prove request construction and transport, without assuming completion.
++    #[verus_verify(external_body)]
+     fn call<F, I, R>(self, f: F, input: I) -> PendingRpc<R>
+     where
+         F: FnOnce(Rpc<I, R>) -> Self::Message,
+@@ -176,6 +180,8 @@
+     /// This is like [`RpcSend::call`], but for RPCs that return a [`Result`].
+     /// The returned object combines the channel error and the call's error into
+     /// a single [`RpcError`] type, which makes it easier to handle errors.
++    // TODO(proof): Prove the wrapper preserves the underlying pending result.
++    #[verus_verify(external_body)]
+     fn call_failable<F, I, T, E>(self, f: F, input: I) -> PendingFailableRpc<T, E>
+     where
+         F: FnOnce(Rpc<I, Result<T, E>>) -> Self::Message,
+@@ -248,7 +254,9 @@
+ 
+ /// An error from an RPC call, via
+ /// [`RpcSend::call_failable`] or [`RpcSend::call`].
++// TODO(proof): Refine both call and channel errors.
+ #[derive(Debug, Error)]
++#[verus_verify(external_body, reject_recursive_types(E))]
+ pub enum RpcError<E = Infallible> {
+     #[error(transparent)]
+     Call(E),
+@@ -257,6 +265,8 @@
+ }
+ 
+ /// The result future of an [`RpcSend::call`] call.
++// TODO(proof): Refine the receiver and its success/error outcomes.
++#[verus_verify(external_body, reject_recursive_types(T))]
+ #[must_use]
+ #[derive(Debug)]
+ pub struct PendingRpc<T>(OneshotReceiver<T>);
+@@ -270,6 +280,8 @@
+ }
+ 
+ /// The result future of an [`RpcSend::call_failable`] call.
++// TODO(proof): Refine the nested result future.
++#[verus_verify(external_body, reject_recursive_types(T), reject_recursive_types(E))]
+ #[must_use]
+ #[derive(Debug)]
+ pub struct PendingFailableRpc<T, E = RemoteError>(PendingRpc<Result<T, E>>);
+@@ -295,8 +307,11 @@
+     }
+ }
+ 
++#[verus_verify]
+ impl<T: 'static + Send> RpcSend for &mesh_channel_core::Sender<T> {
+     type Message = T;
++    // TODO(proof): Establish the real Sender::send transport contract.
++    #[verus_verify(external_body)]
+     fn send_rpc(self, message: T) {
+         self.send(message);
+     }

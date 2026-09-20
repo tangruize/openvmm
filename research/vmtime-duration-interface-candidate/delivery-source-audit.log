@@ -1,0 +1,9 @@
+Current bases: {"frozen": "4fb5e66997f616c239aefbc28ccc3f3a29b2226d", "working": "ca2d1263f5b48ab63be23f042722017c03ddeed1"}
+freeze.patch: exact current-base reconstruction MATCH
+run.patch: exact current-base reconstruction MATCH
+Live manifests, TOP spec, File declaration and representation-bridge source: byte-identical to both bases
+Existing InitializedVm::load external declaration and live dispatch: unchanged
+Requested boundary: exactly two component observations and Duration::as_nanos semantics
+Retained proof: current proposed source predates 6/0 log; lifetime enabled; no rlimit annotations or assumptions
+Retained vmtime executable comparison: 59 functions and 13 structs matched; recovered-AST warning retained
+Dirty scalar production and branch tips preserved

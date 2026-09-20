@@ -1,0 +1,38 @@
+cargo verus focus --offline --locked -p mesh_channel -- --verify-only-module rpc --verify-function *source* --rlimit 50 --num-threads 1 --multiple-errors 8
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-final/workspace/support/mesh/mesh_channel)
+error: `thiserror::aserror::impl&%0::as_dyn_error` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> support/mesh/mesh_channel/src/rpc.rs:254:13
+    |
+254 |     #[error(transparent)]
+    |             ^^^^^^^^^^^
+255 |     Call(E),
+256 |     #[error(transparent)]
+    |             -----------
+    |
+    = help: The following declaration may resolve this error:
+            pub assume_specification<'a, T> [<T as thiserror::__private::AsDynError<'a>>::as_dyn_error] (_0: &T) -> &(dyn std::error::Error + 'a)
+            where
+            T: std::error::Error,;
+
+error: cannot use type `mesh_channel_core::error::RecvError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> support/mesh/mesh_channel/src/rpc.rs:251:17
+    |
+251 |   #[derive(Debug, Error)]
+    |                   ^^^^^
+252 |   #[vstd::prelude::verus_verify]
+253 | / pub enum RpcError<E = Infallible> {
+254 | |     #[error(transparent)]
+255 | |     Call(E),
+256 | |     #[error(transparent)]
+    | |             -----------
+257 | |     Channel(RecvError),
+258 | | }
+    | |_-
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExRecvError(mesh_channel_core::RecvError);
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `mesh_channel` (lib) due to 2 previous errors
+exit=101, seconds=1.517

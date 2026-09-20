@@ -1,0 +1,173 @@
+Production bodies and existing dirty scalar inputs copied byte-for-byte.
+Only the isolated vmm_core manifest adds a test target; no new dependency.
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.18
+   Compiling cfg-if v1.0.3
+   Compiling libc v0.2.184
+   Compiling pin-project-lite v0.2.16
+   Compiling autocfg v1.5.0
+   Compiling zerocopy v0.8.27
+   Compiling thiserror v2.0.16
+   Compiling once_cell v1.21.3
+   Compiling smallvec v1.15.1
+   Compiling hashbrown v0.15.5
+   Compiling equivalent v1.0.2
+   Compiling verus_syn v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/toolchain/verus-src/dependencies/syn)
+   Compiling futures-core v0.3.31
+   Compiling parking_lot_core v0.9.11
+   Compiling verus_prettyplease v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/toolchain/verus-src/dependencies/prettyplease)
+   Compiling scopeguard v1.2.0
+   Compiling heck v0.5.0
+   Compiling convert_case v0.4.0
+   Compiling vstd v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/toolchain/verus-src/source/vstd)
+   Compiling futures-io v0.3.31
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/mesh/mesh_protobuf)
+   Compiling verus_builtin v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/toolchain/verus-src/source/builtin)
+   Compiling futures-sink v0.3.31
+   Compiling slab v0.4.11
+   Compiling open_enum v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/open_enum)
+   Compiling memchr v2.7.5
+   Compiling futures-task v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling getrandom v0.4.2
+   Compiling anyhow v1.0.99
+   Compiling static_assertions v1.1.0
+   Compiling thiserror v1.0.69
+   Compiling linkme-impl v0.3.33
+   Compiling crossbeam-utils v0.8.21
+   Compiling syn v1.0.109
+   Compiling parking v2.2.1
+   Compiling smallbox v0.8.8
+   Compiling io-uring v0.7.11
+   Compiling bitflags v2.9.3
+   Compiling loan_cell v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/loan_cell)
+   Compiling either v1.15.0
+   Compiling async-task v4.7.1
+   Compiling lazy_static v1.5.0
+   Compiling spin v0.10.0
+   Compiling diatomic-waker v0.2.3
+   Compiling cordyceps v0.3.4
+   Compiling fastrand v2.3.0
+   Compiling jiff v0.2.15
+   Compiling fixedbitset v0.5.7
+   Compiling bytes v1.11.1
+   Compiling rustix v0.38.44
+   Compiling rustix v1.0.8
+   Compiling getrandom v0.3.3
+   Compiling regex-syntax v0.8.6
+   Compiling linux-raw-sys v0.4.15
+   Compiling prettyplease v0.1.25
+   Compiling linux-raw-sys v0.9.4
+   Compiling fixedbitset v0.4.2
+   Compiling home v0.5.11
+   Compiling multimap v0.8.3
+   Compiling log v0.4.27
+   Compiling heck v0.4.1
+   Compiling build_rs_guest_arch v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/vmcore/build_rs_guest_arch)
+   Compiling nu-ansi-term v0.50.1
+   Compiling stackfuture v0.3.0
+   Compiling paste v1.0.15
+   Compiling wchar v0.11.1
+   Compiling arrayvec v0.7.6
+   Compiling range_map_vec v0.2.0
+   Compiling crc32fast v1.5.0
+   Compiling uniset v0.2.4
+   Compiling object v0.37.3
+   Compiling device_emulators v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/devices/support/device_emulators)
+   Compiling arc_cyclic_builder v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/arc_cyclic_builder)
+   Compiling hex v0.4.3
+   Compiling thread_local v1.1.9
+   Compiling safe_intrinsics v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/safe_intrinsics)
+   Compiling tracing-core v0.1.35
+   Compiling sharded-slab v0.1.7
+   Compiling futures-channel v0.3.31
+   Compiling vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/vmcore/vm_topology)
+   Compiling virt v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vmm_core/virt)
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vmm_core)
+   Compiling loader v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/loader)
+   Compiling fs-err v3.1.1
+   Compiling lock_api v0.4.13
+   Compiling itertools v0.10.5
+   Compiling futures-lite v2.6.1
+   Compiling futures-buffered v0.2.12
+   Compiling indexmap v2.11.0
+   Compiling tracing-log v0.2.0
+   Compiling concurrent-queue v2.5.0
+   Compiling tracing-subscriber v0.3.22
+   Compiling event-listener v5.4.1
+   Compiling quote v1.0.40
+   Compiling event-listener-strategy v0.5.4
+   Compiling syn v2.0.106
+   Compiling async-channel v2.5.0
+   Compiling petgraph v0.6.5
+   Compiling regex-automata v0.4.14
+   Compiling seccompiler v0.5.0
+   Compiling socket2 v0.6.0
+   Compiling unix_socket v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/unix_socket)
+   Compiling parking_lot v0.12.4
+   Compiling tempfile v3.21.0
+   Compiling which v4.4.2
+   Compiling fast_select v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/fast_select)
+   Compiling closeable_mutex v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/closeable_mutex)
+   Compiling unicycle v0.10.2
+   Compiling regex v1.12.3
+   Compiling prost-derive v0.11.9
+   Compiling wchar-impl v0.11.0
+   Compiling synstructure v0.13.2
+   Compiling zerocopy-derive v0.8.27
+   Compiling thiserror-impl v2.0.16
+   Compiling tracing-attributes v0.1.31
+   Compiling bitfield-struct v0.11.0
+   Compiling mesh_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/mesh/mesh_derive)
+   Compiling futures-macro v0.3.31
+   Compiling inspect_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/inspect_derive)
+   Compiling enumflags2_derive v0.7.12
+   Compiling thiserror-impl v1.0.69
+   Compiling async-trait v0.1.89
+   Compiling pal_async_test v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/pal/pal_async_test)
+   Compiling pin-project-internal v1.1.10
+   Compiling save_restore_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/vmcore/save_restore_derive)
+   Compiling open-enum-derive v0.5.2
+   Compiling bitfield-struct v0.12.1
+   Compiling test_with_tracing_macro v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/test_with_tracing/test_with_tracing_macro)
+   Compiling prost v0.11.9
+   Compiling enumflags2 v0.7.12
+   Compiling open-enum v0.5.2
+   Compiling futures-util v0.3.31
+   Compiling linkme v0.3.33
+   Compiling prost-types v0.11.9
+   Compiling pin-project v1.1.10
+   Compiling tracing v0.1.43
+   Compiling futures-concurrency v7.6.3
+   Compiling caps v0.5.5
+   Compiling landlock v0.4.2
+   Compiling trycopy v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/trycopy)
+   Compiling ucs2 v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/ucs2)
+   Compiling cache_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/cache_topology)
+   Compiling tracelimit v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/tracelimit)
+   Compiling cvm_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/cvm_tracing)
+   Compiling tracing_helpers v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/tracing_helpers)
+   Compiling test_with_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/test_with_tracing)
+   Compiling pal v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/pal)
+   Compiling prost-build v0.11.9
+   Compiling tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/devices/tdisp_proto)
+   Compiling hvdef v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/hv1/hvdef)
+   Compiling sparse_mmap v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/sparse_mmap)
+   Compiling safeatomic v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/support/safeatomic)
+   Compiling x86defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/x86/x86defs)
+   Compiling aarch64defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/aarch64/aarch64defs)
+   Compiling scsi_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/devices/storage/scsi_defs)
+   Compiling igvm_defs v0.4.0 (https://github.com/microsoft/igvm?rev=7184dce1086956342c1bf561f82ff268d06d2c73#7184dce1)
+   Compiling acpi_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/acpi_spec)
+   Compiling page_table v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/loader/page_table)
+error: failed to run custom build command for `tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/vm/devices/tdisp_proto)`
+
+Caused by:
+  process didn't exit successfully: `/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/target/debug/build/tdisp_proto-a30d25115b6b9d29/build-script-build` (exit status: 101)
+  --- stderr
+
+  thread 'main' (82589) panicked at vm/devices/tdisp_proto/build.rs:9:10:
+  called `Result::unwrap()` on an `Err` value: Custom { kind: NotFound, error: "failed to invoke protoc (hint: https://docs.rs/prost-build/#sourcing-protoc): (path: \"/home/ruize/openvmm-restore-v1/research/vmtime-reset-installation/workspace/.packages/Google.Protobuf.Tools/tools/protoc\"): No such file or directory (os error 2)" }
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+warning: build failed, waiting for other jobs to finish...
+error: command `/home/ruize/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/bin/cargo test --no-run --message-format json-render-diagnostics --package vmm_core --test vmtime_reset_installation --offline` exited with code 101

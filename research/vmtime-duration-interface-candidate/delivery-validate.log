@@ -1,0 +1,54 @@
+spec_drift: WARNING - run.patch result differs from freeze.patch result (advisory only)
+spec_drift: freeze.patch result -> run.patch result
+  [BOTTOM MISMATCH: CHANGED] research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs::VpIndex::view
+  [BOTTOM MISMATCH: CHANGED] vm/vmcore/src/vmtime.proof.rs::VmTime::view
+  [BOTTOM MISMATCH: CHANGED] vm/vmcore/vm_topology/src/processor.proof.rs::VpIndex::view
+  checked 1 explicit TOP file(s) and 21 module(s); 1.2s total
+spec_drift: DRIFT - freeze.patch result and run.patch result differ
+exec_drift: WARNING - run.patch result differs from freeze.patch result (advisory only)
+exec_drift: freeze.patch result -> run.patch result
+  ❌ openvmm/openvmm_core/src/worker/dispatch.rs: exec body mismatch (mismatched=1 missing=0 extra=0 unknown=0)
+       - ProcessorTopology::to_config: MISMATCH
+## openvmm/openvmm_core/src/worker/dispatch.rs::ProcessorTopology::to_config (exec-only): MISMATCH
+
+--- baseline
++++ working-tree
+@@ -3,26 +3,15 @@
+             proc_count: self.vp_count(),
+             vps_per_socket: Some(self.reserved_vps_per_socket()),
+             enable_smt: Some(self.smt_enabled()),
+-            arch: Some(ArchTopologyConfig::Aarch64(Aarch64TopologyConfig {
+-                gic_config: Some(match self.gic_version() {
+-                    GicVersion::V3 {
+-                        redistributors_base,
+-                    } => GicConfig::V3(Some(openvmm_defs::config::GicV3Config {
+-                        gic_distributor_base: self.gic_distributor_base(),
+-                        gic_redistributors_base: redistributors_base,
+-                    })),
+-                    GicVersion::V2 { cpu_interface_base } => {
+-                        GicConfig::V2(Some(openvmm_defs::config::GicV2Config {
+-                            gic_distributor_base: self.gic_distributor_base(),
+-                            cpu_interface_base,
+-                        }))
++            arch: Some(ArchTopologyConfig::X86(X86TopologyConfig {
++                apic_id_offset: self.vp_arch(VpIndex::BSP).apic_id,
++                x2apic: match self.apic_mode() {
++                    vm_topology::processor::x86::ApicMode::XApic => X2ApicConfig::Unsupported,
++                    vm_topology::processor::x86::ApicMode::X2ApicSupported => {
++                        X2ApicConfig::Supported
+                     }
+-                }),
+-                pmu_gsiv: match self.pmu_gsiv() {
+-                    Some(gsiv) => PmuGsivConfig::Gsiv(gsiv),
+-                    None => PmuGsivConfig::Disabled,
++                    vm_topology::processor::x86::ApicMode::X2ApicEnabled => X2ApicConfig::Enabled,
+                 },
+-                gic_msi: Default::default(),
+             })),
+         }
+     }
+  checked 21 exec file(s); 1 with body edits; 0 with unknown functions
+exec_drift: DRIFT — freeze.patch result and run.patch result have different executable code.
+freeze.patch: APPLIES
+run.patch: APPLIES
+freeze_request: VALID - semantic checks are advisory

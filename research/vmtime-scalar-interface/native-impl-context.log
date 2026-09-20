@@ -1,0 +1,252 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+note: verifying module vmtime
+
+verification results:: 3 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.86s
+warning: negative impls are experimental
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:889:6
+    |
+889 | impl !Copy for NoCopy {}
+    |      ^
+    |
+    = note: see issue #68318 <https://github.com/rust-lang/rust/issues/68318> for more information
+    = help: add `#![feature(negative_impls)]` to the crate attributes to enable
+    = note: this compiler was built on 2026-09-01; consider upgrading it if it is out of date
+    = warning: unstable syntax can change at any point in the future, causing a hard error!
+    = note: for more information, see issue #154045 <https://github.com/rust-lang/rust/issues/154045>
+
+warning: negative impls are experimental
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:895:6
+    |
+895 | impl !Sync for NoSyncSend {}
+    |      ^
+    |
+    = note: see issue #68318 <https://github.com/rust-lang/rust/issues/68318> for more information
+    = help: add `#![feature(negative_impls)]` to the crate attributes to enable
+    = note: this compiler was built on 2026-09-01; consider upgrading it if it is out of date
+    = warning: unstable syntax can change at any point in the future, causing a hard error!
+    = note: for more information, see issue #154045 <https://github.com/rust-lang/rust/issues/154045>
+
+warning: negative impls are experimental
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:897:6
+    |
+897 | impl !Send for NoSyncSend {}
+    |      ^
+    |
+    = note: see issue #68318 <https://github.com/rust-lang/rust/issues/68318> for more information
+    = help: add `#![feature(negative_impls)]` to the crate attributes to enable
+    = note: this compiler was built on 2026-09-01; consider upgrading it if it is out of date
+    = warning: unstable syntax can change at any point in the future, causing a hard error!
+    = note: for more information, see issue #154045 <https://github.com/rust-lang/rust/issues/154045>
+
+warning: `verus_builtin` (lib) generated 3 warnings
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `perm`
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+help: `perm` is captured in macro and introduced a unused variable
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/atomic.rs:563:51
+    |
+563 |         pub fn from_ptr_load(ptr: *mut $value_ty, perm: Tracked<&PointsTo<$value_ty>>) -> (ret: $value_ty)
+    |                                                   ^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: negative impls are experimental
+   --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd/invariant.rs:170:18
+    |
+170 | impl<K, V, Pred> !Sync for LocalInvariant<K, V, Pred> {}
+    |                  ^
+    |
+    = note: see issue #68318 <https://github.com/rust-lang/rust/issues/68318> for more information
+    = help: add `#![feature(negative_impls)]` to the crate attributes to enable
+    = note: this compiler was built on 2026-09-01; consider upgrading it if it is out of date
+    = warning: unstable syntax can change at any point in the future, causing a hard error!
+    = note: for more information, see issue #154045 <https://github.com/rust-lang/rust/issues/154045>
+
+warning: `vstd` (lib) generated 11 warnings
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+Error: could not find .vir file for 'pal_async'
+error: could not compile `vmcore` (lib)
+
+Caused by:
+  process didn't exit successfully: `/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/.rustup/toolchains/1.95.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name vmcore --edition=2024 /home/ruize/openvmm-restore-v1/vm/vmcore/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C embed-bitcode=no -C debuginfo=2 --warn=rust_2018_idioms --deny=future_incompatible --warn=unused_qualifications --forbid=unsafe_op_in_unsafe_fn --deny=unsafe_code '--warn=clippy::unnecessary_box_returns' '--allow=clippy::uninlined_format_args' --warn=unexpected_cfgs '--warn=clippy::undocumented_unsafe_blocks' '--allow=clippy::type_complexity' '--allow=clippy::too_many_arguments' '--warn=clippy::suboptimal_flops' '--allow=clippy::single_range_in_vec_init' '--warn=clippy::rest_pat_in_fully_bound_structs' '--warn=clippy::ref_option_ref' '--warn=clippy::ref_as_ptr' '--warn=clippy::ptr_cast_constness' '--warn=clippy::ptr_as_ptr' '--warn=clippy::option_option' '--allow=clippy::new_without_default' --warn=missing_docs '--allow=clippy::manual_flatten' '--warn=clippy::macro_use_imports' '--warn=clippy::lossy_float_literal' '--warn=clippy::linkedlist' '--allow=clippy::len_without_is_empty' '--warn=clippy::inefficient_to_string' '--warn=clippy::imprecise_flops' '--warn=clippy::implicit_clone' '--warn=clippy::fn_params_excessive_bools' '--warn=clippy::filter_map_next' '--warn=clippy::debug_assert_with_mut_call' '--warn=clippy::dbg_macro' '--allow=clippy::collapsible_match' '--allow=clippy::collapsible_if' '--allow=clippy::collapsible_else_if' '--allow=clippy::box_default' '--allow=clippy::bool_assert_comparison' '--warn=clippy::allow_attributes' --check-cfg 'cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=3fe107b748be2386 -C extra-filename=-f795176631faa4dd --out-dir /home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps -C incremental=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/incremental -L dependency=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps --extern anyhow=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libanyhow-827cc8fa363a552d.rmeta --extern async_trait=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libasync_trait-c5f6c49640f81610.so --extern futures=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libfutures-ff72ea864a1cf16a.rmeta --extern futures_concurrency=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libfutures_concurrency-64694d13dac76573.rmeta --extern hvdef=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libhvdef-c09f1322fddbe1ce.rmeta --extern inspect=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libinspect-d338bf0f47a05bbc.rmeta --extern jiff=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libjiff-2767fa7020c37858.rmeta --extern linkme=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/liblinkme-aad3a42c031ec857.rmeta --extern loan_cell=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libloan_cell-55e4ccdfb04c6fe4.rmeta --extern mesh=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libmesh-61ae2f35ecb80848.rmeta --extern pal_async=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libpal_async-3ce034d7ec737811.rmeta --extern pal_event=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libpal_event-1071dd4eef594715.rmeta --extern parking_lot=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libparking_lot-a522e0aeb1720988.rmeta --extern save_restore_derive=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libsave_restore_derive-826f276ea5dd0e75.so --extern slab=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libslab-b2449a66600c8b69.rmeta --extern thiserror=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libthiserror-1820b02e40f54a05.rmeta --extern tracelimit=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libtracelimit-d376532e2cd49b6a.rmeta --extern tracing=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libtracing-332d467cc902b74d.rmeta --extern vm_resource=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvm_resource-ff2d0e2d4d73da50.rmeta --extern vstd=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvstd-032c797dae0a88c0.rmeta --extern zerocopy=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libzerocopy-f6614563e77dcefc.rmeta -Cforce-frame-pointers=yes -Csymbol-mangling-version=v0 -Z checksum-hash-algorithm=blake3` (exit status: 1)

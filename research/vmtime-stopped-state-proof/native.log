@@ -1,0 +1,9 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+note: verifying module vmtime
+
+verification results:: 8 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.79s
+
+real	0m2.421s
+user	0m1.864s
+sys	0m0.465s

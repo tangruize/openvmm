@@ -1,0 +1,104 @@
+diff --git a/.verus_agent/scope_manifest.json b/.verus_agent/scope_manifest.json
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -10,6 +10,7 @@
+     }
+   ],
+   "src_roots": [
+-    "openvmm/openvmm_core/src/worker"
++    "openvmm/openvmm_core/src/worker",
++    "vm/vmcore/src"
+   ]
+ }
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -14,6 +14,21 @@
+       "kind": "symbol",
+       "value": "ExRestoreReadyFile",
+       "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "whole_seconds",
++      "marker": "uninterp"
++    },
++    {
++      "kind": "symbol",
++      "value": "subsecond_nanoseconds",
++      "marker": "uninterp"
++    },
++    {
++      "kind": "symbol",
++      "value": "duration_as_nanos",
++      "marker": "external_fn_specification"
+     }
+   ]
+ }
+diff --git a/vm/vmcore/Cargo.toml b/vm/vmcore/Cargo.toml
+--- a/vm/vmcore/Cargo.toml
++++ b/vm/vmcore/Cargo.toml
+@@ -6,10 +6,14 @@
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
+ hvdef.workspace = true
+ save_restore_derive.workspace = true
+ vm_resource.workspace = true
++vstd.workspace = true
+ 
+ inspect = { workspace = true, features = ["defer"] }
+ loan_cell.workspace = true
+diff --git a/vm/vmcore/src/vmtime.rs b/vm/vmcore/src/vmtime.rs
+--- a/vm/vmcore/src/vmtime.rs
++++ b/vm/vmcore/src/vmtime.rs
+@@ -49,6 +49,10 @@
+ use std::task::Waker;
+ use std::time::Duration;
+ use thiserror::Error;
++
++#[cfg(verus_keep_ghost)]
++#[path = "vmtime_duration.spec.rs"]
++pub mod duration_observation;
+ 
+ /// Roughly analogous to [`std::time::Instant`], but for VM time.
+ #[derive(Debug, Copy, Clone, PartialEq, Eq, Protobuf, Inspect)]
+diff --git a/vm/vmcore/src/vmtime_duration.spec.rs b/vm/vmcore/src/vmtime_duration.spec.rs
+new file mode 100644
+--- /dev/null
++++ b/vm/vmcore/src/vmtime_duration.spec.rs
+@@ -0,0 +1,30 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++use std::time::Duration;
++use vstd::prelude::*;
++
++verus! {
++
++// Trusted observation of this Duration's actual core::time::Duration::secs.
++pub uninterp spec fn whole_seconds(duration: &Duration) -> u64;
++
++// Trusted observation of this Duration's actual nanos.as_inner(), not a free
++// elapsed-time parameter. The as_nanos contract supplies its representation bound.
++pub uninterp spec fn subsecond_nanoseconds(duration: &Duration) -> u32;
++
++pub open spec fn elapsed_nanoseconds(duration: &Duration) -> nat {
++    whole_seconds(duration) as nat * 1_000_000_000
++        + subsecond_nanoseconds(duration) as nat
++}
++
++#[verifier::external_fn_specification]
++pub fn duration_as_nanos(duration: &Duration) -> (result: u128)
++    ensures
++        subsecond_nanoseconds(duration) < 1_000_000_000,
++        result == elapsed_nanoseconds(duration),
++{
++    duration.as_nanos()
++}
++
++} // verus!

@@ -1,0 +1,13 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+error: `core::time::impl&%0::as_nanos` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+  --> vm/vmcore/src/vmtime.rs:83:44
+   |
+83 |         Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
+   |                                            ^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification [std::time::Duration::as_nanos] (_0: &std::time::Duration) -> u128;
+
+error: could not compile `vmcore` (lib) due to 1 previous error
+
+exit=101 elapsed_s=2

@@ -1,0 +1,30 @@
+ M research/GROUND_TRUTH.md
+ M vm/vmcore/Cargo.toml
+ M vm/vmcore/src/vmtime.rs
+?? research/vmtime-duration-binding/
+?? research/vmtime-duration-interface-candidate/
+?? research/vmtime-scalar-interface/
+?? vm/vmcore/src/vmtime.proof.rs
+
+Working branch
+argus/restore-v1-run
+
+Authoritative Python and freeze-request module
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python
+/home/ruize/openvmm-restore-v1/.argus-runtime/lib/python3.12/site-packages/argus_verus/tools/operator/freeze_request.py
+
+Freeze request help
+usage: freeze_request [-h] [--project-root PROJECT_ROOT]
+                      [--baseline-dir BASELINE_DIR]
+                      {submit,validate,list,show,apply} ...
+
+Submit two patches and verify that they produce the same frozen specifications
+and executable behavior.
+
+positional arguments:
+  {submit,validate,list,show,apply}
+
+options:
+  -h, --help            show this help message and exit
+  --project-root PROJECT_ROOT
+  --baseline-dir BASELINE_DIR

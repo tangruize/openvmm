@@ -1,0 +1,13 @@
+760c26fd4557e52df7f876d5a0634e10fe185e7b
+4fb5e66997f616c239aefbc28ccc3f3a29b2226d
+ M research/GROUND_TRUTH.md
+ M vm/vmcore/Cargo.toml
+ M vm/vmcore/src/vmtime.rs
+?? research/vmtime-duration-binding/
+?? research/vmtime-duration-interface-candidate/
+?? research/vmtime-reset-admission/
+?? research/vmtime-reset-installation/
+?? research/vmtime-reset-normalization-request/
+?? research/vmtime-restore-source-lifecycle/
+?? research/vmtime-scalar-interface/
+?? vm/vmcore/src/vmtime.proof.rs

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/ruize/openvmm-restore-v1/research/vmtime-duration-interface-candidate/setup.py", line 20, in <module>
+    destination.symlink_to(source.readlink())
+  File "/usr/lib/python3.12/pathlib.py", line 1388, in symlink_to
+    os.symlink(target, self, target_is_directory)
+FileExistsError: [Errno 17] File exists: 'cross_tool.py' -> '/home/ruize/openvmm-restore-v1/research/vmtime-duration-interface-candidate/workspace/build_support/windows_cross/aarch64-clang-cl'

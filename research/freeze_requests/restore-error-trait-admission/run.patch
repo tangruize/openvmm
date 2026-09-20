@@ -1,0 +1,63 @@
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -249,6 +249,7 @@
+ /// An error from an RPC call, via
+ /// [`RpcSend::call_failable`] or [`RpcSend::call`].
+ #[derive(Debug, Error)]
++#[vstd::prelude::verus_verify]
+ pub enum RpcError<E = Infallible> {
+     #[error(transparent)]
+     Call(E),
+@@ -301,3 +302,6 @@
+         self.send(message);
+     }
+ }
++
++#[cfg(verus_keep_ghost)]
++include!("rpc.spec.rs");
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -10,6 +10,7 @@
+     }
+   ],
+   "src_roots": [
+-    "openvmm/openvmm_core/src/worker"
++    "openvmm/openvmm_core/src/worker",
++    "support/mesh/mesh_channel/src"
+   ]
+ }
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -14,6 +14,11 @@
+       "kind": "symbol",
+       "value": "ExRestoreReadyFile",
+       "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExCoreError",
++      "marker": "external_trait_specification"
+     }
+   ]
+ }
+--- /dev/null
++++ b/support/mesh/mesh_channel/src/rpc.spec.rs
+@@ -0,0 +1,18 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++mod std_error_spec {
++    use core::fmt::{Debug, Display};
++    use vstd::prelude::*;
++
++    verus! {
++
++    #[verifier::external_trait_specification]
++    pub trait ExCoreError: Debug + Display {
++        type ExternalTraitSpecificationFor: core::error::Error;
++
++        fn source(&self) -> Option<&(dyn core::error::Error + 'static)>;
++    }
++
++    }
++}

@@ -1,0 +1,11 @@
+error[E0433]: cannot find `pattern_type` in `pat`
+ --> research/vmtime-duration-binding/pattern-type.rs:9:42
+  |
+9 | pub fn accept_pattern_type(_: core::pat::pattern_type!(u32 is 0..=999_999_999)) {}
+  |                                          ^^^^^^^^^^^^ could not find `pattern_type` in `pat`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0433`.
+
+exit=1 elapsed_s=0

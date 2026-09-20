@@ -1,0 +1,14 @@
+Result class: diagnostic/request delivery, not production admission or proof.
+Binding limits recorded in rationale before candidate builds: seven project declarations; installation/lifecycle; other-source coverage; saved-state/Duration correspondence; four bridges; TOP external_body.
+Real source inspected: dispatch.rs registration, restore_snapshot_state and restore; state_unit StateUnits::{restore,advance_time}, StateRequest::apply; vmtime_unit KeeperUnit; VmTimeKeeper::{restore,advance,reset_to}; KeeperRequest::Reset.
+RpcSend::call source: oneshot -> one f(Rpc(input,result_send)) -> send_rpc -> PendingRpc(result_recv). F is FnOnce and is neither stored nor inspected.
+Sender route: &mesh_channel_core::Sender<T>::send_rpc calls send. PendingRpc::poll maps receiver errors to RpcError::Channel. Assertion, local assignment, await and unwrap stay unchanged.
+Source normalization preserves payload, constructor count, ordering and error behavior; this is source review, not a machine proof of semantic equivalence.
+Native call-structure read failed: .verus_agent/proof_state.json absent. No snapshot rebuilt. Real connection established by direct source inspection.
+Retained native inputs: identity.log compares 2571 source/manifest/verification inputs and pins Verus. retained-results.log checks complete diagnostics without rerunning them.
+The reviewed handoff b490333e7692 accepted only the admission-boundary diagnostic, not production admission or final completion.
+No marker, requires, ensures, invariant, View, TOP contract or sanctioned BOTTOM TCB changed.
+Required command evidence reused on matching inputs: make_verify exit 0, 0 verified/0 errors, 2.580 s; wrapper selects scaffolded TOP with --no-lifetime, not full-crate coverage.
+boundary exit 1: frozen TCB-manifest provenance rejection, seven temporary locations. This existing setup/check issue is unrepaired.
+spec_drift exit 0, 1.191 s; exec_drift exit 0, 5.248 s. Full retained logs are in this directory.
+Native submit output retained in submit.log; drift comparisons are advisory, independent of the source-preservation argument.

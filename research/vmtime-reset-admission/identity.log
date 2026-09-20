@@ -1,0 +1,7 @@
+2571 source/manifest/verification inputs match accepted evidence.
+Only manifest normalization: remove accepted vmm_core test-target suffix.
+Both frozen manifests parse as nonempty JSON objects and match intake.
+Only lockfile difference: accepted vmcore entry adds already-resolved vstd.
+Live lockfile and committed Duration request unchanged.
+Pinned frontend HEAD matches verification/verus-revision: 8ed93e5d0164885f415c11ad8baa736371bcff92.
+No tracked verifier changes; no maintained proof_state.json snapshot: True

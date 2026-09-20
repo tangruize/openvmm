@@ -1,0 +1,19 @@
+freeze.patch: 117 lines
+run.patch: 193 lines
+ .verus_agent/scope_manifest.json                  |    3 +-
+ .verus_agent/tcb_manifest.json                    |   15 ++++++++++
+ vm/vmcore/Cargo.toml                              |    4 +++
+ vm/vmcore/src/vmtime.rs                           |    4 +++
+ vm/vmcore/src/vmtime_duration/mod.rs              |    6 ++++
+ vm/vmcore/src/vmtime_duration/observation.spec.rs |   32 +++++++++++++++++++++
+ 6 files changed, 63 insertions(+), 1 deletion(-)
+ .verus_agent/scope_manifest.json                  |    3 +-
+ .verus_agent/tcb_manifest.json                    |   15 ++++++++++
+ vm/vmcore/Cargo.toml                              |    4 +++
+ vm/vmcore/src/vmtime.rs                           |   27 +++++++++++++++++-
+ vm/vmcore/src/vmtime.proof.rs                     |   26 +++++++++++++++++
+ vm/vmcore/src/vmtime_duration/mod.rs              |    6 ++++
+ vm/vmcore/src/vmtime_duration/observation.spec.rs |   32 +++++++++++++++++++++
+ 7 files changed, 111 insertions(+), 2 deletions(-)
+vm/vmcore/src/interrupt.rs: frozen and working branch bytes identical = True
+vm/vmcore/src/vm_task.rs: frozen and working branch bytes identical = True

@@ -1,0 +1,4 @@
+Candidate source exactly matches run.patch and is unchanged since completed pre-commit checks.
+Reusing completed clippy, doc, then fmt --fix for this one package-only commit; no repeated check.
+Package integrity: exactly three nonempty files, byte-identical to submitted inputs.
+Dirty scalar source preserved; staging area empty before package-only commit.

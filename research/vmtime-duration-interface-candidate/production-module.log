@@ -1,0 +1,40 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-duration-interface-candidate/workspace/vm/vmcore)
+note: verifying module vmtime
+
+verification results:: 6 verified, 0 errors
+warning: missing documentation for a module
+  --> vm/vmcore/src/vmtime.rs:56:1
+   |
+56 | pub mod duration_observation;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: requested on the command line with `-W missing-docs`
+
+warning: missing documentation for a function
+  --> vm/vmcore/src/vmtime_duration.spec.rs:10:1
+   |
+10 | pub uninterp spec fn whole_seconds(duration: &Duration) -> u64;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a function
+  --> vm/vmcore/src/vmtime_duration.spec.rs:14:1
+   |
+14 | pub uninterp spec fn subsecond_nanoseconds(duration: &Duration) -> u32;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a function
+  --> vm/vmcore/src/vmtime_duration.spec.rs:16:1
+   |
+16 | pub open spec fn elapsed_nanoseconds(duration: &Duration) -> nat {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a function
+  --> vm/vmcore/src/vmtime_duration.spec.rs:22:1
+   |
+22 | pub fn duration_as_nanos(duration: &Duration) -> (result: u128)
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `vmcore` (lib) generated 5 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.84s
+
+exit=0 elapsed_s=2

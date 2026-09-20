@@ -1,0 +1,6 @@
+Durable precommit finished with exit 0; all three required commands passed.
+Clippy emits intentional redundant_closure warning for the exact requested normalization; no lint suppression or source change added.
+Formatter leaves candidate vmtime and all three package members byte-identical.
+Working/frozen bases, tracked dirty delta, untracked scalar proof and empty index match intake.
+Current native executable drift roots: openvmm/openvmm_core/src/worker
+The normalized vmcore source is outside those roots. Native drift PASS does not establish equivalence of this proposed source change; direct source review is the supporting rationale.

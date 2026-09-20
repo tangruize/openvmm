@@ -1,0 +1,25 @@
+toolchain/verus-src/source/target-verus/release/verus research/vmtime-reset-admission/error-trait-probe.rs --crate-type lib --edition 2024 --rlimit 50 --num-threads 1 --log vir --log-dir research/vmtime-reset-admission/error-probe-vir
+error: aborting due to 2 previous errors
+
+
+error: the trait bound `Dyn<0, ()>: T12_Display` is not satisfied
+  --> research/vmtime-reset-admission/error-trait.rs:9:56
+   |
+ 9 |   pub trait ExError: core::fmt::Debug + core::fmt::Display {
+   |  ________________________________________________________^
+10 | |     type ExternalTraitSpecificationFor: core::error::Error;
+   | |_____________^
+
+error: the trait bound `Dyn<0, ()>: T11_Debug` is not satisfied
+ --> research/vmtime-reset-admission/error-trait.rs:9:39
+  |
+9 | pub trait ExError: core::fmt::Debug + core::fmt::Display {
+  |                                       ^^^^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors
+
+note: This error was found in Verus's Trait-Conflict-Checker
+
+error: aborting due to 3 previous errors
+
+exit=1, seconds=0.365

@@ -1,3 +1,1300 @@
+# Error trait freeze request: unresolved binding facts
+
+The minimal isolated production comparison is
+`vmtime-reset-admission/error-final/{baseline,candidate}.log`. It removes
+the undeclared Error/source obstruction without excluding the generated
+implementation, but stops at unsupported thiserror `as_dyn_error` and
+undeclared project-owned `RecvError`. Remaining binding facts are:
+
+- What independently justified external interface is needed for the actual
+  thiserror helper call? No helper declaration or behavior guarantee has been
+  proposed or admitted by this experiment.
+- How will project-owned `RecvError` and the other keeper-carried declarations
+  be admitted without sanctioning project body/representation debt?
+- The minimal Error interface probe reaches a Debug/Display dynamic-supertrait
+  rejection in native trait-conflict checking. No semantics-preserving
+  discharge is established, and the production candidate stops before this
+  stage. Complete Error admission remains unresolved.
+- All reset, transport, lifecycle, installation, representation, and TOP body
+  obligations remain. The external Error/source signature alone supplies no
+  RPC success or completion fact.
+
+The maintained call-structure reader still reports a missing proof-state
+snapshot (`vmtime-reset-admission/error-call-structure.log`). The production
+`VmTimeKeeper::reset_to` awaits and unwraps `PendingRpc`, whose real Future
+output is `Result<T, RpcError<Infallible>>`; `RpcError` derives `Error`.
+No current evidence establishes a successful RPC result.
+
+# Normalized reset production admission: current unresolved facts
+
+The approved constructor normalization is present in both the working and
+frozen tips. The previous waiting condition is satisfied; the historical
+seven-error experiment is not current admission evidence. Existing dirty
+scalar and stopped-state observation proofs are preserved.
+
+Before the current experiment, the unresolved questions are:
+
+- Can native declaration of the real `VmTimeKeeper`, its carried fields,
+  `KeeperRequest`, and the actual sender's `RpcSend::call` admit the normalized
+  body without replacing executable code or adding a sanctioned external leaf?
+  `VmTimeKeeper` carries `pal_async::task::Task<()>`, a source builder, a sender,
+  and `TimeState`; admitting the keeper alone may expose additional declarations.
+- What is the smallest honest RPC interface? The real `call` creates a oneshot,
+  invokes the supplied constructor once, sends that message, and returns its
+  receiver. This supports request construction, not unconditional successful
+  completion. `PendingRpc::poll` explicitly propagates receiver errors.
+- Does the resulting native run reach body verification conditions, including
+  the stopped-entry assertion and `Result::unwrap`, with lifetime checking
+  enabled and rlimit at most 50? The proved `TimeState::is_started` observation
+  does not establish the caller's stopped-entry fact.
+- Which retained or experimental declaration cuts defer representation proof,
+  and which operation contracts would defer channel completion/lifecycle proof?
+  No completion or installation assumption is justified merely by a send.
+
+The source route through registered `"vmtime"` state units to
+`VmTimeKeeper::{restore,advance}` and `reset_to` is local connection evidence,
+not a proof of lifecycle or dispatch. The maintained call-structure snapshot
+is absent; rebuilding it is not a prerequisite. The existing `Rpc<I,R>`
+opaque declaration remains temporary representation/completion debt. Remote
+installation, all-source lifecycle, the four representation bridges, and the
+TOP body remain outside this diagnostic.
+
+The diagnostic candidate will expose the real keeper/request declarations
+and actual `RpcSend` trait/implementation. Temporary cuts on `RpcSend::call`,
+`call_failable`, and the sender's `send_rpc` defer their unchanged bodies,
+without an `ensures` claiming completion or installation. Their source is
+the oneshot/constructor/send sequence, the failable wrapper, and direct
+`Sender::send` delegation respectively. Opaque `RpcError`, `PendingRpc`, and
+`PendingFailableRpc` declarations defer error/receiver representation; they
+do not rule out an error result. These are experimental interface obligations
+for the selected body, not added TCB. If declaration admission fails, the
+candidate will be restored and the exact delta retained only as an experiment.
+
+## Normalized reset admission result
+
+**Diagnostic; production body VCs were not reached.** The current
+[reproducer and exact overlays](vmtime-reset-admission/README.md) operate on
+the real normalized `reset_to`, with lifetime checking enabled, rlimit 50,
+and no body substitution. All experimental source annotations were restored
+byte-for-byte to intake, including the existing dirty observation/scalar
+proof work. No new production contract or permanent trust remains.
+
+The RPC interface experiment first fails in its owning dependency:
+`current-declarations.log` reports undeclared `core::error::Error`, a pattern
+access on opaque `RpcError`, and undeclared `RecvError` (exit 101, 1.567 s).
+Transparent `RpcError` removes the opaque-pattern error, not the other two
+(`current-transparent-error.log`, exit 101, 1.617 s). Merely moving the
+annotation across `derive` did not repair this.
+
+The generated `Error::source` signature is a discriminated obstruction,
+not speculation from the old seven-error list. `derived-error.rs` with an
+empty automatically-derived Error impl passes declaration checking (0/0);
+the otherwise equivalent `derived-error-source.rs` with the real method
+shape fails on `Option<&dyn core::error::Error>` (exit 1, 0.465 s), without
+any missing project type. The empty-impl control refutes the broader
+hypothesis that its trait header alone necessarily fails. Pinned frontend
+`external.rs:649-739` admits generated impls with their type;
+`automatic_derive.rs:27-43` does not ignore Error, and
+`vir/src/well_formed.rs:100-125` requires the dynamic trait declaration.
+This is a declaration/interface barrier, not a demonstrated general
+limitation of async verification. No external trait declaration or derived
+implementation exclusion was added.
+
+The separate keeper-only experiment (`current-keeper-declarations.log`,
+exit 101, 2.770 s) reaches the current production consumer's declaration
+checking. In addition to its remaining RPC interfaces, it exposes
+`async_task::Task`, project-owned `TaskMetadata`, and `inspect::Deferred`.
+Project declaration owners are outside this mission's writable paths; the
+Task alias denotes an external library type. Opaque keeper/request cuts
+cannot support the real field accesses/Reset construction, by the frontend
+datatype-access rule. This tested construction is insufficient within the
+current boundary; it does not prove that every alternative requires a
+frozen change. Wider declaration/body-proof design remains open, with no
+freeze request submitted.
+
+The exact later semantic obligations are unchanged by declaration cuts:
+all actual callers must establish stopped entry; the local assignment/frame
+must be proved; `RpcSend::call` needs a proved constructor-callability and
+request/response-channel relation; and **this particular request's awaited
+result must be `Ok(())`** before `unwrap`. `PendingRpc::poll` preserves the
+real channel-error possibility. A generic RPC-success guarantee is not
+source-supported. Keeping the primary task alive, its stopped-state
+invariant, normal handler completion, and response-channel ownership need a
+lifecycle proof. Eventual scheduling is separate from conditional success.
+No clock installation or TOP result follows from the signature-only cut.
+
+The six experimental production `external_body` locations
+(`RpcSend::{call,call_failable}`, sender `send_rpc`, `RpcError`, `PendingRpc`,
+`PendingFailableRpc`) were all removed on restoration. Their deferred body
+and representation obligations are enumerated in the README; the
+transparent-error comparison omitted only RpcError's cut. Two minimal
+probe-local opaque `DerivedError` declarations remain solely as diagnostic
+inputs, not runtime interfaces. Existing `Rpc`/Sender/Receiver opacity,
+worker declaration cuts, the four uninterpreted bridges, and TOP
+`external_body` remain undischarged. No requires/ensures or invariant changed.
+
+Final required commands ran once on restored source: `make_verify` **exit 0,
+0 verified / 0 errors (partial verification), 9.784 s**; `boundary` **exit 1,
+1.167 s**, existing provenance rejection/seven temporary worker locations;
+`spec_drift` **exit 0, 1.316 s**; `exec_drift` **exit 1, 4.923 s**.
+The last gate pairs x86 and AArch64 `ProcessorTopology::to_config` bodies.
+Both complete corresponding impl blocks are independently byte-identical
+to frozen (`current-topology-equality.log`); the whole dispatch file differs
+in existing proof annotations/formatting. No checker retry, change, or
+maintenance request was made. The required gate's failure remains a
+separate check problem; this is **not** a passing proof/progress handoff.
+The authoritative out-of-worker comparisons show unchanged vmtime
+(59 functions/13 structs) and RPC (19 functions/3 structs) executable items.
+The TOP wrapper's 0/0 result with `--no-lifetime` is not reset-body evidence.
+
+# TimeState stopped-state observation: unresolved binding facts
+
+This bounded proof owns the production queries in `vm/vmcore/src/vmtime.rs`,
+their existing proof include, and `research/vmtime-stopped-state-proof`.
+The existing scalar View and dirty scalar work remain intact.
+
+Before experiments, the source supports, but does not yet prove, these
+unconditional interfaces:
+
+- `start_time` returns exactly the stored `Timestamp` for `Started` and
+  `None` for `Stopped` (the exhaustive match in the production body).
+- `is_started` identifies the `Started` variant by calling the real
+  `start_time` and `Option::is_some`; its negation therefore identifies
+  `Stopped`, without a new invariant or caller precondition.
+- `stop_time` returns the stored `VmTime` for `Stopped` and `None` for
+  `Started`. Its payload must retain the exact ticks of the existing
+  `VmTime` View, not a default value.
+
+Native admission of the transparent production `Timestamp` and `TimeState`
+declarations, verification of both branches, and modular use of `start_time`'s
+contract by `is_started` remain unresolved until the native check runs.
+No opaque declaration, trusted query, replacement implementation, additional
+precondition, or constructor normalization is proposed.
+
+The concrete callers require different later facts: `VmTimeKeeper::reset_to`
+asserts `!self.time.is_started()` before replacing the stopped time;
+`VmTimeKeeper::advance` extracts `stop_time().expect(...)` before arithmetic.
+These observations do not establish that either caller enters stopped.
+Caller-body proofs, construction/omission lifecycle, RPC installation,
+Duration correspondence, all four representation bridges, and the TOP
+`external_body` remain explicitly outside this result. Existing lifecycle
+and omitted-blob diagnostics will not be rerun. The existing boundary
+provenance rejection is separate from native query proof results.
+
+## TimeState observation result: native body proofs
+
+**Bounded proof result, not TOP completion.** The unchanged production
+`TimeState::{start_time,is_started,stop_time}` bodies now verify with no
+preconditions, temporary markers, added trust, or rlimit annotations.
+`research/vmtime-stopped-state-proof/verify.command` selects the real
+`vmcore::vmtime` module with lifetime checking enabled. `native.log` records
+**8 verified, 0 errors**, no native warnings, and 2.421 seconds wall time
+(Cargo reports 1.79 seconds). This includes the existing scalar proof work
+and admitted derived code; it is not a count of eight query bodies.
+
+The proved interface at `vm/vmcore/src/vmtime.rs:405-439` is:
+
+- `start_time`: `Stopped` returns `None`; `Started(timestamp)` returns
+  precisely `Some(timestamp)`, retaining both stored fields. This does not
+  establish any `Instant` correspondence or timestamp-construction fact.
+- `is_started`: the result is equivalent to the `Started` variant.
+  Exhaustiveness of the transparent two-variant production enum means that
+  a false result identifies `Stopped`. The verified body actually calls
+  `start_time().is_some()`; it uses the above callee contract and the pinned
+  vstd `Option::is_some` interface, not an inlined replacement body.
+- `stop_time`: `Stopped(time)` returns `Some` whose `VmTime` View is exactly
+  `time@`; `Started` returns `None`. The unchanged closed scalar View is the
+  complete stored `u64`, so this preserves arbitrary stored ticks, including
+  nonzero values, without fabricating a default.
+
+No additional state View or invariant is needed for these private enum
+observations. `Timestamp` and `TimeState` are admitted transparently, with
+their real fields and variants. There was no rejected proof construction,
+new caller obligation, weakened contract, or executable rewrite.
+
+The local caller evidence is concrete source, not graph completeness.
+The maintained call-structure reader still fails because
+`.verus_agent/proof_state.json` is absent (`inspect.command`, `inspect.log`);
+it was not rebuilt. The existing type-aware report
+`vmtime-scalar-interface/callers.log:811-861` identifies the internal
+delegation and stopped-value consumers, but misses assertion-macro callers
+and has old line numbers. Current production source supplies those missing
+uses: `VmTimeKeeper::reset_to` at `vmtime.rs:524-531` asserts the negation of
+`is_started`; `advance` at `515-522` extracts the stopped value before
+`wrapping_add` and `reset_to`. The interface supplies the variant and exact
+tick observations required there; **it does not prove either caller's
+stopped-entry premise or body**. Other existing query users are
+`TimerState::{start,stop,reset,timestamp,set_next,poll}`,
+`VmTimeKeeper::{save,start,stop}`, and `PrimaryKeeper::run`; none gains a
+precondition.
+
+The real TOP connection was inspected, not proved:
+`dispatch.rs:1831-1843` installs `run_vmtime` under the `"vmtime"` state
+unit; `restore_snapshot_state` calls `restore` and `state_units.advance_time`;
+`StateUnits::{restore,advance_time}` dispatch the corresponding requests;
+`StateRequest::apply` calls the concrete unit operations; and
+`vmm_core/src/vmtime_unit.rs:38-45` forwards to
+`VmTimeKeeper::{restore,advance}`. The new query proofs neither prove
+dispatch/lifecycle preservation nor assume that connection as a theorem.
+
+Current commands ran once on the final production proof source:
+
+| Command | Result |
+| --- | --- |
+| Lifetime-enabled native `verify.command` | Exit 0; 8 verified, 0 errors; 2.421 s |
+| `make_verify --crate-root .` | Exit 0; 0 verified, 0 errors; 11.680 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; existing TCB-manifest provenance rejection, 7 temporary locations, 0 assumptions; 1.156 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no frozen specification drift; 1.300 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no worker-root executable drift; 4.933 s |
+
+The required restore wrapper still selects the scaffolded TOP with
+`--no-lifetime`; its 0/0 result is not full-crate body coverage or TOP proof.
+Neither bypass applies to the native query proof. Because the frozen worker
+scope excludes `vmcore`, `checks.py` additionally invokes the authoritative
+executable comparator on frozen versus current `vmtime.rs`:
+**59 functions and 13 structs match**, with no unmatched executable items
+(`vmtime-exec-drift.json`). The ordinary Rust all-targets check, local
+formatting check, and existing nextest `agent` vmtime selection also pass:
+**2 tests passed, 23 skipped** (`regression.command`, `regression.log`).
+Existing vstd/unregistered-cfg warnings remain visible; none was suppressed.
+The scoped lockfile copies the accepted scalar setup instead of modifying
+the root or scalar lockfiles. Commands, complete check logs, and durable
+runner completion receipts are retained in `vmtime-stopped-state-proof`.
+
+No temporary marker was added, removed, moved, or discharged. The selected
+queries have none. The existing `InitializedVm`/`LoadedVmInner` declaration
+cuts, TOP `external_body`, and four bridges
+(`decoded_restore_request_view`, `decoded_load_restore_request_view`,
+`initialized_vm_representation`, `loaded_vm_representation`) remain
+unchanged and unproved. Their representation, decoding, and TOP-body
+obligations are not supplied by these queries. Caller-body proofs,
+construction/omission lifecycle, reset RPC installation, and Duration
+correspondence also remain outstanding. The separate provenance rejection
+is not a query-proof failure. Dirty scalar work, frozen specifications and
+BOTTOM declarations, and all pending freeze requests were preserved;
+neither constructor normalization nor previous lifecycle/omission
+diagnostics was applied or rerun.
+
+# Omitted vmtime saved-state binding: unresolved facts before experimentation
+
+This diagnostic owns `research/vmtime-saved-state-binding` and this section.
+It does not modify production, frozen specifications/TCB, existing proof work,
+or pending freeze requests. The accepted reset-installation and initial-source
+lifecycle diagnostics are inputs, not experiments to rerun.
+
+Before experimentation, these facts remain unresolved:
+
+- `restored_virtual_time` uses the decoded saved virtual time, whereas
+  `decoded_restore_request_view` receives saved state, time-adjustment policy,
+  and selected VP count, not the keeper pre-state. Does omission have an
+  input-determined interpretation on the actual TOP construction/entry path?
+- Does `RestoreRequestView::valid_for_loaded_vm` itself restrict the retained
+  clock, or would a separately proved construction/lifecycle invariant be
+  needed? Initial construction at zero is not yet a proof that every TOP
+  entry retains zero.
+- Does the real `StateUnits::{restore,run_op}` path skip `KeeperUnit::restore`
+  when `"vmtime"` is absent, and preserve the stopped keeper value through
+  post-restore? Which behavior is only an unrestricted API observation?
+- Does a valid named blob pass through `StateRequest::apply`,
+  `SavedStateBlob::parse`, `KeeperUnit::restore`, and `VmTimeKeeper::restore`
+  to install its decoded ticks, rather than preserve the pre-state?
+- Which real callers or intervening start/stop/reset/advance operations could
+  invalidate a zero-on-omission construction argument? An arbitrary nonzero
+  keeper in a harness must not be reported as a TOP counterexample.
+
+The intended result is a reproducible diagnostic classification, not a new
+bridge definition. Decoding, lifecycle, asynchronous installation, Duration
+correspondence, all four uninterpreted bridges, and the TOP body remain proof
+obligations unless separately established.
+
+## Omitted-vmtime diagnostic result
+
+**Classification: source-supported input-based interpretation with explicit
+unproved lifecycle/decoding obligations, not a frozen-boundary counterexample.**
+The [reproducible diagnostic](vmtime-saved-state-binding/README.md) executes
+unchanged production `StateUnits -> KeeperUnit -> VmTimeKeeper` bodies.
+Omission retains initial ticks (0 stays 0; 37 stays 37), whereas a valid named
+blob containing 91 installs 91 from either pre-state. Inventory validation
+accepts omission even with `"vmtime"` in the inventory. Subsequent 1234 ns
+advancement yields 12, 49, 103, and 103 respectively. Two tests passed; local
+keeper saved state and the initial source's observations agreed.
+
+The differing API results do not establish TOP reachability. Current source
+has one `restore_snapshot_state` caller, in consuming `InitializedVm::load`.
+Both Worker construction routes create a new stopped-zero keeper; load moves
+it into the retained vmtime unit and enters TOP before any start or earlier
+clock mutation. Consequently zero-on-omission is a source-supported
+saved-input interpretation for this path, not yet an implemented or proved
+bridge. `valid_for_loaded_vm` does not itself require initial clock zero.
+The concrete fresh-keeper history must become a proved representation/
+lifecycle invariant; assigning `PreparingRestore` to arbitrary stopped VMs
+would not justify the interpretation. There is no post-restore reset hook
+in the omission path.
+
+The supplied-blob path selects by name, parses before reset, and awaits the
+real keeper restore. Formal decoding, type/byte correspondence, zero-at-entry
+and preservation, asynchronous installation/liveness, other-source coverage,
+Duration/elapsed-time correspondence, all four uninterpreted bridges, and the
+TOP body remain unproved. No marker or contract was changed; no frozen change
+is demonstrated or requested. Accepted reset-installation and initial-source
+lifecycle diagnostics were reused after comparing 24 relevant inputs, not
+rerun. Comparison covers 2,925 current production inputs, allowing only the
+isolated test-target suffix and Cargo's addition of the already-declared
+dirty `vmcore` manifest's `vstd` dependency to the built lock. The live
+lockfile's generated line was removed to restore its clean intake state;
+no package version changed.
+
+Current checks ran once: make_verify exit 0 (0 verified / 0 errors, 2.335 s);
+boundary exit 1 (existing TCB provenance rejection and seven temporary trust
+locations); spec_drift and exec_drift exit 0. The call-structure reader still
+cannot read absent `.verus_agent/proof_state.json`; source supplies the local
+connection evidence. Complete check and runtime logs are in the diagnostic
+directory. Production, existing proof work, manifests, and pending requests
+remain untouched.
+
+# Reset RPC constructor admission: binding questions and result
+
+This diagnostic owns only `research/vmtime-reset-admission` and this document.
+Before experiments, the unresolved facts are:
+
+- Whether a supported annotation/interface can translate the unchanged
+  `KeeperRequest::Reset` value in the real `reset_to`, rather than skipping
+  its body. The earlier annotation-only rejection is reusable only after
+  checking the production body, RPC interface, and pinned frontend identity.
+- Whether a closure that invokes the same constructor is natively admitted,
+  and whether that hypothetical frozen-source normalization gets the actual
+  production `reset_to` past this rejection with lifetime checking enabled.
+- Which translation, declaration/interface, or verification-condition barrier
+  appears next; neither a passing toy nor disappearance of the first error
+  establishes production admission or RPC completion.
+
+The [native admission diagnostic](vmtime-reset-admission/README.md) now
+classifies this boundary. Current comparison of 2,571 source/manifest/
+verification inputs permits reuse of the accepted annotation-only rejection;
+it was not rerun. The pinned frontend unconditionally rejects non-constant
+datatype constructors in value position before callee contracts can help.
+Its own `fndef_types.rs` tests expect this rejection. A minimal native
+comparison reproduces it; invoking the constructor inside a closure instead
+verifies (2 verified, 0 errors, pinned Z3, lifetime checking enabled).
+
+In the **actual isolated `reset_to`**, replacing only
+`KeeperRequest::Reset` with `|rpc| KeeperRequest::Reset(rpc)` and adding the
+method's verification annotation removes that rejection but reaches seven
+declaration/interface errors: `VmTimeKeeper`, `TimeState`,
+`TimeState::is_started`, `KeeperRequest`, `RpcError`, `PendingRpc`, and the
+sender's default `RpcSend::call`. No production body verification conditions
+were proved. Missing declarations remain project proof work, not a reason
+to add trust. The exact one-expression hypothetical frozen-source boundary
+is retained as `vmtime-reset-admission/normalization.patch`, unapplied and
+not submitted as a freeze request.
+
+The source comparison preserves the same RPC payload, single constructor
+invocation, call/send order, await, and unwrap/error behavior; it grants no
+RPC completion guarantee. The four required checks are reused from matching
+source: make_verify exit 0 (0 verified / 0 errors on the scaffolded TOP),
+boundary exit 1 (existing provenance rejection), spec_drift and exec_drift
+exit 0. Production, dirty scalar work, frozen inputs, accepted diagnostics,
+and the committed Duration request remain untouched. The initial-source
+lifecycle theorem, secondary installation/RPC proofs, other-source coverage,
+Duration correspondence, four representation bridges, and TOP external_body
+are still explicit obligations. No trust marker was added or discharged.
+
+# Stopped-clock reset installation: current binding questions
+
+This bounded diagnostic leaves production, frozen inputs, dirty scalar work,
+and the committed, unapplied Duration request untouched. It asks what a
+normally completed `VmTimeKeeper::reset_to(t)` actually installs, not whether
+the TOP restore theorem is proved.
+
+Before experiments, these bindings remain unresolved:
+
+- Whether primary RPC success implies every registered secondary applied
+  `TimerState::reset`, despite `PrimaryKeeper::run` discarding `join_all`
+  results and garbage-collecting closed request senders.
+- Whether a surviving `VmTimeAccess` can retain a stale stopped clock when
+  its secondary's task/channel is gone, and which production lifecycle
+  site excludes that outcome for the actual restore caller (if any).
+- Whether source registration overlapping reset can publish an old clock
+  after reset returns, or instead forces reset to wait for initialization
+  and acknowledgement. Registration, task spawning, cancellation, and
+  successful completion must be distinguished.
+- Which stopped-state conditions follow from `StateUnits` transitions,
+  `run_vmtime`, exclusive keeper access, and the held `_vmtime` unit, and
+  which secondary-liveness conditions still require proof.
+- Whether the actual production `reset_to` body can enter the pinned
+  verifier with lifetime checking enabled and annotation-only changes.
+  A frontend diagnostic would not establish a verifier limitation or a
+  clock-installation proof.
+
+Initial source anchors are `dispatch.rs:1831-1842,3867-3873`,
+`state_unit/src/lib.rs:239-241,1048-1069,1092-1185`,
+`vmtime_unit.rs:43-52`, and `vmtime.rs:504-512,567-599,630-720,736-769,826-829`.
+The native call-structure reader currently cannot read the absent
+`.verus_agent/proof_state.json`; no graph rebuild or checker repair is
+authorized by this diagnostic. Both frozen manifests parse as JSON and
+contain the specified TOP and three sanctioned marker entries.
+
+The intended use is the installation half of
+`restored_virtual_time(...).vm_time_100ns` and the eventual concrete
+`loaded_vm_representation`. No Duration/decoded-downtime correspondence,
+asynchronous invariant, representation bridge, or TOP body is assumed proved.
+
+## Diagnostic result: completion is not universal observer installation
+
+**Diagnostic evidence, not a Verus proof.** Normal primary RPC completion
+does not by itself imply that every surviving `VmTimeAccess` observes the
+supplied reset value. `research/vmtime-reset-installation/probe.rs` executes
+the unchanged production clock implementation and reproduces a completed
+`restore(SavedState::from_vmtime(91)) -> reset_to(91)` with local saved state
+and a newly registered source at 91 ticks, but an existing stopped accessor
+still at 7 ticks. No frozen contract or executable was changed.
+
+The counterexample explicitly discards the actual detached secondary task's
+queued `Runnable` through a test scheduler, after the primary has sent Reset
+and is awaiting its response. It does not forge a response, implement a
+replacement clock, or assert that the default OpenVMM executor spontaneously
+discards tasks. It refutes the **unconditional API-level all-surviving-accesses
+guarantee**, not the frozen TOP theorem under a proved restore lifecycle.
+Reachability of such failure for that specific lifecycle remains unproved.
+
+### Source-supported intermediate interface, still requiring body proofs
+
+For a normally completed `reset_to(t)`, with no subsequent control transition:
+
+| Concrete layer | Supported installation fact |
+| --- | --- |
+| Local `VmTimeKeeper.time` | `Stopped(t)`. It is assigned before the await; this field alone does not imply completed installation. |
+| `PrimaryKeeper.time` | `Stopped(t)`. The primary assigns it before awaiting secondary RPCs, and completes the caller RPC only after that await. |
+| A participating secondary whose Reset RPC succeeds | Its shared `TimerState.time = Stopped(t)`, `last = t`, and `next = None`; registered wakers have been taken and woken. Existing access-specific timeout values are not erased. |
+| A failed or garbage-collected secondary | No new equality with `t` follows. Failure may occur either before or after mutation; a surviving accessor can retain the old value. |
+| An accessor sharing a successfully reset state | `now() == t` while that state remains stopped at `t`; `host_time(t) == None`. This is a clock-source observation, not every guest clock or RTC wall-clock value. |
+| A successful build registered after the primary Reset event | Initialization copies `Stopped(t)`, even before its new task first runs, provided no later control transition intervenes. |
+
+These are source-supported facts, not installed Verus contracts or sanctioned
+channel axioms. The intended canonical projection for
+`restored_virtual_time(...).vm_time_100ns` can use the owned keeper state,
+but relating it to guest-visible observations additionally needs an
+observer-coverage and lifecycle invariant. Choosing that canonical value
+does not discharge the observational obligation or define the currently
+uninterpreted `loaded_vm_representation`.
+
+Production evidence: `vm/vmcore/src/vmtime.rs:482-512` saves the local field,
+delegates restore/advance to reset, and unwraps the primary response.
+`630-720` serializes primary events, prunes closed senders, updates the
+primary, and discards the secondary `join_all` results.
+`736-769` handles each secondary Reset synchronously under a write lock.
+`209-220` resets the timer state; `422-425,826-829` make the stopped
+observation independent of current host time. `775-822` gives source clones
+and accesses independent `Arc` ownership; `now` has no channel-health check.
+For one actual guest-facing consumer,
+`vmm_core/virt_whp/src/lib.rs:1447-1465` returns this accessor's ticks as
+reference time; CMOS RTC construction also holds accesses at
+`vm/devices/chipset/src/cmos_rtc.rs:406-423`.
+
+### RPC and concurrent registration are concrete obligations
+
+`support/mesh/mesh_channel/src/rpc.rs:65-82,99-101` sends the response only
+after the handler finishes. The secondary drops its write guard before
+`handle_sync` sends `()`. Its **successful** reply therefore supports the
+mutation-before-observation relation. At the outer state-unit layer,
+`rpc.rs:119-127,179-190,250-288` distinguishes a completed `Ok` result,
+an application error, and response-channel failure. These are different
+layers: primary-to-secondary reset uses `call`, not `call_failable`.
+
+Actual channel failure is not successful handling:
+`mesh_channel_core/src/mpsc.rs:117-145,454-467` permits silently dropping
+requests to a closed receiver and drops queued requests with the receiver;
+`is_closed` is only an advisory observation.
+`mesh_channel_core/src/oneshot.rs:131-157,321-335,362-409` turns missing or
+failed responses into receive errors. Dropping a response receiver does not
+cancel the already-dispatched operation. The primary awaits all these
+outcomes but does not distinguish errors before replying successfully.
+
+Registration has a useful ordering property, not an independent liveness
+promise. At `vmtime.rs:648-653`, New inserts its request sender and captures
+the primary state in the same synchronous handler. At `567-599`, build
+receives that state, initializes the shared timer, then spawns the secondary.
+If New precedes Reset, the new sender is included even when initialization
+has not consumed the old response yet. Reset stays pending until that
+secondary handles Reset **or its RPC fails**. If Reset precedes New, New
+cannot be handled in the middle of Reset's await and captures the new state.
+The deterministic registration probe observes 7 only while reset is pending,
+then 91 after normal acknowledgement. Cancellation before publishing a source
+drops the build's receiver; it does not later publish an old source.
+Successful build alone is not evidence that its detached task will survive.
+
+### What the real restore lifecycle enforces, and what it does not prove
+
+`dispatch.rs:1102-1107` constructs the keeper stopped at zero and awaits its
+initial source on `driver_source.simple()`.
+`1831-1842` registers `run_vmtime` as the `"vmtime"` state unit.
+`3261-3283` stores its `SpawnedUnit` in `LoadedVmInner._vmtime`, and
+`3331-3333` invokes restore before starting the new VM.
+`3862-3873` restores saved state then awaits `advance_time(downtime)`.
+`4765-4770` delegates the saved-state restore to `StateUnits`.
+
+`state_unit/src/lib.rs:485-494,1320-1389` initially records stopped units and
+retains a registration handle plus task. `983-1069` asserts `!running` and
+uses `Stopped -> Restoring/AdvancingTime -> Stopped`;
+`1092-1185` checks old states, orders dependencies, awaits unit responses,
+and panics on channel loss for a still-registered unit. Errors for a unit
+removed concurrently can be ignored, so preserving the specific `_vmtime`
+handle matters; the general `StateUnits` API is not sufficient alone.
+`239-241` dispatches the actual Duration through `StateRequest::apply`;
+`vmtime_unit.rs:43-52` forwards it to `VmTimeKeeper::advance`.
+The production-path probe traverses this chain with 1234 ns and observes
+7 -> 19 ticks while stopped. This example proves no universal Duration
+semantics or decoded-request correspondence.
+
+Exclusive mutable access to the keeper, its held primary task, and the
+retained state-unit handle enforce ownership/serialization sites.
+`vmtime.rs:499,505,701,210` also checks stopped-state conditions dynamically;
+a failed assertion or primary-response unwrap is a panic, not normal
+completion. The initial source and keeper use the default device executor:
+`vm_task.rs:42-45,327-330,418-446` selects it for the simple driver;
+`dispatch.rs:198-199,493-504` spawns and eventually joins that device thread.
+The detached secondary exposes no cancellation handle through `VmTimeSource`
+or `VmTimeAccess`. `pal_async/src/task.rs:206-218` retains its scheduler;
+`io_pool.rs:118-125` runs the pool until the task queue ends.
+
+Those are concrete lifecycle anchors, **not yet a verified invariant** that
+every observer belongs to a live, reliably connected secondary throughout
+restore. The builder is transferable and can use a different driver
+(`vmtime.rs:542-567`). Neither `Arc` survival nor stopped state supplies that
+missing invariant. Channel loss/task cancellation can complete a secondary
+RPC with an error; a live but unpolled secondary can instead block reset
+indefinitely. Panic/abort, cancellation of the caller, and nontermination
+are not covered by the normal-return installation fact. In particular,
+the cancellation probe observes the local update before installation, and
+later observes the dispatched operation run despite cancellation.
+
+### Reproduction and invalidated experimental construction
+
+The isolated workspace contains intake production sources, including existing
+dirty scalar annotations, with only an added `vmm_core` integration-test target.
+It introduces no dependency. From a fresh checkout without that workspace,
+run `bash research/vmtime-reset-installation/run.sh`. With the prepared
+workspace, use:
+
+```bash
+cd research/vmtime-reset-installation/workspace
+CARGO_TARGET_DIR=../target RUSTUP_TOOLCHAIN=1.95.0 cargo nextest run --offline \
+  --profile agent -p vmm_core --test vmtime_reset_installation --success-output immediate
+```
+
+`runtime-pool-drop.log` records five passing cases: healthy/later registration,
+overlapping registration, cancelled registration, cancelled reset, and the
+actual state-unit Duration route. The original error injection timed out at
+30 seconds: dropping `DefaultPool` did **not** establish that its queued task
+was dropped. In selected `async-channel 2.5.0` source (`src/lib.rs:68-96,604-613`),
+last-receiver drop closes the queue rather than draining it; the queued task
+retains its scheduler/sender. This invalidates that proposed reproduction,
+not the installation relation by itself. It is not evidence of a completed
+stale-clock operation.
+
+The revised, solely rerun case explicitly drops the queued production
+`Runnable`. Selected `async-task 4.7.1`, `src/runnable.rs:893-932`, drops the
+future during that cancellation. `runtime-final.log` records **1 passed,
+5 skipped**, including the discriminating `91 / 7` completed-return result.
+Together these runs cover the six final test bodies; there was no redundant
+rerun of the other five. The initial build failure in
+`runtime-setup-failure.log` was only the isolated workspace's missing protoc
+resource path; `prepare.py` now links the already installed `.packages`.
+
+### Native admission and current required checks
+
+`admission.py` adds only `#[verus_verify]` to the actual isolated `reset_to`
+body, selects that function/module, enables lifetime checking, and uses
+`--rlimit 50`. `admission.log` records exit 101 in 29.649 s:
+`vmtime.rs:509:19`, `.call(KeeperRequest::Reset, vmtime)`, is rejected as
+“using a datatype constructor as a function value.” This is an observed
+frontend admission boundary, **not a proven unavoidable verifier limitation**;
+no minimal known-discharge comparison or frozen rewrite was attempted.
+`admission.patch` reproduces the annotation and `admission-cleanup.log`
+confirms it was removed. No clock-body verification conditions were proved.
+
+| Prescribed command | Current outcome |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0, **0 verified / 0 errors**, 2.580 s inner elapsed. The unchanged wrapper selects the scaffolded TOP and disables lifetime checking; this is not a full-crate or installation proof. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1: existing TCB-manifest provenance rejection; 7 temporary locations, 0 assumptions, 0 permanent violations reported in its summary. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no frozen specification drift, 1.191 s. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no executable drift, 5.248 s. |
+
+These four commands ran once; complete logs have the `.complete.log` suffix
+under `research/vmtime-reset-installation`. An earlier durable-runner
+preflight rejected the unexpanded Python environment expression without
+executing a check; the resolved authoritative Python ran them. The required
+wrapper's automatic root-lockfile addition was removed, restoring the clean
+intake lockfile. `preservation.py` checks frozen files, production bodies,
+dirty scalar inputs, the lockfile, and the committed Duration request.
+The native call-structure attempt remains blocked by the missing maintained
+snapshot; no checker, graph, request, or Wiki edits were made.
+
+No trust marker was added, removed, or discharged. Retained debt is the TOP
+`external_body`, the four recorded uninterpreted representation bridges,
+and the existing InitializedVm/LoadedVmInner declaration cuts. No `requires`
+or `ensures` was changed. The next proof boundary is to admit and prove the
+actual asynchronous reset/RPC bodies together with the restore-owned
+state-unit and observer-lifetime relation; acknowledging channel completion
+cannot substitute for it. Arithmetic-to-decoded-downtime correspondence,
+asynchronous installation, all four bridges, and the TOP body remain open.
+No new assumption, weakened frozen clause, or freeze request is proposed.
+
+## Initial restore-source lifecycle: narrower reachability classification
+
+The follow-on [initial-source lifecycle diagnostic](vmtime-restore-source-lifecycle/README.md)
+supports a source-grounded exclusion of disappearance-induced stale **successful
+reset** for the initial source created at `dispatch.rs:1102-1107`, while the
+real restore owns its driver and `_vmtime` unit. This is not a Verus proof
+or an unconditional all-source installation contract.
+
+Both Worker construction routes use the `ThreadDriverBackend` default device
+pool. `inner.driver_source` independently retains its scheduler; the pool's
+receiver is moved into its running thread, not held by the restore caller.
+The initial secondary is detached without an exposed cancellation handle.
+Crucially, when it is pending, its local mesh receive retains its task waker;
+queued/running ownership covers the other states. Neither an accessor's
+`Arc<TimerState>` nor detachment alone establishes this fact. The primary
+retains the corresponding local sender, and the secondary's only normal
+loop exit is receive termination.
+
+No production queue path deliberately discards that runnable during the
+retained restore. Queue closure requires a lifetime event excluded by the
+concrete roots; `Scheduler::schedule` would otherwise silently discard a
+failed send, so that premise must be proved, not ignored. Configured production
+panics abort; the selected async-task default also propagates an unwinding
+panic through the device executor rather than isolating the secondary.
+Cancellation of the restore is not its successful return; lack of scheduling
+leaves its reset pending. Post-return VM teardown may leave an accessor alive,
+but does not undo a value already installed by a successful reset. A normal
+early `Err` promises no restored clock.
+
+The intended intermediate fact rules out pruning/error of this specific
+participant during a successfully completed reset; the accepted
+successful-secondary semantics then connect the actual argument to a sharing
+accessor's stopped observation. Formal task/channel/ownership preservation,
+asynchronous bodies and external interfaces are still obligations, not added
+TCB. Other-source observer coverage, saved-state/Duration correspondence,
+all four representation bridges, and the TOP `external_body` remain open.
+
+No prior runtime test or failed experiment was rerun. One current comparison
+found all 2,559 checked source/manifest/verification inputs equal to the
+accepted workspace (apart from its known test-target suffix), allowing reuse
+of the prior check results without another unchanged-source Verus run.
+The current call-structure reader still lacks its maintained snapshot.
+Only authorized research artifacts changed; production, dirty proof work,
+frozen inputs, and the unapplied Duration request were preserved.
+
+# Duration observation request delivery: current binding questions
+
+The active objective is an unapplied three-file request, not checker repair,
+installed Duration trust, or a restore proof. Earlier sections below are
+retained historical evidence; their blocking semantic-check policy has been
+superseded by the current operator's advisory-only policy.
+
+Before new experiments, the remaining binding questions are:
+
+- Do the retained independent patches still apply to the current frozen
+  `argus/restore-v1-frozen` and working `argus/restore-v1-run` tips, and does
+  the proposed run result exactly match the proof-relevant candidate source
+  underlying `production-final.log`?
+- Does the active project runtime preserve both semantic-drift outputs as
+  advisory evidence while accepting a mechanically complete package?
+- Do the selected-library source and native command support the retained
+  conditional six-function proof, without disabled lifetime checking or an
+  rlimit annotation above 50?
+- Can the request be committed and validated against the resulting current
+  bases without including or altering dirty scalar work, unpublished checker
+  work, live manifests, or production wiring?
+
+Intake identities are frozen `4fb5e66997f616c239aefbc28ccc3f3a29b2226d`
+and working `ca2d1263f5b48ab63be23f042722017c03ddeed1`. These identify
+this investigation, not immutable package bases or approval. The exact
+requested difference remains the two actual Duration component observations
+and `as_nanos` return semantics. Advisory acceptance cannot establish semantic
+equivalence. Decoded downtime correspondence, asynchronous clock installation,
+all four representation bridges, and the TOP `external_body` remain unproved.
+
+## Current delivery result: committed, valid, unapplied request
+
+**Completed bounded freeze-request delivery, not a TOP proof.**
+The active native `submit` and post-commit `validate` both report
+`freeze_request: VALID - semantic checks are advisory`, with both independent
+patches applying cleanly. The three-file request exists at
+`research/freeze_requests/restore-duration-nanoseconds-interface`.
+The patches are unchanged from the retained candidate; the rationale now
+explains the advisory comparisons. No proposal was applied or approved.
+
+The continuation explicitly authorized committed delivery, resolving the
+earlier recorded `ambiguous_objective`. Commit
+`760c26fd4557e52df7f876d5a0634e10fe185e7b` contains exactly `freeze.patch`,
+`run.patch`, and `rationale.md`. The existing successful native submission was
+preserved rather than redundantly submitting its already-existing request ID.
+Post-commit validation used that committed working tip and unchanged frozen
+tip `4fb5e66997f616c239aefbc28ccc3f3a29b2226d`.
+
+`commit-delivery.log` verifies that the package bytes match HEAD, no other
+files entered the commit, the existing dirty tracked diff and untracked scalar
+proof were preserved, and the frozen branch did not move. Existing checker
+work was not touched. The live manifests, production wiring, TOP file, and
+existing `InitializedVm::load` and `ExRestoreReadyFile` declarations are
+unchanged. Reviewer remains the next owner for the exact proposed trust
+decision; native validity is not approval or semantic equivalence.
+
+### Evidence and advisory interpretation
+
+All new machine output is under `research/vmtime-duration-interface-candidate/`:
+
+- `delivery-source-audit.log` reconstructs both exact patches from the
+  current branch tips and candidate source. The candidate's relevant source
+  predates `production-final.log`; its actual command enables lifetime
+  checking, has no function/module selector, and introduces no rlimit
+  annotation. The retained **6 verified / 0 errors**, 1.62 s Cargo / 2 s
+  shell result is reused only for this source-matched conditional vmcore
+  construction. It proves no asynchronous restore caller.
+- `delivery-postformat-audit.log` confirms that all three pre-commit commands
+  left the proof-relevant candidate bytes unchanged and introduced no other
+  tracked candidate-source differences. `candidate-exec-drift.json` remains
+  the retained 59-function / 13-struct executable comparison, with its
+  recovered-AST caveat preserved in `audit-final.log`.
+- `delivery-submit.log` and `delivery-validate.log` preserve the complete
+  pre-commit native advisory outputs. `committed-validate.log` preserves the
+  post-commit current bases, committed package listing, and all native output.
+  The three View findings concern two existing
+  working-base VpIndex Views and the run proposal's concrete VmTime View.
+  `validator-diagnosis.log` explains the conservative bare-`view` dependency
+  matching and common-root discovery. None of these Views is newly sanctioned;
+  this explanation is not proof of semantic equivalence.
+- `delivery-architecture-source.log` establishes that both existing
+  `ExtractTopologyConfig::to_config` implementations, for X86Topology and
+  Aarch64Topology, are byte-identical between the bases. Neither patch edits
+  `dispatch.rs`. The executable advisory compares those different
+  specializations. An initial audit used a nonexistent trait-name anchor and
+  failed before establishing a result (`delivery-architecture-advisory.log`);
+  the corrected audit uses the actual primary-source name.
+
+The selected Verus toolchain was re-probed as
+`0.2026.09.18.8ed93e5`, Rust 1.98.1. Its actual `as_nanos` body and bounded
+Nanoseconds representation agree with the retained selected-library evidence.
+The native call-structure read could not run because
+`.verus_agent/proof_state.json` is absent. No snapshot rebuild or checker
+repair was attempted. The retained LSP caller report and current source agree
+on `KeeperUnit::advance_time -> VmTimeKeeper::advance -> VmTime::wrapping_add`;
+`StateUnits::advance_time` passes the Duration through its real state request.
+This connectivity is not an asynchronous body proof.
+
+### Current checks and precise proof debt
+
+| Command | Current result |
+| --- | --- |
+| Native request `submit` | Exit 0; both patches apply; VALID with preserved spec and exec advisories. |
+| Native request `validate` | Exit 0; committed package VALID against working `760c26fd4557e52df7f876d5a0634e10fe185e7b` and frozen `4fb5e66997f616c239aefbc28ccc3f3a29b2226d`. |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; 2.907 s inner elapsed. Existing selected scaffolded wrapper, not full-crate or TOP proof. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; existing TCB provenance rejection; 7 temporary locations, 0 assumptions. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no live frozen-spec drift. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 1; the X86/Aarch64 `to_config` advisory described above. No checker repair. |
+| Candidate `cargo clippy --all-targets -p vmcore` | Exit 0; two `verus_keep_ghost` configuration warnings. |
+| Candidate `cargo doc --no-deps -p vmcore` | Exit 0; the same configuration warnings. |
+| Candidate `cargo xtask fmt --fix` (last) | Exit 0; all formatting passes completed; no source changes. |
+
+The pre-commit commands used the durable runner, task
+`restore-duration-package-precommit`, run
+`restore-duration-package-precommit-1789901016033170062`; it completed in
+64.2 s with exit 0. Complete individual logs have the `delivery-` prefix.
+The four live check logs also retain `.complete.log` outputs.
+`commit-input-audit.log` rechecked that the candidate still exactly matches
+the proposed run source and predates those completed pre-commit checks.
+Those successful clippy, doc, and final formatting commands were reused for
+this single package-only commit; no source change warranted repeating them.
+The live four-check evidence and retained conditional body proof were also
+reused because this continuation changed no executable or proof source.
+
+No live or candidate temporary marker was added, removed, or discharged.
+The request still proposes only the two external component observers and
+`Duration::as_nanos` return semantics. Duration-to-decoded
+`request.downtime_ns` correspondence, asynchronous stopped-clock installation,
+`decoded_restore_request_view`, `decoded_load_restore_request_view`,
+`initialized_vm_representation`, `loaded_vm_representation`, and the TOP
+`external_body` remain unproved. The existing InitializedVm and LoadedVmInner
+declaration cuts also remain. No strengthened caller precondition, weakened
+TOP postcondition, or new trust in project-owned restore behavior was added.
+
+# Prior Duration observation evidence: conditional proof, delivery blocked
+
+**Diagnostic/freeze-request result, not an installed proof or a valid submitted
+request.** The isolated actual production `VmTime::wrapping_add` establishes
+the unconditional concrete scalar equation
+`result@ = (self@ + floor(elapsed_nanoseconds(&d) / 100)) mod 2^64`, conditional
+on the proposed external Duration observation semantics. The final owning-crate
+native run, with no function/module selector and lifetime checking enabled,
+reports **6 verified, 0 errors**, Cargo 1.62 s / shell 2 s
+(`vmtime-duration-interface-candidate/production-final.log`). This covers the
+admitted vmcore proof surface, not all unannotated vmcore runtime bodies or
+the restore theorem. No rlimit annotation was introduced.
+
+The requested trust remains exactly two observations of the actual Duration's
+`secs` and bounded `nanos.as_inner()` plus an external specification of its
+actual `as_nanos` return. Elapsed nanoseconds is defined from those components.
+The field interpretation itself is requested trust, not a proved project View.
+No arbitrary ghost input, decoded request equality, constructor guarantee,
+generic transmute axiom, or project-owned restore guarantee is assumed.
+`lemma_wrapping_add_100ns` proves the arithmetic/narrowing connection rather
+than replacing the executable. The first contract-only attempt failed that
+postcondition; adding the lemma, without more trust, resolved it.
+
+## Exact native request blocker
+
+The final draft is retained only under
+`research/vmtime-duration-interface-candidate/{freeze.patch,run.patch,rationale.md}`.
+The corrected native `submit` (`submit-final.log`, 8 s) reports both patches
+**APPLIES**, executable comparison **PASS**, but specification comparison
+**FAIL** and `freeze_request: INVALID`. It reports BOTTOM mismatches for:
+
+- `research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs::VpIndex::view`
+- `vm/vmcore/vm_topology/src/processor.proof.rs::VpIndex::view`
+- `vm/vmcore/src/vmtime.proof.rs::VmTime::view`
+
+`validator-diagnosis.log` uses the native source-analysis API, without another
+package validation, to establish why: all three acquire
+`trust_protectors = ["InitializedVm::load"]`. The checker's
+`_collect_call_names_from_node` maps every `@` to bare `view`;
+`_filter_to_target_fns` conservatively follows every matching View. Adding
+the real external-interface source directory changes the common source root,
+so `extract_workspace_specs` also discovers existing out-of-worker proof
+files and research snapshots. The two VpIndex files exist only at the working
+tip, not the frozen tip; the accepted dirty VmTime View is introduced by
+`run.patch`. This is not a dependence of Duration observation on those Views.
+It is a concrete native checker/proof-scope blocker, not permission to change
+the verifier, weaken `InitializedVm::load`, freeze unrelated project guarantees,
+relocate source to evade discovery, or modify earlier requests.
+
+The first, broader-scope draft and its rejection are retained separately as
+`rejected-scope-{freeze,run}.patch` and `submit.log`. That scope reached an
+existing `dyn` parser failure and platform/name-confused executable comparisons.
+`package-final.log` confirms the reported `interrupt.rs` and `vm_task.rs` files
+are byte-identical between the two branch tips. No unrelated repair was made.
+The final request already scopes the added trust directory narrowly; no
+further unchanged validation was run.
+
+Native submission removes rejected packages. `readiness.log` confirms that
+`research/freeze_requests/restore-duration-nanoseconds-interface` does not
+exist. Thus there is no valid submission, no Human approval, and no
+operator-ready package. No commit or clean-tree repair is requested or made.
+The next work belongs to native checker/scope integration review, outside
+this mission's authorized source edits; Reviewer can use the exact draft and
+diagnosis to assign it without redoing Duration or scalar diagnostics.
+
+## Preservation, required checks, and remaining obligations
+
+`audit-final.log` and `candidate-exec-drift.json` establish unchanged live
+production and manifests, with the final candidate matching frozen
+`vmtime.rs` across **59 executable functions and 13 structs** and zero
+missing, extra, unknown, or mismatching items. The comparator reports
+tree-sitter recovery from annotation syntax; its recovered executable
+comparison is supplemented by the native Rust/Verus body run. Other tracked
+candidate workspace files match production except the explicitly recorded
+candidate manifest, vmtime and scoped-lockfile changes. The pre-existing
+dirty scalar work is preserved.
+
+All four authoritative production checks ran once on the unchanged live
+source, using the Argus Python; complete logs are
+`vmtime-duration-interface-candidate/{make_verify,boundary,spec_drift,exec_drift}.complete.log`.
+Later changes were confined to isolated candidate layout and documents, so
+these unchanged production checks were not repeated.
+
+| Required command (from crate root) | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; inner elapsed 2.611 s. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; unchanged TCB-provenance rejection, 7 temporary locations, 0 assumptions; 1.081 s. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no live frozen-spec drift; 1.258 s. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no live worker-root executable drift; 4.976 s. |
+
+The first row is the existing function-selected, scaffolded restore wrapper
+with `--no-lifetime`, **not full-crate verification or a TOP proof**. The
+separate boundary failure remains
+`tcb_manifest.json was last modified by an autonomous agent commit`; it is
+not the cause of the native request's View-closure rejection.
+
+No live temporary marker was added, removed, moved, or discharged. Candidate
+observation `uninterp` declarations and the external operation contract remain
+unapproved hypothetical trust, confined to the candidate and unapplied drafts.
+The original declaration cuts for `InitializedVm` and `LoadedVmInner`, TOP
+`external_body`, and four bridges remain as before:
+`decoded_restore_request_view`, `decoded_load_restore_request_view`,
+`initialized_vm_representation`, and `loaded_vm_representation`.
+Still unproved are Duration-to-decoded-`request.downtime_ns` correspondence,
+the actual asynchronous stopped-clock installation, those four representation
+definitions and their caller connections, and the TOP body. No async caller
+or library Duration body is claimed verified.
+
+## Preregistered unknowns before experimentation
+
+This bounded task prepares an unapplied request, not an installed trust change
+or a proof of the frozen restore theorem. The existing Duration diagnostics
+in `vmtime-duration-binding/{production-body,source,pattern-type,transmute}.log`
+and accepted concrete VmTime scalar proof are reused without rerunning them.
+
+The candidate must answer these currently unresolved questions:
+
+- Can a minimal observation interface identify the elapsed nanoseconds of
+  the actual Duration argument using the selected library's seconds and
+  bounded subsecond nanoseconds, without assuming decoded request equality?
+- Which exact external declarations and sanction entries are necessary,
+  leaving the existing opaque Duration declaration and verifier untouched?
+- Does that interface suffice to prove the unchanged production
+  `VmTime::wrapping_add` body and concrete result View, with lifetime checking
+  enabled and rlimit annotations no greater than 50?
+- Do independent frozen-tip and working-tip patches describe the same
+  frozen change and pass the native request validator?
+
+  The first proposed interface uses exactly one external operation,
+  `Duration::as_nanos`, plus two explicitly trusted representation observers:
+  the argument's actual whole-seconds field and its actual bounded subsecond
+  nanoseconds. Their intended interpretations are the selected library's
+  `secs` and `nanos.as_inner()`; these are not project-owned proven Views.
+  Elapsed nanoseconds is a defined sum of those observations. The operation
+  contract must bind its actual return to that sum and supply the subsecond
+  range. No constructor, clock installation, request equality, or generic
+  intrinsic contract is proposed. Whether this construction verifies the real
+  body is still unresolved.
+
+  All new trust is hypothetical and confined to isolated candidate work and
+unapplied patches. Duration-to-decoded-downtime correspondence, asynchronous
+clock installation, four representation bridges, and the TOP body remain
+unproved. The prior boundary-provenance rejection is independent. The
+existing restore wrapper's function-selected 0/0 run is not full-crate proof.
+
+## Candidate proof and request-scope correction
+
+The initial isolated real-body run (`production-body.log`) admitted the
+proposed interface but failed the arithmetic postcondition: 0 verified,
+1 error. This did not refute the specification or require more trust.
+Adding the proved `lemma_wrapping_add_100ns` supplied the missing narrowing
+argument. The production vmtime module then reported **6 verified, 0 errors**
+with lifetime checking enabled and no rlimit annotation (`production-module.log`).
+
+The first native `submit` rejected the draft that expanded source scope to
+all of `vm/vmcore/src` (`submit.log`). It encountered a `dyn` parser failure
+and mismatched existing same-named functions in `interrupt.rs` and
+`vm_task.rs`; no such functions were edited by this task. That draft was not
+preserved as a submitted package. The candidate now places all proposed trust
+in a dedicated ghost-only `vmtime_duration` directory and requests only that
+directory as additional source scope. The proof's trust semantics are
+unchanged. Whether this narrower exact request passes the validator remains
+unresolved until its next, changed-input submission. No checker or unrelated
+source repair is authorized or attempted.
+
+# VmTime Duration binding: unresolved facts before experimentation
+
+The accepted scalar View and constructor/accessor proofs are intake evidence
+and are not being rerun. This diagnostic asks whether the **unchanged real**
+`VmTime::wrapping_add(self, d: std::time::Duration)` can obtain a native,
+source-grounded binding from `d` to elapsed nanoseconds. Its body calls
+`d.as_nanos()`, divides by 100, adds to the saved scalar as `u128`, then
+casts to `u64`. No contract for that Duration call has yet been established.
+
+The initial Cargo compiler probe reports Rust 1.95.0, commit
+`59807616e1fa2540724bfbac14d7976d7e4a3860`. Its sysroot source
+`library/std/src/time.rs:35` reexports `core::time::Duration`; the selected
+`library/core/src/time.rs:631-633` implements `as_nanos` using the actual
+`secs` field and `nanos.as_inner()`. The pinned vstd already declares
+`ExDuration` in `std_specs/core.rs`; this declaration is frozen and will
+not be changed. **Subsequent selection correction:** this is Cargo's
+ordinary compiler, not the native verifier's compiler. The sibling Verus
+launcher explicitly runs its built-in Rust 1.98.1 toolchain. Its
+`--print sysroot` probe, even with `RUSTUP_TOOLCHAIN=1.95.0`, selects
+`1.98.1-x86_64-unknown-linux-gnu` (rustc commit
+`48a229ceaefd4985c50990b14116b6d856af0985`). The relevant `Duration` fields,
+`as_nanos` body and line numbers agree in both sources; subsequent native
+evidence uses the actual **1.98.1** source, not that initial assumption.
+
+Before the first body experiment, these facts remain unresolved:
+
+- Does the focused production body admit the actual `Duration::as_nanos`
+  call with lifetime checking enabled?
+- Does the pinned verifier expose an existing semantic interface or a
+  source-preserving native annotation/import route for this selected
+  standard-library method and its concrete representation?
+- If such a route reaches a frozen interface, which exact operation is
+  rejected, and which selected-source facts remain unproved?
+- What, if anything, may later arithmetic legitimately assume about the
+  actual argument, rather than an unconstrained ghost nanosecond value?
+
+No new trusted declaration, copied executable/model, normalization, or
+Duration axiom is authorized. The confirmed `VmTimeKeeper::advance` edge
+in `vmtime-scalar-interface/callers.log` is reused. Asynchronous installation,
+decoded downtime correspondence, the four bridges, and TOP remain unproved.
+The existing boundary rejection is separate from this diagnostic. Worker-only
+drift checks must be supplemented by a vmcore executable comparison.
+
+## Duration binding diagnostic: concrete frozen-interface obstacles
+
+**Diagnostic result, not a binding proof or TOP completion.** The unchanged
+production `VmTime::wrapping_add` does not currently obtain a native semantic
+binding for its actual Duration argument. The first focused check, with only
+`#[verus_verify]` added to that real method, exits 101 in 2 seconds:
+
+```text
+error: `core::time::impl&%0::as_nanos` is not supported
+  --> vm/vmcore/src/vmtime.rs:83:44
+```
+
+This is frontend rejection at `d.as_nanos()`, not a failed arithmetic
+verification condition. `vmtime-duration-binding/production-body.log` retains
+the complete diagnostic, including the suggested `assume_specification`;
+that suggestion was **not applied**. The command in `focused.command` selects
+only `vmtime::VmTime::wrapping_add` in the real owning crate, using the accepted
+concrete VmTime representation. Lifetime checking remains enabled. No rlimit
+annotation was added; the pinned default is 10, below the cap of 50.
+
+The missing method contract alone is not the conclusion. The actual selected
+Rust 1.98.1 source exposes the following dependency chain, retained alongside
+the compiler-selection evidence in `vmtime-duration-binding/source.log`:
+
+| Selected source | Actual operation or representation |
+| --- | --- |
+| `library/std/src/time.rs:35` | Reexports `core::time::Duration`. |
+| `library/core/src/time.rs:27,81-84,631-633` | Private `secs: u64` and `nanos: Nanoseconds`; `as_nanos` computes `secs as u128 * 1_000_000_000 + nanos.as_inner() as u128`. |
+| `library/core/src/num/niche_types.rs:12-21,45-49,96-98` | `Nanoseconds` is a transparent wrapper over the actual `u32 is 0..=999_999_999` pattern type. Its real `as_inner` uses `mem::transmute(self)`, not field projection. |
+| `library/core/src/mem/mod.rs:64-68` and `intrinsics/mod.rs:837-843` | `mem::transmute` reexports the bodyless `#[rustc_intrinsic]` declaration. |
+
+Two isolated operation probes distinguish this from merely lacking a
+Duration model. They are not replacement implementations of Duration,
+`as_nanos`, or `wrapping_add`, and prove no application theorem:
+
+- `pattern-type.rs` uses the exact native range type in a parameter.
+  `pattern-type.log` reports **"The verifier does not yet support the following
+  Rust feature: pattern types"**, exit 1. This agrees with pinned
+  `rust_to_vir_base.rs:1466`.
+- `transmute.rs` calls the very same intrinsic via `core::mem::transmute`,
+  even at the simpler identity instantiation `u32 -> u32`.
+  `transmute.log` reports **"`core::intrinsics::transmute` is not supported"**,
+  exit 1. No intrinsic semantics were assumed.
+
+Both probes use the pinned verifier with lifetime checking and default
+rlimit. `probe.command` reproduces them. Two initial pattern-probe setup
+errors are retained separately: `core::pat::pattern_type!` was the wrong
+macro path, and `_` was not an accepted Verus parameter pattern. The final
+probe uses the library's root `core::pattern_type!` macro and a named
+parameter; only its final diagnostic is evidence of the pattern-type
+limitation. The known reborrow proof pattern is not applicable here.
+
+There is native standard-library infrastructure: the pinned driver exposes
+`--is-core` (embedding vstd/builtins) and `--is-stdlib-outside-of-core`.
+Those switches are **not** an existing contract or automatic import of
+`Duration::as_nanos`. The current vstd interface search finds only the opaque
+`ExDuration` declaration, no nanosecond or transmute semantics.
+`std_specs/core.rs:155-157` leaves that opacity active even in native-core
+mode. The verifier rejects projections through such an opaque datatype
+(`vir/src/well_formed.rs:325-337`) and rejects duplicate datatype declarations
+(`:1732-1748`); a second transparent Duration is not a valid way around it.
+Moreover, source-preserving translation of the concrete lower representation
+and `as_inner` reaches the independently reproduced pattern-type and intrinsic
+obstacles above. Full native core annotation/export/import was **not** run:
+changing the frozen opacity or verifier, or supplying trusted intrinsic
+semantics, is outside this mission. No successful actual Duration body or
+native semantic import is claimed.
+
+Thus the answer is scoped to the existing pinned interfaces and frozen
+inputs: project-owned annotations alone have not admitted the binding, and
+the obvious actual-library-body route has concrete frozen-interface
+obstacles, not just a missing postcondition. This is not a claim that Rust
+Duration cannot be verified under a different approved library/verifier
+integration. No normalization, alternate representation, copied model,
+unconstrained ghost bridge, trusted declaration, or freeze package was added.
+
+**What later arithmetic may use:** the accepted `VmTime@ : u64` identities
+remain established. A separate arithmetic lemma can reason about any
+explicit `n: u128` and `(saved + n / 100) mod 2^64`; such a lemma does not bind
+`n` to this real `d`. The source-supported candidate interpretation is
+`elapsed_ns(d) = secs(d) * 1_000_000_000 + subsec_ns(d)`, with
+`0 <= subsec_ns(d) < 1_000_000_000`. That interpretation, its connection to
+the actual `as_nanos` return, and its equality to the frozen
+`request.downtime_ns` are **still proof obligations**, not legal new axioms.
+No wrapping arithmetic theorem was claimed in this diagnostic. The confirmed
+`advance -> wrapping_add` caller edge does not prove the subsequent async
+clock installation.
+
+The temporary production annotation was removed after capturing its failure.
+`production-annotation.patch` contains only that one annotation, and
+`reproduce.command` applies it to the real body, checks it, and removes it on
+exit. Patch applicability was checked after restoration without repeating
+the production verification. All accepted scalar source, View, contracts,
+metadata and prior proof/import evidence remain unchanged. The root lockfile
+is unchanged; the focused and integration commands reuse the accepted scoped
+lockfile under `--locked`, without dependency upgrades. No new shared contract,
+precondition, invariant, or temporary trust marker was introduced or changed.
+
+Required final checks ran once on the restored source using the authoritative
+Argus Python (`vmtime-duration-binding/checks.py`):
+
+| Command | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; wrapper elapsed 2.572 s. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; existing TCB provenance rejection and 7 temporary locations; 1.061 s. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no frozen specification drift; 1.241 s. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no worker-root executable drift; 4.955 s. |
+| Authoritative executable comparator on frozen/current `vmcore/src/vmtime.rs` | 59 functions and 13 structs match; no missing, extra, unknown or mismatching items. |
+
+Complete outputs are in `vmtime-duration-binding/*.complete.log`; the extra
+vmcore result is `vmtime-exec-drift.json`. The existing restore wrapper selects
+the scaffolded TOP and uses `--no-lifetime`; its 0/0 result is not full-crate
+proof or Duration admission. Neither focused diagnostic command used that
+flag. Accepted scalar body/import evidence is reused, not rerun.
+
+The boundary rejection is independent and unchanged: the manifest's
+agent-authored provenance is rejected, and `InitializedVm`, `LoadedVmInner`
+and the TOP retain their declaration/body cuts. The four existing bridges
+still defer decoded restore state/policy, decoded load state/VP policy,
+initialized component/resource representation and loaded state/time
+representation. No marker was added, removed, moved, or discharged.
+TOP success, decoded downtime correspondence and async installation remain
+unproved. No bitmap readiness check or superseded scalar task was repeated.
+
+# VmTime scalar interface: unknown native-admission facts
+
+Before experimentation, the remaining questions for this bounded mission are:
+
+- Can the pinned verifier admit the production `VmTime` datatype with its
+  existing derives and prove the actual constructor and `const` accessor,
+  including lifetime checking, in the owning `vmcore` crate?
+- Can a closed, exported `View<V = u64>` read the actual private field and
+  support unconditional `from_100ns(n)@ == n` and `as_100ns() == self@`
+  contracts in a separately verified native consumer?
+- Can the existing workspace Verus integration expose those annotations
+  while preserving ordinary Rust compilation without writing outside this
+  mission's owned paths, notably the workspace lockfile?
+- What coverage do the authoritative specification/executable drift checks
+  provide for `vmcore`, which is outside the frozen manifest's worker roots?
+
+The proposed scalar contracts are source-supported, not yet proved:
+`vm/vmcore/src/vmtime.rs:53-68` stores an arbitrary `u64` unchanged and
+returns precisely that private field. There is no validity precondition.
+The frozen restore specification observes VM time as a `u64`; these
+contracts must preserve all values, not merely a tested subset. Native
+body verification and a separate import consumer remain explicit proof
+obligations until measured.
+
+Wrapping addition, the actual `Duration` interface, restore/advance
+installation, all four representation bridges, and the TOP body remain
+outstanding. Existing boundary rejection and the restore wrapper's
+0-verified/0-error result are not proof acceptance. No bitmap-package
+readiness checks or package changes belong to this mission.
+
+## VmTime scalar interface: native body proof and import established
+
+**Bounded proof result, not TOP completion.** The actual production
+`VmTime::from_100ns` and `VmTime::as_100ns` bodies now establish the two
+unconditional scalar identities. The closed `View<V = u64>` is defined
+by the real private field, not an uninterpreted symbol or a trusted
+operation. No existing contract was weakened, no precondition was added,
+and no invariant or temporary marker was introduced.
+
+`vmtime-scalar-interface/native-impl-context.log` records the owning-crate
+command from `verify.command`: **3 verified, 0 errors**, 1.86 seconds,
+selecting module `vmtime` with lifetime checking enabled. The only
+annotated executable operations in this module are the constructor and
+the existing `const` accessor, alongside the new View definition.
+No rlimit annotation or lifetime bypass was used.
+The subsequent import attempt in that same log failed on missing cached
+`pal_async` metadata; that failure is not part of the production-body proof.
+
+The separate native consumer in `consumer.rs` then verified **2 functions,
+0 errors**, in 32.00 seconds including dependency compilation
+(`native-import.log`). It imports the actual `vmcore` crate and proves
+both `from_100ns(n).as_100ns() == n` for arbitrary `u64` and
+`time.as_100ns() == time@` for arbitrary `&VmTime`, without preconditions
+or access to its private field. Cargo generated native `.vir` exports for
+both `vmcore` and the consumer. Dependencies are declaration-exported by
+`cargo verus focus`; the separate owning-crate result above, not dependency
+admission, establishes the production bodies. Generated build outputs were
+removed after recording this result; the source and reproduction command
+remain.
+
+The LSP report `callers.log` identifies public constructor users in
+OpenVMM/OpenHCL initialization, APIC setup, and device tests, plus internal
+reset/builder users. Its reported line positions are slightly stale, and
+it omits the `const` accessor. Direct source inspection confirms accessor
+use in `vmm_core/virt_hvf/src/{lib,hypercall}.rs` and
+`vmm_core/virt_whp/src/{lib,hypercalls}.rs`, observing exact reference-time
+units. No caller acquires a new obligation because both contracts are
+unconditional. The maintained graph command was unavailable because
+`.verus_agent/proof_state.json` is absent; it was not rebuilt. The frozen
+`restored_virtual_time` uses `vm_time_100ns: u64`, but is not yet connected
+to this new concrete View.
+
+Two integration constructions were corrected rather than trusted:
+
+- Selecting dependency-only `vmcore` from the standalone consumer workspace
+  did not select a verifier root: the first attempt explicitly warned that
+  no opted-in crate was found. Its ordinary Cargo artifacts also lacked
+  `.vir` exports. The corrected command selects `vmcore` in its real owning
+  workspace; the import consumer uses a fresh, separate native target
+  directory. The initial failed durable task is `vmtime-scalar-native`;
+  `native.log` preserves its output. This was setup failure, not proof.
+- Annotating the constructor alone made the attribute macro generate an
+  unqualified `from_100ns` reference (`native-corrected.log`). The pinned
+  macro's `prepare_items_for_verus_spec` supplies associated-function
+  context only from an annotated impl. A dedicated annotated impl for the
+  two existing scalar operations supplies that context without admitting
+  the unrelated time arithmetic. Their executable bodies and signatures
+  are unchanged. No verifier or library source was modified.
+
+Ordinary `cargo check --offline --locked -p vmcore --all-targets` passed
+(`rust-check.log`). The existing nextest `agent` selection
+`-p vmcore -E 'test(vmtime::)'` passed **2 tests**, with 23 unselected
+(`unit-tests.log`); these tests are regression evidence, not the universal
+proof. Local Rust formatting passed. The ordinary build retains warnings
+from pinned vstd and an unregistered `verus_keep_ghost` cfg, as in the
+existing attribute integration; no warning was hidden.
+
+The workspace lockfile is outside this mission's owned paths. Cargo's
+supported `resolver.lockfile-path`, enabled with `RUSTC_BOOTSTRAP=1` and
+`CARGO_UNSTABLE_LOCKFILE_PATH=true`, uses the scoped
+`vmtime-scalar-interface/workspace/Cargo.lock` for these workspace checks.
+The root lockfile has no final change; integrating the new workspace
+dependency will require its normal lockfile update by the owning mission.
+The standalone consumer has its own lockfile. A first path probe rejected
+a basename other than `Cargo.lock`; the corrected probe succeeded.
+
+The authoritative checks ran once after the production proof changes:
+
+| Command | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; 12.010 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; unchanged provenance rejection and 7 temporary locations; 1.034 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no frozen specification drift; 1.237 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; no worker-root executable drift; 4.836 s |
+
+Complete outputs are retained as `vmtime-scalar-interface/*.complete.log`.
+The restore wrapper still selects the scaffolded TOP and uses
+`--no-lifetime`; its 0/0 result is neither full-crate verification nor a
+TOP proof. Those flags were **not** used in either scalar proof command.
+The frozen scope lists worker roots, not `vmcore`. Therefore `checks.py`
+also calls the authoritative executable comparator on frozen versus current
+production `vmtime.rs`: **59 functions and 13 structs match**, with no
+missing, added, unknown, or mismatching executable item
+(`vmtime-exec-drift.json`). The new scalar contracts do not replace any
+frozen vmcore specification; the frozen TOP/BOTTOM specification check
+remains the applicable preservation gate.
+
+No temporary marker was added, removed, moved, or discharged. The unchanged
+worker declaration cuts for `InitializedVm` and `LoadedVmInner` still defer
+concrete representation admission. The TOP body's `external_body` still
+defers `snapshot_restore_success` for actual restore. The four
+`dispatch.proof.rs` bridges remain uninterpreted:
+`decoded_restore_request_view` (saved state and restore-time policy),
+`decoded_load_restore_request_view` (optional state and VP-selection policy),
+`initialized_vm_representation` (initial component/topology/resource state),
+and `loaded_vm_representation` (loaded state, including virtual time).
+Each still needs its own real representation definition and caller/body
+connection. The boundary also retains its rejection of the frozen TCB
+manifest's agent-authored provenance; this mission does not repair or
+override it. Dependency declaration debt is not enumerated by worker-only
+scope. Wrapping-add arithmetic, actual `Duration` binding, restore/advance
+installation, all four bridges, and TOP-body discharge remain outstanding.
+No existing freeze package was changed or revalidated.
+
 # Instantiated VP prefix selection
 
 ## Bitmap package readiness continuation

@@ -1,0 +1,3 @@
+X86Topology: frozen/current entire impl block is byte-identical (890 bytes)
+Aarch64Topology: frozen/current entire impl block is byte-identical (1381 bytes)
+The failed checker compared different generic instantiations, not changed executable bodies. Its exit 1 remains the official recorded result. No retry or checker edit.

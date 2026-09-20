@@ -1,0 +1,7 @@
+Production preservation: 2925 inputs equal the experiment snapshot.
+Accepted installation/lifecycle evidence: 24 inputs unchanged.
+Frozen manifests parse and contain exactly the expected goal and TCB entries.
+Production preservation: 2925 inputs match; only the isolated test target and vmcore vstd lock bookkeeping are normalized.
+Accepted installation/lifecycle evidence: 23 inputs unchanged.
+Built dependency lock matches accepted evidence; only intake vmcore vstd bookkeeping differs.
+Frozen manifests parse and contain exactly the expected goal and TCB entries.

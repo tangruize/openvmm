@@ -1,0 +1,2 @@
+openvmm/openvmm_core/src/worker/dispatch.rs: frozen/current byte equality = False; frozen bytes = 213008; working bytes = 213276
+The mandatory exec_drift run reported x86 vs aarch64 ProcessorTopology::to_config bodies under the same name. No checker retry or maintenance change was made.

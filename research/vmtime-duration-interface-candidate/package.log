@@ -1,0 +1,15 @@
+freeze.patch: 104 lines
+run.patch: 180 lines
+ .verus_agent/scope_manifest.json      |    3 ++-
+ .verus_agent/tcb_manifest.json        |   15 +++++++++++++++
+ vm/vmcore/Cargo.toml                  |    4 ++++
+ vm/vmcore/src/vmtime.rs               |    4 ++++
+ vm/vmcore/src/vmtime_duration.spec.rs |   30 ++++++++++++++++++++++++++++++
+ 5 files changed, 55 insertions(+), 1 deletion(-)
+ .verus_agent/scope_manifest.json      |    3 ++-
+ .verus_agent/tcb_manifest.json        |   15 +++++++++++++++
+ vm/vmcore/Cargo.toml                  |    4 ++++
+ vm/vmcore/src/vmtime.rs               |   27 ++++++++++++++++++++++++++-
+ vm/vmcore/src/vmtime.proof.rs         |   26 ++++++++++++++++++++++++++
+ vm/vmcore/src/vmtime_duration.spec.rs |   30 ++++++++++++++++++++++++++++++
+ 6 files changed, 103 insertions(+), 2 deletions(-)

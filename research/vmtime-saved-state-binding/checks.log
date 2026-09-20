@@ -1,0 +1,4 @@
+make_verify: exit=0, seconds=2.464
+boundary: exit=1, seconds=1.139
+spec_drift: exit=0, seconds=1.305
+exec_drift: exit=0, seconds=5.025

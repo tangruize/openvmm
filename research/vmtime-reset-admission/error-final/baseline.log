@@ -1,0 +1,41 @@
+cargo verus focus --offline --locked -p mesh_channel -- --verify-only-module rpc --verify-function *source* --rlimit 50 --num-threads 1 --multiple-errors 8
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-reset-admission/error-final/workspace/support/mesh/mesh_channel)
+warning: cannot use external trait core::error::Error as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+   --> support/mesh/mesh_channel/src/rpc.rs:251:17
+    |
+251 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+    = note: this warning originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: trait core::error::Error not declared to Verus
+   --> support/mesh/mesh_channel/src/rpc.rs:251:17
+    |
+251 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot use type `mesh_channel_core::error::RecvError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> support/mesh/mesh_channel/src/rpc.rs:251:17
+    |
+251 |   #[derive(Debug, Error)]
+    |                   ^^^^^
+252 |   #[vstd::prelude::verus_verify]
+253 | / pub enum RpcError<E = Infallible> {
+254 | |     #[error(transparent)]
+255 | |     Call(E),
+256 | |     #[error(transparent)]
+257 | |     Channel(RecvError),
+258 | | }
+    | |_-
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExRecvError(mesh_channel_core::RecvError);
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `mesh_channel` (lib) generated 1 warning
+error: could not compile `mesh_channel` (lib) due to 2 previous errors; 1 warning emitted
+exit=101, seconds=1.667

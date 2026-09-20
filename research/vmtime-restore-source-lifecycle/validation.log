@@ -1,0 +1,6 @@
+Compared 2559 live source/manifest/verification inputs with the accepted workspace.
+Only normalization: the known isolated vmm_core integration-test target; no implementation normalization.
+Differing inputs: 0
+Frozen manifests: valid JSON and compared above.
+Live Cargo.lock and committed unapplied Duration request unchanged from Git: True
+No runtime tests, pool-drop experiment, admission experiment, or Verus check was rerun.

@@ -1,0 +1,58 @@
+bash research/vmtime-reset-admission/current-native.command
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel)
+warning: cannot use external trait core::error::Error as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+   --> support/mesh/mesh_channel/src/rpc.rs:259:17
+    |
+259 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+    = note: this warning originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: trait core::error::Error not declared to Verus
+   --> support/mesh/mesh_channel/src/rpc.rs:259:17
+    |
+259 | #[derive(Debug, Error)]
+    |                 ^^^^^
+    |
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: disallowed: pattern constructor for an opaque datatype
+   --> support/mesh/mesh_channel/src/rpc.rs:259:17
+    |
+259 |    #[derive(Debug, Error)]
+    |                    ^----
+    |                    |
+    |  __________________in this derive macro expansion
+    | |
+260 | |  pub enum RpcError<E = Infallible> {
+    | |__-_______________^ this pattern constructor is disallowed
+    |   _|
+    |  |
+261 |  |     #[error(transparent)]
+262 |  |     Call(E),
+263 |  |     #[error(transparent)]
+264 |  |     Channel(RecvError),
+265 |  | }
+    |  |_- Verus treats this datatype as 'opaque' because it is marked 'external_body'
+    |
+    = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: cannot use type `mesh_channel_core::error::RecvError` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> support/mesh/mesh_channel/src/rpc.rs:260:1
+    |
+260 | / pub enum RpcError<E = Infallible> {
+261 | |     #[error(transparent)]
+262 | |     Call(E),
+263 | |     #[error(transparent)]
+264 | |     Channel(RecvError),
+265 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExRecvError(mesh_channel_core::RecvError);
+
+warning: `mesh_channel` (lib) generated 1 warning
+error: could not compile `mesh_channel` (lib) due to 3 previous errors; 1 warning emitted
+exit=101, seconds=1.617

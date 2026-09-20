@@ -1,0 +1,18 @@
+make_verify: exit=0, elapsed_s=3.054
+make_verify: complete output -> .verus_agent/cache/checks/make_verify/latest.log
+make_verify: 0 verified, 0 errors; exit 0; 2.907s
+
+boundary: exit=1, elapsed_s=1.259
+<frozen runpy>:128: RuntimeWarning: 'argus_verus.tools.checks.boundary' found in sys.modules after import of package 'argus_verus.tools.checks', but prior to execution of 'argus_verus.tools.checks.boundary'; this may result in unpredictable behaviour
+boundary: complete output -> .verus_agent/cache/checks/boundary/latest.log
+boundary: 0 permanent violation(s), 7 temporary trust location(s), 0 assumption(s); exit 1; 1.113s
+
+spec_drift: exit=0, elapsed_s=1.345
+<frozen runpy>:128: RuntimeWarning: 'argus_verus.tools.checks.spec_drift' found in sys.modules after import of package 'argus_verus.tools.checks', but prior to execution of 'argus_verus.tools.checks.spec_drift'; this may result in unpredictable behaviour
+spec_drift: complete output -> .verus_agent/cache/checks/spec_drift/latest.log
+spec_drift: no frozen specification drift; exit 0; 1.212s
+
+exec_drift: exit=1, elapsed_s=5.242
+exec_drift: complete output -> .verus_agent/cache/checks/exec_drift/latest.log
+exec_drift: 1 changed/unknown function(s): ProcessorTopology::to_config; exit 1; 5.115s
+

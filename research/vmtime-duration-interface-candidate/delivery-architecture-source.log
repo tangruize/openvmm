@@ -1,0 +1,8 @@
+Both ExtractTopologyConfig::to_config implementations and intervening source: byte-identical frozen/working
+    fn to_config(&self) -> ProcessorTopologyConfig;
+impl ExtractTopologyConfig for ProcessorTopology<X86Topology> {
+    fn to_config(&self) -> ProcessorTopologyConfig {
+impl ExtractTopologyConfig for ProcessorTopology<Aarch64Topology> {
+    fn to_config(&self) -> ProcessorTopologyConfig {
+Neither patch touches dispatch.rs. Advisory compares the existing X86Topology and Aarch64Topology specializations, not edited behavior.
+Earlier delivery-architecture-advisory.log used a nonexistent trait-name anchor; its failed assertion established no source result.

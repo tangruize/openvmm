@@ -1,0 +1,11 @@
+freeze.patch: identical to reviewed/measured input
+run.patch: identical to reviewed/measured input
+rationale.md: identical to reviewed/measured input
+Package: exactly three nonempty files; neither proposed patch applied
+operator_ready_issues:
+  freeze.patch must be committed before Human review
+  run.patch must be committed before Human review
+  rationale.md must be committed before Human review
+  the working tree must be clean before applying an approved request
+Repository status unchanged by readiness check.
+No verification, patch validation, commit, stash, reset, switch, or patch application run.

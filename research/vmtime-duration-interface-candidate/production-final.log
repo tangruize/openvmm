@@ -1,0 +1,5 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/research/vmtime-duration-interface-candidate/workspace/vm/vmcore)
+verification results:: 6 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.62s
+
+exit=0 elapsed_s=2

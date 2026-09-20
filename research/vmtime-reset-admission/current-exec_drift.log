@@ -1,0 +1,3 @@
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_verus.tools.checks.exec_drift --crate-root . --baseline-dir .verus_agent
+exec_drift: complete output -> .verus_agent/cache/checks/exec_drift/latest.log
+exec_drift: 1 changed/unknown function(s): ProcessorTopology::to_config; exit 1; 4.795s

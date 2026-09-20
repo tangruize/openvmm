@@ -1,0 +1,4 @@
+After all three pre-commit commands: proposed proof-relevant candidate bytes unchanged
+Native submitted package: exactly three files, each matches its candidate input
+Other candidate tracked-file differences: []
+Retained native proof remains source-matched; no new Verus run needed

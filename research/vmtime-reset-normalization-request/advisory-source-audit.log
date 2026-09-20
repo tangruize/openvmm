@@ -1,0 +1,5 @@
+Post-commit native validation: VALID; both proposals apply independently; spec_drift PASS; exec_drift advisory warning retained in full.
+The advisory compares existing X86Topology and Aarch64Topology specializations under ProcessorTopology::to_config.
+Both real implementations and intervening source are byte-identical on current frozen and working bases; neither request patch touches dispatch.rs.
+No checker repair, architecture selection, warning suppression or unchanged diagnostic rerun performed.
+This is source evidence about the reported mismatch, not a semantic-equivalence certificate for the normalization.

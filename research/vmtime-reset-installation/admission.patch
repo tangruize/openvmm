@@ -1,0 +1,10 @@
+--- a/vm/vmcore/src/vmtime.rs
++++ b/vm/vmcore/src/vmtime.rs
+@@ -501,6 +501,7 @@
+         self.reset_to(vmtime).await;
+     }
+ 
++    #[verus_verify]
+     async fn reset_to(&mut self, vmtime: VmTime) {
+         assert!(!self.time.is_started(), "should be stopped");
+         self.time = TimeState::Stopped(vmtime);

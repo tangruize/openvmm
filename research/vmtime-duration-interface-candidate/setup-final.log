@@ -1,0 +1,51 @@
+Isolated workspace copied from tracked production files and current scalar proof.
+Selected scoped Cargo.lock copied; production files and lockfile unchanged.
+Frozen and working patch bases captured without branch or worktree changes.
+
+Verifier selection
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus
+
+Native runner usage
+usage: subagent submit [-h] --task-id TASK_ID [--description DESCRIPTION]
+                       --command COMMAND [--mode {direct,supervised}]
+                       [--timeout TIMEOUT]
+                       [--monitor-interval MONITOR_INTERVAL] [--model MODEL]
+                       [--run-dir RUN_DIR] [--cwd CWD]
+                       [--override-discussion REASON] [--clear-stop]
+                       [--no-preflight]
+                       [--cpu-count CPU_COUNT | --cpu-ids CPU_IDS]
+
+options:
+  -h, --help            show this help message and exit
+  --task-id TASK_ID     Unique task identifier
+  --description DESCRIPTION
+  --command COMMAND     Shell command to run
+  --mode {direct,supervised}
+                        direct: just run (no LLM). supervised: run + periodic
+                        LLM monitoring
+  --timeout TIMEOUT     Max seconds (default: 2h)
+  --monitor-interval MONITOR_INTERVAL
+                        Base seconds between supervisor checks; backs off
+                        while healthy, tightens when degrading (supervised
+                        mode)
+  --model MODEL         Supervisor model (defaults to configured
+                        supervisor/shared model)
+  --run-dir RUN_DIR     Run directory whose progress.jsonl/status.json the
+                        supervisor reads and where it writes STOP on early-
+                        stop
+  --cwd CWD
+  --override-discussion REASON
+                        Break-glass: launch even though a supervisor is parked
+                        on an open discussion. Records REASON to the
+                        experiment ledger.
+  --clear-stop          Remove a leftover run_dir/STOP before launching
+                        (otherwise submit refuses a poisoned run dir).
+  --no-preflight        Skip the supervised-mode pre-launch RL config
+                        preflight (escape hatch for a known-good config).
+  --cpu-count CPU_COUNT
+                        Lease this many distinct CPUs before creating task/run
+                        artifacts; the launched process inherits the selected
+                        affinity.
+  --cpu-ids CPU_IDS     Lease exact comma-separated CPU ids before launch;
+                        conflicts with other participating live subagents are
+                        rejected.

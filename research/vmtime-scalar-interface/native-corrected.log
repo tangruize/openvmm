@@ -1,0 +1,9 @@
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+error[E0425]: cannot find function `from_100ns` in this scope
+  --> vm/vmcore/src/vmtime.rs:68:12
+   |
+68 |     pub fn from_100ns(n: u64) -> Self {
+   |            ^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `vmcore` (lib) due to 1 previous error

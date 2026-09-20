@@ -1,0 +1,6 @@
+Committed working base: ac63f2730f6c75a5d35aec24e5823f7c14242beb
+Intake working base / parent: 760c26fd4557e52df7f876d5a0634e10fe185e7b
+Frozen base unchanged: 4fb5e66997f616c239aefbc28ccc3f3a29b2226d
+Commit contains exactly the three request files; worktree package bytes match commit.
+No production, manifest, TCB or Duration package change; normalization remains unapplied.
+Tracked dirty delta and untracked scalar proof match intake byte-for-byte; index empty.
