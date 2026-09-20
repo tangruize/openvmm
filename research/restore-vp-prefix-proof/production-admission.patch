@@ -1,0 +1,18 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -46,6 +46,7 @@
+ use vmcore::save_restore::RestoreError;
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
++use vstd::prelude::*;
+ #[cfg(feature = "gdb")]
+ use vmm_core_defs::debug_rpc::DebuggerVpState;
+ 
+@@ -910,6 +911,7 @@
+     Ok(())
+ }
+ 
++#[vstd::prelude::verus_verify]
+ fn select_instantiated_vp_states<T>(
+     vp_capacity: usize,
+     instantiated_vp_count: usize,

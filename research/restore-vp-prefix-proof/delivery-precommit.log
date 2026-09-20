@@ -1,0 +1,4 @@
+Only research artifacts are being committed; no Cargo package is modified.
+Package-scoped clippy and doc therefore have no modified-package targets.
+Running the required full formatter in an isolated archive to preserve frozen source.
+cargo xtask fmt --fix exit=0

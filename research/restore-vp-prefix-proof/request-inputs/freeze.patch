@@ -1,0 +1,24 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -915,10 +915,19 @@
+     instantiated_vp_count: usize,
+     states: Vec<(VpIndex, T)>,
+ ) -> Result<Vec<(VpIndex, T)>, RestoreError> {
+-    validate_restore_vp_indices(vp_capacity, states.iter().map(|(vp_index, _)| *vp_index))?;
++    validate_restore_vp_indices(
++        vp_capacity,
++        states.iter().map(|entry| {
++            let (vp_index, _) = entry;
++            *vp_index
++        }),
++    )?;
+     Ok(states
+         .into_iter()
+-        .filter(|(vp_index, _)| vp_index.index() < instantiated_vp_count as u32)
++        .filter(|entry| {
++            let (vp_index, _) = entry;
++            vp_index.index() < instantiated_vp_count as u32
++        })
+         .collect())
+ }
+ 

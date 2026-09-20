@@ -1,0 +1,38 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -46,6 +46,7 @@
+ use vmcore::save_restore::RestoreError;
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
++use vstd::prelude::*;
+ #[cfg(feature = "gdb")]
+ use vmm_core_defs::debug_rpc::DebuggerVpState;
+ 
+@@ -910,15 +911,25 @@
+     Ok(())
+ }
+ 
++#[vstd::prelude::verus_verify]
+ fn select_instantiated_vp_states<T>(
+     vp_capacity: usize,
+     instantiated_vp_count: usize,
+     states: Vec<(VpIndex, T)>,
+ ) -> Result<Vec<(VpIndex, T)>, RestoreError> {
+-    validate_restore_vp_indices(vp_capacity, states.iter().map(|(vp_index, _)| *vp_index))?;
++    validate_restore_vp_indices(
++        vp_capacity,
++        states.iter().map(|entry| {
++            let (vp_index, _) = entry;
++            *vp_index
++        }),
++    )?;
+     Ok(states
+         .into_iter()
+-        .filter(|(vp_index, _)| vp_index.index() < instantiated_vp_count as u32)
++        .filter(|entry| {
++            let (vp_index, _) = entry;
++            vp_index.index() < instantiated_vp_count as u32
++        })
+         .collect())
+ }
+ 

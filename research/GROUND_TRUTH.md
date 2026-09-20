@@ -1,3 +1,230 @@
+# Instantiated VP prefix selection
+
+## Named-closure candidate: unresolved bindings before experimentation
+
+This follow-on task proposes, but does not install, a source normalization:
+each selector closure receives a named shared-reference parameter and
+destructures that reference locally. Both closures must be exercised in the
+real production selector, not inferred admitted from the retained standalone
+integer control. `VpIndex` and its `index` method currently have no native
+Verus annotations; declaration and iterator-contract failures after syntax
+translation are possible and must be reported separately.
+
+For arbitrary payload `T`, both original parameters match `&(VpIndex, T)`.
+The proposed local `let (vp_index, _) = entry` must retain the same borrowed
+`&VpIndex`, never move or clone `T`, and leave the owning `into_iter` and
+`collect` unchanged. The map must still be consumed by full-capacity
+validation before filtering. The filter must retain the exact existing
+`instantiated_vp_count as u32` comparison, including narrowing behavior for
+large counts; no new count restriction is justified by this normalization.
+Validation error order, payload drop behavior, and selection order remain
+part of semantic preservation, not consequences of frontend admission.
+
+No selected-prefix, validator-coverage, or payload-preservation contract is
+assumed. These remain body-proof obligations, as do the caller's count
+invariants, decoding, RPC installation, time adjustment and final TOP link.
+The existing restore-guard-native-presence request and both authoritative
+branches are outside the candidate's writable surface. Current source
+observations, not the earlier mission's summary, determine this experiment.
+
+## Named-closure request: current diagnostic result
+
+The bounded package is submitted and unapplied at
+`research/freeze_requests/restore-vp-selector-named-closures/`, containing
+exactly `freeze.patch`, `run.patch`, and `rationale.md`. The one `submit`
+invocation reported both patches applicable to the current branch tips,
+matching frozen specifications and executable projections, and
+`freeze_request: VALID` (`restore-vp-prefix-proof/freeze-submit.log`).
+The request is only a two-closure normalization plus verifier entry
+annotations; it adds no contract, assumption, trust marker, or rlimit.
+This is a diagnostic/package delivery, not an installed selector proof.
+
+The actual generic production body was checked in an isolated source
+archive, not replaced by a model or a cfg-selected body. Both named
+parameters and local destructuring statements clear the original
+tuple-parameter frontend rejection. The next actual result is four
+declaration errors: `VpIndex`, `RestoreError`, the unannotated
+`validate_restore_vp_indices`, and `VpIndex::index` in the filter at candidate
+line 931. No selection VC was reached. The suggested external declarations
+were not adopted. The exact commands and complete diagnostics are in
+`check-prepared-candidate.sh` and `candidate-admission.log`; the focused run
+exited 101 after approximately 31 seconds.
+
+Ordinary Rust checking of that exact candidate,
+`cargo check --locked -p vmm_core --tests` with Rust 1.95.0, exited 0 in
+11.71 seconds (`candidate-rust-prepared.log`). It emitted an unused
+proof-prelude import warning and dependency cfg warnings. The initial
+archive lacked its configured packaged protoc; the first two setup failures
+are preserved, and the prepared check linked the already-installed package
+directory without installing tools or changing source.
+
+The separate `candidate-behavior.patch` tests the real function with a
+non-Clone owning payload. It checks allocation identity, unsorted retained
+order, rejection/drop order, dormant-entry errors, count above capacity, and
+the existing 64-bit-to-u32 narrowing. Six of seven tests initially passed;
+the error test incorrectly expected `RestoreError::Display` to include its
+source. Production's `InvalidSavedState` deliberately displays only "saved
+state is invalid". Correcting that test to inspect the typed inner error
+made the focused remaining test pass. Both logs are retained as
+`candidate-behavior.log` and `candidate-error-behavior.log`; the selector and
+request patches did not change during this test correction. These tests
+support, but do not replace, the generic reference-binding equivalence
+argument in the rationale.
+
+After removing the test-only overlay, `finish-candidate.sh` established that
+the tested source exactly matched the submitted `run.patch`, all three
+package files matched their validated inputs, both authoritative branch tips
+were unchanged, and the authoritative selector was byte-identical to HEAD.
+Only the isolated archive was removed. The existing
+restore-guard-native-presence request, manifests, sanctioned declarations
+and verifier were not modified.
+
+Current authoritative checks ran once after isolated work completed:
+
+| Check | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0, 0 verified / 0 errors, 2.503 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no frozen specification drift, 1.183 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no executable drift, 4.894 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1, 7 existing temporary locations / 0 assumptions, 1.000 s; TCB provenance rejected |
+
+Receipts are `current-*.log`; complete wrapper output remains under
+`.verus_agent/cache/checks/*/latest.log`. The unchanged declaration markers
+on `InitializedVm` and `LoadedVmInner`, TOP body marker, and four uninterpreted
+representation bridges remain debt. The rejected provenance still says the
+TCB manifest was last modified by an autonomous agent commit. Worker-scoped
+boundary scanning and patch drift checks are not proofs or whole-program
+trust inventories. The absent maintained callgraph was re-probed; source
+caller observations are not a generated graph or caller proofs.
+
+There is no installed proof of selection, validator coverage, count
+invariants, decoding, RPC installation, time adjustment, or the final TOP
+connection. No temporary marker was added, removed, or moved. At initial
+delivery, `delivery-readiness.log` reported the separate Human-presentation
+gate: the three package files had to be committed and the working tree clean.
+The initial no-commit instruction was honored and the gate was not bypassed.
+
+The continuation authorizes committing the exact request and its in-scope
+evidence, without applying either patch. `commit-delivery.sh` limits staging
+to this research evidence and request. No Cargo package is changed, so
+package-scoped clippy and doc have no modified-package targets.
+`precommit-delivery.sh` runs the mandatory full formatter in an isolated
+archive, preserving frozen production source and checking that the submitted
+artifacts are unchanged. The initial formatter required only blank lines
+after the shebangs in two evidence Python scripts; those header fixes do not
+change the request or experimental commands. The first formatter log and
+the failed strict artifact-identity check are retained separately from the
+final run. `validate-committed-delivery.sh` then checks the
+same request against the resulting branch tips, committed-byte identity,
+clean worktree, unchanged frozen branch and selector, and the authoritative
+Human-presentation gate. Its post-commit output belongs in session artifacts
+rather than a new uncommitted evidence file. This is delivery validation,
+not authorization to apply the request or a new selector proof.
+
+## Binding obligations before the selection proof
+
+The bounded target is the real `select_instantiated_vp_states` body in
+`vmm_core/src/partition_unit/vp_set.rs`, not installation or complete restore.
+On success, when the instantiated count fits `u32` and does not exceed
+capacity, selection must retain exactly one unchanged input `(VpIndex, T)`
+pair for each instantiated index, and no other pair. This is a conditional
+postcondition, not a new precondition on currently unproved callers.
+
+The validator's `present` bitmap, checked lookup, duplicate rejection, and
+missing-entry rejection support exact input-index coverage on success.
+If its body is temporarily admitted, that exact-coverage interface remains
+unproved project-code debt; it is not sanctioned TCB. The iterator's relation
+to the actual input pairs must also be established, not assumed.
+
+`VpSet::restore` passes `self.vp_capacity` and `self.vps.len()`, then uses
+each selected index to look up the destination and sends that pair's payload.
+The capacity/count representation invariant, decoded partition inventory,
+RPC payload installation, partition guard, stopped state, time adjustment,
+and final frozen TOP equality remain separate unproved obligations.
+Coverage inside a validated payload says nothing about paths that omit that
+payload. The four TOP representation bridges and TOP `external_body` are
+unchanged debt.
+
+The call-structure tool was invoked at intake but its maintained snapshot
+`.verus_agent/proof_state.json` is absent. Caller observations are therefore
+direct production-source evidence, not a generated graph or a caller proof.
+The frozen manifests are present and parsed; their scanner roots cover
+`openvmm/openvmm_core/src/worker`, not the entire production dependency graph.
+The existing restore-guard-native-presence package is outside this experiment.
+
+## Selector admission diagnostic
+
+No selection guarantee was proved. The unchanged selector has no Verus
+declaration, so the first function-focused check reports that the containing
+`partition_unit::vp_set` module is not available for selection. Adding only
+`verus_verify` and its required macro import to the real function exposes:
+
+```text
+only variables are supported here, not general patterns
+states.iter().map(|(vp_index, _)| *vp_index)
+```
+
+This is a frontend rejection of the closure parameter, before validation,
+iterator, payload, or selection VCs. `production-admission.patch` records the
+two annotation-only additions; they were removed from production afterward.
+`native-body.log` records the real-function rejection. The initial missing
+`verus_spec` import was corrected before that decisive run.
+
+`research/restore-vp-prefix-proof/probe-closures.sh` reproduces the same error
+using only a borrowed pair of integers. Both the bare tuple-pattern closure
+and the closure with an explicit result specification are rejected. A named
+closure parameter followed by an ordinary local destructuring statement
+verifies its exact projection (`1 verified, 0 errors`). This is only a syntax
+control, not a substitute selector or a selection theorem. The existing
+known-proof-pattern catalog concerns mutable-reference identity and does not
+apply to this translation error.
+
+The pinned frontend directly calls `pat_to_mut_var` on closure parameters
+(`rust_to_vir_expr.rs:4092-4107`); that helper accepts only
+`PatKind::Binding` (`rust_to_vir_expr.rs:294-310`). Specification attributes
+do not turn a tuple parameter into a variable. The control's normalization
+would change frozen executable source, so it was not applied to production.
+No verifier semantics, trust declaration, contract, or existing freeze
+package was changed. No new freeze package was submitted.
+
+The standalone control initially exposed a separate environment problem:
+the default Z3 was 4.12.5 while this Verus expects 4.16.0. Selecting the
+already installed `toolchain/verus-src/source/z3` resolved that problem;
+the repro script names it explicitly. The negative frontend probes do not
+reach Z3. The annotated standalone probes enable `proc_macro_hygiene`
+locally, avoiding the unrelated expression-attribute feature gate; no
+production feature gate was changed.
+
+The desired conditional contract and validator coverage proof remain
+unimplemented. No selector or validator postcondition was assumed, and no
+temporary proof marker was added. This diagnostic does not satisfy the
+bounded proof acceptance criterion; the next task needs an authorized path
+past native closure-pattern admission before body verification can proceed.
+
+## Restored integration and boundary evidence
+
+After removing the two experimental annotations, `vp_set.rs` is byte-equal
+to its intake version (`HEAD`). The four required wrapper commands were run
+once against that restored production state:
+
+| Check | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0, 0 verified / 0 errors, 2.476 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no frozen specification drift, 1.222 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, no executable drift, 4.924 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1, 7 temporary locations, 0 assumptions, 1.049 s; also rejects TCB-manifest provenance |
+
+The make wrapper still selects the scaffolded TOP restore function; its
+zero-body result preserves integration but proves neither selection nor
+restore. The boundary report additionally says
+`tcb_manifest.json was last modified by an autonomous agent commit`.
+That is a harness authority/setup issue, not permission to rewrite the
+Human-frozen manifest; JSON parsing alone did not establish accepted
+provenance. The manifest and sanctioned declarations were left untouched.
+The reported temporary locations are the existing TOP `external_body`,
+`InitializedVm`/`LoadedVmInner` declaration debt, and four representation
+bridges. Its scoped scan is not a whole-program trust inventory.
+
 # Restore TSC interpretation
 
 ## Unresolved binding facts recorded before the experiment

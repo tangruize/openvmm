@@ -1,0 +1,5 @@
+freeze.patch must be committed before Human review
+run.patch must be committed before Human review
+rationale.md must be committed before Human review
+the working tree must be clean before applying an approved request
+human_presentation_issue_count=4

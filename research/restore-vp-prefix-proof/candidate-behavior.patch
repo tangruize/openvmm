@@ -1,0 +1,108 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -957,6 +957,105 @@
+     use super::*;
+     use test_with_tracing::test;
+ 
++    #[test]
++    fn named_closures_preserve_owned_payload_identity_and_order() {
++        struct Payload {
++            id: u32,
++            allocation: Box<u32>,
++            drops: std::rc::Rc<std::cell::RefCell<Vec<u32>>>,
++        }
++        impl Drop for Payload {
++            fn drop(&mut self) {
++                self.drops.borrow_mut().push(self.id);
++            }
++        }
++        let drops = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
++        let states: Vec<_> = [3, 1, 0, 2]
++            .into_iter()
++            .map(|id| {
++                (
++                    VpIndex::new(id),
++                    Payload {
++                        id,
++                        allocation: Box::new(id),
++                        drops: drops.clone(),
++                    },
++                )
++            })
++            .collect();
++        let original: Vec<_> = states
++            .iter()
++            .map(|(_, payload)| &*payload.allocation as *const u32)
++            .collect();
++        let selected = select_instantiated_vp_states(4, 2, states).unwrap();
++        assert_eq!(selected.len(), 2);
++        for (position, original_position) in [1, 2].into_iter().enumerate() {
++            let (index, payload) = &selected[position];
++            assert_eq!(index.index(), payload.id);
++            assert_eq!(payload.id, [1, 0][position]);
++            assert_eq!(&*payload.allocation as *const u32, original[original_position]);
++        }
++        assert_eq!(*drops.borrow(), [3, 2]);
++        drop(selected);
++        assert_eq!(*drops.borrow(), [3, 2, 1, 0]);
++    }
++
++    #[test]
++    fn named_closures_keep_narrowing_and_unrestricted_count() {
++        for count in [0, 2, 4, 5] {
++            let states = [3, 1, 0, 2]
++                .map(|id| (VpIndex::new(id), Box::new(id)))
++                .into_iter()
++                .collect();
++            let selected = select_instantiated_vp_states(4, count, states).unwrap();
++            let indices: Vec<_> = selected.into_iter().map(|(id, _)| id.index()).collect();
++            let expected: Vec<_> = [3, 1, 0, 2]
++                .into_iter().filter(|id| *id < count as u32).collect();
++            assert_eq!(indices, expected);
++        }
++        if let Ok(wrapped_count) = usize::try_from(u64::from(u32::MAX) + 2) {
++            let states = [3, 1, 0, 2]
++                .map(|id| (VpIndex::new(id), Box::new(id)))
++                .into_iter().collect();
++            let selected = select_instantiated_vp_states(4, wrapped_count, states).unwrap();
++            assert_eq!(selected.len(), 1);
++            assert_eq!(selected[0].0.index(), 0);
++            assert_eq!(*selected[0].1, 0);
++        }
++    }
++
++    #[test]
++    fn named_closures_validate_dormant_entries_and_preserve_error_order() {
++        struct Payload(u32, std::rc::Rc<std::cell::RefCell<Vec<u32>>>);
++        impl Drop for Payload {
++            fn drop(&mut self) {
++                self.1.borrow_mut().push(self.0);
++            }
++        }
++        for (indices, message) in [
++            (vec![2, 2, 4, 0], "snapshot contains duplicate state for vp2"),
++            (vec![4, 2, 2, 0], "unknown entry id: vp4"),
++            (vec![2, 0], "snapshot is missing state for vp1"),
++        ] {
++            let drops = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
++            let states = indices.iter()
++                .map(|id| (VpIndex::new(*id), Payload(*id, drops.clone())))
++                .collect();
++            let result = select_instantiated_vp_states(3, 1, states);
++            let error = match result {
++                Err(error) => error,
++                Ok(_) => panic!("invalid full inventory was accepted"),
++            };
++            let details = match &error {
++                RestoreError::InvalidSavedState(source) => source.to_string(),
++                RestoreError::UnknownEntryId(_) => error.to_string(),
++                _ => panic!("unexpected restore error: {error}"),
++            };
++            assert!(details.contains(message), "{details}");
++            assert_eq!(*drops.borrow(), indices);
++        }
++    }
++
+     #[test]
+     fn requires_exactly_one_restore_entry_per_vp() {
+         validate_restore_vp_indices(4, (0..4).map(VpIndex::new)).unwrap();

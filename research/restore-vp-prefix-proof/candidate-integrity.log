@@ -1,0 +1,7 @@
+tested candidate matches submitted run.patch
+three submitted files match the validated inputs
+both authoritative branch tips and production selector are unchanged
+removed only the isolated candidate directory
+ M research/GROUND_TRUTH.md
+?? research/freeze_requests/restore-vp-selector-named-closures/
+?? research/restore-vp-prefix-proof/

@@ -1,0 +1,2 @@
+exec_drift: complete output -> .verus_agent/cache/checks/exec_drift/latest.log
+exec_drift: no executable drift; exit 0; 4.894s

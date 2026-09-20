@@ -1,0 +1,8 @@
+error: The verifier does not yet support the following Rust feature: only variables are supported here, not general patterns
+ --> research/restore-vp-prefix-proof/closure-pattern.rs:8:17
+  |
+8 |     let read = |(index, _): &(u32, u64)| *index;
+  |                 ^^^^^^^^^^
+
+error: aborting due to 1 previous error
+

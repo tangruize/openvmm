@@ -1,0 +1,8 @@
+freeze.patch: APPLIES
+run.patch: APPLIES
+spec_drift: PASS - both patch results have the same frozen TOP and BOTTOM specifications
+exec_drift: PASS - both patch results have the same executable behavior
+freeze_request: VALID
+freeze_request: submitted restore-vp-selector-named-closures
+  research/freeze_requests/restore-vp-selector-named-closures
+  Reviewer must independently run `freeze_request validate restore-vp-selector-named-closures`

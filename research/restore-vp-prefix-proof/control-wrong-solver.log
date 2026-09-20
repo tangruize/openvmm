@@ -1,0 +1,38 @@
+error: expected z3 version 4.16.0, found 4.12.5
+
+
+thread 'rustc' (3703891) panicked at air/src/smt_verify.rs:195:21:
+The verifier expects z3 version "4.16.0", found version "4.12.5"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'rustc' (3703891) panicked at rust_verify/src/verifier.rs:428:17:
+dropped, expected call to `into_inner` instead
+stack backtrace:
+   0:     0x7d8469ce12a6 - <<std[6c98fd8553dbae28]::sys::backtrace::BacktraceLock>::print::DisplayBacktrace as core[c0acaeba6ab4c2e0]::fmt::Display>::fmt
+   1:     0x7d846a40ecc8 - core[c0acaeba6ab4c2e0]::fmt::write
+   2:     0x7d846b7d672c - <std[6c98fd8553dbae28]::sys::stdio::unix::Stderr as std[6c98fd8553dbae28]::io::Write>::write_fmt
+   3:     0x7d8469cb56fa - std[6c98fd8553dbae28]::panicking::default_hook::{closure#0}
+   4:     0x7d8469cd3a03 - std[6c98fd8553dbae28]::panicking::default_hook
+   5:     0x7d8469cd3e6b - std[6c98fd8553dbae28]::panicking::panic_with_hook
+   6:     0x7d8469cb57e4 - std[6c98fd8553dbae28]::panicking::panic_handler::{closure#0}
+   7:     0x7d8469ca9c89 - std[6c98fd8553dbae28]::sys::backtrace::__rust_end_short_backtrace::<std[6c98fd8553dbae28]::panicking::panic_handler::{closure#0}, !>
+   8:     0x7d8469cb711d - __rustc[100742bb89c490cb]::rust_begin_unwind
+   9:     0x7d8466e2b02c - core[c0acaeba6ab4c2e0]::panicking::panic_fmt
+  10:     0x55b77f0cefe5 - core[c0acaeba6ab4c2e0]::ptr::drop_glue::<rust_verify[11f622d49870298a]::verifier::util::PanicOnDropVec<(alloc[12e961f32105355]::sync::Arc<vir[1a75c293be342749]::messages::MessageX>, air[4b58c2c0e4fbd84d]::messages::MessageLevel)>>
+  11:     0x55b77f0bea00 - <rust_verify[11f622d49870298a]::verifier::Verifier>::verify_bucket::<rust_verify[11f622d49870298a]::verifier::Reporter>
+  12:     0x55b77f0e24ce - <rust_verify[11f622d49870298a]::verifier::Verifier>::verify_crate_inner
+  13:     0x55b77f0e8615 - <rust_verify[11f622d49870298a]::verifier::VerifierCallbacksEraseMacro>::finish_verus
+  14:     0x55b77f0f4ed8 - <rust_verify[11f622d49870298a]::verifier::VerifierCallbacksEraseMacro as rustc_driver_impl[7c7a30f131ac6633]::Callbacks>::after_expansion
+  15:     0x7d846b550a03 - rustc_interface[f52ff661d028375d]::interface::run_compiler::<(), rustc_driver_impl[7c7a30f131ac6633]::run_compiler::{closure#0}>::{closure#1}
+  16:     0x7d846b5c4e7a - std[6c98fd8553dbae28]::sys::backtrace::__rust_begin_short_backtrace::<rustc_interface[f52ff661d028375d]::util::run_in_thread_with_globals<rustc_interface[f52ff661d028375d]::util::run_in_thread_pool_with_globals<rustc_interface[f52ff661d028375d]::interface::run_compiler<(), rustc_driver_impl[7c7a30f131ac6633]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>
+  17:     0x7d846b5c4c2d - <std[6c98fd8553dbae28]::thread::lifecycle::spawn_unchecked<rustc_interface[f52ff661d028375d]::util::run_in_thread_with_globals<rustc_interface[f52ff661d028375d]::util::run_in_thread_pool_with_globals<rustc_interface[f52ff661d028375d]::interface::run_compiler<(), rustc_driver_impl[7c7a30f131ac6633]::run_compiler::{closure#0}>::{closure#1}, ()>::{closure#0}, ()>::{closure#0}::{closure#0}, ()>::{closure#1} as core[c0acaeba6ab4c2e0]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+  18:     0x7d846b5c2a0e - <std[6c98fd8553dbae28]::sys::thread::unix::Thread>::new::thread_start
+  19:     0x7d8464e9cb84 - start_thread
+                               at ./nptl/pthread_create.c:447:8
+  20:     0x7d8464f29ecc - clone3
+                               at ./misc/../sysdeps/unix/sysv/linux/x86_64/clone3.S:78:0
+  21:                0x0 - <unknown>
+
+thread 'rustc' (3703891) panicked at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panicking.rs:233:5:
+panic in a destructor during cleanup
+thread caused non-unwinding panic. aborting.

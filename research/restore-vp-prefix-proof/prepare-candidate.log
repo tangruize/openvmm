@@ -1,0 +1,4 @@
+candidate=/home/ruize/openvmm-restore-v1/research/restore-vp-prefix-proof/candidate
+7e225e59da974a17fc909997d7dc489b234c2e8c
+4fb5e66997f616c239aefbc28ccc3f3a29b2226d
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'
