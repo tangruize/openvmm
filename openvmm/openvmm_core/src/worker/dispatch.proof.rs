@@ -17,6 +17,11 @@ use vstd::prelude::*;
 
 verus! {
 
+// Only the carried type is opaque; no file operations are specified or trusted.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRestoreReadyFile(std::fs::File);
+
 // This bridge exposes only SavedState-owned state and the restore-time policy.
 // Prepared memory, compatibility, resources, and VP selection are already
 // represented by the pre-state of LoadedVm at this TOP boundary.

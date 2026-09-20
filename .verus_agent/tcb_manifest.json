@@ -1,0 +1,19 @@
+{
+  "sanctioned": [
+    {
+      "kind": "symbol",
+      "value": "InitializedVm::load",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRestoreReadyFile",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRestoreReadyFile",
+      "marker": "external_body"
+    }
+  ]
+}
