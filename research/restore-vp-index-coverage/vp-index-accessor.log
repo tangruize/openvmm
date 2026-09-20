@@ -1,0 +1,5 @@
+    Checking vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_topology)
+note: verifying module processor (selected functions)
+
+verification results:: 1 verified, 0 errors (partial verification with `--verify-*`)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.22s

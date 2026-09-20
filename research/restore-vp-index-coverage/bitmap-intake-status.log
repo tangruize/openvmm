@@ -1,0 +1,7 @@
+ M Cargo.lock
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+ M vm/vmcore/vm_topology/Cargo.toml
+ M vm/vmcore/vm_topology/src/processor.rs
+?? research/restore-vp-index-coverage/
+?? vm/vmcore/vm_topology/src/processor.proof.rs

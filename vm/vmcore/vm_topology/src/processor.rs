@@ -20,6 +20,10 @@ cfg_if::cfg_if! {
     }
 }
 use thiserror::Error;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("processor.proof.rs");
 
 /// A description of the VM's processor topology.
 ///
@@ -259,6 +263,7 @@ pub struct VpTopologyInfo {
 /// them interchangeably.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "inspect", derive(inspect::Inspect), inspect(transparent))]
+#[verus_verify]
 pub struct VpIndex(u32);
 
 impl VpIndex {
@@ -277,6 +282,8 @@ impl VpIndex {
     pub const BSP: Self = Self::new(0);
 
     /// Returns the VP index value.
+    #[verus_verify]
+    #[verus_spec(result => ensures result == self@,)]
     pub fn index(&self) -> u32 {
         self.0
     }

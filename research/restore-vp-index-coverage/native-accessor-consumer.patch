@@ -1,0 +1,97 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 398da792..7d2f8699 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -10172,6 +10172,7 @@ dependencies = [
+  "mesh_protobuf",
+  "safe_intrinsics",
+  "thiserror 2.0.16",
++ "vstd",
+  "x86defs",
+ ]
+ 
+diff --git a/vm/vmcore/vm_topology/Cargo.toml b/vm/vmcore/vm_topology/Cargo.toml
+index 27d5a964..1ddc587d 100644
+--- a/vm/vmcore/vm_topology/Cargo.toml
++++ b/vm/vmcore/vm_topology/Cargo.toml
+@@ -6,12 +6,16 @@ name = "vm_topology"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ default = []
+ inspect = ["dep:inspect", "memory_range/inspect"]
+ mesh = ["dep:mesh_protobuf", "memory_range/mesh"]
+ 
+ [dependencies]
++vstd.workspace = true
+ aarch64defs.workspace = true
+ cxl_spec.workspace = true
+ memory_range.workspace = true
+diff --git a/vm/vmcore/vm_topology/src/processor.rs b/vm/vmcore/vm_topology/src/processor.rs
+index b6c70116..8b2e7508 100644
+--- a/vm/vmcore/vm_topology/src/processor.rs
++++ b/vm/vmcore/vm_topology/src/processor.rs
+@@ -20,6 +20,10 @@
+     }
+ }
+ use thiserror::Error;
++use vstd::prelude::*;
++
++#[cfg(verus_keep_ghost)]
++include!("processor.proof.rs");
+ 
+ /// A description of the VM's processor topology.
+ ///
+@@ -259,6 +263,7 @@ pub struct VpTopologyInfo {
+ /// them interchangeably.
+ #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+ #[cfg_attr(feature = "inspect", derive(inspect::Inspect), inspect(transparent))]
++#[verus_verify]
+ pub struct VpIndex(u32);
+ 
+ impl VpIndex {
+@@ -277,6 +282,8 @@ pub const fn new(index: u32) -> Self {
+     pub const BSP: Self = Self::new(0);
+ 
+     /// Returns the VP index value.
++    #[verus_verify]
++    #[verus_spec(result => ensures result == self@,)]
+     pub fn index(&self) -> u32 {
+         self.0
+     }
+diff --git a/vmm_core/src/lib.rs b/vmm_core/src/lib.rs
+index e247765a..37871548 100644
+--- a/vmm_core/src/lib.rs
++++ b/vmm_core/src/lib.rs
+@@ -6,6 +6,7 @@
+ 
+ #![expect(missing_docs)]
+ #![forbid(unsafe_code)]
++#![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene))]
+ 
+ pub mod acpi_builder;
+ pub mod cpuid;
+diff --git a/vmm_core/src/partition_unit/vp_set.rs b/vmm_core/src/partition_unit/vp_set.rs
+index 46384123..f0f8c0ac 100644
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -46,6 +46,7 @@
+ use vmcore::save_restore::RestoreError;
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
++use vstd::prelude::*;
+ #[cfg(feature = "gdb")]
+ use vmm_core_defs::debug_rpc::DebuggerVpState;
+ 
+@@ -885,6 +886,7 @@ struct Vp {
+     vp_info: TargetVpInfo,
+ }
+ 
++#[verus_verify]
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,

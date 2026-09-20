@@ -1,0 +1,36 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -46,6 +46,7 @@
+ use vmcore::save_restore::RestoreError;
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
++use vstd::prelude::*;
+ #[cfg(feature = "gdb")]
+ use vmm_core_defs::debug_rpc::DebuggerVpState;
+ 
+@@ -885,6 +886,16 @@
+     vp_info: TargetVpInfo,
+ }
+ 
++#[verus_verify]
++#[verus_spec(previous =>
++    ensures previous == *old(slot), *final(slot),
++)]
++fn mark_restore_vp_present(slot: &mut bool) -> bool {
++    let previous = *slot;
++    *slot = true;
++    previous
++}
++
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,
+@@ -895,7 +906,7 @@
+         let slot = present
+             .get_mut(index)
+             .ok_or_else(|| RestoreError::UnknownEntryId(format!("vp{}", vp_index.index())))?;
+-        if std::mem::replace(slot, true) {
++        if mark_restore_vp_present(slot) {
+             return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+                 "snapshot contains duplicate state for vp{}",
+                 vp_index.index()

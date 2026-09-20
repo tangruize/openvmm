@@ -1,0 +1,24 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -885,6 +885,12 @@
+     vp_info: TargetVpInfo,
+ }
+ 
++fn mark_restore_vp_present(slot: &mut bool) -> bool {
++    let previous = *slot;
++    *slot = true;
++    previous
++}
++
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,
+@@ -895,7 +901,7 @@
+         let slot = present
+             .get_mut(index)
+             .ok_or_else(|| RestoreError::UnknownEntryId(format!("vp{}", vp_index.index())))?;
+-        if std::mem::replace(slot, true) {
++        if mark_restore_vp_present(slot) {
+             return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+                 "snapshot contains duplicate state for vp{}",
+                 vp_index.index()

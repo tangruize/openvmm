@@ -1,0 +1,45 @@
+Verus source 8ed93e5d0164885f415c11ad8baa736371bcff92 is already installed
+Verus 0.2026.09.18.8ed93e5 is already installed
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_core)
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2181:13
+     |
+2181 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2182:13
+     |
+2182 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3033:13
+     |
+3033 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3034:13
+     |
+3034 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: verifying module worker::dispatch (selected functions)
+
+verification results:: 0 verified, 0 errors (partial verification with `--verify-*`)
+warning: `openvmm_core` (lib) generated 4 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.86s
+
+Exit code : 0
+Elapsed seconds: 2.497

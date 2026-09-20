@@ -1,0 +1,14 @@
+boundary: FAIL - trust exists outside the sanctioned TCB
+TCB declaration rejected:
+  tcb_manifest.json was last modified by an autonomous agent commit
+Temporary trust:
+  [external_body] openvmm/openvmm_core/src/worker/dispatch.rs in `InitializedVm`: 1 occurrence(s)
+  [external_body] openvmm/openvmm_core/src/worker/dispatch.rs in `LoadedVm::restore_snapshot_state`: 1 occurrence(s)
+  [external_body] openvmm/openvmm_core/src/worker/dispatch.rs in `LoadedVmInner`: 1 occurrence(s)
+  [uninterp] openvmm/openvmm_core/src/worker/dispatch.proof.rs in `decoded_load_restore_request_view`: 1 occurrence(s)
+  [uninterp] openvmm/openvmm_core/src/worker/dispatch.proof.rs in `decoded_restore_request_view`: 1 occurrence(s)
+  [uninterp] openvmm/openvmm_core/src/worker/dispatch.proof.rs in `initialized_vm_representation`: 1 occurrence(s)
+  [uninterp] openvmm/openvmm_core/src/worker/dispatch.proof.rs in `loaded_vm_representation`: 1 occurrence(s)
+
+Exit code : 1
+Elapsed seconds: 1.015

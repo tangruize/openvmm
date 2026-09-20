@@ -1,0 +1,70 @@
+sysroot=/home/ruize/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu
+950-#[must_use = "if you don't need the old value, you can just assign the new value directly"]
+951-#[rustc_const_stable(feature = "const_replace", since = "1.83.0")]
+952-#[rustc_diagnostic_item = "mem_replace"]
+953:pub const fn replace<T>(dest: &mut T, src: T) -> T {
+954-    // It may be tempting to use `swap` to avoid `unsafe` here. Don't!
+955-    // The compiler optimizes the implementation below to two `memcpy`s
+956-    // while `swap` would require at least three. See PR#83022 for details.
+957-
+958-    // SAFETY: We read from `dest` but directly write `src` into it afterwards,
+959-    // such that the old value is not duplicated. Nothing is dropped and
+960-    // nothing here can panic.
+961-    unsafe {
+962-        // Ideally we wouldn't use the intrinsics here, but going through the
+963-        // `ptr` methods introduces two unnecessary UbChecks, so until we can
+964-        // remove those for pointers that come from references, this uses the
+965-        // intrinsics instead so this stays very cheap in MIR (and debug).
+966-
+967-        let result = crate::intrinsics::read_via_copy(dest);
+968-        crate::intrinsics::write_via_move(dest, src);
+969-        result
+970-    }
+971-}
+972-
+973-/// Disposes of a value.
+974-///
+975-/// This effectively does nothing for types which implement `Copy`, e.g.
+976-/// integers. Such values are copied and _then_ moved into the function, so the
+977-/// value persists after this function call.
+978-///
+374-            // because this simple implementation generates less LLVM IR and is
+375-            // faster to compile. Also, the `assume` avoids a bounds check.
+376-            #[inline]
+377:            fn position<P>(&mut self, mut predicate: P) -> Option<usize> where
+378-                Self: Sized,
+379-                P: FnMut(Self::Item) -> bool,
+380-            {
+381-                let n = len!(self);
+382-                let mut i = 0;
+383-                while let Some(x) = self.next() {
+384-                    if predicate(x) {
+385-                        // SAFETY: we are guaranteed to be in bounds by the loop invariant:
+386-                        // when `i >= n`, `self.next()` returns `None` and the loop breaks.
+387-                        unsafe { assert_unchecked(i < n) };
+388-                        return Some(i);
+389-                    }
+390-                    i += 1;
+391-                }
+392-                None
+393-            }
+394-
+395-            // We override the default implementation, which uses `try_fold`,
+396-            // because this simple implementation generates less LLVM IR and is
+397-            // faster to compile. Also, the `assume` avoids a bounds check.
+398-            #[inline]
+399-            fn rposition<P>(&mut self, mut predicate: P) -> Option<usize> where
+400-                P: FnMut(Self::Item) -> bool,
+401-                Self: Sized + ExactSizeIterator + DoubleEndedIterator
+402-            {
+403-                let n = len!(self);
+404-                let mut i = n;
+405-                while let Some(x) = self.next_back() {
+406-                    i -= 1;
+407-                    if predicate(x) {
+408-                        // SAFETY: `i` must be lower than `n` since it starts at `n`
+409-                        // and is only decreasing.
+410-                        unsafe { assert_unchecked(i < n) };
+411-                        return Some(i);
+412-                    }
+413-                }

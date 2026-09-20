@@ -1,5 +1,346 @@
 # Instantiated VP prefix selection
 
+## Bitmap package readiness continuation
+
+The continuation explicitly requires committing the three request files and
+leaving the worktree clean while retaining all dirty work. The earlier
+no-commit blocker is superseded by this requested delivery action, not by
+package validation. The proposed normalization still must not be applied.
+
+The delivery retains the accessor proof, metadata, existing research changes
+and unrelated PIPELINE_STATE entries together. Since its working tip
+contains the accessor work, `run.patch` is refreshed to contain only the proved bitmap
+helper, its native contract and the unchanged call-site substitution.
+`freeze.patch` and the candidate executable/proof construction are unchanged.
+The prior patch is retained in `bitmap-run.patch` as historical evidence.
+Candidate proof and Rust results match this resulting source and are reused;
+the six declaration failures and known boundary rejection are not rerun.
+
+Post-commit validation/readiness output belongs under the ignored
+`.verus_agent/cache/bitmap-delivery/` directory, so recording the current
+result will not dirty the newly committed tree. The shared CHECKPOINT will
+record the observed result after the native check, not assume readiness.
+
+The required package-scoped clippy and documentation commands passed
+(`delivery-clippy.log`, `delivery-doc.log`). Full `cargo xtask fmt --fix`
+ran in an isolated current-source archive to avoid unrelated changes to
+frozen source. The first run found a missing copyright header in the patch
+generator, which was repaired. The next comparison incorrectly included
+the formatter's own changing log; that bookkeeping bug was corrected,
+without changing any proof or executable. The final full formatter and
+delivered-file comparison passed (`delivery-fmt.log` and
+`.verus_agent/cache/bitmap-delivery/precommit-final.log`). No individual
+formatting pass was substituted. The failed durable task records remain
+explicitly superseded in PIPELINE_STATE rather than overwritten as successes.
+
+`check-bitmap-delivery-ready.command` uses native `operator_ready_issues`,
+which runs `validate_request` internally for an unapplied request. It first
+checks that no application receipt exists, then reports VALID and READY only
+if that native combined gate returns no issues. This obtains current
+validation/readiness evidence once without repeating the same patch-result
+comparison. The prior round's proof, Rust, make_verify and drift evidence
+is unchanged and reused; this continuation does not repair the known
+boundary debt or introduce trusted semantics.
+
+## Bitmap-update request: unresolved bindings before experimentation
+
+The proposed candidate replaces only `mem::replace(slot, true)` in the
+production validator with a private `mark_restore_vp_present(&mut bool)`
+operation. Its proposed unconditional postcondition is that the result equals
+the initial slot and the final slot is true. The intended body reads the
+Boolean, writes true, and returns the saved value. This is source-supported
+but not yet proved at this point; both possible initial values, including
+the duplicate path, must be covered without an assumed operation contract.
+The helper is proposed executable source, not installed project proof.
+
+The real caller needs the previous value to choose exactly the existing
+duplicate-error branch. It gets the same exclusive slot from the unchanged
+checked bitmap lookup. Index iteration, errors and messages, and the final
+missing-entry scan must remain unchanged. Existing LSP evidence in
+`restore-vp-index-coverage/callers.log` agrees with the current production
+validator/selector/`VpSet::restore` call sites. The retained native VpIndex
+View/accessor proof has no precondition and is not a coverage guarantee.
+
+The candidate must still face `RestoreError`, the four anyhow declarations,
+and slice-iterator `position`. None will be assumed or repaired in this
+bounded request. The generic IntoIterator input has no proved binding to
+the consumed contents, nor proved exhaustion/bitmap invariants. Exact
+coverage, prefix selection, payload installation, and the frozen TOP theorem
+remain unproved. The earlier intrinsic rejection is reused, not rerun.
+
+Candidate source and tests will live only in isolated research work, with
+the proposed executable and proof changes carried by independent request
+patches. The live executable, frozen manifests, sanctioned declarations,
+accessor proof and metadata, unrelated dirty work, and prior normalization
+packages are preserved. Package validation is not permission to apply.
+
+## Bitmap-update request: candidate proved, package unapplied
+
+`research/freeze_requests/restore-vp-bitmap-native-update/` contains exactly
+`freeze.patch`, `run.patch`, and `rationale.md`. The single native submission
+reported both patches applicable to the current frozen/working tips, matching
+frozen specifications and executable projections, and
+`freeze_request: VALID` (`restore-vp-index-coverage/bitmap-submit.log`).
+No authoritative executable, branch tip, manifest or sanctioned declaration
+was changed. All prior packages and unrelated dirty work are preserved.
+
+The actual candidate's `mark_restore_vp_present` body proves, without
+preconditions, that its return is the initial slot and the final slot is
+true: **1 verified, 0 errors** with lifetime checking enabled
+(`bitmap-helper.log`). This covers both values, including writing true
+before taking the duplicate-error branch. It uses primitive Boolean
+copy/assignment, no assumed update contract and no library operation.
+The request includes the same real helper called by the production validator,
+not a standalone control or verification-only replacement.
+
+The annotation-only production-validator experiment reports exactly the
+remaining six failures: `RestoreError`, slice iterator `position`,
+`anyhow::Error`, `Error::msg`, `__private::must_use`, and
+`__private::format_err` (`bitmap-validator.log`). The old `mem::replace`
+diagnostic is absent; no new trusted interfaces were introduced to hide it.
+This is frontend progress, not discharged validator VCs. The original
+intrinsic rejection was not rerun. An initial isolated setup failure lacked
+the existing toolchain path (`bitmap-helper-setup.log`); linking that
+already-installed dependency resolved it without changing Verus.
+
+Ordinary `cargo check --locked -p vm_topology -p vmm_core --tests` passed on
+the exact candidate. The agent-profile nextest selection passed **43 tests**
+with 27 unselected tests. The three new tests exercise the real helper
+and validator, covering both previous-value outcomes and other-slot
+preservation, exact error variants/messages, duplicate/unknown short-circuit
+order, empty and unsorted inventories, and first-missing selection.
+`bitmap-rust.log`, `bitmap-tests.log`, and `bitmap-behavior.patch` retain
+the evidence. Existing selector tests also passed; these finite tests are
+not a proof of exact coverage for arbitrary iterators.
+
+The exact candidate source is `bitmap-candidate-vp_set.rs`; the request
+patches retain its supporting accessor metadata and proof unchanged.
+`bitmap-validator-admission.patch` contains only the experimental validator
+annotation and macro feature. Both experiment overlays were removed and
+the 47 MB isolated archive was cleaned up. The production archive can be
+recreated from the current tip and package by
+`reproduce-bitmap-candidate.command`; its focused commands and durable Rust
+receipt/status are retained in this evidence directory.
+
+The required authoritative checks ran once on the preserved production
+source, after candidate cleanup:
+
+| Command | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; 2.497 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; unchanged provenance rejection and 7 temporary locations; 1.015 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 1.190 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 4.937 s |
+
+Full outputs are `bitmap-{make_verify,boundary,spec_drift,exec_drift}.complete.log`.
+The durable handoff task's exit 1 is solely the existing boundary limitation.
+Its worker-only roots do not enumerate dependency declaration debt.
+`make_verify` still selects the admitted, scaffolded restore TOP and is not
+a proof of that theorem. The native accessor proof and associated metadata
+were byte-compared with intake; their existing body-proof evidence is reused.
+No temporary marker was added, removed, moved or discharged by this request.
+The TOP body marker, four representation bridges and project declaration
+cut remain. Iterator-to-contents binding, exhaustion and coverage, selector
+prefix/payload preservation, installation and the TOP connection remain
+unproved.
+
+**Human-review readiness remains blocked**, despite package validity.
+The native `operator_ready_issues` check requires all three request files to
+be committed and the worktree clean (`bitmap-readiness.log`). This mission
+forbids commits and discarding dirty work, so neither requirement was bypassed.
+The resulting branch tips equal intake (`bitmap-intake-tips.log`); no
+unchanged validation was repeated. Reviewer receives the valid, unapplied
+package and this explicit readiness blocker, not an assertion that Human
+approval or application is authorized.
+
+## VP-index coverage: unresolved bindings before experimentation
+
+The current validator in `vmm_core/src/partition_unit/vp_set.rs:888-911`
+has no Verus body annotation or coverage contract. Its actual caller at
+line 918 passes `states.iter().map(|(vp_index, _)| *vp_index)` before filtering.
+Any coverage contract must describe this consumed `IntoIterator`, not an
+unconnected ghost sequence. The checked bitmap lookup, replacement of an
+already-set bit, and final missing-bit scan support the intended successful
+return guarantee, but do not yet prove it. Generic iteration, iterator
+exhaustion, mutable bitmap borrowing, error construction and final scan
+contracts are unresolved. No input bounds, uniqueness, coverage, or fixed
+iteration order may be assumed.
+
+`VpIndex` is the production private-field `u32` wrapper, and `index()` returns
+that field (`vm/vmcore/vm_topology/src/processor.rs:262-282`). Neither it nor
+`RestoreError` currently has native declaration opt-in. Whether the pinned
+frontend can translate the unchanged validator body remains to be measured.
+Both existing freeze-request packages stay unapplied; the selector's known
+tuple-closure diagnostic is not rerun for this objective. Any declarations
+or library-operation contracts still missing after this experiment remain
+proof debt, not sanctioned trust.
+
+## VP-index coverage: current diagnostic result
+
+Continuation: Reviewer correctly distinguishes the missing-interface
+diagnostic from exhaustion of Engineer-owned work. The next native
+construction annotates the actual `VpIndex` declaration and its constructor
+and accessor, with a closed `u32` View mapped to the private field. Its source
+supports those contracts; their bodies must still pass the owning-crate
+check. No coverage assertion is inferred from representation admission.
+Native verification of the actual sysroot implementations, rather than
+trusted wrappers or copied replacements, is being investigated separately.
+The prior completed delivery and integration evidence is not rerun unchanged.
+
+The selected exact-coverage fact is **not proved**, including the empty-count
+and arbitrary-order cases. No coverage contract or iterator correspondence
+was assumed. The first focused run of the current production validator
+exited 101 because its unannotated module was not in the verifier selection.
+Adding only native verifier entry, the required prelude, and the existing
+project pattern for `proc_macro_hygiene` reached real body translation.
+The complete, subsequently removed overlay is
+`restore-vp-index-coverage/native-feature-annotation.patch`.
+
+That focused production check exited 101 with nine unsupported declarations
+or calls: `RestoreError`, `VpIndex`, `VpIndex::index`, `core::mem::replace`,
+`anyhow::Error`, `anyhow::Error::msg`, `anyhow::__private::must_use`,
+`anyhow::__private::format_err`, and slice iterator `position`.
+`native-feature-focused.log` preserves the diagnostics. The earlier macro
+import and feature errors are retained separately, not treated as blockers.
+No validator verification conditions were generated.
+
+The two standard-library calls remain barriers independently of the project
+representation closure. `replace-admission.rs` uses just `&mut bool` and the
+real `std::mem::replace`; `position-admission.rs` uses just `&[bool]` and the
+real slice-iterator `position`. Both reject the same missing interfaces under
+pinned Verus `0.2026.09.18.8ed93e5`. The separate `swap-control.rs` verifies
+its two-outcome mutation contract (1 verified, 0 errors) using the existing
+vstd `mem::swap` specification. This is a diagnostic control, not a replacement
+validator or an executable normalization proposal. Commands and full output
+are in `restore-vp-index-coverage/probe-operations.command` and the probe logs.
+
+The pinned `vstd/std_specs/core.rs` specifies `mem::swap`, but not
+`mem::replace`; `vstd/std_specs/iter.rs` has no `position` interface. The
+known reference-identity discharge addresses lost post-borrow facts, not
+these missing call declarations before VCs. This evidence establishes a
+missing library verification interface in the frozen integration, **not**
+an inherent inability of Verus to prove bitmap coverage. Adding the suggested
+`assume_specification` declarations would enlarge trust, while substituting
+different executable operations would change frozen source. Neither was
+done, and no new freeze package was prepared.
+
+The source caller tool reports rust-analyzer LSP evidence for
+`VpSet::restore` -> `select_instantiated_vp_states` ->
+`validate_restore_vp_indices` (`callers.log`). The selector passes the actual
+mapped slice iterator at authoritative line 918, before its prefix filter.
+Its use of a future coverage guarantee is still unproved. The maintained
+call-graph snapshot could not be read because `.verus_agent/proof_state.json`
+is absent; this setup failure is separate from the successful caller query.
+The generic `IntoIterator::into_iter` interface has no input/output contents
+postcondition. Any future iterator abstraction must supply a proved binding
+for the actual input and justify its iteration laws for this caller; an
+independent ghost sequence or assumed correspondence is insufficient.
+
+All experimental production annotations were removed. Before the single
+handoff run, a source comparison confirmed the validator, crate root,
+representation owners, TOP files, manifests, and both existing freeze
+packages were unchanged. The required commands then reported:
+
+| Command | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; 2.520 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; existing provenance rejection and 7 temporary locations; 1.119 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 1.262 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 5.002 s |
+
+The integration pass is only the existing scaffolded restore selector, not
+the validator or full TOP proof. No temporary marker was added, removed, or
+discharged. The TOP body marker and four bridges
+`decoded_restore_request_view`, `decoded_load_restore_request_view`,
+`initialized_vm_representation`, and `loaded_vm_representation` remain.
+The project-owned opaque declaration cut described in the Wiki also remains;
+it is not sanctioned trust. The boundary scanner's worker-only `src_roots`
+does not count declaration debt in other crates or this validator.
+Its rejection of TCB-manifest commit provenance is pre-existing and was not
+repaired. No production Rust change remains requiring a new Rust regression
+run; completed formatting, delivery validation, and review were not repeated.
+
+## VP-index coverage continuation: native proof and intrinsic boundary
+
+The real `VpIndex::index` body now proves `result == self@` with no
+preconditions. The closed View is exactly the private `u32` field; it
+introduces no representation assumption. `vp-index-accessor.log` records
+1 verified / 0 errors on the owning crate. The first attempt also annotated
+the const constructor, which the attribute frontend rejected with
+`cannot find function new in this scope`. That unnecessary constructor
+annotation was removed; the accessor contract applies to every representable
+value without any constructor requirement.
+
+The subsequent native validator experiment imported the owning-crate
+declaration and accessor specification. `native-accessor-consumer.log` no
+longer reports either `VpIndex` error, but retains seven error/type/library
+translation failures. Its annotation-only validator overlay was removed.
+The coverage body proof and input-iterator correspondence remain absent;
+the accessor theorem is not coverage, selector filtering, or payload
+preservation.
+
+The continuation followed the real standard-library implementation rather
+than treating an undeclared method as proof of impossibility.
+`native-core-source.log` records the current Rust 1.98.1 sysroot
+`core/src/mem/mod.rs:953-970`: `mem::replace` directly invokes
+`intrinsics::read_via_copy` and `intrinsics::write_via_move`.
+`probe-intrinsics.log` records their declarations at
+`core/src/intrinsics/mod.rs:2214,2225`: compiler intrinsics with no Rust body.
+The reference-argument probes first exposed an implicit raw-pointer coercion
+rejection. The smaller raw-pointer probe eliminates that coercion and still
+rejects both intrinsic calls (`probe-raw-intrinsics.log`). No unchecked
+intrinsic is invoked at runtime by these compilation-only diagnostics.
+
+Native source annotation therefore does not by itself discharge this
+operation: after annotating `replace`, there are no Rust bodies to prove
+for its compiler-intrinsic leaves. The existing verifier has neither
+operation's interface. Providing such semantics would require new trusted
+intrinsic declarations or a verifier change; changing the executed operation
+would instead cross the frozen executable boundary. None was done. This is
+stronger evidence than the original missing-method diagnostic and does not
+claim all other project proof work is exhausted.
+
+The read-only tooling investigation also found Verus's specialized native
+core modes (`--is-core` and `--is-stdlib-outside-of-core`). These are not
+ordinary Cargo dependency opt-ins and do not themselves provide intrinsic
+semantics or import verified sysroot operation bodies into this workspace.
+The current accessor proof needs neither mode nor any change to the pinned
+verifier.
+
+Remaining library/type failures on the real validator are `RestoreError`,
+`mem::replace`, slice iterator `position`, `anyhow::Error`, `Error::msg`,
+`__private::must_use`, and `__private::format_err`. The real `position`
+implementation is separately recorded in `native-core-source.log`; it calls
+`next`, a predicate, and `assert_unchecked` while counting. Its native
+representation/operation proof is still owed, not assumed.
+
+The current source retains only the native scalar View/accessor proof and
+owning-crate metadata/dependency changes. The validator and selector bodies,
+TOP contracts, sanctioned declarations, manifests, and both freeze packages
+remain unchanged. This is limited representation-proof progress, **not**
+completion of the assigned validator proof. No temporary marker was added
+or removed.
+
+The changed-source handoff run passed `cargo check --locked -p vm_topology
+-p vmm_core --tests` and the agent-profile nextest selection for all
+`vm_topology` tests plus `restore_vp_index_tests`. Logs are
+`continuation-rust.log` and `continuation-tests.log`.
+Required checks ran once for this source:
+
+| Command | Result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 0; 0 verified / 0 errors; 8.268 s |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1; existing provenance rejection and 7 temporary locations; 1.006 s |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 1.180 s |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0; 4.871 s |
+
+The durable task `vp-index-native-proof-checks` therefore exits 1 solely for
+the existing boundary failure. Its receipt, status and complete check outputs
+are preserved under `restore-vp-index-coverage/continuation-*`. The restored
+TOP selector remains scaffolded and its zero-error admission run is not
+evidence of coverage. Existing four bridges and dependency-declaration debt
+remain as previously recorded.
+
 ## Named-closure candidate: unresolved bindings before experimentation
 
 This follow-on task proposes, but does not install, a source normalization:

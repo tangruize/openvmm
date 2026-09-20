@@ -1,0 +1,558 @@
+   Compiling open_enum v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/open_enum)
+   Compiling loan_cell v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/loan_cell)
+   Compiling safe_intrinsics v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/safe_intrinsics)
+   Compiling arc_cyclic_builder v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/arc_cyclic_builder)
+   Compiling device_emulators v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/support/device_emulators)
+   Compiling mesh_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_derive)
+   Compiling inspect_derive v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/inspect_derive)
+   Compiling unix_socket v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/unix_socket)
+   Compiling trycopy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/trycopy)
+   Compiling safeatomic v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/safeatomic)
+   Compiling ucs2 v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/ucs2)
+   Compiling cvm_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/cvm_tracing)
+   Compiling tracing_helpers v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/tracing_helpers)
+   Compiling page_table v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/loader/page_table)
+   Compiling cache_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/cache_topology)
+   Compiling test_with_tracing v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/test_with_tracing)
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: requested on the command line with `-W unexpected-cfgs`
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+603 | ptr_atomic_methods!(PAtomicU64, AtomicU64, u64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+605 | ptr_atomic_methods!(PAtomicU32, AtomicU32, u32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+606 | ptr_atomic_methods!(PAtomicU16, AtomicU16, u16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+607 | ptr_atomic_methods!(PAtomicU8, AtomicU8, u8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+608 | ptr_atomic_methods!(PAtomicUsize, AtomicUsize, usize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+611 | ptr_atomic_methods!(PAtomicI64, AtomicI64, i64, "64");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("64"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"64\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+613 | ptr_atomic_methods!(PAtomicI32, AtomicI32, i32, "32");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("32"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"32\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+614 | ptr_atomic_methods!(PAtomicI16, AtomicI16, i16, "16");
+    | ----------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("16"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"16\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+615 | ptr_atomic_methods!(PAtomicI8, AtomicI8, i8, "8");
+    | ------------------------------------------------- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("8"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"8\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:518:15
+    |
+518 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+518 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+518 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+warning: unexpected `cfg` condition name: `target_has_atomic_primitive_alignment`
+   --> toolchain/verus-src/source/vstd/atomic.rs:531:15
+    |
+531 |         #[cfg(target_has_atomic_primitive_alignment = $width)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+616 | ptr_atomic_methods!(PAtomicIsize, AtomicIsize, isize, "ptr");
+    | ------------------------------------------------------------ in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_has_atomic_primitive_alignment, values("ptr"))'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(target_has_atomic_primitive_alignment, values(\"ptr\"))");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `ptr_atomic_methods` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a config with a similar name and value
+    |
+531 -         #[cfg(target_has_atomic_primitive_alignment = $width)]
+531 +         #[cfg(target_has_atomic_equal_alignment = $width)]
+    |
+
+   Compiling pal v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/pal)
+   Compiling hvdef v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/hv1/hvdef)
+   Compiling tracelimit v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/tracelimit)
+   Compiling x86defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/x86/x86defs)
+   Compiling aarch64defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/aarch64/aarch64defs)
+   Compiling fast_select v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/fast_select)
+   Compiling scsi_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/scsi_defs)
+   Compiling closeable_mutex v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/closeable_mutex)
+   Compiling acpi_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/acpi_spec)
+warning: `vstd` (lib) generated 20 warnings
+   Compiling tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/tdisp_proto)
+   Compiling sparse_mmap v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/sparse_mmap)
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_protobuf)
+   Compiling mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_node)
+   Compiling pal_event v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/pal/pal_event)
+   Compiling product_policy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/openhcl/product_policy)
+   Compiling pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/pal/pal_async)
+   Compiling mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_channel_core)
+   Compiling mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_channel)
+   Compiling mesh v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh)
+   Compiling inspect v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/inspect)
+   Compiling vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/vmcore/vm_resource)
+   Compiling guestmem v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/vmcore/guestmem)
+   Compiling memory_range v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/vmcore/memory_range)
+   Compiling guid v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/guid)
+   Compiling inspect_counters v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/inspect_counters)
+   Compiling task_control v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/task_control)
+   Compiling local_clock v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/local_clock)
+   Compiling address_filter v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/address_filter)
+   Compiling hcl_compat_uefi_nvram_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/hcl_compat_uefi_nvram_resources)
+   Compiling uefi_specs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/uefi_specs)
+   Compiling vpci_protocol v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/vpci_protocol)
+   Compiling hybrid_vsock v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/hybrid_vsock)
+   Compiling tdisp v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/tdisp)
+   Compiling serial_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/serial/serial_core)
+   Compiling input_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/input_core)
+   Compiling power_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/power_resources)
+   Compiling chipset_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/chipset_resources)
+   Compiling video_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/video_core)
+   Compiling ide_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/ide_resources)
+   Compiling missing_dev_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/missing_dev_resources)
+   Compiling scsi_buffers v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/scsi_buffers)
+   Compiling vmbus_ring v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/vmbus/vmbus_ring)
+   Compiling uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/uefi_nvram_storage)
+   Compiling vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/vmcore)
+   Compiling vmbus_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/vmbus/vmbus_core)
+   Compiling loader_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/loader/loader_defs)
+   Compiling hcl_compat_uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/hcl_compat_uefi_nvram_storage)
+   Compiling chipset_device v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/chipset_device)
+   Compiling disk_backend v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/disk_backend)
+   Compiling vmbus_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/vmbus/vmbus_channel)
+   Compiling generation_id v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/generation_id)
+   Compiling scsi_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/scsi_core)
+   Compiling state_unit v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core/state_unit)
+   Compiling pci_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/pci_core)
+   Compiling chipset_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/chipset_device_resources)
+   Compiling floppy_pcat_stub v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/floppy_pcat_stub)
+   Compiling framebuffer v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/framebuffer)
+   Compiling floppy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/floppy)
+   Compiling chipset v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/chipset)
+   Compiling vmbus_async v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/vmbus/vmbus_async)
+   Compiling vmbus_server v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/vmbus/vmbus_server)
+   Compiling pci_resources v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/pci_resources)
+   Compiling pci_bus v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/pci_bus)
+   Compiling missing_dev v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/missing_dev)
+   Compiling ide v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/storage/ide)
+   Compiling vpci v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/vpci)
+   Compiling cxl_spec v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/cxl)
+   Compiling vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/vmcore/vm_topology)
+   Compiling pcie v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/pci/pcie)
+   Compiling acpi v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/acpi)
+   Compiling chipset_legacy v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/chipset_legacy)
+warning: unexpected `cfg` condition name: `verus_keep_ghost`
+  --> vm/vmcore/vm_topology/src/processor.rs:25:7
+   |
+25 | #[cfg(verus_keep_ghost)]
+   |       ^^^^^^^^^^^^^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, `guest_arch`, `guest_is_native`, `test`, and `trick_rust_analyzer_into_highlighting_interpolated_bits` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(verus_keep_ghost)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(verus_keep_ghost)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: requested on the command line with `-W unexpected-cfgs`
+
+   Compiling firmware_pcat v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/devices/firmware/firmware_pcat)
+   Compiling virt v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core/virt)
+   Compiling loader v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vm/loader)
+warning: `vm_topology` (lib) generated 1 warning
+   Compiling vmotherboard v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core/vmotherboard)
+warning: `vm_topology` (lib test) generated 1 warning (1 duplicate)
+   Compiling vmm_core_defs v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core/vmm_core_defs)
+   Compiling vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.79s
+────────────
+ Nextest run ID adb4b2ea-8495-4e9d-8c7e-4fc339c4e6ca with nextest profile: agent
+    Starting 43 tests across 2 binaries (27 tests skipped)
+────────────
+     Summary [   0.007s] 43 tests run: 43 passed, 27 skipped

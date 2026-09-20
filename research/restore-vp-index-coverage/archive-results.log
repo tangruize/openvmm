@@ -1,0 +1,7 @@
+Pipeline receipt bindings and log paths confirmed; validator remains unproved.
+ research/GROUND_TRUTH.md     | 97 ++++++++++++++++++++++++++++++++++++++++++++
+ research/PIPELINE_STATE.json | 62 ++++++++++++++++++++++++++++
+ 2 files changed, 159 insertions(+)
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+?? research/restore-vp-index-coverage/

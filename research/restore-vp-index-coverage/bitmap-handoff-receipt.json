@@ -1,0 +1,1 @@
+{"state": "submitted", "task_id": "bitmap-request-handoff-checks", "run_id": "bitmap-request-handoff-checks-1789893206584577264", "pid": 3847366, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id bitmap-request-handoff-checks"}

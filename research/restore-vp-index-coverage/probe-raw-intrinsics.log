@@ -1,0 +1,20 @@
+error: `core::intrinsics::read_via_copy` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+  --> research/restore-vp-index-coverage/replace-intrinsics-raw.rs:11:14
+   |
+11 |     unsafe { core::intrinsics::read_via_copy(slot) }
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<T> [std::intrinsics::read_via_copy] (_0: *const T) -> T;
+
+error: `core::intrinsics::write_via_move` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+  --> research/restore-vp-index-coverage/replace-intrinsics-raw.rs:16:14
+   |
+16 |     unsafe { core::intrinsics::write_via_move(slot, value) }
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<T> [std::intrinsics::write_via_move] (_0: *mut T, _1: T);
+
+error: aborting due to 2 previous errors
+

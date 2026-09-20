@@ -1,0 +1,26 @@
+   Compiling vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_topology)
+    Checking memory_range v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/memory_range)
+    Checking mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_node)
+    Checking pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_async)
+    Checking mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel_core)
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel)
+    Checking mesh v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh)
+    Checking inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect)
+    Checking vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_resource)
+    Checking tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp_proto)
+    Checking guestmem v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/guestmem)
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+    Checking tdisp v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp)
+    Checking chipset_device v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device)
+    Checking pci_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_core)
+    Checking chipset_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device_resources)
+    Checking pci_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_resources)
+    Checking cxl_spec v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/cxl)
+error[E0425]: cannot find function `new` in this scope
+   --> vm/vmcore/vm_topology/src/processor.rs:273:18
+    |
+273 |     pub const fn new(index: u32) -> Self {
+    |                  ^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `vm_topology` (lib) due to 1 previous error

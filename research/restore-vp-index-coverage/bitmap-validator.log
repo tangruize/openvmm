@@ -1,0 +1,150 @@
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/vmm_core)
+error: `vmcore::save_restore::RestoreError` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> vmm_core/src/partition_unit/vp_set.rs:903:6
+    |
+903 |                   ) -> Result<(), RestoreError> {
+    |  ______________________^^^^^^^^^^^^^^^^^^^^^^^^_-
+904 | |                     let mut present = vec![false; vp_count];
+905 | |                     for vp_index in indices {
+906 | |                         let index = vp_index.index() as usize;
+907 | |                         let slot = present
+    | |                ____________________-
+    | |            ___|____________________|
+908 | |           |   |             .get_mut(index)
+909 | |           |   |             .ok_or_else(|| RestoreError::UnknownEntryId(format!("vp{}", vp_index.index())))?;
+    | |           |   |_________________________--------------------------------------------------------------------
+    | |           |_______________________________________________________________________________________________|
+    | |
+910 | |                         if mark_restore_vp_present(slot) {
+911 | |                             return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    | |                ____________________-   -
+    | |               |________________________|
+    | |               |________________________|
+912 | |               |                 "snapshot contains duplicate state for vp{}",
+913 | |               |                 vp_index.index()
+914 | |               |             )));
+    | |               |______________--
+    | |               |______________|
+    | |               |______________|
+    | |
+...   |
+918 | |                         return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    | |                ________________-   -
+    | |               |____________________|
+    | |               |____________________|
+919 | |               |             "snapshot is missing state for vp{index}"
+920 | |               |         )));
+    | |               |__________--
+    | |               |__________|
+    | |               |__________|
+    | |
+921 | |                     }
+922 | |               |     Ok(())
+    | |               |     ------
+923 | |               | }
+    | |_______________|_-
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExRestoreError(vmcore::save_restore::RestoreError);
+
+error: `anyhow::error::impl&%0::msg` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> vmm_core/src/partition_unit/vp_set.rs:911:56
+    |
+911 |               return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    |  ________________________________________________________^
+912 | |                 "snapshot contains duplicate state for vp{}",
+913 | |                 vp_index.index()
+914 | |             )));
+    | |_____________^
+    |
+    = help: The following declaration may resolve this error:
+            pub assume_specification<M> [anyhow::error::<impl anyhow::Error>::msg] (_0: M) -> anyhow::Error
+            where
+            M: std::fmt::Display + std::fmt::Debug + std::marker::Send + std::marker::Sync,;
+    = note: this error originates in the macro `anyhow::anyhow` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `anyhow::Error` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> vmm_core/src/partition_unit/vp_set.rs:911:56
+    |
+911 |               return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    |  ________________________________________________________^
+912 | |                 "snapshot contains duplicate state for vp{}",
+913 | |                 vp_index.index()
+914 | |             )));
+    | |_____________^
+...
+918 |           return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    |  ____________________________________________________-
+    | |____________________________________________________|
+    | |____________________________________________________|
+    | |____________________________________________________|
+    | |____________________________________________________|
+    | |____________________________________________________|
+    | |____________________________________________________|
+    | |____________________________________________________|
+919 | |             "snapshot is missing state for vp{index}"
+920 | |         )));
+    | |_________-
+    | |_________|
+    | |_________|
+    | |_________|
+    | |_________|
+    | |_________|
+    | |_________|
+    | |_________|
+    |
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExError(anyhow::Error);
+    = note: this error originates in the macro `anyhow::anyhow` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `core::slice::iter::impl&%171::position` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+   --> vmm_core/src/partition_unit/vp_set.rs:917:26
+    |
+917 |     if let Some(index) = present.iter().position(|present| !present) {
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: The following declaration may resolve this error:
+            pub assume_specification<'a, T, P> [<std::slice::Iter<'a, T> as std::iter::Iterator>::position] (_0: &mut std::slice::Iter<'a, T>, _1: P) -> std::option::Option<usize>
+            where
+            P: std::ops::FnMut(<std::slice::Iter<'a, T> as std::iter::Iterator>::Item,) + std::ops::FnOnce(<std::slice::Iter<'a, T> as std::iter::Iterator>::Item,) -> bool,
+            std::slice::Iter<'a, T>: std::marker::Sized,;
+
+error: `anyhow::__private::must_use` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> vmm_core/src/partition_unit/vp_set.rs:918:52
+    |
+918 |           return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    |  ____________________________________________________^
+919 | |             "snapshot is missing state for vp{index}"
+920 | |         )));
+    | |_________^
+    |
+    = help: The following declaration may resolve this error:
+            pub assume_specification [anyhow::__private::must_use] (_0: anyhow::Error) -> anyhow::Error;
+    = note: this error originates in the macro `anyhow::anyhow` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `anyhow::__private::format_err` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+   --> vmm_core/src/partition_unit/vp_set.rs:918:52
+    |
+918 |           return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+    |  ____________________________________________________^
+919 | |             "snapshot is missing state for vp{index}"
+920 | |         )));
+    | |_________^
+    |
+    = help: The following declaration may resolve this error:
+            pub assume_specification [anyhow::__private::format_err] (_0: std::fmt::Arguments<'_>) -> anyhow::Error;
+    = note: this error originates in the macro `anyhow::anyhow` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `vmm_core` (lib) due to 6 previous errors

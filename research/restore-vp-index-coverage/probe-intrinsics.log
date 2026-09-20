@@ -1,0 +1,33 @@
+replace-intrinsic-read exit=1
+replace-intrinsic-write exit=1
+2204-
+2205-/// This is an implementation detail of [`crate::ptr::read`] and should
+2206-/// not be used anywhere else.  See its comments for why this exists.
+2207-///
+2208-/// This intrinsic can *only* be called where the pointer is a local without
+2209-/// projections (`read_via_copy(ptr)`, not `read_via_copy(*ptr)`) so that it
+2210-/// trivially obeys runtime-MIR rules about derefs in operands.
+2211-#[rustc_intrinsic_const_stable_indirect]
+2212-#[rustc_nounwind]
+2213-#[rustc_intrinsic]
+2214:pub const unsafe fn read_via_copy<T>(ptr: *const T) -> T;
+2215-
+2216-/// This is an implementation detail of [`crate::ptr::write`] and should
+2217-/// not be used anywhere else.  See its comments for why this exists.
+2218-///
+2219-/// This intrinsic can *only* be called where the pointer is a local without
+2220-/// projections (`write_via_move(ptr, x)`, not `write_via_move(*ptr, x)`) so
+2221-/// that it trivially obeys runtime-MIR rules about derefs in operands.
+2222-#[rustc_intrinsic_const_stable_indirect]
+2223-#[rustc_nounwind]
+2224-#[rustc_intrinsic]
+2225:pub const unsafe fn write_via_move<T>(ptr: *mut T, value: T);
+2226-
+2227-/// Returns the value of the discriminant for the variant in 'v';
+2228-/// if `T` has no discriminant, returns `0`.
+2229-///
+2230-/// Note that, unlike most intrinsics, this is safe to call;
+2231-/// it does not require an `unsafe` block.
+2232-/// Therefore, implementations must not require the user to uphold
+2233-/// any safety invariants.
+2234-///

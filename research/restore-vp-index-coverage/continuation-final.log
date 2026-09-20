@@ -1,0 +1,14 @@
+Current receipt and result recorded without claiming validator coverage.
+ Cargo.lock                             |   1 +
+ research/GROUND_TRUTH.md               | 188 +++++++++++++++++++++++++++++++++
+ research/PIPELINE_STATE.json           |  92 ++++++++++++++++
+ vm/vmcore/vm_topology/Cargo.toml       |   4 +
+ vm/vmcore/vm_topology/src/processor.rs |   7 ++
+ 5 files changed, 292 insertions(+)
+ M Cargo.lock
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+ M vm/vmcore/vm_topology/Cargo.toml
+ M vm/vmcore/vm_topology/src/processor.rs
+?? research/restore-vp-index-coverage/
+?? vm/vmcore/vm_topology/src/processor.proof.rs

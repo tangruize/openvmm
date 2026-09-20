@@ -6,6 +6,9 @@ name = "vm_topology"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 default = []
 inspect = ["dep:inspect", "memory_range/inspect"]
@@ -17,6 +20,7 @@ cxl_spec.workspace = true
 memory_range.workspace = true
 inspect = { workspace = true, optional = true }
 mesh_protobuf = { workspace = true, optional = true }
+vstd.workspace = true
 x86defs.workspace = true
 
 cfg-if.workspace = true

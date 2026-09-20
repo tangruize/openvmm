@@ -1,0 +1,1 @@
+{"state": "submitted", "task_id": "bitmap-candidate-rust", "run_id": "bitmap-candidate-rust-1789893086387009933", "pid": 3837855, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id bitmap-candidate-rust"}

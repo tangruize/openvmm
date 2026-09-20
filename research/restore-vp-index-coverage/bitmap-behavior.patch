@@ -1,0 +1,81 @@
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -957,6 +957,78 @@
+     use test_with_tracing::test;
+ 
+     #[test]
++    fn bitmap_update_returns_previous_and_sets_only_its_slot() {
++        for mask in 0..8 {
++            for index in 0..3 {
++                let before = [mask & 1 != 0, mask & 2 != 0, mask & 4 != 0];
++                let mut present = before;
++                let previous = mark_restore_vp_present(&mut present[index]);
++                assert_eq!(previous, before[index]);
++                assert!(present[index]);
++                for other in 0..3 {
++                    if other != index {
++                        assert_eq!(present[other], before[other]);
++                    }
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn bitmap_validator_preserves_error_values_and_short_circuit_order() {
++        let mut consumed = Vec::new();
++        let duplicate = validate_restore_vp_indices(
++            2,
++            [1, 1, 9].into_iter().map(|index| {
++                consumed.push(index);
++                VpIndex::new(index)
++            }),
++        )
++        .unwrap_err();
++        assert_eq!(consumed, [1, 1]);
++        let RestoreError::InvalidSavedState(duplicate) = duplicate else {
++            panic!("expected duplicate invalid saved state");
++        };
++        assert_eq!(
++            duplicate.to_string(),
++            "snapshot contains duplicate state for vp1"
++        );
++
++        consumed.clear();
++        let unknown = validate_restore_vp_indices(
++            2,
++            [1, 9, 1].into_iter().map(|index| {
++                consumed.push(index);
++                VpIndex::new(index)
++            }),
++        )
++        .unwrap_err();
++        assert_eq!(consumed, [1, 9]);
++        let RestoreError::UnknownEntryId(id) = unknown else {
++            panic!("expected unknown entry id");
++        };
++        assert_eq!(id, "vp9");
++    }
++
++    #[test]
++    fn bitmap_validator_preserves_empty_unsorted_and_first_missing_cases() {
++        validate_restore_vp_indices(0, []).unwrap();
++        validate_restore_vp_indices(4, [2, 0, 3, 1].map(VpIndex::new)).unwrap();
++
++        let unknown = validate_restore_vp_indices(0, [VpIndex::new(0)]).unwrap_err();
++        let RestoreError::UnknownEntryId(id) = unknown else {
++            panic!("expected unknown entry id");
++        };
++        assert_eq!(id, "vp0");
++
++        let missing = validate_restore_vp_indices(4, [3, 1].map(VpIndex::new)).unwrap_err();
++        let RestoreError::InvalidSavedState(missing) = missing else {
++            panic!("expected missing invalid saved state");
++        };
++        assert_eq!(missing.to_string(), "snapshot is missing state for vp0");
++    }
++
++    #[test]
+     fn requires_exactly_one_restore_entry_per_vp() {
+         validate_restore_vp_indices(4, (0..4).map(VpIndex::new)).unwrap();
+ 

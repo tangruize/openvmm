@@ -10172,6 +10172,7 @@ dependencies = [
  "mesh_protobuf",
  "safe_intrinsics",
  "thiserror 2.0.16",
+ "vstd",
  "x86defs",
 ]
 

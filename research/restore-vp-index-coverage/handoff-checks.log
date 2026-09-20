@@ -1,0 +1,4 @@
+make_verify exit=0
+boundary exit=1
+spec_drift exit=0
+exec_drift exit=0

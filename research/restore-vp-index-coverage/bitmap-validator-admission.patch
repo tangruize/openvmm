@@ -1,0 +1,20 @@
+--- a/vmm_core/src/lib.rs
++++ b/vmm_core/src/lib.rs
+@@ -6,6 +6,7 @@
+ 
+ #![expect(missing_docs)]
+ #![forbid(unsafe_code)]
++#![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene))]
+ 
+ pub mod acpi_builder;
+ pub mod cpuid;
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -896,6 +896,7 @@
+     previous
+ }
+ 
++#[verus_verify]
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,

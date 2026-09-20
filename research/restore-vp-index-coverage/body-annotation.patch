@@ -1,0 +1,12 @@
+diff --git a/vmm_core/src/partition_unit/vp_set.rs b/vmm_core/src/partition_unit/vp_set.rs
+index 46384123..d0f9a3be 100644
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -885,6 +885,7 @@ struct Vp {
+     vp_info: TargetVpInfo,
+ }
+ 
++#[vstd::prelude::verus_verify]
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,

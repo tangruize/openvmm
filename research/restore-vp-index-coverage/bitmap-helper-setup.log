@@ -1,0 +1,14 @@
+Error: `cargo metadata` exited with an error: error: failed to get `vstd` as a dependency of package `mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/support/mesh/mesh_channel)`
+
+Caused by:
+  failed to load source for dependency `vstd`
+
+Caused by:
+  unable to update /home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/toolchain/verus-src/source/vstd
+
+Caused by:
+  failed to read `/home/ruize/openvmm-restore-v1/research/restore-vp-index-coverage/bitmap-candidate/toolchain/verus-src/source/vstd/Cargo.toml`
+
+Caused by:
+  No such file or directory (os error 2)
+

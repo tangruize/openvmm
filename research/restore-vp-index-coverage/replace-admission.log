@@ -1,0 +1,11 @@
+error: `core::mem::replace` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+  --> research/restore-vp-index-coverage/replace-admission.rs:11:5
+   |
+11 |     std::mem::replace(slot, true)
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<T> [std::mem::replace] (_0: &mut T, _1: T) -> T;
+
+error: aborting due to 1 previous error
+

@@ -1,0 +1,20 @@
+diff --git a/vmm_core/src/partition_unit/vp_set.rs b/vmm_core/src/partition_unit/vp_set.rs
+index 46384123..f0f8c0ac 100644
+--- a/vmm_core/src/partition_unit/vp_set.rs
++++ b/vmm_core/src/partition_unit/vp_set.rs
+@@ -46,6 +46,7 @@
+ use vmcore::save_restore::RestoreError;
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
++use vstd::prelude::*;
+ #[cfg(feature = "gdb")]
+ use vmm_core_defs::debug_rpc::DebuggerVpState;
+ 
+@@ -885,6 +886,7 @@ struct Vp {
+     vp_info: TargetVpInfo,
+ }
+ 
++#[verus_verify]
+ fn validate_restore_vp_indices(
+     vp_count: usize,
+     indices: impl IntoIterator<Item = VpIndex>,
