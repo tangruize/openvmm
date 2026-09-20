@@ -1,0 +1,15 @@
+{
+  "frozen_branch": "argus/restore-v1-frozen",
+  "top_spec": [
+    "openvmm/openvmm_core/src/worker/dispatch.spec.rs"
+  ],
+  "goal": [
+    {
+      "file": "openvmm/openvmm_core/src/worker/dispatch.rs",
+      "symbol": "LoadedVm::restore_snapshot_state"
+    }
+  ],
+  "src_roots": [
+    "openvmm/openvmm_core/src/worker"
+  ]
+}

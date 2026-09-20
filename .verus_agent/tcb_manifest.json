@@ -1,0 +1,9 @@
+{
+  "sanctioned": [
+    {
+      "kind": "symbol",
+      "value": "InitializedVm::load",
+      "marker": "external_body"
+    }
+  ]
+}
