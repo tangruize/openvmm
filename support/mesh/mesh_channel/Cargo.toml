@@ -6,7 +6,11 @@ name = "mesh_channel"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 mesh_channel_core.workspace = true
 mesh_node.workspace = true
 mesh_protobuf = { workspace = true, features = ["std"] }

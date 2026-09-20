@@ -299,3 +299,6 @@ impl<T: 'static + Send> RpcSend for &mesh_channel_core::Sender<T> {
         self.send(message);
     }
 }
+
+#[cfg(verus_keep_ghost)]
+include!("rpc.spec.rs");
