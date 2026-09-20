@@ -495,7 +495,7 @@ impl VmTimeKeeper {
         assert!(!self.time.is_started(), "should be stopped");
         self.time = TimeState::Stopped(vmtime);
         self.req_send
-            .call(KeeperRequest::Reset, vmtime)
+            .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
             .await
             .unwrap();
     }
