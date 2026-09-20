@@ -1,0 +1,1 @@
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent submit --task-id restore-presence-precommit --mode direct --timeout 1200 --command bash\ research/restore-partition-presence-proof/precommit.sh 

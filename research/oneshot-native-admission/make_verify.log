@@ -1,0 +1,235 @@
+Verus source 8ed93e5d0164885f415c11ad8baa736371bcff92 is already installed
+Verus 0.2026.09.18.8ed93e5 is already installed
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+    Checking openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_core)
+error: trait openvmm_core::partition::HvlitePartition not declared to Verus
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:548:1
+    |
+548 | / pub(crate) struct InitializedVm {
+549 | |     partition: Arc<dyn HvlitePartition>,
+550 | |     vps: Vec<Box<dyn BindHvliteVp>>,
+551 | |     vmtime_keeper: VmTimeKeeper,
+...   |
+564 | |     driver_source: VmTaskDriverSource,
+565 | | }
+    | |_^
+
+error: `openvmm_defs::worker::SavedState` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+    --> openvmm/openvmm_core/src/worker/dispatch.proof.rs:29:5
+     |
+  29 |     saved_state: &SavedState,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+  38 |     saved_state: &Option<SavedState>,
+     |     --------------------------------
+     |
+    ::: openvmm/openvmm_core/src/worker/dispatch.rs:1537:14
+     |
+1537 |             !saved_state.is_some() || restore_proof::decoded_load_restore_request_view(
+     |              ---------------------
+1538 |                 &saved_state,
+     |                  -----------
+...
+1544 |                 Ok(loaded) => !saved_state.is_some() || (
+     |                                ---------------------
+...
+1548 |                             &saved_state,
+     |                              -----------
+...
+1561 |         saved_state: Option<SavedState>,
+     |         -------------------------------
+...
+3802 |                 &saved_state,
+     |                  -----------
+...
+3812 |                             &saved_state,
+     |                              -----------
+...
+3825 |         saved_state: SavedState,
+     |         -----------------------
+     |
+     = help: The following declaration may resolve this error:
+             #[verifier::external_type_specification]
+             pub struct ExSavedState(openvmm_defs::worker::SavedState);
+
+error: `vmm_core::partition_unit::StopGuard` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.proof.rs:72:8
+    |
+ 72 |       && loaded.restore_start_guard.is_some() == restored_from_snapshot
+    |          --------------------------^^^^^^^^^^
+    |
+   ::: openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_-
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExStopGuard(vmm_core::partition_unit::StopGuard);
+
+error: `mesh_channel_core::mpsc::Sender` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:1562:9
+     |
+ 835 | / pub(crate) struct LoadedVm {
+ 836 | |     state_units: StateUnits,
+ 837 | |     inner: LoadedVmInner,
+ 838 | |     running: bool,
+...    |
+ 851 | |     snapshot_input_gate_timeout: Option<Duration>,
+ 852 | | }
+     | |_-
+...
+1562 |           client_notify_send: mesh::Sender<HaltReason>,
+     |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: The following declaration may resolve this error:
+             #[verifier::reject_recursive_types(T)]
+             #[verifier::external_type_specification]
+             pub struct ExSender<T>(mesh::Sender<T>);
+
+error: `vmm_core_defs::HaltReason` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:1562:9
+     |
+1562 |         client_notify_send: mesh::Sender<HaltReason>,
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: `state_unit::StateUnits` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExStateUnits(state_unit::StateUnits);
+
+error: cannot use type `openvmm_core::worker::dispatch::LoadedVmInner` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            struct ExLoadedVmInner(crate::worker::dispatch::LoadedVmInner);
+
+error: `pal_async::timer::Instant` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+error: `mesh_channel_core::mpsc::Receiver` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+error: `chipset_resources::microvm::MicrovmSnapshotBoundaryRequest` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+error: `chipset_resources::microvm::MicrovmSnapshotScratchPolicy` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+error: `mesh_channel::rpc::Rpc` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+error: `mesh_protobuf::time::Timestamp` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> openvmm/openvmm_core/src/worker/dispatch.rs:835:1
+    |
+835 | / pub(crate) struct LoadedVm {
+836 | |     state_units: StateUnits,
+837 | |     inner: LoadedVmInner,
+838 | |     running: bool,
+...   |
+851 | |     snapshot_input_gate_timeout: Option<Duration>,
+852 | | }
+    | |_^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2178:13
+     |
+2178 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2179:13
+     |
+2179 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3030:13
+     |
+3030 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3031:13
+     |
+3031 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `openvmm_core` (lib) generated 4 warnings
+error: could not compile `openvmm_core` (lib) due to 13 previous errors; 4 warnings emitted
+make: *** [Makefile:13: verify] Error 101
+
+Exit code : 2
+Elapsed seconds: 2.312

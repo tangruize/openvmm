@@ -1,0 +1,1 @@
+/usr/bin/time -f "elapsed_s=%e exit=%x" timeout --kill-after=5s 110s cargo verus focus -p inspect --no-default-features --features derive,defer,std -vv -- --no-lifetime --multiple-errors 20 --num-threads 1 --triggers-mode silent --log vir

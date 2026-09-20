@@ -1,0 +1,37 @@
+{
+  "scope": "Native declaration admission of the real mesh_channel_core::oneshot::OneshotReceiver for the production Inspect dependency construction",
+  "recorded_before_experiment": true,
+  "source_evidence": [
+    "support/inspect/src/lib.rs: Request -> RequestParams and &mut InternalNode; defer selects InternalNode::Deferred(mesh::OneshotReceiver<InternalNode>)",
+    "support/mesh/mesh_channel_core/src/oneshot.rs:270: OneshotReceiver<T>(ManuallyDrop<OneshotReceiverCore>, PhantomData<Arc<Mutex<T>>>)",
+    "support/mesh/mesh_channel_core/src/oneshot.rs:335: OneshotReceiverCore(Arc<Slot>)",
+    "support/mesh/mesh_channel_core/src/oneshot.rs:143: Slot carries parking_lot::Mutex<SlotState> and SyncUnsafeCell<ManuallyDrop<ReceiverState>>",
+    "support/mesh/mesh_channel_core/src/oneshot.rs:338,488,500,536: ReceiverState, SlotState, BoxedValue and SlotHandler are local representation dependencies; SlotState and SlotHandler carry unsafe function pointers",
+    "support/mesh/mesh_channel_core/src/sync_unsafe_cell.rs:15: SyncUnsafeCell<T> carries std::cell::UnsafeCell<T>",
+    "support/mesh/mesh_channel_core/Cargo.toml: no native Verus opt-in or vstd dependency at intake",
+    "research/inspect-cross-crate-admission/integration-source.patch: existing real Inspect annotation construction; no receiver declaration"
+  ],
+  "unresolved": [
+    "Re-probe the pinned executable and production feature unification; standalone owning-crate configuration may not match the production mesh dependency configuration.",
+    "Determine whether native annotation of the receiver passes declaration well-formedness, not merely VIR export.",
+    "If local representation declarations are missing, follow their real fields without opacity, type replacement, cfg removal, or new trust.",
+    "Do not classify a missing dependency declaration as intrinsically unsupported; consult pinned frontend source for each rejection before adjusting.",
+    "Only after owning-crate validation succeeds can the existing real Inspect construction test consumption; export artifact existence alone is insufficient.",
+    "Even successful declaration admission does not prove channel operations, Inspect implementations, partition methods, restore, or its four uninterpreted bridges."
+  ],
+  "frozen_inputs": [
+    ".verus_agent/scope_manifest.json",
+    ".verus_agent/tcb_manifest.json",
+    "openvmm/openvmm_core/src/worker/dispatch.spec.rs",
+    "all production executable behavior and sanctioned external declarations"
+  ],
+  "unchanged_debt": [
+    "LoadedVm::restore_snapshot_state external_body",
+    "decoded_load_restore_request_view uninterp",
+    "decoded_restore_request_view uninterp",
+    "initialized_vm_representation uninterp",
+    "loaded_vm_representation uninterp",
+    "Separate reported TCB-manifest provenance rejection",
+    "Existing semantic freeze proposal remains unapplied"
+  ]
+}

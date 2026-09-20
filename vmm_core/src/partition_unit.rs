@@ -636,6 +636,8 @@ impl PartitionUnitRunner {
 }
 
 #[must_use = "when dropped, the VPs will be resumed"]
+// TODO(proof): Refine stop-token ownership, acquisition, and resume-on-drop.
+#[vstd::prelude::verus_verify(external_body)]
 pub struct StopGuard(mesh::Sender<PartitionRequest>);
 
 impl Drop for StopGuard {

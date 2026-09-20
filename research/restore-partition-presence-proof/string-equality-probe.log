@@ -1,0 +1,14 @@
+error: postcondition not satisfied
+  --> research/restore-partition-presence-proof/string-equality-probe.rs:9:13
+   |
+ 9 |     ensures result == (name@ == "partition"@),
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+10 | {
+11 |     *name == "partition"
+   |     -------------------- at the end of the function body
+
+verification results:: 1 verified, 1 errors
+error: aborting due to 1 previous error
+
+Command exited with non-zero status 1
+elapsed_s=0.38 exit=1

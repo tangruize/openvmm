@@ -27,6 +27,8 @@ use thiserror::Error;
     bound = "I: 'static + MeshField + Send, R: 'static + MeshField + Send",
     resource = "mesh_node::resource::Resource"
 )]
+// TODO(proof): Refine the input/response sender and real RPC completion.
+#[vstd::prelude::verus_verify(external_body, reject_recursive_types(I), reject_recursive_types(R))]
 pub struct Rpc<I, R>(I, OneshotSender<R>);
 
 impl<I: Debug, R> Debug for Rpc<I, R> {

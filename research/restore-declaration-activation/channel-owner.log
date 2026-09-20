@@ -1,0 +1,76 @@
+verbosity level = 2; forwarding 1 `-v` arg(s) to Cargo
+verbosity level = 2; forwarding 1 `-v` arg(s) to Cargo
+verbosity level >= 2; forwarding 1 `-v` to Verus
+forwarding Verus args to crates: <roots>
+running cargo command:
+cd "/home/ruize/openvmm-restore-v1" &&  __VERUS_DRIVER_ARGS_FOR_mesh_channel_core-0.0.0-268fb5d46958="__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=pal_async__VERUS_DRIVER_ARGS_SEP__--verify-only-module__VERUS_DRIVER_ARGS_SEP__mpsc__VERUS_DRIVER_ARGS_SEP__--no-lifetime__VERUS_DRIVER_ARGS_SEP__--multiple-errors__VERUS_DRIVER_ARGS_SEP__20__VERUS_DRIVER_ARGS_SEP__--num-threads__VERUS_DRIVER_ARGS_SEP__1__VERUS_DRIVER_ARGS_SEP__--triggers-mode__VERUS_DRIVER_ARGS_SEP__silent"  __VERUS_DRIVER_ARGS_FOR_mesh_protobuf-0.0.0-b7284b63c0a5="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf"  __VERUS_DRIVER_ARGS_FOR_pal_async-0.0.0-fb265dcddc43="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf"  __VERUS_DRIVER_ARGS_FOR_vstd-0.0.0-2026-09-16-0054-9a268c610fa8="__VERUS_DRIVER_ARGS_SEP__--is-vstd__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd"  __VERUS_DRIVER_ARGS__="__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__compile-when-not-primary-package__VERUS_DRIVER_ARGS_SEP__-v"  __VERUS_DRIVER_IS_BUILTIN_MACROS_verus_builtin_macros-0.0.0-2026-09-06-0133-94884b16541d="1"  __VERUS_DRIVER_IS_BUILTIN_verus_builtin-0.0.0-2026-09-16-0054-efe0d11dd23e="1" CARGO_UNSTABLE_CHECKSUM_FRESHNESS="true" RUSTC_BOOTSTRAP="1" RUSTC_WRAPPER="/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus" __CARGO_DEFAULT_LIB_METADATA="verus" __VERUS_DRIVER_VERIFY_mesh_channel_core-0.0.0-268fb5d46958="1" __VERUS_DRIVER_VERIFY_mesh_protobuf-0.0.0-b7284b63c0a5="1" __VERUS_DRIVER_VERIFY_pal_async-0.0.0-fb265dcddc43="1" __VERUS_DRIVER_VERIFY_vstd-0.0.0-2026-09-16-0054-9a268c610fa8="1" __VERUS_DRIVER_VIA_CARGO__="1" "/home/ruize/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin/cargo" "check" "-v" "--features" "mesh_protobuf/std" "--target-dir" "/home/ruize/openvmm-restore-v1/target/verus-partial" "--package" "mesh_channel_core"
+       Fresh unicode-ident v1.0.18
+       Fresh autocfg v1.5.0
+       Fresh equivalent v1.0.2
+       Fresh futures-sink v0.3.31
+       Fresh futures-core v0.3.31
+       Fresh hashbrown v0.15.5
+       Fresh pin-project-lite v0.2.16
+       Fresh cfg-if v1.0.3
+       Fresh convert_case v0.4.0
+       Fresh futures-task v0.3.31
+       Fresh slab v0.4.11
+       Fresh futures-io v0.3.31
+       Fresh pin-utils v0.1.0
+       Fresh memchr v2.7.5
+       Fresh once_cell v1.21.3
+       Fresh smallvec v1.15.1
+       Fresh scopeguard v1.2.0
+       Fresh verus_builtin v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin)
+       Fresh heck v0.5.0
+       Fresh open_enum v0.0.0 (/home/ruize/openvmm-restore-v1/support/open_enum)
+       Fresh proc-macro2 v1.0.107
+       Fresh futures-channel v0.3.31
+       Fresh indexmap v2.11.0
+       Dirty mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf): the precalculated components changed
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf)
+       Fresh tracing-core v0.1.35
+       Fresh quote v1.0.40
+       Fresh libc v0.2.184
+       Fresh syn v2.0.106
+       Fresh verus_syn v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/dependencies/syn)
+       Fresh fs-err v3.1.1
+       Fresh lock_api v0.4.13
+       Fresh parking_lot_core v0.9.11
+       Fresh getrandom v0.4.2
+       Fresh verus_prettyplease v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/dependencies/prettyplease)
+       Fresh futures-macro v0.3.31
+       Fresh synstructure v0.13.2
+       Fresh zerocopy-derive v0.8.27
+       Fresh thiserror-impl v2.0.16
+       Fresh verus_state_machines_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/state_machines_macros)
+       Fresh mesh_derive v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_derive)
+       Fresh tracing-attributes v0.1.31
+       Fresh parking_lot v0.12.4
+       Fresh bitfield-struct v0.11.0
+     Running `/home/ruize/openvmm-restore-v1/target/verus-partial/debug/build/mesh_protobuf-e7a968ff13f28f52/build-script-build`
+       Fresh verus_builtin_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin_macros)
+       Fresh futures-util v0.3.31
+       Fresh thiserror v2.0.16
+       Fresh zerocopy v0.8.27
+       Fresh tracing v0.1.43
+       Fresh vstd v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd)
+       Fresh futures-executor v0.3.31
+       Fresh futures v0.3.31
+     Running `/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name mesh_protobuf --edition=2024 support/mesh/mesh_protobuf/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C panic=abort -C embed-bitcode=no -C debuginfo=2 --warn=rust_2018_idioms --deny=future_incompatible --warn=unused_qualifications --forbid=unsafe_op_in_unsafe_fn --deny=unsafe_code '--warn=clippy::unnecessary_box_returns' '--allow=clippy::uninlined_format_args' --warn=unexpected_cfgs '--warn=clippy::undocumented_unsafe_blocks' '--allow=clippy::type_complexity' '--allow=clippy::too_many_arguments' '--warn=clippy::suboptimal_flops' '--allow=clippy::single_range_in_vec_init' '--warn=clippy::rest_pat_in_fully_bound_structs' '--warn=clippy::ref_option_ref' '--warn=clippy::ref_as_ptr' '--warn=clippy::ptr_cast_constness' '--warn=clippy::ptr_as_ptr' '--warn=clippy::option_option' '--allow=clippy::new_without_default' --warn=missing_docs '--allow=clippy::manual_flatten' '--warn=clippy::macro_use_imports' '--warn=clippy::lossy_float_literal' '--warn=clippy::linkedlist' '--allow=clippy::len_without_is_empty' '--warn=clippy::inefficient_to_string' '--warn=clippy::imprecise_flops' '--warn=clippy::implicit_clone' '--warn=clippy::fn_params_excessive_bools' '--warn=clippy::filter_map_next' '--warn=clippy::debug_assert_with_mut_call' '--warn=clippy::dbg_macro' '--allow=clippy::collapsible_match' '--allow=clippy::collapsible_if' '--allow=clippy::collapsible_else_if' '--allow=clippy::box_default' '--allow=clippy::bool_assert_comparison' '--warn=clippy::allow_attributes' --check-cfg 'cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "prost", "socket2", "std"))' -C metadata=00acd7b9d0c81655 -C extra-filename=-7af0b6e48e4eadad --out-dir /home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps -C incremental=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/incremental -L dependency=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps --extern fs_err=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libfs_err-f20dc713fe9ba4b8.rmeta --extern heck=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libheck-c05f31abbad1fdd8.rmeta --extern mesh_derive=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libmesh_derive-e9dcdcea9c6381f2.so --extern thiserror=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libthiserror-6d622c34028426ba.rmeta --extern vstd=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvstd-0b932679964ce3b0.rmeta --extern zerocopy=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libzerocopy-2fbbd02099a22f14.rmeta -Cforce-frame-pointers=yes -Csymbol-mangling-version=v0 -Z checksum-hash-algorithm=blake3`
+error: `core::fmt::impl&%12::write_str` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+  --> support/mesh/mesh_protobuf/src/time.rs:72:17
+   |
+72 | #[derive(Debug, Error)]
+   |                 ^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<'a> [core::fmt::Formatter::<'a>::write_str] (_0: &mut core::fmt::Formatter<'a>, _1: &str) -> core::result::Result<(), core::fmt::Error>;
+   = note: this error originates in the derive macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: could not compile `mesh_protobuf` (lib) due to 1 previous error
+
+Caused by:
+  process didn't exit successfully: `/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name mesh_protobuf --edition=2024 support/mesh/mesh_protobuf/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C panic=abort -C embed-bitcode=no -C debuginfo=2 --warn=rust_2018_idioms --deny=future_incompatible --warn=unused_qualifications --forbid=unsafe_op_in_unsafe_fn --deny=unsafe_code '--warn=clippy::unnecessary_box_returns' '--allow=clippy::uninlined_format_args' --warn=unexpected_cfgs '--warn=clippy::undocumented_unsafe_blocks' '--allow=clippy::type_complexity' '--allow=clippy::too_many_arguments' '--warn=clippy::suboptimal_flops' '--allow=clippy::single_range_in_vec_init' '--warn=clippy::rest_pat_in_fully_bound_structs' '--warn=clippy::ref_option_ref' '--warn=clippy::ref_as_ptr' '--warn=clippy::ptr_cast_constness' '--warn=clippy::ptr_as_ptr' '--warn=clippy::option_option' '--allow=clippy::new_without_default' --warn=missing_docs '--allow=clippy::manual_flatten' '--warn=clippy::macro_use_imports' '--warn=clippy::lossy_float_literal' '--warn=clippy::linkedlist' '--allow=clippy::len_without_is_empty' '--warn=clippy::inefficient_to_string' '--warn=clippy::imprecise_flops' '--warn=clippy::implicit_clone' '--warn=clippy::fn_params_excessive_bools' '--warn=clippy::filter_map_next' '--warn=clippy::debug_assert_with_mut_call' '--warn=clippy::dbg_macro' '--allow=clippy::collapsible_match' '--allow=clippy::collapsible_if' '--allow=clippy::collapsible_else_if' '--allow=clippy::box_default' '--allow=clippy::bool_assert_comparison' '--warn=clippy::allow_attributes' --check-cfg 'cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)' --cfg 'feature="default"' --cfg 'feature="std"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("default", "prost", "socket2", "std"))' -C metadata=00acd7b9d0c81655 -C extra-filename=-7af0b6e48e4eadad --out-dir /home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps -C incremental=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/incremental -L dependency=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps --extern fs_err=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libfs_err-f20dc713fe9ba4b8.rmeta --extern heck=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libheck-c05f31abbad1fdd8.rmeta --extern mesh_derive=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libmesh_derive-e9dcdcea9c6381f2.so --extern thiserror=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libthiserror-6d622c34028426ba.rmeta --extern vstd=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvstd-0b932679964ce3b0.rmeta --extern zerocopy=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libzerocopy-2fbbd02099a22f14.rmeta -Cforce-frame-pointers=yes -Csymbol-mangling-version=v0 -Z checksum-hash-algorithm=blake3` (exit status: 1)
+Command exited with non-zero status 101
+elapsed_s=1.58 exit=101

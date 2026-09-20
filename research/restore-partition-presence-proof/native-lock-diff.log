@@ -1,0 +1,97 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..008c86dd 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -164,9 +164,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "anyhow"
+-version = "1.0.99"
++version = "1.0.104"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
++checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+ 
+ [[package]]
+ name = "arbitrary"
+@@ -713,6 +713,7 @@ dependencies = [
+  "memory_range",
+  "mesh",
+  "vm_resource",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4586,6 +4587,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4600,6 +4602,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4667,6 +4670,7 @@ dependencies = [
+  "prost-types",
+  "socket2",
+  "thiserror 2.0.16",
++ "vstd",
+  "zerocopy",
+ ]
+ 
+@@ -5819,6 +5823,7 @@ dependencies = [
+  "vmgs_resources",
+  "vmm_core_defs",
+  "vmotherboard",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -6199,6 +6204,7 @@ dependencies = [
+  "tempfile",
+  "unicycle",
+  "unix_socket",
++ "vstd",
+  "windows-result 0.4.0",
+  "windows-sys 0.61.0",
+  "zerocopy",
+@@ -7902,6 +7908,7 @@ dependencies = [
+  "thiserror 2.0.16",
+  "tracing",
+  "vmcore",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -9582,6 +9589,7 @@ dependencies = [
+  "tracing",
+  "vm_topology",
+  "vmcore",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10710,6 +10718,7 @@ dependencies = [
+  "vmm_core_defs",
+  "vmotherboard",
+  "vpci",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10721,6 +10730,7 @@ dependencies = [
+  "inspect",
+  "mesh",
+  "virt",
++ "vstd",
+ ]
+ 
+ [[package]]
+elapsed_s=0.00 exit=0

@@ -1,0 +1,149 @@
+Verus source 8ed93e5d0164885f415c11ad8baa736371bcff92 is already installed
+Verus 0.2026.09.18.8ed93e5 is already installed
+   Compiling mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf)
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+    Checking mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_node)
+    Checking pal_event v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_event)
+    Checking product_policy v0.0.0 (/home/ruize/openvmm-restore-v1/openhcl/product_policy)
+    Checking pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_async)
+    Checking mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel_core)
+    Checking mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel)
+    Checking mesh v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh)
+    Checking inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect)
+    Checking openvmm_pcat_locator v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_pcat_locator)
+    Checking vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_resource)
+    Checking guestmem v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/guestmem)
+    Checking tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp_proto)
+    Checking guid v0.0.0 (/home/ruize/openvmm-restore-v1/support/guid)
+    Checking memory_range v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/memory_range)
+    Checking inspect_counters v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect_counters)
+    Checking task_control v0.0.0 (/home/ruize/openvmm-restore-v1/support/task_control)
+    Checking local_clock v0.0.0 (/home/ruize/openvmm-restore-v1/support/local_clock)
+    Checking vmgs_format v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmgs/vmgs_format)
+    Checking address_filter v0.0.0 (/home/ruize/openvmm-restore-v1/support/address_filter)
+    Checking mesh_worker v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_worker)
+    Checking hcl_compat_uefi_nvram_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/hcl_compat_uefi_nvram_resources)
+    Checking storage_string v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/storage_string)
+    Checking virtio_spec v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/virtio/virtio_spec)
+    Checking loader_defs v0.0.0 (/home/ruize/openvmm-restore-v1/vm/loader/loader_defs)
+    Checking vfio_sys v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/user_driver/vfio_sys)
+    Checking uefi_specs v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/uefi_specs)
+    Checking vmbus_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vmbus/vmbus_core)
+    Checking hybrid_vsock v0.0.0 (/home/ruize/openvmm-restore-v1/support/hybrid_vsock)
+    Checking vpci_protocol v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/vpci_protocol)
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+    Checking chipset_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/chipset_resources)
+    Checking video_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/video_core)
+    Checking serial_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/serial/serial_core)
+    Checking power_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/power_resources)
+    Checking input_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/input_core)
+    Checking missing_dev_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/missing_dev_resources)
+    Checking ide_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/ide_resources)
+    Checking net_backend_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/net/net_backend_resources)
+    Checking floppy_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/floppy_resources)
+    Checking hypervisor_resources v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/hypervisor_resources)
+    Checking vfio_assigned_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/vfio_assigned_device_resources)
+    Checking scsidisk_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/scsidisk_resources)
+    Checking serial_16550_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/serial/serial_16550_resources)
+    Checking tdisp v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp)
+    Checking scsi_buffers v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/scsi_buffers)
+    Checking vmbus_ring v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vmbus/vmbus_ring)
+    Checking chipset_device_worker_defs v0.0.0 (/home/ruize/openvmm-restore-v1/workers/chipset_device_worker_defs)
+    Checking vmgs_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmgs/vmgs_resources)
+    Checking get_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/get/get_resources)
+    Checking virtio_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/virtio/virtio_resources)
+    Checking disk_backend v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/disk_backend)
+    Checking scsi_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/scsi_core)
+    Checking generation_id v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/generation_id)
+    Checking state_unit v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/state_unit)
+    Checking watchdog_vmgs_format v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/watchdog/watchdog_vmgs_format)
+    Checking chipset_device v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device)
+    Checking firmware_uefi_custom_vars v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/firmware_uefi_custom_vars)
+    Checking uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/uefi_nvram_storage)
+    Checking watchdog_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/watchdog/watchdog_core)
+    Checking vmgs v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmgs/vmgs)
+    Checking scsidisk v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/scsidisk)
+    Checking pci_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_core)
+    Checking chipset_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device_resources)
+    Checking framebuffer v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/framebuffer)
+    Checking floppy v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/floppy)
+    Checking floppy_pcat_stub v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/floppy_pcat_stub)
+    Checking hyperv_secure_boot_templates v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/hyperv_secure_boot_templates)
+    Checking vmbus_channel v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vmbus/vmbus_channel)
+    Checking hcl_compat_uefi_nvram_storage v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/hcl_compat_uefi_nvram_storage)
+    Checking chipset_device_worker v0.0.0 (/home/ruize/openvmm-restore-v1/workers/chipset_device_worker)
+    Checking vmgs_broker v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmgs/vmgs_broker)
+    Checking vmbus_async v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vmbus/vmbus_async)
+    Checking chipset v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/chipset)
+    Checking firmware_uefi_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/firmware_uefi_resources)
+    Checking vmbus_server v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vmbus/vmbus_server)
+    Checking pci_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_resources)
+    Checking pci_bus v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_bus)
+    Checking ide v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/ide)
+    Checking iommu_common v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/iommu/iommu_common)
+    Checking vga v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/vga)
+    Checking missing_dev v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/missing_dev)
+    Checking vpci v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/vpci)
+    Checking pci_resource_assignment v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_resource_assignment)
+    Checking cxl_spec v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/cxl)
+    Checking virtio v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/virtio/virtio)
+    Checking intel_vtd v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/iommu/intel_vtd)
+    Checking smmu v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/iommu/smmu)
+    Checking amd_iommu v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/iommu/amd_iommu)
+    Checking chipset_legacy v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/chipset_legacy)
+    Checking vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_topology)
+    Checking pcie v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pcie)
+    Checking acpi v0.0.0 (/home/ruize/openvmm-restore-v1/vm/acpi)
+    Checking virt v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/virt)
+    Checking firmware_pcat v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/firmware/firmware_pcat)
+    Checking loader v0.0.0 (/home/ruize/openvmm-restore-v1/vm/loader)
+    Checking vmotherboard v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/vmotherboard)
+    Checking vmm_core_defs v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/vmm_core_defs)
+    Checking hyperv_dump v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/hyperv_dump)
+    Checking membacking v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/membacking)
+    Checking vm_loader v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/vm_loader)
+    Checking vfio_assigned_device v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/vfio_assigned_device)
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_defs v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_defs)
+    Checking vmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core)
+    Checking openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_core)
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2181:13
+     |
+2181 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2182:13
+     |
+2182 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3033:13
+     |
+3033 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3034:13
+     |
+3034 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: verifying module worker::dispatch (selected functions)
+
+verification results:: 0 verified, 0 errors (partial verification with `--verify-*`)
+warning: `openvmm_core` (lib) generated 4 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.04s
+
+Exit code : 0
+Elapsed seconds: 10.656

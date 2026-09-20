@@ -6,11 +6,15 @@ name = "vmm_core"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 dump = ["hyperv_dump"]
 gdb = ["iced-x86", "virt_support_aarch64emu", "virt_support_x86emu"]
 
 [dependencies]
+vstd.workspace = true
 virt.workspace = true
 virt_support_aarch64emu = { workspace = true, optional = true }
 virt_support_x86emu = { workspace = true, optional = true }

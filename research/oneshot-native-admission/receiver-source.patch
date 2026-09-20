@@ -1,0 +1,48 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..a1b701f1 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -4600,6 +4600,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/support/mesh/mesh_channel_core/Cargo.toml b/support/mesh/mesh_channel_core/Cargo.toml
+index 63ef004c..89ba29c4 100644
+--- a/support/mesh/mesh_channel_core/Cargo.toml
++++ b/support/mesh/mesh_channel_core/Cargo.toml
+@@ -6,7 +6,11 @@ name = "mesh_channel_core"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ mesh_protobuf.workspace = true
+ mesh_node.workspace = true
+ 
+diff --git a/support/mesh/mesh_channel_core/src/oneshot.rs b/support/mesh/mesh_channel_core/src/oneshot.rs
+index 78da7432..8386f7fe 100644
+--- a/support/mesh/mesh_channel_core/src/oneshot.rs
++++ b/support/mesh/mesh_channel_core/src/oneshot.rs
+@@ -41,6 +41,7 @@
+ use std::task::Waker;
+ use std::task::ready;
+ use thiserror::Error;
++use vstd::prelude::verus_verify;
+ 
+ /// Creates a unidirection channel for sending a single value of type `T`.
+ ///
+@@ -267,6 +268,7 @@ fn from_port(port: Port, send: SendFn) -> OneshotSenderCore {
+ // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
+ // are only implemented when `T` is `Send`, since the `OneshotReceiverCore` is
+ // always `Send+Sync`. This behavior is verified in the unit tests.
++#[verus_verify]
+ pub struct OneshotReceiver<T>(
+     ManuallyDrop<OneshotReceiverCore>,
+     PhantomData<Arc<Mutex<T>>>,

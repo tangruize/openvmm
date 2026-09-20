@@ -545,6 +545,7 @@ impl XsaveCapabilities {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
 #[mesh(package = "virt.x86")]
+#[vstd::prelude::verus_verify]
 pub struct TableRegister {
     #[inspect(hex)]
     #[mesh(1)]
@@ -575,6 +576,7 @@ impl From<TableRegister> for hvdef::HvX64TableRegister {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
 #[mesh(package = "virt.x86")]
+#[vstd::prelude::verus_verify]
 pub struct SegmentRegister {
     #[inspect(hex)]
     #[mesh(1)]
@@ -644,6 +646,7 @@ pub struct DebugState {
 }
 
 #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
+#[vstd::prelude::verus_verify]
 pub struct HardwareBreakpoint {
     /// The address to watch.
     pub address: u64,
@@ -683,6 +686,7 @@ impl HardwareBreakpoint {
 
 /// A hardware breakpoint type.
 #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
+#[vstd::prelude::verus_verify]
 pub enum BreakpointType {
     /// Break on execute. Size should be [`BreakpointSize::Byte`].
     Execute = 0,
@@ -696,6 +700,7 @@ pub enum BreakpointType {
 
 /// The size of the debug breakpoint.
 #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
+#[vstd::prelude::verus_verify]
 pub enum BreakpointSize {
     /// 1 byte.
     Byte = 0,

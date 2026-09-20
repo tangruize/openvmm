@@ -1,4 +1,83 @@
 {
   "current_stage": "prove",
-  "vertical": "verus"
+  "vertical": "verus",
+  "restore_declaration_activation_rust_check": {
+    "state": "done",
+    "task_id": "restore-declaration-activation-rust-check",
+    "run_id": "restore-declaration-activation-rust-check-1789884555660297725",
+    "command": "bash research/restore-declaration-activation/run.sh regular-check env RUSTUP_TOOLCHAIN=1.95.0 cargo check -p openvmm_core --locked",
+    "exit_code": 0,
+    "elapsed_seconds": 9.3,
+    "receipt": ".argus_subagents/restore-declaration-activation-rust-check.json",
+    "stdout_log": ".argus_subagents/restore-declaration-activation-rust-check_logs/stdout.log",
+    "stderr_log": ".argus_subagents/restore-declaration-activation-rust-check_logs/stderr.log",
+    "compiler_log": "research/restore-declaration-activation/regular-check.log"
+  },
+  "restore_partition_presence_proof": {
+    "result": "diagnostic_with_validated_freeze_request",
+    "guard_proved": false,
+    "proposal_guard_proved": true,
+    "blocker": "Current frozen source needs normalization to the existing slice-equality contract and a parser-visible closure contract",
+    "production_overlay_restored": true,
+    "evidence_directory": "research/restore-partition-presence-proof",
+    "make_verify": "passed: unchanged restore selector, 0 verified, 0 errors",
+    "spec_drift": "passed",
+    "exec_drift": "passed",
+    "boundary": "failed: existing provenance rejection and 7 in-scope temporary trust locations",
+    "freeze_request": "research/freeze_requests/restore-guard-native-presence",
+    "freeze_request_state": "VALID, unapplied",
+    "proposal_proof_log": "research/restore-partition-presence-proof/proposal-native-syntax-check.log"
+  },
+  "restore_partition_presence_proposal_check": {
+    "state": "error",
+    "task_id": "restore-partition-presence-proposal-check",
+    "run_id": "restore-partition-presence-proposal-check-1789886592035389623",
+    "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-proposal-check",
+    "submission_log": "research/restore-partition-presence-proof/submit-proposal-native-check.log",
+    "result": "Patch-construction error: new-file headers lacked new file mode; no body verification ran"
+  },
+  "restore_partition_presence_proposal_body": {
+    "state": "error",
+    "task_id": "restore-partition-presence-proposal-body",
+    "run_id": "restore-partition-presence-proposal-body-1789886693231873880",
+    "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-proposal-body",
+    "submission_log": "research/restore-partition-presence-proof/submit-proposal-body-check.log",
+    "result": "Production guard false branch needed explicit Seq::as_ref instantiation"
+  },
+  "restore_partition_presence_proposal_reference": {
+    "state": "done",
+    "task_id": "restore-partition-presence-proposal-reference",
+    "run_id": "restore-partition-presence-proposal-reference-1789886848858440430",
+    "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-proposal-reference",
+    "result": "Guard proof passed; closure-attribute syntax rejected by executable-drift parser"
+  },
+  "restore_partition_presence_native_syntax": {
+    "state": "done",
+    "task_id": "restore-partition-presence-native-syntax",
+    "run_id": "restore-partition-presence-native-syntax-1789887037618201645",
+    "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-native-syntax",
+    "result": "Proposed production guard: 1 verified, 0 errors"
+  },
+  "restore_partition_presence_integration": {
+    "state": "done",
+    "task_id": "restore-partition-presence-integration",
+    "run_id": "restore-partition-presence-integration-1789887134579210280",
+    "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-integration",
+    "submission_log": "research/restore-partition-presence-proof/submit-proposal-integration.log",
+    "result": "Proposed restore selector: 0 verified, 0 errors; ordinary Rust check passed",
+    "exit_code": 0
+  },
+  "restore_partition_presence_submission": {
+    "state": "precommit_passed",
+    "frozen_change_applied": false,
+    "precommit_task_id": "restore-presence-precommit",
+    "precommit_run_id": "restore-presence-precommit-1789887653156031129",
+    "precommit_check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-presence-precommit",
+    "precommit_submission_log": "research/restore-partition-presence-proof/submit-precommit.log",
+    "clippy": "passed: all targets of all 11 modified production packages",
+    "doc": "passed: all 11 modified production packages, no dependencies",
+    "fmt": "passed: complete cargo xtask fmt --fix, run last",
+    "run_patch": "retargeted onto preserved working source; proof-tested candidate unchanged",
+    "post_commit_evidence": "Shared CHECKPOINT.md records resulting-tip validation and clean-tree status"
+  }
 }

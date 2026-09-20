@@ -544,7 +544,8 @@ enum IommuDevices {
 
 /// A VM that has been initialized but not yet loaded (i.e. the saved state is
 /// not yet available).
-#[verus_verify]
+// TODO(proof): Refine prepared components into initialized_vm_representation.
+#[verus_verify(external_body)]
 pub(crate) struct InitializedVm {
     partition: Arc<dyn HvlitePartition>,
     vps: Vec<Box<dyn BindHvliteVp>>,
@@ -853,6 +854,8 @@ pub(crate) struct LoadedVm {
 
 /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
 /// for state machine transitions.
+// TODO(proof): Expose component Views and prove their restore/time operations.
+#[verus_verify(external_body)]
 struct LoadedVmInner {
     driver_source: VmTaskDriverSource,
     resolver: ResourceResolver,
@@ -3784,7 +3787,10 @@ impl LoadedVm {
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             restore_time.is_none()
-                || saved_state.units.iter().any(|unit| unit.name == "partition"),
+                || saved_state
+                    .units
+                    .iter()
+                    .any(|unit| unit.name == "partition"),
             "time-adjusted snapshot restore requires partition state"
         );
         Ok(())

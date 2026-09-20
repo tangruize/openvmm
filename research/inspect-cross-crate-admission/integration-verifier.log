@@ -1,0 +1,42 @@
+Verus source 8ed93e5d0164885f415c11ad8baa736371bcff92 is already installed
+Verus 0.2026.09.18.8ed93e5 is already installed
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+    Checking inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect)
+error: `mesh_channel_core::oneshot::OneshotReceiver` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+    --> support/inspect/src/lib.rs:1888:1
+     |
+1888 | / enum InternalNode {
+1889 | |     Unevaluated,
+1890 | |     Failed(InternalError),
+1891 | |     DepthExhausted,
+...    |
+1898 | |     DirResolved(Vec<InternalEntry>),
+1899 | | }
+     | |_^
+     |
+     = help: The following declaration may resolve this error:
+             #[verifier::reject_recursive_types(T)]
+             #[verifier::external_type_specification]
+             pub struct ExOneshotReceiver<T>(mesh::OneshotReceiver<T>);
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+    --> support/inspect/src/lib.rs:1188:17
+     |
+1188 | #[derive(Debug, Clone, PartialEq)]
+     |                 ^^^^^
+     |
+     = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+    --> support/inspect/src/lib.rs:1255:17
+     |
+1255 | #[derive(Debug, Clone, PartialEq)]
+     |                 ^^^^^
+     |
+     = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `inspect` (lib) generated 2 warnings
+error: could not compile `inspect` (lib) due to 1 previous error; 2 warnings emitted
+make: *** [Makefile:13: verify] Error 101
+Command exited with non-zero status 2
+elapsed_s=1.57 exit=2

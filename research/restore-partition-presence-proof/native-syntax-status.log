@@ -1,0 +1,26 @@
+{
+  "state": "done",
+  "task_id": "restore-partition-presence-native-syntax",
+  "run_id": "restore-partition-presence-native-syntax-1789887037618201645",
+  "description": "background task",
+  "command": "bash research/restore-partition-presence-proof/run.sh proposal-native-syntax-check \"${ARGUS_SKILL_PYTHON:-python3}\" research/restore-partition-presence-proof/check-proposal.py",
+  "exit_code": 0,
+  "elapsed_seconds": 17.6,
+  "completed_at": 1789887055.1744394,
+  "pid": 3658445,
+  "worker_pid": 3658444,
+  "mode": "direct",
+  "run_dir": null,
+  "stdout_tail": "proposal-native-syntax-check exit=0 log=research/restore-partition-presence-proof/proposal-native-syntax-check.log\n",
+  "stderr_tail": "",
+  "stdout_log": ".argus_subagents/restore-partition-presence-native-syntax_logs/stdout.log",
+  "stderr_log": ".argus_subagents/restore-partition-presence-native-syntax_logs/stderr.log",
+  "supervisor_usage_model": "",
+  "supervisor_input_tokens": 0,
+  "supervisor_cached_input_tokens": 0,
+  "supervisor_output_tokens": 0,
+  "supervisor_reasoning_output_tokens": 0,
+  "cwd": "/home/ruize/openvmm-restore-v1",
+  "live": false
+}
+elapsed_s=0.14 exit=0

@@ -1,0 +1,4 @@
+exec_drift: complete output -> .verus_agent/cache/checks/exec_drift/latest.log
+exec_drift: 1 changed/unknown function(s): LoadedVm::validate_snapshot_restore_partition_presence; exit 1; 4.811s
+Command exited with non-zero status 1
+elapsed_s=4.93 exit=1

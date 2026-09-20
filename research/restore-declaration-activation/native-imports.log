@@ -1,0 +1,14 @@
+Consumer dep-info: target/verus-partial/debug/deps/openvmm_core-fa59a9b373c670f4.d
+openvmm_defs: target/verus-partial/debug/deps/libopenvmm_defs-331edcd64f3125c4.vir
+mesh_channel: target/verus-partial/debug/deps/libmesh_channel-e91889d5a760f2d0.vir
+mesh_channel_core: target/verus-partial/debug/deps/libmesh_channel_core-44778b48af5376ad.vir
+mesh_protobuf: target/verus-partial/debug/deps/libmesh_protobuf-17bb6d5e2affded7.vir
+pal_async: target/verus-partial/debug/deps/libpal_async-fb6e8a235c24198c.vir
+chipset_resources: target/verus-partial/debug/deps/libchipset_resources-d0f8bfa8355e725f.vir
+vmm_core: target/verus-partial/debug/deps/libvmm_core-7cbf05848b8dcf00.vir
+state_unit: target/verus-partial/debug/deps/libstate_unit-88c921b781255f69.vir
+virt: target/verus-partial/debug/deps/libvirt-e61221c271c7f1d8.vir
+vmm_core_defs: target/verus-partial/debug/deps/libvmm_core_defs-f53e6d6b8fb3fb50.vir
+All ten opted-in declaration owners are recorded as native consumer imports.
+Validity evidence is the successful owner/consumer checks, not file existence.
+elapsed_s=0.03 exit=0

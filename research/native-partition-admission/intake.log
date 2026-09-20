@@ -1,0 +1,14 @@
+=== worktree ===
+?? research/native-partition-admission/
+=== existing production edits ===
+=== pinned verifier ===
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus
+=== check artifact timestamps ===
+2026-09-20 12:26:56.158017812 +0800 .verus_agent/cache/checks/make_verify/latest.log
+2026-09-20 12:49:35.632605692 +0800 .verus_agent/cache/checks/boundary/latest.log
+2026-09-20 12:49:35.801597279 +0800 .verus_agent/cache/checks/spec_drift/latest.log
+2026-09-20 12:49:39.421416971 +0800 .verus_agent/cache/checks/exec_drift/latest.log
+=== maintained call structure ===
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'
+callgraph_exit=1
+proof_state=absent

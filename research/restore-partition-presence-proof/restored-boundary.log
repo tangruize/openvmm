@@ -1,0 +1,5 @@
+<frozen runpy>:128: RuntimeWarning: 'argus_verus.tools.checks.boundary' found in sys.modules after import of package 'argus_verus.tools.checks', but prior to execution of 'argus_verus.tools.checks.boundary'; this may result in unpredictable behaviour
+boundary: complete output -> .verus_agent/cache/checks/boundary/latest.log
+boundary: 0 permanent violation(s), 7 temporary trust location(s), 0 assumption(s); exit 1; 1.067s
+Command exited with non-zero status 1
+elapsed_s=1.20 exit=1

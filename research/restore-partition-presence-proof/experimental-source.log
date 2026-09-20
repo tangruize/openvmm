@@ -1,0 +1,226 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..26010b99 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -713,6 +713,7 @@ dependencies = [
+  "memory_range",
+  "mesh",
+  "vm_resource",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4586,6 +4587,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4600,6 +4602,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4667,6 +4670,7 @@ dependencies = [
+  "prost-types",
+  "socket2",
+  "thiserror 2.0.16",
++ "vstd",
+  "zerocopy",
+ ]
+ 
+@@ -5819,6 +5823,7 @@ dependencies = [
+  "vmgs_resources",
+  "vmm_core_defs",
+  "vmotherboard",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -6199,6 +6204,7 @@ dependencies = [
+  "tempfile",
+  "unicycle",
+  "unix_socket",
++ "vstd",
+  "windows-result 0.4.0",
+  "windows-sys 0.61.0",
+  "zerocopy",
+@@ -7902,6 +7908,7 @@ dependencies = [
+  "thiserror 2.0.16",
+  "tracing",
+  "vmcore",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -9582,6 +9589,7 @@ dependencies = [
+  "tracing",
+  "vm_topology",
+  "vmcore",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10517,6 +10525,7 @@ dependencies = [
+  "tracelimit",
+  "tracing",
+  "vm_resource",
++ "vstd",
+  "zerocopy",
+ ]
+ 
+@@ -10710,6 +10719,7 @@ dependencies = [
+  "vmm_core_defs",
+  "vmotherboard",
+  "vpci",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10721,6 +10731,7 @@ dependencies = [
+  "inspect",
+  "mesh",
+  "virt",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.rs b/openvmm/openvmm_core/src/worker/dispatch.rs
+index 33ac621f..3011b4fc 100644
+--- a/openvmm/openvmm_core/src/worker/dispatch.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.rs
+@@ -544,7 +544,8 @@ enum IommuDevices {
+ 
+ /// A VM that has been initialized but not yet loaded (i.e. the saved state is
+ /// not yet available).
+-#[verus_verify]
++// TODO(proof): Refine prepared components into initialized_vm_representation.
++#[verus_verify(external_body)]
+ pub(crate) struct InitializedVm {
+     partition: Arc<dyn HvlitePartition>,
+     vps: Vec<Box<dyn BindHvliteVp>>,
+@@ -853,6 +854,8 @@ pub(crate) struct LoadedVm {
+ 
+ /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
+ /// for state machine transitions.
++// TODO(proof): Expose component Views and prove their restore/time operations.
++#[verus_verify(external_body)]
+ struct LoadedVmInner {
+     driver_source: VmTaskDriverSource,
+     resolver: ResourceResolver,
+@@ -3776,8 +3779,17 @@ async fn load_firmware(&mut self, vtl2_only: bool) -> anyhow::Result<()> {
+     }
+ }
+ 
++#[verus_verify]
+ impl LoadedVm {
+     #[cfg(guest_arch = "x86_64")]
++    #[verus_spec(result =>
++        ensures
++            result.is_ok() == (
++                restore_time.is_none()
++                || exists|i: int| 0 <= i < saved_state.units@.len()
++                    && #[trigger] saved_state.units@[i].name@ == "partition"@
++            ),
++    )]
+     fn validate_snapshot_restore_partition_presence(
+         saved_state: &SavedState,
+         restore_time: Option<(Duration, u64, Option<u64>)>,
+@@ -3789,7 +3801,9 @@ fn validate_snapshot_restore_partition_presence(
+         );
+         Ok(())
+     }
++}
+ 
++impl LoadedVm {
+     /// Restores snapshot-owned state and returns with the guest still stopped.
+     ///
+     /// Destination construction and VP instantiation happen before this
+diff --git a/openvmm/openvmm_defs/src/worker.rs b/openvmm/openvmm_defs/src/worker.rs
+index 8f209180..bea027ff 100644
+--- a/openvmm/openvmm_defs/src/worker.rs
++++ b/openvmm/openvmm_defs/src/worker.rs
+@@ -43,6 +43,8 @@ pub struct SnapshotRestoreGuards {
+ /// Complete saved state consumed by the VM worker.
+ #[derive(Protobuf, SavedStateRoot)]
+ #[mesh(package = "openvmm")]
++// TODO(proof): Bind units and inventory to the decoded restore request Views.
++#[vstd::prelude::verus_verify]
+ pub struct SavedState {
+     #[mesh(1)]
+     pub units: Vec<SavedStateUnit>,
+diff --git a/support/mesh/mesh_protobuf/src/message.rs b/support/mesh/mesh_protobuf/src/message.rs
+index ead81237..a7e41c97 100644
+--- a/support/mesh/mesh_protobuf/src/message.rs
++++ b/support/mesh/mesh_protobuf/src/message.rs
+@@ -30,6 +30,7 @@
+ // TODO: delay encoding like in mesh::Message. This requires splitting some of
+ // the encoding traits up to remove the resource type.
+ #[derive(Clone, Debug)]
++#[vstd::prelude::verus_verify]
+ pub struct ProtobufMessage(Vec<u8>);
+ 
+ impl ProtobufMessage {
+@@ -82,6 +83,7 @@ fn read_message(
+ ///
+ /// This has the encoding of `google.protobuf.Any`.
+ #[derive(Clone, Protobuf)]
++#[vstd::prelude::verus_verify]
+ pub struct ProtobufAny {
+     #[mesh(1)]
+     type_url: String, // FUTURE: avoid allocation here
+diff --git a/vm/vmcore/Cargo.toml b/vm/vmcore/Cargo.toml
+index 3c737aff..c70c82dd 100644
+--- a/vm/vmcore/Cargo.toml
++++ b/vm/vmcore/Cargo.toml
+@@ -6,7 +6,11 @@ name = "vmcore"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ hvdef.workspace = true
+ save_restore_derive.workspace = true
+ vm_resource.workspace = true
+diff --git a/vm/vmcore/src/save_restore.rs b/vm/vmcore/src/save_restore.rs
+index 5e48d605..98530f5a 100644
+--- a/vm/vmcore/src/save_restore.rs
++++ b/vm/vmcore/src/save_restore.rs
+@@ -117,6 +117,7 @@ pub trait ProtobufSaveRestore {
+ /// An opaque saved state blob, encoded as a protobuf message.
+ #[derive(Clone, Debug, Protobuf)]
+ #[mesh(transparent)]
++#[vstd::prelude::verus_verify]
+ pub struct SavedStateBlob(ProtobufAny);
+ 
+ /// Trait implemented by "root" saved state blobs, which are ones that either
+diff --git a/vmm_core/state_unit/src/lib.rs b/vmm_core/state_unit/src/lib.rs
+index 48fb45c9..f6ee149c 100644
+--- a/vmm_core/state_unit/src/lib.rs
++++ b/vmm_core/state_unit/src/lib.rs
+@@ -247,6 +247,8 @@ pub async fn apply(self, unit: &mut impl StateUnit) {
+ 
+ /// A set of state units.
+ #[derive(Debug)]
++// TODO(proof): Refine unit identity, dependencies, RPC state, and restore ordering.
++#[vstd::prelude::verus_verify(external_body)]
+ pub struct StateUnits {
+     inner: Arc<Mutex<Inner>>,
+     running: bool,
+@@ -393,6 +395,7 @@ fn inspect(&self, req: inspect::Request<'_>) {
+ /// The saved state for an individual unit.
+ #[derive(Protobuf)]
+ #[mesh(package = "state_unit")]
++#[vstd::prelude::verus_verify]
+ pub struct SavedStateUnit {
+     /// The name of the state unit.
+     #[mesh(1)]
+elapsed_s=0.01 exit=0

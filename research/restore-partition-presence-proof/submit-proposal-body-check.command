@@ -1,0 +1,1 @@
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent submit --task-id restore-partition-presence-proposal-body --mode direct --timeout 600 --command bash\ research/restore-partition-presence-proof/run.sh\ proposal-body-check\ \"\$\{ARGUS_SKILL_PYTHON:-python3\}\"\ research/restore-partition-presence-proof/check-proposal.py 

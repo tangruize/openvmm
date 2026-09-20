@@ -1,0 +1,1 @@
+bash -c find\ target\ -maxdepth\ 5\ -type\ f\ \\\(\ -name\ \"anyhow-\*.d\"\ -o\ -name\ \"libanyhow-\*.rlib\"\ \\\)\ -print\ \|\ head\ -35\;\ printf\ \"cargo_target=%s\\n\"\ \"\$\{CARGO_TARGET_DIR:-unset\}\" 

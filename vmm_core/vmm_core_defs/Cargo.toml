@@ -6,7 +6,11 @@ name = "vmm_core_defs"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 virt.workspace = true
 
 inspect.workspace = true

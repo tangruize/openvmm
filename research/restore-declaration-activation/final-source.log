@@ -1,0 +1,469 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..398da792 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -713,6 +713,7 @@ dependencies = [
+  "memory_range",
+  "mesh",
+  "vm_resource",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4586,6 +4587,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4600,6 +4602,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -4667,6 +4670,7 @@ dependencies = [
+  "prost-types",
+  "socket2",
+  "thiserror 2.0.16",
++ "vstd",
+  "zerocopy",
+ ]
+ 
+@@ -5819,6 +5823,7 @@ dependencies = [
+  "vmgs_resources",
+  "vmm_core_defs",
+  "vmotherboard",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -6199,6 +6204,7 @@ dependencies = [
+  "tempfile",
+  "unicycle",
+  "unix_socket",
++ "vstd",
+  "windows-result 0.4.0",
+  "windows-sys 0.61.0",
+  "zerocopy",
+@@ -7902,6 +7908,7 @@ dependencies = [
+  "thiserror 2.0.16",
+  "tracing",
+  "vmcore",
++ "vstd",
+ ]
+ 
+ [[package]]
+@@ -9582,6 +9589,7 @@ dependencies = [
+  "tracing",
+  "vm_topology",
+  "vmcore",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10710,6 +10718,7 @@ dependencies = [
+  "vmm_core_defs",
+  "vmotherboard",
+  "vpci",
++ "vstd",
+  "x86defs",
+  "zerocopy",
+ ]
+@@ -10721,6 +10730,7 @@ dependencies = [
+  "inspect",
+  "mesh",
+  "virt",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.rs b/openvmm/openvmm_core/src/worker/dispatch.rs
+index 33ac621f..5267a874 100644
+--- a/openvmm/openvmm_core/src/worker/dispatch.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.rs
+@@ -544,7 +544,8 @@ enum IommuDevices {
+ 
+ /// A VM that has been initialized but not yet loaded (i.e. the saved state is
+ /// not yet available).
+-#[verus_verify]
++// TODO(proof): Refine prepared components into initialized_vm_representation.
++#[verus_verify(external_body)]
+ pub(crate) struct InitializedVm {
+     partition: Arc<dyn HvlitePartition>,
+     vps: Vec<Box<dyn BindHvliteVp>>,
+@@ -853,6 +854,8 @@ pub(crate) struct LoadedVm {
+ 
+ /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
+ /// for state machine transitions.
++// TODO(proof): Expose component Views and prove their restore/time operations.
++#[verus_verify(external_body)]
+ struct LoadedVmInner {
+     driver_source: VmTaskDriverSource,
+     resolver: ResourceResolver,
+diff --git a/openvmm/openvmm_defs/Cargo.toml b/openvmm/openvmm_defs/Cargo.toml
+index 05153ecf..12883c4d 100644
+--- a/openvmm/openvmm_defs/Cargo.toml
++++ b/openvmm/openvmm_defs/Cargo.toml
+@@ -6,7 +6,11 @@ name = "openvmm_defs"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ chipset_resources.workspace = true
+ hypervisor_resources.workspace = true
+ openvmm_pcat_locator.workspace = true
+diff --git a/openvmm/openvmm_defs/src/worker.rs b/openvmm/openvmm_defs/src/worker.rs
+index 8f209180..bf1d3e0d 100644
+--- a/openvmm/openvmm_defs/src/worker.rs
++++ b/openvmm/openvmm_defs/src/worker.rs
+@@ -43,6 +43,8 @@ pub struct SnapshotRestoreGuards {
+ /// Complete saved state consumed by the VM worker.
+ #[derive(Protobuf, SavedStateRoot)]
+ #[mesh(package = "openvmm")]
++// TODO(proof): Bind units and inventory to the decoded restore request Views.
++#[vstd::prelude::verus_verify(external_body)]
+ pub struct SavedState {
+     #[mesh(1)]
+     pub units: Vec<SavedStateUnit>,
+diff --git a/support/mesh/mesh_channel/Cargo.toml b/support/mesh/mesh_channel/Cargo.toml
+index 6b3b9498..1b52a079 100644
+--- a/support/mesh/mesh_channel/Cargo.toml
++++ b/support/mesh/mesh_channel/Cargo.toml
+@@ -6,7 +6,11 @@ name = "mesh_channel"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ mesh_channel_core.workspace = true
+ mesh_node.workspace = true
+ mesh_protobuf = { workspace = true, features = ["std"] }
+diff --git a/support/mesh/mesh_channel/src/rpc.rs b/support/mesh/mesh_channel/src/rpc.rs
+index a1b3c0eb..0c794296 100644
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -27,6 +27,8 @@
+     bound = "I: 'static + MeshField + Send, R: 'static + MeshField + Send",
+     resource = "mesh_node::resource::Resource"
+ )]
++// TODO(proof): Refine the input/response sender and real RPC completion.
++#[vstd::prelude::verus_verify(external_body, reject_recursive_types(I), reject_recursive_types(R))]
+ pub struct Rpc<I, R>(I, OneshotSender<R>);
+ 
+ impl<I: Debug, R> Debug for Rpc<I, R> {
+diff --git a/support/mesh/mesh_channel_core/Cargo.toml b/support/mesh/mesh_channel_core/Cargo.toml
+index 63ef004c..89ba29c4 100644
+--- a/support/mesh/mesh_channel_core/Cargo.toml
++++ b/support/mesh/mesh_channel_core/Cargo.toml
+@@ -6,7 +6,11 @@ name = "mesh_channel_core"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ mesh_protobuf.workspace = true
+ mesh_node.workspace = true
+ 
+diff --git a/support/mesh/mesh_channel_core/src/mpsc.rs b/support/mesh/mesh_channel_core/src/mpsc.rs
+index a639d263..65e1e24e 100644
+--- a/support/mesh/mesh_channel_core/src/mpsc.rs
++++ b/support/mesh/mesh_channel_core/src/mpsc.rs
+@@ -73,6 +73,8 @@ fn channel_core(vtable: &'static ElementVtable) -> (SenderCore, ReceiverCore) {
+ // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
+ // are only implemented when `T` is `Send`, since the `SenderCore` is always
+ // `Send+Sync`. This behavior is verified in the unit tests.
++// TODO(proof): Refine SenderCore, queue ownership, and message transport.
++#[vstd::prelude::verus_verify(external_body, reject_recursive_types(T))]
+ pub struct Sender<T>(SenderCore, PhantomData<Arc<Mutex<[T]>>>);
+ 
+ impl<T> Debug for Sender<T> {
+@@ -333,6 +335,8 @@ pub fn bridge(self, receiver: Receiver<T>) {
+ // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
+ // are only implemented when `T` is `Send`, since the `ReceiverCore` is always
+ // `Send+Sync`. This behavior is verified in the unit tests.
++// TODO(proof): Refine ReceiverCore, queue ownership, and stream operations.
++#[vstd::prelude::verus_verify(external_body, reject_recursive_types(T))]
+ pub struct Receiver<T>(ReceiverCore, PhantomData<Arc<Mutex<[T]>>>);
+ 
+ impl<T> Debug for Receiver<T> {
+diff --git a/support/mesh/mesh_protobuf/Cargo.toml b/support/mesh/mesh_protobuf/Cargo.toml
+index 5318cab3..eb2b5f8f 100644
+--- a/support/mesh/mesh_protobuf/Cargo.toml
++++ b/support/mesh/mesh_protobuf/Cargo.toml
+@@ -6,6 +6,9 @@ name = "mesh_protobuf"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ default = []
+ prost = ["dep:prost", "dep:prost-build"]
+@@ -13,6 +16,7 @@ socket2 = ["dep:socket2"]
+ std = ["dep:heck", "dep:fs-err"]
+ 
+ [dependencies]
++vstd.workspace = true
+ mesh_derive.workspace = true
+ 
+ prost = { workspace = true, optional = true }
+diff --git a/support/mesh/mesh_protobuf/src/time.rs b/support/mesh/mesh_protobuf/src/time.rs
+index 90a832e5..3f38f1f6 100644
+--- a/support/mesh/mesh_protobuf/src/time.rs
++++ b/support/mesh/mesh_protobuf/src/time.rs
+@@ -32,6 +32,7 @@ impl DescribeTable for Timestamp {
+ 
+ /// A timestamp representing a point in UTC time with nanosecond resolution.
+ #[derive(Debug, Protobuf, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
++#[vstd::prelude::verus_verify]
+ pub struct Timestamp {
+     /// The number of seconds of UTC time since the Unix epoch.
+     #[mesh(1, encoding = "mesh_protobuf::encoding::VarintField")]
+diff --git a/support/pal/pal_async/Cargo.toml b/support/pal/pal_async/Cargo.toml
+index 86499221..cdd40e88 100644
+--- a/support/pal/pal_async/Cargo.toml
++++ b/support/pal/pal_async/Cargo.toml
+@@ -6,11 +6,15 @@ name = "pal_async"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ # Enable executor_tests module for out-of-crate executor testing.
+ tests = ["dep:tempfile"]
+ 
+ [dependencies]
++vstd.workspace = true
+ loan_cell.workspace = true
+ pal.workspace = true
+ unix_socket.workspace = true
+diff --git a/support/pal/pal_async/src/timer.rs b/support/pal/pal_async/src/timer.rs
+index d210c39c..7a5b73d2 100644
+--- a/support/pal/pal_async/src/timer.rs
++++ b/support/pal/pal_async/src/timer.rs
+@@ -23,6 +23,7 @@
+ /// This is modeled after std::time::Instant but uses a different clock source
+ /// on Windows, and it allows access to the raw value.
+ #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
++#[vstd::prelude::verus_verify]
+ pub struct Instant(u64);
+ 
+ impl Instant {
+diff --git a/vm/devices/chipset_resources/Cargo.toml b/vm/devices/chipset_resources/Cargo.toml
+index 58ef826c..750b03ff 100644
+--- a/vm/devices/chipset_resources/Cargo.toml
++++ b/vm/devices/chipset_resources/Cargo.toml
+@@ -6,7 +6,11 @@ name = "chipset_resources"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ vm_resource.workspace = true
+ local_clock.workspace = true
+ 
+diff --git a/vm/devices/chipset_resources/src/lib.rs b/vm/devices/chipset_resources/src/lib.rs
+index 09ef2252..8023a5be 100644
+--- a/vm/devices/chipset_resources/src/lib.rs
++++ b/vm/devices/chipset_resources/src/lib.rs
+@@ -156,6 +156,7 @@ pub mod microvm {
+ 
+     /// Scratch handling requested at a microVM snapshot boundary.
+     #[derive(Clone, Copy, Debug, PartialEq, Eq, MeshPayload)]
++    #[vstd::prelude::verus_verify]
+     pub enum MicrovmSnapshotScratchPolicy {
+         /// Scratch is unmounted and restore must attach a fresh image.
+         Fresh,
+@@ -165,6 +166,8 @@ pub enum MicrovmSnapshotScratchPolicy {
+ 
+     /// Worker-local request used to establish the exact post-OUT snapshot boundary.
+     #[derive(MeshPayload)]
++    // TODO(proof): Refine release/completion channels and the boundary protocol.
++    #[vstd::prelude::verus_verify(external_body)]
+     pub struct MicrovmSnapshotBoundaryRequest {
+         /// Whether capture must pair the current scratch image.
+         pub scratch_policy: MicrovmSnapshotScratchPolicy,
+diff --git a/vmm_core/Cargo.toml b/vmm_core/Cargo.toml
+index eed274ef..70b1f80f 100644
+--- a/vmm_core/Cargo.toml
++++ b/vmm_core/Cargo.toml
+@@ -6,11 +6,15 @@ name = "vmm_core"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ dump = ["hyperv_dump"]
+ gdb = ["iced-x86", "virt_support_aarch64emu", "virt_support_x86emu"]
+ 
+ [dependencies]
++vstd.workspace = true
+ virt.workspace = true
+ virt_support_aarch64emu = { workspace = true, optional = true }
+ virt_support_x86emu = { workspace = true, optional = true }
+diff --git a/vmm_core/src/partition_unit.rs b/vmm_core/src/partition_unit.rs
+index aacf4f74..55b5d909 100644
+--- a/vmm_core/src/partition_unit.rs
++++ b/vmm_core/src/partition_unit.rs
+@@ -636,6 +636,8 @@ async fn build_dump_partition_state_inner(&mut self) -> anyhow::Result<Vec<u8>>
+ }
+ 
+ #[must_use = "when dropped, the VPs will be resumed"]
++// TODO(proof): Refine stop-token ownership, acquisition, and resume-on-drop.
++#[vstd::prelude::verus_verify(external_body)]
+ pub struct StopGuard(mesh::Sender<PartitionRequest>);
+ 
+ impl Drop for StopGuard {
+diff --git a/vmm_core/state_unit/Cargo.toml b/vmm_core/state_unit/Cargo.toml
+index 3a1b0fee..bad1c61f 100644
+--- a/vmm_core/state_unit/Cargo.toml
++++ b/vmm_core/state_unit/Cargo.toml
+@@ -6,7 +6,11 @@ name = "state_unit"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ vmcore.workspace = true
+ 
+ inspect = { workspace = true, features = ["defer"] }
+diff --git a/vmm_core/state_unit/src/lib.rs b/vmm_core/state_unit/src/lib.rs
+index 48fb45c9..b11bf6ce 100644
+--- a/vmm_core/state_unit/src/lib.rs
++++ b/vmm_core/state_unit/src/lib.rs
+@@ -247,6 +247,8 @@ pub async fn apply(self, unit: &mut impl StateUnit) {
+ 
+ /// A set of state units.
+ #[derive(Debug)]
++// TODO(proof): Refine unit identity, dependencies, RPC state, and restore ordering.
++#[vstd::prelude::verus_verify(external_body)]
+ pub struct StateUnits {
+     inner: Arc<Mutex<Inner>>,
+     running: bool,
+diff --git a/vmm_core/virt/Cargo.toml b/vmm_core/virt/Cargo.toml
+index bf598ec3..6d562c1d 100644
+--- a/vmm_core/virt/Cargo.toml
++++ b/vmm_core/virt/Cargo.toml
+@@ -6,7 +6,11 @@ name = "virt"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ aarch64defs.workspace = true
+ hvdef.workspace = true
+ pci_core.workspace = true
+diff --git a/vmm_core/virt/src/x86/mod.rs b/vmm_core/virt/src/x86/mod.rs
+index be0cca30..2fe00a5c 100644
+--- a/vmm_core/virt/src/x86/mod.rs
++++ b/vmm_core/virt/src/x86/mod.rs
+@@ -545,6 +545,7 @@ pub fn compact_len_for(&self, xfem: u64) -> u32 {
+ 
+ #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
+ #[mesh(package = "virt.x86")]
++#[vstd::prelude::verus_verify]
+ pub struct TableRegister {
+     #[inspect(hex)]
+     #[mesh(1)]
+@@ -575,6 +576,7 @@ fn from(table: TableRegister) -> Self {
+ 
+ #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
+ #[mesh(package = "virt.x86")]
++#[vstd::prelude::verus_verify]
+ pub struct SegmentRegister {
+     #[inspect(hex)]
+     #[mesh(1)]
+@@ -644,6 +646,7 @@ pub struct DebugState {
+ }
+ 
+ #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
++#[vstd::prelude::verus_verify]
+ pub struct HardwareBreakpoint {
+     /// The address to watch.
+     pub address: u64,
+@@ -683,6 +686,7 @@ pub fn dr7_bits(&self, reg: usize) -> u64 {
+ 
+ /// A hardware breakpoint type.
+ #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
++#[vstd::prelude::verus_verify]
+ pub enum BreakpointType {
+     /// Break on execute. Size should be [`BreakpointSize::Byte`].
+     Execute = 0,
+@@ -696,6 +700,7 @@ pub enum BreakpointType {
+ 
+ /// The size of the debug breakpoint.
+ #[derive(Debug, Copy, Clone, Protobuf, PartialEq, Eq)]
++#[vstd::prelude::verus_verify]
+ pub enum BreakpointSize {
+     /// 1 byte.
+     Byte = 0,
+diff --git a/vmm_core/virt/src/x86/vp.rs b/vmm_core/virt/src/x86/vp.rs
+index bfd2480e..a7ed7e92 100644
+--- a/vmm_core/virt/src/x86/vp.rs
++++ b/vmm_core/virt/src/x86/vp.rs
+@@ -55,6 +55,7 @@
+ 
+ #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
+ #[mesh(package = "virt.x86")]
++#[vstd::prelude::verus_verify]
+ pub struct Registers {
+     #[inspect(hex)]
+     #[mesh(1)]
+diff --git a/vmm_core/vmm_core_defs/Cargo.toml b/vmm_core/vmm_core_defs/Cargo.toml
+index c2c93559..1db76862 100644
+--- a/vmm_core/vmm_core_defs/Cargo.toml
++++ b/vmm_core/vmm_core_defs/Cargo.toml
+@@ -6,7 +6,11 @@ name = "vmm_core_defs"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ virt.workspace = true
+ 
+ inspect.workspace = true
+diff --git a/vmm_core/vmm_core_defs/src/lib.rs b/vmm_core/vmm_core_defs/src/lib.rs
+index d4ed8ff9..953d2cd2 100644
+--- a/vmm_core/vmm_core_defs/src/lib.rs
++++ b/vmm_core/vmm_core_defs/src/lib.rs
+@@ -35,6 +35,7 @@ pub struct LayoutConfig {
+ /// HaltReason sent by devices and vp_set to the vmm.
+ #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+ #[inspect(tag = "halt_reason")]
++#[vstd::prelude::verus_verify]
+ pub enum HaltReason {
+     PowerOff,
+     Reset,
+elapsed_s=0.02 exit=0

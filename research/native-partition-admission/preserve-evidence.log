@@ -1,0 +1,11 @@
+=== restored production, build configuration, and frozen inputs ===
+=== last tracked source/configuration change ===
+2026-09-20T12:46:27+08:00 Prepare partition-presence restore proposal for Human review
+=== reused unchanged-source check evidence ===
+2026-09-20 12:26:56.158017812 +0800 .verus_agent/cache/checks/make_verify/latest.log
+2026-09-20 12:49:35.632605692 +0800 .verus_agent/cache/checks/boundary/latest.log
+2026-09-20 12:49:35.801597279 +0800 .verus_agent/cache/checks/spec_drift/latest.log
+2026-09-20 12:49:39.421416971 +0800 .verus_agent/cache/checks/exec_drift/latest.log
+=== retained worktree changes ===
+ M research/GROUND_TRUTH.md
+?? research/native-partition-admission/

@@ -1,0 +1,23 @@
+{
+  "state": "running",
+  "task_id": "restore-presence-precommit",
+  "run_id": "restore-presence-precommit-1789887653156031129",
+  "description": "background task",
+  "command": "bash research/restore-partition-presence-proof/precommit.sh",
+  "pid": 3678718,
+  "worker_pid": 3678717,
+  "started_at": 1789887653.1603158,
+  "mode": "direct",
+  "run_dir": null,
+  "exit_status_path": "/home/ruize/openvmm-restore-v1/.argus_subagents/restore-presence-precommit_logs/exit_code.restore-presence-precommit-1789887653156031129",
+  "stdout_log": ".argus_subagents/restore-presence-precommit_logs/stdout.log",
+  "stderr_log": ".argus_subagents/restore-presence-precommit_logs/stderr.log",
+  "supervisor_usage_model": "",
+  "supervisor_input_tokens": 0,
+  "supervisor_cached_input_tokens": 0,
+  "supervisor_output_tokens": 0,
+  "supervisor_reasoning_output_tokens": 0,
+  "cwd": "/home/ruize/openvmm-restore-v1",
+  "live": true
+}
+elapsed_s=0.15 exit=0

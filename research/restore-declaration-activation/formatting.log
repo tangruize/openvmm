@@ -1,0 +1,27 @@
+Diff in /home/ruize/openvmm-restore-v1/openvmm/openvmm_core/src/worker/dispatch.rs:3787:
+     ) -> anyhow::Result<()> {
+         anyhow::ensure!(
+             restore_time.is_none()
+[31m-                || saved_state.units.iter().any(|unit| unit.name == "partition"),
+[m[32m+                || saved_state
+[m[32m+                    .units
+[m[32m+                    .iter()
+[m[32m+                    .any(|unit| unit.name == "partition"),
+[m             "time-adjusted snapshot restore requires partition state"
+         );
+         Ok(())
+Diff in /home/ruize/openvmm-restore-v1/support/mesh/mesh_channel/src/rpc.rs:28:
+     resource = "mesh_node::resource::Resource"
+ )]
+ // TODO(proof): Refine the input/response sender and real RPC completion.
+[31m-#[vstd::prelude::verus_verify(
+[m[31m-    external_body,
+[m[31m-    reject_recursive_types(I),
+[m[31m-    reject_recursive_types(R)
+[m[31m-)]
+[m[32m+#[vstd::prelude::verus_verify(external_body, reject_recursive_types(I), reject_recursive_types(R))]
+[m pub struct Rpc<I, R>(I, OneshotSender<R>);
+ 
+ impl<I: Debug, R> Debug for Rpc<I, R> {
+Command exited with non-zero status 1
+elapsed_s=0.13 exit=1

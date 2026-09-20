@@ -73,6 +73,8 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
 // are only implemented when `T` is `Send`, since the `SenderCore` is always
 // `Send+Sync`. This behavior is verified in the unit tests.
+// TODO(proof): Refine SenderCore, queue ownership, and message transport.
+#[vstd::prelude::verus_verify(external_body, reject_recursive_types(T))]
 pub struct Sender<T>(SenderCore, PhantomData<Arc<Mutex<[T]>>>);
 
 impl<T> Debug for Sender<T> {
@@ -333,6 +335,8 @@ impl<T: MeshField> Sender<T> {
 // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
 // are only implemented when `T` is `Send`, since the `ReceiverCore` is always
 // `Send+Sync`. This behavior is verified in the unit tests.
+// TODO(proof): Refine ReceiverCore, queue ownership, and stream operations.
+#[vstd::prelude::verus_verify(external_body, reject_recursive_types(T))]
 pub struct Receiver<T>(ReceiverCore, PhantomData<Arc<Mutex<[T]>>>);
 
 impl<T> Debug for Receiver<T> {

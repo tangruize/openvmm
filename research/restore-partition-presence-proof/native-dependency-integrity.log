@@ -1,0 +1,4 @@
+53 other dependency files byte-identical, including both licenses
+lib.rs is byte-identical after removing only the enumerated ghost annotations
+Both Bool bodies and the generic not body remain the original runtime implementations
+elapsed_s=0.02 exit=0

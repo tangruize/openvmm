@@ -6,6 +6,9 @@ name = "mesh_protobuf"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 default = []
 prost = ["dep:prost", "dep:prost-build"]
@@ -13,6 +16,7 @@ socket2 = ["dep:socket2"]
 std = ["dep:heck", "dep:fs-err"]
 
 [dependencies]
+vstd.workspace = true
 mesh_derive.workspace = true
 
 prost = { workspace = true, optional = true }

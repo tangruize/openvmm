@@ -1,0 +1,17 @@
++ git diff --exit-code -- . ':!research/**' ':!.autors/**'
++ git diff --cached --exit-code -- . ':!research/**' ':!.autors/**'
++ git diff --check
++ git apply --check research/oneshot-native-admission/receiver-source.patch
++ git apply --check research/oneshot-native-admission/representation-source.patch
++ bash -n research/oneshot-native-admission/intake.sh research/oneshot-native-admission/verify-owner.sh research/oneshot-native-admission/reproduce.sh research/oneshot-native-admission/probe.sh research/oneshot-native-admission/check.sh
++ git --no-pager status --short
+ M research/GROUND_TRUTH.md
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
+?? research/oneshot-native-admission/
++ git --no-pager log -1 '--format=%h %cI %s'
+01cd991e 2026-09-20T13:51:08+08:00 [verus][argus] proposed working result
++ git --no-pager log -1 '--format=%h %cI %s' argus/restore-v1-frozen
+4fb5e669 2026-09-20T13:51:08+08:00 [verus][argus] proposed frozen result
++ printf '%s\n' production_source_and_manifests_restored=true
+production_source_and_manifests_restored=true

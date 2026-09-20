@@ -1,0 +1,36 @@
+python=/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python
+ M Cargo.lock
+ M openvmm/openvmm_core/src/worker/dispatch.rs
+ M openvmm/openvmm_defs/Cargo.toml
+ M openvmm/openvmm_defs/src/worker.rs
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+ M support/mesh/mesh_channel/Cargo.toml
+ M support/mesh/mesh_channel/src/rpc.rs
+ M support/mesh/mesh_channel_core/Cargo.toml
+ M support/mesh/mesh_channel_core/src/mpsc.rs
+ M support/mesh/mesh_protobuf/Cargo.toml
+ M support/mesh/mesh_protobuf/src/time.rs
+ M support/pal/pal_async/Cargo.toml
+ M support/pal/pal_async/src/timer.rs
+ M vm/devices/chipset_resources/Cargo.toml
+ M vm/devices/chipset_resources/src/lib.rs
+ M vmm_core/Cargo.toml
+ M vmm_core/src/partition_unit.rs
+ M vmm_core/state_unit/Cargo.toml
+ M vmm_core/state_unit/src/lib.rs
+ M vmm_core/virt/Cargo.toml
+ M vmm_core/virt/src/x86/mod.rs
+ M vmm_core/virt/src/x86/vp.rs
+ M vmm_core/vmm_core_defs/Cargo.toml
+ M vmm_core/vmm_core_defs/src/lib.rs
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
+?? research/oneshot-native-admission/
+?? research/restore-declaration-activation/
+?? research/restore-partition-presence-proof/
+  993 research/GROUND_TRUTH.md
+   76 openvmm/openvmm_core/src/worker/dispatch.proof.rs
+ 1069 total
+solver=unset
+elapsed_s=0.02 exit=0

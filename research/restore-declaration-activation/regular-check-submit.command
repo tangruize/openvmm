@@ -1,0 +1,1 @@
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent submit --task-id restore-declaration-activation-rust-check --mode direct --timeout 600 --cwd /home/ruize/openvmm-restore-v1 --command bash\ research/restore-declaration-activation/run.sh\ regular-check\ env\ RUSTUP_TOOLCHAIN=1.95.0\ cargo\ check\ -p\ openvmm_core\ --locked 

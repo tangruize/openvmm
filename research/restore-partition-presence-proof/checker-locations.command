@@ -1,0 +1,1 @@
+/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -c import\ inspect\;\ import\ argus_verus.tools.checks.exec_drift\ as\ e\;\ import\ argus_verus.tools.operator.freeze_request\ as\ f\;\ print\(inspect.getfile\(e\)\)\;\ print\(inspect.getfile\(f\)\) 

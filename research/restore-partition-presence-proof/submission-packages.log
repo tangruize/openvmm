@@ -1,0 +1,12 @@
+chipset_resources
+mesh_channel
+mesh_channel_core
+mesh_protobuf
+openvmm_core
+openvmm_defs
+pal_async
+state_unit
+virt
+vmm_core
+vmm_core_defs
+elapsed_s=0.04 exit=0

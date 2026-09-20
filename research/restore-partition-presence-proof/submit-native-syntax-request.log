@@ -1,0 +1,9 @@
+freeze.patch: APPLIES
+run.patch: APPLIES
+spec_drift: PASS - both patch results have the same frozen TOP and BOTTOM specifications
+exec_drift: PASS - both patch results have the same executable behavior
+freeze_request: VALID
+freeze_request: submitted restore-guard-native-presence
+  research/freeze_requests/restore-guard-native-presence
+  Reviewer must independently run `freeze_request validate restore-guard-native-presence`
+elapsed_s=7.53 exit=0

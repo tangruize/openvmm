@@ -1,0 +1,18 @@
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.rs b/openvmm/openvmm_core/src/worker/dispatch.rs
+--- a/openvmm/openvmm_core/src/worker/dispatch.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.rs
+@@ -3782,9 +3782,12 @@
+         saved_state: &SavedState,
+         restore_time: Option<(Duration, u64, Option<u64>)>,
+     ) -> anyhow::Result<()> {
++        let partition_presence_valid = restore_time.is_none()
++            || saved_state.units.iter().any(|unit: &state_unit::SavedStateUnit| -> bool {
++                unit.name.as_str() == "partition"
++            });
+         anyhow::ensure!(
+-            restore_time.is_none()
+-                || saved_state.units.iter().any(|unit| unit.name == "partition"),
++            partition_presence_valid,
+             "time-adjusted snapshot restore requires partition state"
+         );
+         Ok(())

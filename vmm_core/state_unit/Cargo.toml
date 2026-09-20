@@ -6,7 +6,11 @@ name = "state_unit"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 vmcore.workspace = true
 
 inspect = { workspace = true, features = ["defer"] }

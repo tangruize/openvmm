@@ -35,6 +35,7 @@ use std::sync::Arc;
 /// HaltReason sent by devices and vp_set to the vmm.
 #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
 #[inspect(tag = "halt_reason")]
+#[vstd::prelude::verus_verify]
 pub enum HaltReason {
     PowerOff,
     Reset,

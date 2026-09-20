@@ -1,0 +1,4 @@
+{"id": "path+file:///home/ruize/openvmm-restore-v1/verification/dependencies/anyhow#1.0.99", "manifest_path": "/home/ruize/openvmm-restore-v1/verification/dependencies/anyhow/Cargo.toml", "metadata": {"verus": {"verify": true}, "docs": {"rs": {"targets": ["x86_64-unknown-linux-gnu"], "rustdoc-args": ["--generate-link-to-definition", "--extern-html-root-url=core=https://doc.rust-lang.org", "--extern-html-root-url=alloc=https://doc.rust-lang.org", "--extern-html-root-url=std=https://doc.rust-lang.org"]}}}}
+workspace_member True
+Native VIR artifacts:
+elapsed_s=0.18 exit=0

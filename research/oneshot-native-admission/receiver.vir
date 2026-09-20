@@ -1,0 +1,1110 @@
+(@ "toolchain/verus-src/source/vstd/std_specs/alloc.rs:11:1: 11:43 (#0)" (Datatype :name (Dt Path alloc::alloc::Global) :proxy
+  (@ "toolchain/verus-src/source/vstd/std_specs/alloc.rs:11:1: 11:43 (#0)" vstd::std_specs::alloc::ExGlobal) :owning_module
+  vstd::std_specs::alloc :visibility (Visibility :restricted_to None) :transparency (DatatypeTransparency Never) :typ_params
+  () :typ_bounds () :variants (
+   (Variant :name "Global" :fields () :ctor_style (CtorPrintStyle Braces))
+  ) :mode Exec :ext_equal false :user_defined_invariant_fn None :sized_constraint None :destructor false))
+
+(@ "toolchain/verus-src/source/vstd/std_specs/core.rs:149:1: 149:55 (#0)" (Datatype :name (Dt Path core::result::Result) :proxy
+  (@ "toolchain/verus-src/source/vstd/std_specs/core.rs:149:1: 149:55 (#0)" vstd::std_specs::core::ExResult) :owning_module
+  vstd::std_specs::core :visibility (Visibility :restricted_to None) :transparency (DatatypeTransparency WhenVisible (Visibility
+    :restricted_to None)
+  ) :typ_params (
+   (tuple "T" (AcceptRecursiveType Accept))
+   (tuple "E" (AcceptRecursiveType RejectInGround))
+  ) :typ_bounds (
+   (GenericBound Trait (TraitId Sizedness (Sizedness Sized)) ((Typ TypParam "T")))
+   (GenericBound Trait (TraitId Sizedness (Sizedness Sized)) ((Typ TypParam "E")))
+  ) :variants (
+   (Variant :name "Ok" :fields ((-> 0 (tuple (Typ TypParam "T") Exec (Visibility :restricted_to None)))) :ctor_style (CtorPrintStyle
+     Parens))
+   (Variant :name "Err" :fields ((-> 0 (tuple (Typ TypParam "E") Exec (Visibility :restricted_to None)))) :ctor_style (CtorPrintStyle
+     Parens))
+  ) :mode Exec :ext_equal false :user_defined_invariant_fn None :sized_constraint None :destructor false))
+
+(@ "toolchain/verus-src/source/vstd/std_specs/core.rs:161:1: 161:73 (#0)" (Datatype :name (Dt Path core::marker::PhantomData)
+  :proxy (@ "toolchain/verus-src/source/vstd/std_specs/core.rs:161:1: 161:73 (#0)" vstd::std_specs::core::ExPhantomData) :owning_module
+  vstd::std_specs::core :visibility (Visibility :restricted_to None) :transparency (DatatypeTransparency WhenVisible (Visibility
+    :restricted_to None)
+  ) :typ_params (
+   (tuple "V" (AcceptRecursiveType Accept))
+  ) :typ_bounds () :variants (
+   (Variant :name "PhantomData" :fields () :ctor_style (CtorPrintStyle Const))
+  ) :mode Exec :ext_equal false :user_defined_invariant_fn None :sized_constraint None :destructor false))
+
+(@ "toolchain/verus-src/source/vstd/std_specs/manually_drop.rs:12:1: 12:55 (#0)" (Datatype :name (Dt Path core::mem::manually_drop::ManuallyDrop)
+  :proxy (@ "toolchain/verus-src/source/vstd/std_specs/manually_drop.rs:12:1: 12:55 (#0)" vstd::std_specs::manually_drop::ExManuallyDrop)
+  :owning_module vstd::std_specs::manually_drop :visibility (Visibility :restricted_to None) :transparency (DatatypeTransparency
+   Never
+  ) :typ_params (
+   (tuple "V" (AcceptRecursiveType RejectInGround))
+  ) :typ_bounds (
+   (GenericBound Trait (TraitId Sizedness (Sizedness MetaSized)) ((Typ TypParam "V")))
+  ) :variants (
+   (Variant :name "ManuallyDrop" :fields () :ctor_style (CtorPrintStyle Braces))
+  ) :mode Exec :ext_equal false :user_defined_invariant_fn None :sized_constraint (Typ TypParam "V") :destructor false))
+
+(@ "support/mesh/mesh_channel_core/src/oneshot.rs:272:1: 275:3 (#0)" (Datatype :name (Dt Path mesh_channel_core::oneshot::OneshotReceiver)
+  :proxy None :owning_module mesh_channel_core::oneshot :visibility (Visibility :restricted_to None) :transparency (DatatypeTransparency
+   WhenVisible (Visibility :restricted_to mesh_channel_core::oneshot)
+  ) :typ_params (
+   (tuple "T" (AcceptRecursiveType RejectInGround))
+  ) :typ_bounds (
+   (GenericBound Trait (TraitId Sizedness (Sizedness Sized)) ((Typ TypParam "T")))
+  ) :variants (
+   (Variant :name "OneshotReceiver" :fields ((-> 0 (tuple (Typ Datatype (Dt Path core::mem::manually_drop::ManuallyDrop) ((Typ Datatype
+          (Dt Path mesh_channel_core::oneshot::OneshotReceiverCore) () ())
+        ) ()
+       ) Exec (Visibility :restricted_to mesh_channel_core::oneshot))
+     ) (-> 1 (tuple (Typ Datatype (Dt Path core::marker::PhantomData) ((Typ Decorate (TypDecoration Arc) (TypDecorationArg :allocator_typ
+           (Typ Datatype (Dt Path alloc::alloc::Global) () ())
+          ) (Typ Datatype (Dt Path lock_api::mutex::Mutex) ((Typ Datatype (Dt Path parking_lot::raw_mutex::RawMutex) () ()) (Typ TypParam
+             "T")
+           ) ()))
+        ) ()
+       ) Exec (Visibility :restricted_to mesh_channel_core::oneshot)))
+    ) :ctor_style (CtorPrintStyle Parens))
+  ) :mode Exec :ext_equal false :user_defined_invariant_fn None :sized_constraint None :destructor true))
+
+(group_id vstd::array::group_array_axioms)
+
+(group_id vstd::function::group_function_axioms)
+
+(group_id vstd::imap::group_imap_lemmas)
+
+(group_id vstd::iset::group_iset_lemmas)
+
+(group_id vstd::laws_cmp::group_laws_cmp)
+
+(group_id vstd::laws_eq::bool_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::u8_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::i8_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::u16_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::i16_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::u32_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::i32_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::u64_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::i64_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::u128_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::i128_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::usize_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::isize_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_1_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_2_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_3_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_4_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_5_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_6_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_7_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_8_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_9_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_10_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_11_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::tuple_12_laws::group_laws_eq)
+
+(group_id vstd::laws_eq::group_laws_eq)
+
+(group_id vstd::layout::group_align_properties)
+
+(group_id vstd::layout::group_layout_axioms)
+
+(group_id vstd::map::group_map_lemmas)
+
+(group_id vstd::multiset::group_multiset_axioms)
+
+(group_id vstd::mut_ref::group_mut_ref_axioms)
+
+(group_id vstd::raw_ptr::group_raw_ptr_axioms)
+
+(group_id vstd::seq::group_seq_lemmas)
+
+(group_id vstd::seq_lib::group_filter_ensures)
+
+(group_id vstd::seq_lib::group_seq_lib_default)
+
+(group_id vstd::set::group_set_lemmas)
+
+(group_id vstd::set_lib::group_set_lib_default)
+
+(group_id vstd::slice::group_slice_axioms)
+
+(group_id vstd::string::group_string_axioms)
+
+(group_id vstd::std_specs::bits::group_bits_axioms)
+
+(group_id vstd::std_specs::control_flow::group_control_flow_axioms)
+
+(group_id vstd::std_specs::fmt::group_fmt_axioms)
+
+(group_id vstd::std_specs::iter::group_iter_axioms)
+
+(group_id vstd::std_specs::manually_drop::group_manually_drop_axioms)
+
+(group_id vstd::std_specs::btree::group_btree_axioms)
+
+(group_id vstd::std_specs::range::group_range_axioms)
+
+(group_id vstd::std_specs::vec::group_vec_axioms)
+
+(group_id vstd::std_specs::vecdeque::group_vec_dequeue_axioms)
+
+(group_id vstd::group_vstd_default)
+
+(trait_impl mesh_channel_core::oneshot::impl&%7 core::fmt::Debug)
+
+(trait_impl mesh_channel_core::oneshot::impl&%10 core::future::future::Future)
+
+(@ "support/mesh/mesh_channel_core/src/oneshot.rs:308:1: 308:38 (#0)" (AssocTypeImpl :name "Output" :impl_path mesh_channel_core::oneshot::impl&%10
+  :typ_params (
+   "T"
+  ) :typ_bounds (
+   (GenericBound Trait (TraitId Sizedness (Sizedness Sized)) ((Typ TypParam "T")))
+  ) :trait_path core::future::future::Future :trait_typ_args ((Typ Datatype (Dt Path mesh_channel_core::oneshot::OneshotReceiver)
+    ((Typ TypParam "T")) ())
+  ) :typ (Typ Datatype (Dt Path core::result::Result) ((Typ TypParam "T") (Typ Datatype (Dt Path mesh_channel_core::error::RecvError)
+     () ())
+   ) ()
+  ) :impl_paths ()))
+
+(module_id vstd::arithmetic::internals::div_internals_nonlinear)
+
+(module_id vstd::arithmetic::internals::general_internals)
+
+(module_id vstd::arithmetic::internals::mod_internals_nonlinear)
+
+(module_id vstd::arithmetic::internals::mul_internals_nonlinear)
+
+(module_id vstd::arithmetic::internals::div_internals)
+
+(module_id vstd::arithmetic::internals::mod_internals)
+
+(module_id vstd::arithmetic::internals::mul_internals)
+
+(module_id vstd::resource::combinators::agree)
+
+(module_id vstd::resource::combinators::auth)
+
+(module_id vstd::resource::combinators::exclusive)
+
+(module_id vstd::resource::combinators::frac)
+
+(module_id vstd::resource::combinators::option)
+
+(module_id vstd::resource::combinators::product)
+
+(module_id vstd::resource::combinators::sum)
+
+(module_id vstd::resource::impls::frac_opt)
+
+(module_id vstd::resource::impls::ghost_var)
+
+(module_id vstd::resource::impls::imap)
+
+(module_id vstd::resource::impls::iset)
+
+(module_id vstd::resource::impls::map)
+
+(module_id vstd::resource::impls::seq)
+
+(module_id vstd::resource::impls::set)
+
+(module_id vstd::rwlock::RwLockToks::show)
+
+(module_id vstd::rwlock::RwLockToks::take_step)
+
+(module_id vstd::shared::Dupe::show)
+
+(module_id vstd::shared::Dupe::take_step)
+
+(module_id vstd::std_specs::num::u8_specs_tmp)
+
+(module_id vstd::std_specs::num::i8_specs_tmp)
+
+(module_id vstd::std_specs::num::u16_specs_tmp)
+
+(module_id vstd::std_specs::num::i16_specs_tmp)
+
+(module_id vstd::std_specs::num::u32_specs_tmp)
+
+(module_id vstd::std_specs::num::i32_specs_tmp)
+
+(module_id vstd::std_specs::num::u64_specs_tmp)
+
+(module_id vstd::std_specs::num::i64_specs_tmp)
+
+(module_id vstd::std_specs::num::u128_specs_tmp)
+
+(module_id vstd::std_specs::num::i128_specs_tmp)
+
+(module_id vstd::std_specs::num::usize_specs_tmp)
+
+(module_id vstd::std_specs::num::isize_specs_tmp)
+
+(module_id vstd::arithmetic::div_mod)
+
+(module_id vstd::arithmetic::logarithm)
+
+(module_id vstd::arithmetic::mul)
+
+(module_id vstd::arithmetic::overflow)
+
+(module_id vstd::arithmetic::power)
+
+(module_id vstd::arithmetic::power2)
+
+(module_id vstd::cell::invcell)
+
+(module_id vstd::cell::pcell)
+
+(module_id vstd::cell::pcell_maybe_uninit)
+
+(module_id vstd::iset::fold)
+
+(module_id vstd::laws_cmp::u8_laws)
+
+(module_id vstd::laws_cmp::i8_laws)
+
+(module_id vstd::laws_cmp::u16_laws)
+
+(module_id vstd::laws_cmp::i16_laws)
+
+(module_id vstd::laws_cmp::u32_laws)
+
+(module_id vstd::laws_cmp::i32_laws)
+
+(module_id vstd::laws_cmp::u64_laws)
+
+(module_id vstd::laws_cmp::i64_laws)
+
+(module_id vstd::laws_cmp::u128_laws)
+
+(module_id vstd::laws_cmp::i128_laws)
+
+(module_id vstd::laws_cmp::usize_laws)
+
+(module_id vstd::laws_cmp::isize_laws)
+
+(module_id vstd::laws_cmp::tuple_1_laws)
+
+(module_id vstd::laws_cmp::tuple_2_laws)
+
+(module_id vstd::laws_cmp::tuple_3_laws)
+
+(module_id vstd::laws_cmp::tuple_4_laws)
+
+(module_id vstd::laws_cmp::tuple_5_laws)
+
+(module_id vstd::laws_cmp::tuple_6_laws)
+
+(module_id vstd::laws_cmp::tuple_7_laws)
+
+(module_id vstd::laws_cmp::tuple_8_laws)
+
+(module_id vstd::laws_cmp::tuple_9_laws)
+
+(module_id vstd::laws_cmp::tuple_10_laws)
+
+(module_id vstd::laws_cmp::tuple_11_laws)
+
+(module_id vstd::laws_cmp::tuple_12_laws)
+
+(module_id vstd::laws_eq::bool_laws)
+
+(module_id vstd::laws_eq::u8_laws)
+
+(module_id vstd::laws_eq::i8_laws)
+
+(module_id vstd::laws_eq::u16_laws)
+
+(module_id vstd::laws_eq::i16_laws)
+
+(module_id vstd::laws_eq::u32_laws)
+
+(module_id vstd::laws_eq::i32_laws)
+
+(module_id vstd::laws_eq::u64_laws)
+
+(module_id vstd::laws_eq::i64_laws)
+
+(module_id vstd::laws_eq::u128_laws)
+
+(module_id vstd::laws_eq::i128_laws)
+
+(module_id vstd::laws_eq::usize_laws)
+
+(module_id vstd::laws_eq::isize_laws)
+
+(module_id vstd::laws_eq::tuple_1_laws)
+
+(module_id vstd::laws_eq::tuple_2_laws)
+
+(module_id vstd::laws_eq::tuple_3_laws)
+
+(module_id vstd::laws_eq::tuple_4_laws)
+
+(module_id vstd::laws_eq::tuple_5_laws)
+
+(module_id vstd::laws_eq::tuple_6_laws)
+
+(module_id vstd::laws_eq::tuple_7_laws)
+
+(module_id vstd::laws_eq::tuple_8_laws)
+
+(module_id vstd::laws_eq::tuple_9_laws)
+
+(module_id vstd::laws_eq::tuple_10_laws)
+
+(module_id vstd::laws_eq::tuple_11_laws)
+
+(module_id vstd::laws_eq::tuple_12_laws)
+
+(module_id vstd::raw_ptr::ptr_mut_specs)
+
+(module_id vstd::raw_ptr::ptr_const_specs)
+
+(module_id vstd::resource::algebra)
+
+(module_id vstd::resource::lib)
+
+(module_id vstd::resource::pcm)
+
+(module_id vstd::resource::relations)
+
+(module_id vstd::resource::storage_protocol)
+
+(module_id vstd::rwlock::RwLockToks)
+
+(module_id vstd::seq::seq_inner)
+
+(module_id vstd::set::fold)
+
+(module_id vstd::shared::Dupe)
+
+(module_id vstd::wrapping::u8_specs)
+
+(module_id vstd::wrapping::i8_specs)
+
+(module_id vstd::wrapping::u16_specs)
+
+(module_id vstd::wrapping::i16_specs)
+
+(module_id vstd::wrapping::u32_specs)
+
+(module_id vstd::wrapping::i32_specs)
+
+(module_id vstd::wrapping::u64_specs)
+
+(module_id vstd::wrapping::i64_specs)
+
+(module_id vstd::wrapping::u128_specs)
+
+(module_id vstd::wrapping::i128_specs)
+
+(module_id vstd::wrapping::usize_specs)
+
+(module_id vstd::wrapping::isize_specs)
+
+(module_id vstd::std_specs::alloc)
+
+(module_id vstd::std_specs::array)
+
+(module_id vstd::std_specs::atomic)
+
+(module_id vstd::std_specs::bits)
+
+(module_id vstd::std_specs::borrow)
+
+(module_id vstd::std_specs::char)
+
+(module_id vstd::std_specs::clone)
+
+(module_id vstd::std_specs::cmp)
+
+(module_id vstd::std_specs::control_flow)
+
+(module_id vstd::std_specs::convert)
+
+(module_id vstd::std_specs::core)
+
+(module_id vstd::std_specs::default)
+
+(module_id vstd::std_specs::fmt)
+
+(module_id vstd::std_specs::iter)
+
+(module_id vstd::std_specs::manually_drop)
+
+(module_id vstd::std_specs::maybe_uninit)
+
+(module_id vstd::std_specs::ops)
+
+(module_id vstd::std_specs::btree)
+
+(module_id vstd::std_specs::num)
+
+(module_id vstd::std_specs::option)
+
+(module_id vstd::std_specs::range)
+
+(module_id vstd::std_specs::result)
+
+(module_id vstd::std_specs::slice)
+
+(module_id vstd::std_specs::vec)
+
+(module_id vstd::std_specs::vecdeque)
+
+(module_id vstd::std_specs::smart_ptrs)
+
+(module_id vstd::array)
+
+(module_id vstd::atomic)
+
+(module_id vstd::atomic_ghost)
+
+(module_id vstd::bits)
+
+(module_id vstd::bytes)
+
+(module_id vstd::cell)
+
+(module_id vstd::compute)
+
+(module_id vstd::endian)
+
+(module_id vstd::float)
+
+(module_id vstd::function)
+
+(module_id vstd::future)
+
+(module_id vstd::imap)
+
+(module_id vstd::imap_lib)
+
+(module_id vstd::invariant)
+
+(module_id vstd::iset)
+
+(module_id vstd::iset_lib)
+
+(module_id vstd::laws_cmp)
+
+(module_id vstd::laws_eq)
+
+(module_id vstd::layout)
+
+(module_id vstd::logatom)
+
+(module_id vstd::map)
+
+(module_id vstd::map_lib)
+
+(module_id vstd::math)
+
+(module_id vstd::modes)
+
+(module_id vstd::multiset)
+
+(module_id vstd::multiset_lib)
+
+(module_id vstd::mut_ref)
+
+(module_id vstd::pervasive)
+
+(module_id vstd::predicate)
+
+(module_id vstd::proph)
+
+(module_id vstd::raw_ptr)
+
+(module_id vstd::relations)
+
+(module_id vstd::resource)
+
+(module_id vstd::rwlock)
+
+(module_id vstd::seq)
+
+(module_id vstd::seq_lib)
+
+(module_id vstd::set)
+
+(module_id vstd::set_lib)
+
+(module_id vstd::shared)
+
+(module_id vstd::simple_pptr)
+
+(module_id vstd::slice)
+
+(module_id vstd::state_machine_internal)
+
+(module_id vstd::string)
+
+(module_id vstd::tokens)
+
+(module_id vstd::utf8)
+
+(module_id vstd::view)
+
+(module_id vstd::wrapping)
+
+(module_id vstd::)
+
+(module_id mesh_channel_core::oneshot)
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::_))
+
+(external_fn (Fun :path vstd::atomic::impl&%14::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%16::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%18::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%20::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%22::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%24::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%26::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%28::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%30::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%32::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%34::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%36::new))
+
+(external_fn (Fun :path vstd::atomic::impl&%0::fmt))
+
+(external_fn (Fun :path vstd::atomic::impl&%41::fmt))
+
+(external_fn (Fun :path vstd::atomic::atomically))
+
+(external_fn (Fun :path vstd::atomic::bind_lifetime_internal))
+
+(external_fn (Fun :path vstd::atomic::try_open_atomic_update_begin))
+
+(external_fn (Fun :path vstd::atomic::try_open_atomic_update_end))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%2::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%5::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%8::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%11::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%14::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%17::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%20::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%23::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%26::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%29::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%32::new))
+
+(external_fn (Fun :path vstd::atomic_ghost::impl&%34::new))
+
+(external_fn (Fun :path vstd::cell::pcell::impl&%3::new))
+
+(external_fn (Fun :path vstd::cell::pcell_maybe_uninit::impl&%1::empty))
+
+(external_fn (Fun :path vstd::cell::pcell_maybe_uninit::impl&%1::new))
+
+(external_fn (Fun :path vstd::cell::impl&%3::empty))
+
+(external_fn (Fun :path vstd::cell::impl&%3::new))
+
+(external_fn (Fun :path vstd::invariant::open_atomic_invariant_begin))
+
+(external_fn (Fun :path vstd::invariant::open_local_invariant_begin))
+
+(external_fn (Fun :path vstd::invariant::open_invariant_end))
+
+(external_fn (Fun :path vstd::layout::layout_for_type_is_valid))
+
+(external_fn (Fun :path vstd::layout::layout_for_val_is_valid))
+
+(external_fn (Fun :path vstd::pervasive::runtime_assert_internal))
+
+(external_fn (Fun :path vstd::resource::impl&%0::assert_fields_are_eq))
+
+(external_fn (Fun :path vstd::resource::impl&%2::eq))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_binary))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_debug))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_debug_noop))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_display))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_lower_exp))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_lower_hex))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_octal))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_pointer))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_upper_exp))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::new_upper_hex))
+
+(external_fn (Fun :path core::fmt::rt::impl&%0::from_usize))
+
+(external_fn (Fun :path core::fmt::impl&%4::new))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%0::fmt))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%3::new))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%3::new::drop_fn))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%4::as_ptr))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%5::as_ptr))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%5::commit))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::new))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::is_empty))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::offset))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::buf_at))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::reserve_one))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::push_back))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::pop_front_in_place))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::clear))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::clear_and_shrink))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%6::grow))
+
+(external_fn (Fun :path mesh_channel_core::deque::impl&%7::drop))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%3::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%4::source))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%5::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%6::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%0::kind))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%1::from))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%2::from))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%7::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%8::source))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%9::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%10::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%11::source))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%12::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%13::from))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%14::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%15::source))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%16::fmt))
+
+(external_fn (Fun :path mesh_channel_core::error::impl&%17::from))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::channel))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::channel::channel_core))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%0::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%1::clone))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%2::send))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%2::is_closed))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%3::new))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%3::read))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::send_message))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%28::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%29::clone))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::send))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::send::send))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::is_closed))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::into_queue))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::from_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::from_port::from_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::into_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%4::into_port::into_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%5::drop))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%7::from))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%8::from))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%9::bridge))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%10::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%11::default))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%30::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%12::new))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%12::recv))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%12::try_recv))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%12::poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%12::sender))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%13::poll))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%31::default))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%32::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%14::drop))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%15::state))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%15::state_mut))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%15::split_mut))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::new))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::try_poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::try_poll_recv::try_poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::is_closed))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::sender))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::into_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::into_port::into_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::from_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%16::from_port::from_port))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::trace_channel_error))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::trace_channel_error::__CALLSITE::META::NAME))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%17::poll_next))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%18::is_terminated))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%33::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%34::default))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%19::remove_closed))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%19::into_ports))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%21::from))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%22::from))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%23::bridge))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%35::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%24::access))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%36::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%25::new))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::missing_handler))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%37::fmt))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%38::write_variant))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%38::compute_variant_size))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%39::read_variant))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%26::new))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%26::parse))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%27::message))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%27::close))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%27::fail))
+
+(external_fn (Fun :path mesh_channel_core::mpsc::impl&%27::drain))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::oneshot))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::oneshot::oneshot_core))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%0::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%1::send))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%1::is_closed))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%3::from))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%4::from))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::send_message))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::decode_message))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%20::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%21::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%5::drop))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::into_slot))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::close))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::is_closed))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::send))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::send::send))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::into_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::into_port::into_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::from_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%6::from_port::from_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%7::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%8::poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%8::into_core))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%9::drop))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%10::poll))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%12::from))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%13::from))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%22::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%23::default))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::split))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::split_mut))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::drop))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::drop::clear))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::poll_recv::poll_recv))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::into_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::into_port::into_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::from_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%14::from_port::from_port))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%24::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%25::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%17::new))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%17::cast))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%17::drop))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%26::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%28::fmt))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%18::close_or_fail))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%19::message))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%19::close))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%19::fail))
+
+(external_fn (Fun :path mesh_channel_core::oneshot::impl&%19::drain))
+
+(external_fn (Fun :path mesh_channel_core::sync_unsafe_cell::impl&%3::default))
+
+(external_fn (Fun :path mesh_channel_core::sync_unsafe_cell::impl&%0::fmt))
+
+(external_fn (Fun :path mesh_channel_core::sync_unsafe_cell::impl&%1::new))
+
+(external_type core::fmt::rt::Argument)
+
+(external_type vstd::std_specs::VstdSpecsForRustStdLib)
+
+(external_type mesh_channel_core::deque::ErasedVecDeque)
+
+(external_type mesh_channel_core::deque::ElementVtable)
+
+(external_type mesh_channel_core::deque::InPlaceElement)
+
+(external_type mesh_channel_core::deque::ReservedElement)
+
+(external_type mesh_channel_core::error::ChannelError)
+
+(external_type mesh_channel_core::error::ChannelErrorKind)
+
+(external_type mesh_channel_core::error::ChannelErrorInner)
+
+(external_type mesh_channel_core::error::TryRecvError)
+
+(external_type mesh_channel_core::error::RecvError)
+
+(external_type mesh_channel_core::mpsc::Sender)
+
+(external_type mesh_channel_core::mpsc::MessagePtr)
+
+(external_type mesh_channel_core::mpsc::SenderCore)
+
+(external_type mesh_channel_core::mpsc::Receiver)
+
+(external_type mesh_channel_core::mpsc::ReceiverCore)
+
+(external_type mesh_channel_core::mpsc::Recv)
+
+(external_type mesh_channel_core::mpsc::ReceiverState)
+
+(external_type mesh_channel_core::mpsc::ReceiverQueue)
+
+(external_type mesh_channel_core::mpsc::PortHandlerList)
+
+(external_type mesh_channel_core::mpsc::Queue)
+
+(external_type mesh_channel_core::mpsc::QueueAccess)
+
+(external_type mesh_channel_core::mpsc::LocalQueue)
+
+(external_type mesh_channel_core::mpsc::RemoteQueueState)
+
+(external_type mesh_channel_core::mpsc::ChannelPayload)
+
+(external_type mesh_channel_core::mpsc::RemotePortHandler)
+
+(external_type mesh_channel_core::oneshot::OneshotSender)
+
+(external_type mesh_channel_core::oneshot::Slot)
+
+(external_type mesh_channel_core::oneshot::OneshotSenderCore)
+
+(external_type mesh_channel_core::oneshot::OneshotReceiverCore)
+
+(external_type mesh_channel_core::oneshot::ReceiverState)
+
+(external_type mesh_channel_core::oneshot::SlotState)
+
+(external_type mesh_channel_core::oneshot::BoxedValue)
+
+(external_type mesh_channel_core::oneshot::UnexpectedMessage)
+
+(external_type mesh_channel_core::oneshot::SlotHandler)
+
+(external_type mesh_channel_core::sync_unsafe_cell::SyncUnsafeCell)
+
+(arch_word_bits (ArchWordBits Either32Or64))
+

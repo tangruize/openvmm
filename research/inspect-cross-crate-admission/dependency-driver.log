@@ -1,0 +1,15 @@
++++ verification/tools/find-verus.sh
+++ dirname /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus
++ verus_root=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release
++ export PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release:/usr/bin:/home/ruize/.npm-global/bin:/home/ruize/verus-bin:/home/ruize/.local/bin:/home/ruize/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
++ PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release:/usr/bin:/home/ruize/.npm-global/bin:/home/ruize/verus-bin:/home/ruize/.local/bin:/home/ruize/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
++ printf '%s\n' '/usr/bin/time -f "elapsed_s=%e exit=%x" timeout --kill-after=5s 110s cargo verus focus -p inspect --no-default-features --features derive,defer,std -vv -- --no-lifetime --multiple-errors 20 --num-threads 1 --triggers-mode silent --log vir'
++ set +e
++ /usr/bin/time -f 'elapsed_s=%e exit=%x' timeout --kill-after=5s 110s cargo verus focus -p inspect --no-default-features --features derive,defer,std -vv -- --no-lifetime --multiple-errors 20 --num-threads 1 --triggers-mode silent --log vir
++ result=101
++ set -e
++ git --no-pager diff -- Cargo.lock support/inspect/Cargo.toml support/inspect/src/lib.rs
++ printf 'dependency_verification_exit=%s\n' 101
+dependency_verification_exit=101
++ find target/verus-partial -type f -name '*inspect*.vir' -print
++ exit 101

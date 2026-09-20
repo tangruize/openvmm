@@ -1,0 +1,135 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..badc6f7a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3962,6 +3962,7 @@ dependencies = [
+  "pal_async",
+  "parking_lot",
+  "thiserror 2.0.16",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/support/inspect/Cargo.toml b/support/inspect/Cargo.toml
+index d8db27be..1439b927 100644
+--- a/support/inspect/Cargo.toml
++++ b/support/inspect/Cargo.toml
+@@ -6,6 +6,9 @@ name = "inspect"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ default = ["derive",  "defer", "initiate", "std"]
+ derive = ["inspect_derive"]
+@@ -29,6 +32,7 @@ filepath = ["dep:filepath", "std"]
+ arbitrary = ["dep:arbitrary", "std"]
+ 
+ [dependencies]
++vstd.workspace = true
+ inspect_derive = { workspace = true, optional = true }
+ mesh = { workspace = true, optional = true }
+ 
+diff --git a/support/inspect/src/lib.rs b/support/inspect/src/lib.rs
+index cc5aaffe..789d1d25 100644
+--- a/support/inspect/src/lib.rs
++++ b/support/inspect/src/lib.rs
+@@ -478,13 +478,16 @@
+ use core::mem::ManuallyDrop;
+ use core::num::Wrapping;
+ use core::ops::Deref;
++use vstd::prelude::verus_verify;
+ 
+ /// An inspection request.
++#[verus_verify]
+ pub struct Request<'a> {
+     params: RequestParams<'a>,
+     node: &'a mut InternalNode,
+ }
+ 
++#[verus_verify]
+ struct RootParams<'a> {
+     full_path: &'a str,
+     value: Option<&'a str>,
+@@ -492,6 +495,7 @@ struct RootParams<'a> {
+ }
+ 
+ #[derive(Copy, Clone)]
++#[verus_verify]
+ struct RequestParams<'a> {
+     root: &'a RootParams<'a>,
+     path_start: usize,
+@@ -515,6 +519,7 @@ fn is_leaf(&self) -> bool {
+     derive(mesh::MeshPayload)
+ )]
+ #[derive(Debug, Default, Copy, Clone)]
++#[verus_verify]
+ enum NumberFormat {
+     #[default]
+     Decimal,
+@@ -537,6 +542,7 @@ enum NumberFormat {
+     mesh(package = "inspect")
+ )]
+ #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++#[verus_verify]
+ pub enum SensitivityLevel {
+     /// The node doesn't contain sensitive information and is always safe to expose.
+     #[cfg_attr(any(feature = "defer", feature = "initiate"), mesh(1))]
+@@ -1186,6 +1192,7 @@ pub fn fail<E: Into<Box<dyn core::error::Error + Send + Sync>>>(self, err: E) {
+     mesh(package = "inspect")
+ )]
+ #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++#[verus_verify]
+ pub struct Value {
+     /// The kind and associated value.
+     #[cfg_attr(any(feature = "defer", feature = "initiate"), mesh(1))]
+@@ -1252,6 +1259,7 @@ pub fn into_binary(self) -> Self {
+     mesh(package = "inspect")
+ )]
+ #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++#[verus_verify]
+ pub enum ValueKind {
+     /// A signed integer.
+     #[cfg_attr(any(feature = "defer", feature = "initiate"), mesh(1))]
+@@ -1299,6 +1307,7 @@ fn with_format(self, format: NumberFormat) -> Value {
+     mesh(package = "inspect")
+ )]
+ #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++#[verus_verify]
+ pub struct ValueFlags {
+     /// This value should be displayed as hexadecimal.
+     pub hex: bool,
+@@ -1875,6 +1884,7 @@ fn inspect(&self, req: Request<'_>) {
+     derive(mesh::MeshPayload)
+ )]
+ #[cfg_attr(not(any(feature = "defer", feature = "initiate")), expect(dead_code))]
++#[verus_verify]
+ enum InternalNode {
+     Unevaluated,
+     Failed(InternalError),
+@@ -1896,6 +1906,7 @@ enum InternalNode {
+ // Without the initiate feature we never read fields of the InternalEntry
+ // to produce a user-visible Entry, but we still need those fields.
+ #[cfg_attr(not(any(feature = "defer", feature = "initiate")), expect(dead_code))]
++#[verus_verify]
+ struct InternalEntry {
+     name: String,
+     node: InternalNode,
+@@ -1908,6 +1919,7 @@ struct InternalEntry {
+     derive(mesh::MeshPayload)
+ )]
+ #[cfg_attr(not(any(feature = "defer", feature = "initiate")), expect(dead_code))]
++#[verus_verify]
+ enum InternalError {
+     Immutable,
+     Update(String),
+@@ -2037,6 +2049,7 @@ fn inspect_mut(&mut self, req: Request<'_>) {
+ ///     }
+ /// }
+ /// ```
++#[verus_verify]
+ pub trait Inspect {
+     /// Inspects the object.
+     fn inspect(&self, req: Request<'_>);

@@ -23,6 +23,7 @@ use std::time::Duration;
 /// This is modeled after std::time::Instant but uses a different clock source
 /// on Windows, and it allows access to the raw value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[vstd::prelude::verus_verify]
 pub struct Instant(u64);
 
 impl Instant {

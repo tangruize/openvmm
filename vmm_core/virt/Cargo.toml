@@ -6,7 +6,11 @@ name = "virt"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 aarch64defs.workspace = true
 hvdef.workspace = true
 pci_core.workspace = true

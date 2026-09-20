@@ -1,0 +1,1 @@
+/usr/bin/time -f "elapsed_s=%e exit=%x" timeout --kill-after=5s 110s cargo verus focus -p mesh_channel_core --features mesh_protobuf/std -vv -- --verify-only-module oneshot --no-lifetime --multiple-errors 20 --num-threads 1 --triggers-mode silent --log vir

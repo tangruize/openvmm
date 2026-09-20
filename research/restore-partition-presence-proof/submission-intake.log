@@ -1,0 +1,71 @@
+ M Cargo.lock
+ M openvmm/openvmm_core/src/worker/dispatch.rs
+ M openvmm/openvmm_defs/Cargo.toml
+ M openvmm/openvmm_defs/src/worker.rs
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+ M support/mesh/mesh_channel/Cargo.toml
+ M support/mesh/mesh_channel/src/rpc.rs
+ M support/mesh/mesh_channel_core/Cargo.toml
+ M support/mesh/mesh_channel_core/src/mpsc.rs
+ M support/mesh/mesh_protobuf/Cargo.toml
+ M support/mesh/mesh_protobuf/src/time.rs
+ M support/pal/pal_async/Cargo.toml
+ M support/pal/pal_async/src/timer.rs
+ M vm/devices/chipset_resources/Cargo.toml
+ M vm/devices/chipset_resources/src/lib.rs
+ M vmm_core/Cargo.toml
+ M vmm_core/src/partition_unit.rs
+ M vmm_core/state_unit/Cargo.toml
+ M vmm_core/state_unit/src/lib.rs
+ M vmm_core/virt/Cargo.toml
+ M vmm_core/virt/src/x86/mod.rs
+ M vmm_core/virt/src/x86/vp.rs
+ M vmm_core/vmm_core_defs/Cargo.toml
+ M vmm_core/vmm_core_defs/src/lib.rs
+?? research/freeze_requests/restore-guard-native-presence/
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
+?? research/oneshot-native-admission/
+?? research/restore-declaration-activation/
+?? research/restore-partition-presence-proof/
+
+Branch
+argus/restore-v1-run
+
+Diff summary
+ Cargo.lock                                  |  10 +
+ openvmm/openvmm_core/src/worker/dispatch.rs |   5 +-
+ openvmm/openvmm_defs/Cargo.toml             |   4 +
+ openvmm/openvmm_defs/src/worker.rs          |   2 +
+ research/GROUND_TRUTH.md                    | 548 ++++++++++++++++++++++++++++
+ research/PIPELINE_STATE.json                |  68 +++-
+ support/mesh/mesh_channel/Cargo.toml        |   4 +
+ support/mesh/mesh_channel/src/rpc.rs        |   2 +
+ support/mesh/mesh_channel_core/Cargo.toml   |   4 +
+ support/mesh/mesh_channel_core/src/mpsc.rs  |   4 +
+ support/mesh/mesh_protobuf/Cargo.toml       |   4 +
+ support/mesh/mesh_protobuf/src/time.rs      |   1 +
+ support/pal/pal_async/Cargo.toml            |   4 +
+ support/pal/pal_async/src/timer.rs          |   1 +
+ vm/devices/chipset_resources/Cargo.toml     |   4 +
+ vm/devices/chipset_resources/src/lib.rs     |   3 +
+ vmm_core/Cargo.toml                         |   4 +
+ vmm_core/src/partition_unit.rs              |   2 +
+ vmm_core/state_unit/Cargo.toml              |   4 +
+ vmm_core/state_unit/src/lib.rs              |   2 +
+ vmm_core/virt/Cargo.toml                    |   4 +
+ vmm_core/virt/src/x86/mod.rs                |   5 +
+ vmm_core/virt/src/x86/vp.rs                 |   1 +
+ vmm_core/vmm_core_defs/Cargo.toml           |   4 +
+ vmm_core/vmm_core_defs/src/lib.rs           |   1 +
+ 25 files changed, 693 insertions(+), 2 deletions(-)
+
+Research sizes
+1.7M	research/inspect-cross-crate-admission
+96K	research/native-partition-admission
+332K	research/oneshot-native-admission
+1.2M	research/restore-declaration-activation
+712K	research/restore-partition-presence-proof
+304K	research/freeze_requests/restore-guard-native-presence
+elapsed_s=0.04 exit=0

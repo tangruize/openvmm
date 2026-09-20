@@ -1,0 +1,65 @@
+     Removed 51 files, 22.8MiB total
+   Compiling anyhow v1.0.99 (/home/ruize/openvmm-restore-v1/verification/dependencies/anyhow)
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:714:18
+    |
+714 |     #[verus_spec(result => ensures result == !cond.value())]
+    |                  ^^^^^^ help: remove this `mut`
+    |
+note: the lint level is defined here
+   --> verification/dependencies/anyhow/src/lib.rs:212:36
+    |
+212 | #![deny(dead_code, unused_imports, unused_mut)]
+    |                                    ^^^^^^^^^^
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:715:16
+    |
+715 |     pub fn not(cond: impl Bool) -> bool {
+    |                ^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:725:27
+    |
+725 |             spec fn value(&self) -> bool;
+    |                           ^^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:727:30
+    |
+727 |             fn not(self) -> (result: bool)
+    |                              ^^^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:727:20
+    |
+727 |             fn not(self) -> (result: bool)
+    |                    ^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:732:32
+    |
+732 |             open spec fn value(&self) -> bool {
+    |                                ^^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:737:20
+    |
+737 |             fn not(self) -> bool {
+    |                    ^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:743:32
+    |
+743 |             open spec fn value(&self) -> bool {
+    |                                ^^^^^ help: remove this `mut`
+
+error: variable does not need to be mutable
+   --> verification/dependencies/anyhow/src/lib.rs:748:20
+    |
+748 |             fn not(self) -> bool {
+    |                    ^^^^ help: remove this `mut`
+
+error: could not compile `anyhow` (lib) due to 9 previous errors
+Command exited with non-zero status 101
+elapsed_s=1.76 exit=101

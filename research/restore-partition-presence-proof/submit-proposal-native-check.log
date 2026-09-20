@@ -1,0 +1,2 @@
+{"state": "submitted", "task_id": "restore-partition-presence-proposal-check", "run_id": "restore-partition-presence-proposal-check-1789886592035389623", "pid": 3632699, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-proposal-check"}
+elapsed_s=0.16 exit=0

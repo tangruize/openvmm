@@ -1,0 +1,109 @@
+ M Cargo.lock
+ M openvmm/openvmm_core/src/worker/dispatch.rs
+ M openvmm/openvmm_defs/Cargo.toml
+ M openvmm/openvmm_defs/src/worker.rs
+ M research/GROUND_TRUTH.md
+ M research/PIPELINE_STATE.json
+ M support/mesh/mesh_channel/Cargo.toml
+ M support/mesh/mesh_channel/src/rpc.rs
+ M support/mesh/mesh_channel_core/Cargo.toml
+ M support/mesh/mesh_channel_core/src/mpsc.rs
+ M support/mesh/mesh_protobuf/Cargo.toml
+ M support/mesh/mesh_protobuf/src/time.rs
+ M support/pal/pal_async/Cargo.toml
+ M support/pal/pal_async/src/timer.rs
+ M vm/devices/chipset_resources/Cargo.toml
+ M vm/devices/chipset_resources/src/lib.rs
+ M vmm_core/Cargo.toml
+ M vmm_core/src/partition_unit.rs
+ M vmm_core/state_unit/Cargo.toml
+ M vmm_core/state_unit/src/lib.rs
+ M vmm_core/virt/Cargo.toml
+ M vmm_core/virt/src/x86/mod.rs
+ M vmm_core/virt/src/x86/vp.rs
+ M vmm_core/vmm_core_defs/Cargo.toml
+ M vmm_core/vmm_core_defs/src/lib.rs
+?? research/freeze_requests/restore-guard-native-presence/
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
+?? research/oneshot-native-admission/
+?? research/restore-declaration-activation/
+?? research/restore-partition-presence-proof/
+ Cargo.lock                                  |  10 +
+ openvmm/openvmm_core/src/worker/dispatch.rs |  10 +-
+ openvmm/openvmm_defs/Cargo.toml             |   4 +
+ openvmm/openvmm_defs/src/worker.rs          |   2 +
+ research/GROUND_TRUTH.md                    | 548 ++++++++++++++++++++++++++++
+ research/PIPELINE_STATE.json                |  76 +++-
+ support/mesh/mesh_channel/Cargo.toml        |   4 +
+ support/mesh/mesh_channel/src/rpc.rs        |   2 +
+ support/mesh/mesh_channel_core/Cargo.toml   |   4 +
+ support/mesh/mesh_channel_core/src/mpsc.rs  |   4 +
+ support/mesh/mesh_protobuf/Cargo.toml       |   4 +
+ support/mesh/mesh_protobuf/src/time.rs      |   1 +
+ support/pal/pal_async/Cargo.toml            |   4 +
+ support/pal/pal_async/src/timer.rs          |   1 +
+ vm/devices/chipset_resources/Cargo.toml     |   4 +
+ vm/devices/chipset_resources/src/lib.rs     |   3 +
+ vmm_core/Cargo.toml                         |   4 +
+ vmm_core/src/partition_unit.rs              |   2 +
+ vmm_core/state_unit/Cargo.toml              |   4 +
+ vmm_core/state_unit/src/lib.rs              |   2 +
+ vmm_core/virt/Cargo.toml                    |   4 +
+ vmm_core/virt/src/x86/mod.rs                |   5 +
+ vmm_core/virt/src/x86/vp.rs                 |   1 +
+ vmm_core/vmm_core_defs/Cargo.toml           |   4 +
+ vmm_core/vmm_core_defs/src/lib.rs           |   1 +
+ 25 files changed, 705 insertions(+), 3 deletions(-)
+diff --git a/openvmm/openvmm_core/src/worker/dispatch.rs b/openvmm/openvmm_core/src/worker/dispatch.rs
+index 33ac621f..dd590d45 100644
+--- a/openvmm/openvmm_core/src/worker/dispatch.rs
++++ b/openvmm/openvmm_core/src/worker/dispatch.rs
+@@ -544,7 +544,8 @@ enum IommuDevices {
+ 
+ /// A VM that has been initialized but not yet loaded (i.e. the saved state is
+ /// not yet available).
+-#[verus_verify]
++// TODO(proof): Refine prepared components into initialized_vm_representation.
++#[verus_verify(external_body)]
+ pub(crate) struct InitializedVm {
+     partition: Arc<dyn HvlitePartition>,
+     vps: Vec<Box<dyn BindHvliteVp>>,
+@@ -853,6 +854,8 @@ pub(crate) struct LoadedVm {
+ 
+ /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
+ /// for state machine transitions.
++// TODO(proof): Expose component Views and prove their restore/time operations.
++#[verus_verify(external_body)]
+ struct LoadedVmInner {
+     driver_source: VmTaskDriverSource,
+     resolver: ResourceResolver,
+@@ -3784,7 +3787,10 @@ fn validate_snapshot_restore_partition_presence(
+     ) -> anyhow::Result<()> {
+         anyhow::ensure!(
+             restore_time.is_none()
+-                || saved_state.units.iter().any(|unit| unit.name == "partition"),
++                || saved_state
++                    .units
++                    .iter()
++                    .any(|unit| unit.name == "partition"),
+             "time-adjusted snapshot restore requires partition state"
+         );
+         Ok(())
+diff --git a/openvmm/openvmm_defs/Cargo.toml b/openvmm/openvmm_defs/Cargo.toml
+index 05153ecf..12883c4d 100644
+--- a/openvmm/openvmm_defs/Cargo.toml
++++ b/openvmm/openvmm_defs/Cargo.toml
+@@ -6,7 +6,11 @@ name = "openvmm_defs"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ chipset_resources.workspace = true
+ hypervisor_resources.workspace = true
+ openvmm_pcat_locator.workspace = true
+elapsed_s=0.07 exit=0

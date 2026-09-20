@@ -1,0 +1,157 @@
+verbosity level = 2; forwarding 1 `-v` arg(s) to Cargo
+verbosity level = 2; forwarding 1 `-v` arg(s) to Cargo
+verbosity level >= 2; forwarding 1 `-v` to Verus
+forwarding Verus args to crates: <roots>
+running cargo command:
+cd "/home/ruize/openvmm-restore-v1" &&  __VERUS_DRIVER_ARGS_FOR_mesh_channel-0.0.0-354e9bcb8413="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_channel_core__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=pal_async__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_channel"  __VERUS_DRIVER_ARGS_FOR_mesh_channel_core-0.0.0-268fb5d46958="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=pal_async"  __VERUS_DRIVER_ARGS_FOR_mesh_protobuf-0.0.0-b7284b63c0a5="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf"  __VERUS_DRIVER_ARGS_FOR_pal_async-0.0.0-fb265dcddc43="__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf"  __VERUS_DRIVER_ARGS_FOR_virt-0.0.0-968be197f10a="__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_protobuf__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=pal_async__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_channel__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=mesh_channel_core__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=virt__VERUS_DRIVER_ARGS_SEP__--verify-only-module__VERUS_DRIVER_ARGS_SEP__x86__VERUS_DRIVER_ARGS_SEP__--no-lifetime__VERUS_DRIVER_ARGS_SEP__--multiple-errors__VERUS_DRIVER_ARGS_SEP__20__VERUS_DRIVER_ARGS_SEP__--num-threads__VERUS_DRIVER_ARGS_SEP__1__VERUS_DRIVER_ARGS_SEP__--triggers-mode__VERUS_DRIVER_ARGS_SEP__silent"  __VERUS_DRIVER_ARGS_FOR_vstd-0.0.0-2026-09-16-0054-9a268c610fa8="__VERUS_DRIVER_ARGS_SEP__--is-vstd__VERUS_DRIVER_ARGS_SEP__--no-verify__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__import-dep-if-present=vstd"  __VERUS_DRIVER_ARGS__="__VERUS_DRIVER_ARGS_SEP__--VIA-CARGO__VERUS_DRIVER_ARGS_SEP__compile-when-not-primary-package__VERUS_DRIVER_ARGS_SEP__-v"  __VERUS_DRIVER_IS_BUILTIN_MACROS_verus_builtin_macros-0.0.0-2026-09-06-0133-94884b16541d="1"  __VERUS_DRIVER_IS_BUILTIN_verus_builtin-0.0.0-2026-09-16-0054-efe0d11dd23e="1" CARGO_UNSTABLE_CHECKSUM_FRESHNESS="true" RUSTC_BOOTSTRAP="1" RUSTC_WRAPPER="/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus" __CARGO_DEFAULT_LIB_METADATA="verus" __VERUS_DRIVER_VERIFY_mesh_channel-0.0.0-354e9bcb8413="1" __VERUS_DRIVER_VERIFY_mesh_channel_core-0.0.0-268fb5d46958="1" __VERUS_DRIVER_VERIFY_mesh_protobuf-0.0.0-b7284b63c0a5="1" __VERUS_DRIVER_VERIFY_pal_async-0.0.0-fb265dcddc43="1" __VERUS_DRIVER_VERIFY_virt-0.0.0-968be197f10a="1" __VERUS_DRIVER_VERIFY_vstd-0.0.0-2026-09-16-0054-9a268c610fa8="1" __VERUS_DRIVER_VIA_CARGO__="1" "/home/ruize/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin/cargo" "check" "-v" "--features" "mesh_protobuf/std" "--target-dir" "/home/ruize/openvmm-restore-v1/target/verus-partial" "--package" "virt"
+       Fresh unicode-ident v1.0.18
+       Fresh pin-project-lite v0.2.16
+       Fresh autocfg v1.5.0
+       Fresh hashbrown v0.15.5
+       Fresh equivalent v1.0.2
+       Fresh futures-core v0.3.31
+       Fresh futures-io v0.3.31
+       Fresh smallvec v1.15.1
+       Fresh convert_case v0.4.0
+       Fresh futures-sink v0.3.31
+       Fresh slab v0.4.11
+       Fresh memchr v2.7.5
+       Fresh pin-utils v0.1.0
+       Fresh futures-task v0.3.31
+       Fresh verus_builtin v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin)
+       Fresh scopeguard v1.2.0
+       Fresh heck v0.5.0
+       Fresh open_enum v0.0.0 (/home/ruize/openvmm-restore-v1/support/open_enum)
+       Fresh either v1.15.0
+       Fresh linux-raw-sys v0.4.15
+       Fresh linux-raw-sys v0.9.4
+       Fresh cfg-if v1.0.3
+       Fresh parking v2.2.1
+       Fresh regex-syntax v0.8.6
+       Fresh home v0.5.11
+       Fresh fixedbitset v0.4.2
+       Fresh once_cell v1.21.3
+       Fresh heck v0.4.1
+       Fresh log v0.4.27
+       Fresh multimap v0.8.3
+       Fresh lazy_static v1.5.0
+       Fresh static_assertions v1.1.0
+       Fresh bitflags v2.9.3
+       Fresh diatomic-waker v0.2.3
+       Fresh cordyceps v0.3.4
+       Fresh spin v0.10.0
+       Fresh fastrand v2.3.0
+       Fresh bytes v1.11.1
+       Fresh loan_cell v0.0.0 (/home/ruize/openvmm-restore-v1/support/loan_cell)
+       Fresh fixedbitset v0.5.7
+       Fresh async-task v4.7.1
+       Fresh jiff v0.2.15
+       Fresh build_rs_guest_arch v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/build_rs_guest_arch)
+       Fresh proc-macro2 v1.0.107
+       Fresh indexmap v2.11.0
+       Fresh tracing-core v0.1.35
+       Fresh futures-channel v0.3.31
+       Fresh itertools v0.10.5
+       Fresh regex-automata v0.4.14
+       Fresh futures-lite v2.6.1
+       Fresh futures-buffered v0.2.12
+       Fresh safe_intrinsics v0.0.0 (/home/ruize/openvmm-restore-v1/support/safe_intrinsics)
+       Fresh quote v1.0.40
+       Fresh libc v0.2.184
+       Fresh rustix v1.0.8
+       Fresh rustix v0.38.44
+       Fresh crossbeam-utils v0.8.21
+       Fresh petgraph v0.6.5
+       Fresh regex v1.12.3
+       Fresh anyhow v1.0.99
+       Fresh smallbox v0.8.8
+       Fresh syn v2.0.106
+       Fresh verus_syn v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/dependencies/syn)
+       Fresh fs-err v3.1.1
+       Fresh lock_api v0.4.13
+       Fresh parking_lot_core v0.9.11
+       Fresh getrandom v0.4.2
+       Fresh syn v1.0.109
+       Fresh getrandom v0.3.3
+       Fresh concurrent-queue v2.5.0
+       Fresh which v4.4.2
+       Fresh seccompiler v0.5.0
+       Fresh io-uring v0.7.11
+       Fresh socket2 v0.6.0
+       Fresh unix_socket v0.0.0 (/home/ruize/openvmm-restore-v1/support/unix_socket)
+       Fresh zerocopy-derive v0.8.27
+       Fresh thiserror-impl v2.0.16
+       Fresh tracing-attributes v0.1.31
+       Fresh synstructure v0.13.2
+       Fresh verus_prettyplease v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/dependencies/prettyplease)
+       Fresh verus_state_machines_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/state_machines_macros)
+       Fresh futures-macro v0.3.31
+       Fresh mesh_derive v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_derive)
+       Fresh bitfield-struct v0.11.0
+       Fresh parking_lot v0.12.4
+       Fresh prost-derive v0.11.9
+       Fresh enumflags2_derive v0.7.12
+       Fresh inspect_derive v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect_derive)
+       Fresh thiserror-impl v1.0.69
+       Fresh tempfile v3.21.0
+       Fresh prettyplease v0.1.25
+       Fresh event-listener v5.4.1
+       Fresh pin-project-internal v1.1.10
+       Fresh linkme-impl v0.3.33
+       Fresh pal_async_test v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_async_test)
+       Fresh async-trait v0.1.89
+       Fresh save_restore_derive v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/save_restore_derive)
+       Fresh thiserror v2.0.16
+       Fresh zerocopy v0.8.27
+       Fresh tracing v0.1.43
+       Fresh verus_builtin_macros v0.0.0-2026-09-06-0133 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin_macros)
+       Fresh futures-util v0.3.31
+       Fresh enumflags2 v0.7.12
+       Fresh thiserror v1.0.69
+       Fresh event-listener-strategy v0.5.4
+       Fresh pin-project v1.1.10
+       Fresh linkme v0.3.33
+       Fresh prost v0.11.9
+       Fresh vstd v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/vstd)
+       Fresh futures-executor v0.3.31
+       Fresh landlock v0.4.2
+       Fresh prost-types v0.11.9
+       Fresh caps v0.5.5
+       Fresh async-channel v2.5.0
+       Fresh futures-concurrency v7.6.3
+       Fresh tracelimit v0.0.0 (/home/ruize/openvmm-restore-v1/support/tracelimit)
+       Fresh trycopy v0.0.0 (/home/ruize/openvmm-restore-v1/support/trycopy)
+       Fresh hvdef v0.0.0 (/home/ruize/openvmm-restore-v1/vm/hv1/hvdef)
+       Fresh x86defs v0.0.0 (/home/ruize/openvmm-restore-v1/vm/x86/x86defs)
+       Fresh aarch64defs v0.0.0 (/home/ruize/openvmm-restore-v1/vm/aarch64/aarch64defs)
+       Fresh mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf)
+       Fresh futures v0.3.31
+       Fresh prost-build v0.11.9
+       Fresh pal v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal)
+       Fresh mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_node)
+       Fresh pal_event v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_event)
+       Fresh sparse_mmap v0.0.0 (/home/ruize/openvmm-restore-v1/support/sparse_mmap)
+       Fresh mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel_core)
+       Fresh pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_async)
+       Fresh mesh_channel v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel)
+       Fresh mesh v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh)
+       Fresh inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect)
+       Fresh tdisp_proto v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp_proto)
+       Fresh vm_resource v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_resource)
+       Fresh guestmem v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/guestmem)
+       Fresh memory_range v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/memory_range)
+       Fresh vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+       Fresh tdisp v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/tdisp)
+       Fresh chipset_device v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device)
+       Fresh pci_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_core)
+       Fresh chipset_device_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/chipset_device_resources)
+       Fresh pci_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/pci/pci_resources)
+       Fresh cxl_spec v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/cxl)
+       Fresh vm_topology v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore/vm_topology)
+    Checking virt v0.0.0 (/home/ruize/openvmm-restore-v1/vmm_core/virt)
+     Running `/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus /home/ruize/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin/rustc --crate-name virt --edition=2024 vmm_core/virt/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C panic=abort -C embed-bitcode=no -C debuginfo=2 --warn=rust_2018_idioms --deny=future_incompatible --warn=unused_qualifications --forbid=unsafe_op_in_unsafe_fn --deny=unsafe_code '--warn=clippy::unnecessary_box_returns' '--allow=clippy::uninlined_format_args' --warn=unexpected_cfgs '--warn=clippy::undocumented_unsafe_blocks' '--allow=clippy::type_complexity' '--allow=clippy::too_many_arguments' '--warn=clippy::suboptimal_flops' '--allow=clippy::single_range_in_vec_init' '--warn=clippy::rest_pat_in_fully_bound_structs' '--warn=clippy::ref_option_ref' '--warn=clippy::ref_as_ptr' '--warn=clippy::ptr_cast_constness' '--warn=clippy::ptr_as_ptr' '--warn=clippy::option_option' '--allow=clippy::new_without_default' --warn=missing_docs '--allow=clippy::manual_flatten' '--warn=clippy::macro_use_imports' '--warn=clippy::lossy_float_literal' '--warn=clippy::linkedlist' '--allow=clippy::len_without_is_empty' '--warn=clippy::inefficient_to_string' '--warn=clippy::imprecise_flops' '--warn=clippy::implicit_clone' '--warn=clippy::fn_params_excessive_bools' '--warn=clippy::filter_map_next' '--warn=clippy::debug_assert_with_mut_call' '--warn=clippy::dbg_macro' '--allow=clippy::collapsible_match' '--allow=clippy::collapsible_if' '--allow=clippy::collapsible_else_if' '--allow=clippy::box_default' '--allow=clippy::bool_assert_comparison' '--warn=clippy::allow_attributes' --check-cfg 'cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=806c6f35a4ddacd0 -C extra-filename=-e66acac177f29463 --out-dir /home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps -C incremental=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/incremental -L dependency=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps --extern aarch64defs=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libaarch64defs-b4833e62dae90d43.rmeta --extern anyhow=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libanyhow-1a1dcdb279f90ff5.rmeta --extern guestmem=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libguestmem-5de134ad414c3d9d.rmeta --extern hvdef=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libhvdef-1817752b7aff5f9b.rmeta --extern inspect=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libinspect-4b9083593d3cde8b.rmeta --extern memory_range=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libmemory_range-6c1264e63b5019fa.rmeta --extern mesh_protobuf=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libmesh_protobuf-5612e213728e73ed.rmeta --extern pal_event=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libpal_event-ad8314a85626886e.rmeta --extern parking_lot=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libparking_lot-3957aa1b9559146d.rmeta --extern pci_core=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libpci_core-95847d390a1264af.rmeta --extern slab=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libslab-9bfce0c6112d4e19.rmeta --extern thiserror=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libthiserror-bb5470d7886e4e69.rmeta --extern tracelimit=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libtracelimit-0735eeb5c08421be.rmeta --extern tracing=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libtracing-0b8bb782b1e56374.rmeta --extern vm_topology=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvm_topology-2eaf0a5a64b1974b.rmeta --extern vmcore=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvmcore-e7b26ec16e18c6da.rmeta --extern vstd=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libvstd-0b932679964ce3b0.rmeta --extern x86defs=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libx86defs-bd4eb58d754e9d8c.rmeta --extern zerocopy=/home/ruize/openvmm-restore-v1/target/verus-partial/debug/deps/libzerocopy-2fbbd02099a22f14.rmeta -Cforce-frame-pointers=yes -Csymbol-mangling-version=v0 -Z checksum-hash-algorithm=blake3 --cfg 'guest_arch="x86_64"' --cfg guest_is_native --check-cfg 'cfg(guest_arch, values("x86_64","aarch64"))' --check-cfg 'cfg(guest_is_native)'`
+note: verifying module x86
+
+verification results:: 5 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.37s
+elapsed_s=1.97 exit=0

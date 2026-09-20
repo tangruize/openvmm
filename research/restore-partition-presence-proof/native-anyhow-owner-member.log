@@ -1,0 +1,81 @@
+warning: unexpected `cfg` condition name: `verus_keep_ghost_body`
+   --> verification/dependencies/anyhow/src/lib.rs:713:5
+    |
+713 |     #[verus_verify]
+    |     ^^^^^^^^^^^^^^^
+    |
+    = help: expected names are: `anyhow_build_probe`, `anyhow_nightly_testing`, `anyhow_no_core_error`, `anyhow_no_core_unwind_safe`, `anyhow_no_fmt_arguments_as_str`, `anyhow_no_ptr_addr_of`, `anyhow_no_unsafe_op_in_unsafe_fn_lint`, `docsrs`, `error_generic_member_access`, `feature`, `std_backtrace`, and `test` and 32 more
+    = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus_verify` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+    = note: this warning originates in the attribute macro `verus_verify` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `verus_keep_ghost`
+   --> verification/dependencies/anyhow/src/lib.rs:713:5
+    |
+713 |     #[verus_verify]
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus_verify` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the attribute macro `verus_verify` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `verus_keep_ghost_body`
+   --> verification/dependencies/anyhow/src/lib.rs:714:5
+    |
+714 |     #[verus_spec(result => ensures result == !cond.value())]
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus_spec` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the attribute macro `verus_spec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `verus_keep_ghost`
+   --> verification/dependencies/anyhow/src/lib.rs:714:5
+    |
+714 |     #[verus_spec(result => ensures result == !cond.value())]
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: using a cfg inside a attribute macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus_spec` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the attribute macro `verus_spec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `verus_keep_ghost_body`
+   --> verification/dependencies/anyhow/src/lib.rs:722:9
+    |
+722 | /         verus! {
+723 | |         #[doc(hidden)]
+724 | |         pub trait Bool {
+725 | |             spec fn value(&self) -> bool;
+...   |
+752 | |         }
+    | |_________^
+    |
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `verus` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `verus_keep_ghost`
+   --> verification/dependencies/anyhow/src/lib.rs:722:9
+    |
+722 | /         verus! {
+723 | |         #[doc(hidden)]
+724 | |         pub trait Bool {
+725 | |             spec fn value(&self) -> bool;
+...   |
+752 | |         }
+    | |_________^
+    |
+    = note: using a cfg inside a macro will use the cfgs from the destination crate and not the ones from the defining crate
+    = help: try referring to `verus` crate for guidance on how handle this unexpected cfg
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `verus` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `anyhow` (lib) generated 6 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.26s
+elapsed_s=4.01 exit=0

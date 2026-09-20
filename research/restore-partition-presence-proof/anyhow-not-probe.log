@@ -1,0 +1,15 @@
+error: `anyhow::__private::not` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+  --> research/restore-partition-presence-proof/anyhow-not-probe.rs:10:5
+   |
+10 |     anyhow::__private::not(condition)
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<impl Bool> [anyhow::__private::not] (_0: impl Bool) -> bool
+           where
+           impl Bool: anyhow::__private::not::Bool,;
+
+error: aborting due to 1 previous error
+
+Command exited with non-zero status 1
+elapsed_s=0.49 exit=1

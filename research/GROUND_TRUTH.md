@@ -640,3 +640,577 @@ The candidate runner compared authoritative TOP/spec/proof/manifests and
 both branch refs before and after execution, and removed its disposable
 source copy. Production sources stayed unchanged throughout. The wiki
 remains outside this mission's writable scope.
+
+## Native partition admission: unresolved binding facts before experimentation
+
+- The production `HvlitePartition` declaration is in
+  `openvmm/openvmm_core/src/partition.rs:57`. Its supertraits are `Inspect`,
+  `Send`, `Sync`, and `RequestYield`; none may be omitted from an admission
+  construction. Its methods and blanket implementation must retain their
+  production signatures and behavior.
+- The first construction will mark that exact trait for native Verus
+  translation with `#[verus_verify]`, leaving its supertraits and all method
+  declarations intact. Whether translation accepts the supertrait graph and
+  method-signature types is unresolved. No method postcondition, implementation
+  proof, representation bridge, or backend observation is established by
+  admitting a declaration.
+- `Inspect::inspect` takes the real `inspect::Request<'_>`
+  (`support/inspect/src/lib.rs:2040`); `RequestYield::request_yield` takes
+  `VpIndex` (`vmm_core/src/partition_unit/vp_set.rs:1932`). These project-owned
+  declarations are potential next admission obligations, not sanctioned
+  external leaves. The experiment must not substitute opaque or replacement
+  definitions for them.
+- The existing selector translates the real `worker::dispatch` module.
+  `InitializedVm.partition` and `LoadedVmInner.partition` carry
+  `Arc<dyn HvlitePartition>`; the TOP calls its frequency methods and
+  `advance_snapshot_time` (dispatch.rs:3818-3874). Whether the native trait
+  annotation removes that declaration barrier, or exposes the next one, is
+  the bounded question. The TOP body remains scaffolded and is not proved by
+  this experiment.
+- The pinned verifier contains native `Arc<dyn T>` tests
+  (`toolchain/verus-src/source/rust_verify_test/tests/traits_dyn.rs:57`).
+  This supports trying native translation, not omitting the production
+  supertraits or claiming all dynamic traits are supported.
+- The maintained call-structure command was attempted in
+  `research/native-partition-admission/intake.sh`; it exits 1 because
+  `.verus_agent/proof_state.json` is absent. The above connections are inspected
+  source, not generated graph evidence. The independent boundary check's
+  existing TCB-provenance rejection is not a frontend-admission diagnostic.
+
+### Observed native declaration rejection
+
+**Diagnostic result, not an admission repair or TOP proof.** One construction
+was executed: import `vstd::prelude::verus_verify` and attach
+`#[verus_verify]` to the real production `HvlitePartition` trait. Every
+supertrait, method signature, and implementation remained unchanged. There
+was no replacement trait, external trait specification, opacity annotation,
+assumed method behavior, or removal of the TOP's scaffold.
+
+The existing `make verify MODULE=restore` selector exited 2 in 2.26 seconds,
+before emitting verification counts. The pinned frontend reported:
+
+```text
+thread 'rustc' (...) panicked at vir/src/traits.rs:1615:9:
+compute_dyn_compatibility: missing trait Path(inspect, ["Inspect"])
+```
+
+The complete, unedited output is
+`research/native-partition-admission/verify.log`. `verify.command` records the
+exact timed command; `run.command` records its production-overlay runner.
+`trait-annotation.patch` is replayable; `attempted-source.patch` is the
+source diff captured from the actual run. `run.log` records both the failure
+and successful restoration. Reproduce from the repository root with:
+
+```bash
+bash research/native-partition-admission/run.sh
+```
+
+The runner applies only the two annotation/import lines, executes the existing
+production selector once, reverses the patch even on verifier failure, and
+returns the verifier command's status. Exit 2 is the observed negative result,
+not a successful proof. No experimental Rust changes remain in production.
+
+The panic has a specific source explanation. In the pinned
+`toolchain/verus-src/source/vir/src/traits.rs`, `set_krate_dyn_compatibility`
+(1721-1763) builds local and imported trait-compatibility maps.
+`compute_dyn_compatibility` (1606-1648) recursively follows each actual
+`Self` supertrait bound; line 1615 panics if the requested trait is absent.
+The native annotation therefore reaches analysis of the real trait's
+`inspect::Inspect` bound, but that project-owned supertrait has no available
+Verus declaration in this run. This is distinct from both the baseline
+undeclared-`HvlitePartition` error and a normal failed verification condition.
+It is also distinct from a demonstrated incompatibility of an admitted
+`Inspect` declaration: this experiment did not annotate or prove `Inspect`.
+
+The rejected construction is **annotating only `HvlitePartition` while keeping
+its actual, currently untranslated supertraits**. The next concrete admission
+obligation is the real `Inspect::inspect(&self, Request<'_>)` declaration
+and its reachable types; `RequestYield::request_yield(&self, VpIndex)` and the
+remaining method-signature types remain untested admission obligations.
+This does not prove that those declarations cannot be admitted, that native
+dynamic dispatch is unsupported, or that permanent trust is necessary.
+No attempt was made to hide or remove a supertrait to obtain a passing result.
+
+The production connection is source-backed. `InitializedVm::load` invokes
+`restore_snapshot_state` at dispatch.rs:3329 with the actual saved state and
+time policy. The helper invokes the partition frequency/time methods on its
+`Arc<dyn HvlitePartition>`. The real blanket implementation at
+partition.rs:202-231 forwards those operations to `virt::Partition`;
+neither these bodies nor their backend observations are proved by the
+declaration experiment. The absent maintained call graph remains a setup
+limitation; no graph or verified callee contract is claimed.
+
+### Unchanged-source checks and remaining obligations
+
+No integration change is retained, so the matching existing required-check
+evidence was reused rather than rerun. `preserve-evidence.log` confirms no
+staged or unstaged production/configuration/manifest changes after restoration
+and records the check timestamps. Its initial history query also included
+research Rust fixtures; `source-provenance.command` corrects that scope by
+excluding `research/`. The last production/configuration change was at
+11:18:32 on 2026-09-20, preceding the reused verification log at 12:26:56
+and integrity logs at 12:49:35-39. The intake production diff was also empty.
+The exact reused logs are preserved as
+`research/native-partition-admission/reused-<check>.log`.
+
+Each command below uses `"${ARGUS_SKILL_PYTHON:-python3}" -m
+argus_verus.tools.checks.<check>`; **none was rerun in this diagnostic**.
+
+| Required check and arguments | Reused result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 2, 2.242 s; 13 existing frontend admission errors, no verification counts. First error: undeclared `HvlitePartition` at dispatch.rs:548. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1, 1.051 s; existing TCB-provenance rejection: `tcb_manifest.json was last modified by an autonomous agent commit`. Five temporary marker locations remain. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, 1.215 s; frozen specifications match. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, 4.843 s; 20 executable files, no body edits or unknown functions. |
+
+No temporary marker was added, removed, or moved. The retained TOP
+`external_body` still defers its successful restore/pre-execution guarantee.
+The four retained `uninterp` bridges in dispatch.proof.rs still defer the
+decoded helper request, decoded load request, initialized-VM representation,
+and loaded-VM representation; their connection to actual state and policy is
+not established here. No contract, invariant, sanctioned BOTTOM declaration,
+manifest, verification selector, or rlimit changed. The unapplied semantic
+partition-presence freeze proposal and the other baseline admission errors
+remain outstanding. The frontend panic must not be confused with the separate
+boundary provenance rejection. This bounded result is ready for diagnostic
+review, not a passing full-crate, proof, progress, or final-completion claim.
+
+## Inspect cross-crate admission: unresolved binding facts before experimentation
+
+- The actual `Inspect::inspect(&self, Request<'_>)` declaration is in
+  `support/inspect/src/lib.rs`. `Request` contains `RequestParams` and
+  `&mut InternalNode`; the latter's production feature-dependent representation
+  includes a mesh oneshot receiver. Whether native translation accepts these
+  real declarations, without opacity or a replacement interface, is unresolved.
+- `inspect` does not currently opt into cargo-verus or depend on `vstd`.
+  The pinned cargo-verus implementation selects opted-in dependencies using
+  `package.metadata.verus.verify` and imports an artifact-adjacent `.vir`, not
+  ordinary Rust metadata alone. The experiment must determine whether that
+  path produces usable declarations before attributing failure to import.
+- The workspace disables inspect's defaults and enables `derive`; production
+  dependencies may unify additional features. The experiment must record the
+  actual feature selection needed by `openvmm_core`, not infer it from inspect's
+  standalone defaults. No feature may be disabled to hide a production field.
+- The first bounded construction will annotate the actual `Inspect` trait and
+  `Request` datatype in their owning crate and opt that crate into the native
+  dependency build. Any further declaration annotation must follow the actual
+  signature/field closure and verifier feedback. Method implementations remain
+  unproved; declaration translation supplies no method behavior.
+- If dependency translation succeeds, the unchanged restore selector, with
+  only the real `HvlitePartition` declaration annotated, must demonstrate that
+  its `Inspect` supertrait is available. A dependency-only run cannot establish
+  that fact. A rejection before export is not an import failure or a proof of
+  general impossibility.
+- The TOP scaffold, four representation bridges, remaining frontend barriers,
+  separate TCB-provenance rejection, and unapplied semantic freeze proposal
+  remain outside this diagnostic's result. No trust addition, executable
+  change, weakened interface, frozen-contract edit, or rlimit increase is
+  authorized by successful declaration admission.
+
+### Observed native dependency result
+
+**Diagnostic, not an integrated admission repair or TOP proof.** The native
+path was exercised with pinned Verus `0.2026.09.18.8ed93e5`. The real
+`Inspect` trait and request representation were translated to intermediate
+VIR, but the dependency failed declaration well-formedness before Cargo could
+analyze `openvmm_core`. The precise remaining declaration is
+`mesh_channel_core::oneshot::OneshotReceiver`, carried by
+`InternalNode::Deferred` under the production `defer` feature.
+
+The source-backed native path is:
+
+- `cargo-verus/src/metadata.rs:9-31,105-123` reads
+  `package.metadata.verus.verify` and plans imports for opted-in dependencies.
+  `rust_verify/src/cargo_verus.rs:116-180` finds the `.vir` beside the
+  dependency artifact selected by rustc. Ordinary `.rmeta` is insufficient.
+- The native `rust_verify_test/tests/cargo-tests/verified/` example
+  `basic_verified_lib` opts into verification and exports `double` and a
+  trait; `basic_verified_lib_consumer_verified` opts in, depends on it, and
+  calls `double`. Its two manifests and source files demonstrate the supported
+  dependency construction, not the success of this production experiment.
+- `rust_verify/src/verifier.rs:2805-2811` exports VIR before the declaration
+  checks at `2837-2849,2879-2881`. `import_export.rs:35-77` serializes the
+  supplied crate without first checking well-formedness. A `.vir` artifact can
+  therefore exist after a failed dependency check. `--no-verify`, used for
+  dependencies by `focus`, does not skip that check.
+
+All those paths are relative to `toolchain/verus-src/source/`; the pinned
+revision and executable were checked in `intake.log`. The production feature
+graph is retained in `production-features.log`: inspect resolves
+`defer,derive,inspect_derive,std`, without `initiate`. The focused command uses
+`--no-default-features --features derive,defer,std`, which enables precisely
+that set (`inspect_derive` follows from `derive`). The integration command
+retains the original production selector and its normal dependency resolution.
+
+All experiment files below are under `research/inspect-cross-crate-admission/`.
+Every result-bearing command was recorded before execution in a `.command`
+sidecar and/or its traced `.sh` script; complete stderr/stdout and actual
+nonzero statuses are retained.
+
+| Construction and selection | Observed result |
+| --- | --- |
+| `dependency-source.patch`: owning-crate opt-in and actual `Inspect`/`Request` annotations; `cargo verus focus -p inspect --no-default-features --features derive,defer,std` | Exit 101, 4.42 s. `RequestParams` and `InternalNode` are undeclared. See `dependency-verifier.log`. |
+| `representation-source.patch`: native annotations for the local request datatype closure; same focused selection | Exit 101, 1.53 s. `InternalNode` contains undeclared `mesh_channel_core::oneshot::OneshotReceiver`. See `representation-verifier.log`. |
+| `integration-source.patch`: preceding construction plus the actual `HvlitePartition` annotation; unchanged `make verify MODULE=restore` | Exit 2, 1.57 s. Cargo stops while checking `inspect` on the same receiver declaration, before `openvmm_core` analysis. See `integration-verifier.log`. |
+
+No run emitted verification-result counts. Each verifier command was bounded
+at 110 seconds and finished normally with its reported error, not a timeout.
+No rlimit annotation or option was increased.
+
+`dependency.vir` and `representation.vir` are the complete native textual
+translation logs. The latter contains the real
+`inspect::Inspect::inspect` method with its `inspect::Request` parameter
+at lines 10012-10037, and the `InternalNode::Deferred` receiver field at
+272-300. An artifact-adjacent binary `.vir` was also emitted, as recorded in
+`dependency-artifacts.log` and `preserve-evidence.log`. These are
+**pre-validation translation artifacts**, not valid imported declarations or
+proved methods. Neither the artifact's existence nor the absence of the old
+`missing Inspect` panic establishes consumer admission: the consumer was not
+reached.
+
+The diagnostic's source explanation is narrower than a representation
+incompatibility claim. `vir/src/well_formed.rs:174-232` reports this error when
+the datatype path is absent from its declaration map. The actual type is
+defined at `support/mesh/mesh_channel_core/src/oneshot.rs:270-273`, with
+`ManuallyDrop<OneshotReceiverCore>` and `PhantomData<Arc<Mutex<T>>>` fields.
+It is reexported through `mesh_channel` and `mesh`; its owning crate does not
+opt into cargo-verus. `Request`'s reference field and this conditional enum
+variant are real production representation, not an invented model.
+The compiler's suggested external type specification was **not** adopted.
+The next bounded admission work would concern this actual dependency and its
+representation closure. This experiment does not show that it cannot be
+translated, that `Inspect` is intrinsically incompatible with Verus, or that
+trust/opacity is necessary.
+
+The two existing non-Copy derived-Clone warnings for `Value` and `ValueKind`
+are retained in the logs, not suppressed or counted as proved Clone behavior.
+No `Inspect` implementation, partition method implementation, or TOP body was
+proved. No shared contract, precondition, postcondition, or invariant changed.
+
+### Restoration, current evidence, and remaining obligations
+
+All experimental production source, manifests, and lockfile changes were
+restored. `preserve-evidence.log` records clean staged and unstaged
+production/configuration/manifest diffs, applicability of all three exact
+overlays, and shell syntax checking. `reproduce.sh` applies the integration
+overlay to clean production files, executes the unchanged selector, restores
+the overlay even on failure, and returns the verifier's status. Reproduce with
+`bash research/inspect-cross-crate-admission/reproduce.sh`; exit 2 with the
+receiver declaration diagnostic is the observed result. The packaged runner
+was syntax-checked, not used to repeat the unchanged integration run.
+
+The intake script's comparison against older copied boundary evidence exited
+1 because the current boundary log was newer, not because source restoration
+or a new verifier check failed. The current logs were inspected and copied
+as `reused-<check>.log`; their timestamps follow the last production change
+at 11:18:32 on 2026-09-20. No production changes remain, so these matching
+required-check results are reused rather than rerun. Commands use
+`"${ARGUS_SKILL_PYTHON:-python3}" -m argus_verus.tools.checks.<check>`.
+
+| Required command arguments | Reused current result |
+| --- | --- |
+| `make_verify --crate-root .` | Exit 2, 2.242 s; 13 existing frontend admission errors, no verification counts; first is undeclared `HvlitePartition`. |
+| `boundary --crate-root . --baseline-dir .verus_agent check` | Exit 1, 1.009 s; separate existing rejection: `tcb_manifest.json was last modified by an autonomous agent commit`; five temporary locations remain. |
+| `spec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, 1.170 s; frozen specifications match. |
+| `exec_drift --crate-root . --baseline-dir .verus_agent` | Exit 0, 4.781 s; 20 executable files, no body edits or unknown functions. |
+
+The call-structure command was reprobed and still exits 1 because
+`.verus_agent/proof_state.json` is absent. Direct source shows the load caller
+at dispatch.rs:3329 and the helper's partition calls at 3819-3874; this is not
+generated call-graph or verified-callee evidence.
+
+No temporary marker was added, removed, or moved. The retained TOP
+`external_body` at dispatch.rs:3785 still defers
+`snapshot_restore_success` and `pre_execution_representation` for successful
+real restore. Its production body performs restore, time adjustment, and stop
+guard acquisition; their contracts and concrete state refinements remain
+unproved. The four `uninterp` bridges in dispatch.proof.rs remain:
+`decoded_restore_request_view` (saved state/time policy/selected count for the
+helper), `decoded_load_restore_request_view` (optional snapshot/time policy/VP
+selection for the load wrapper), `initialized_vm_representation` (prepared VM
+state), and `loaded_vm_representation` (live VM state). The real saved inputs,
+load policy, and VM fields support their intended domains, not a proved
+encoding. Component Views and body/refinement proofs must replace them.
+
+The unapplied partition-presence semantic freeze proposal at
+`research/freeze_requests/restore-time-partition-presence/` remains unapplied;
+this diagnostic does not resolve the recorded omitted-payload counterexample
+for the candidate state interpretation. Remaining baseline frontend barriers,
+the `RequestYield` supertrait, method/body semantics, and the separate
+TCB-provenance rejection are outstanding. No passing full-crate, bounded
+proof/progress handoff, or objective-completion claim follows from this result.
+
+## Restore declaration activation: unresolved bindings before experimentation
+
+The current mission is declaration admission, not the restore body proof.
+The current source includes the authorized partition-presence check; the
+historical statement above that its proposal is unapplied is not current.
+Both frozen manifests retain the load/File TCB and the dispatch TOP.
+
+The proposed cut keeps `LoadedVm` transparent so the existing
+`pre_execution_representation` can read its lifecycle fields. It temporarily
+marks only project-owned carried representations opaque in their actual
+owning crates, with native cargo-verus dependency imports. No method
+postcondition, bridge equality, or restore-success assumption is introduced.
+Whether these declarations and their automatically included associated types
+are sufficient is unproved until owner and consumer validation complete.
+
+Each proposed `external_body` datatype has this explicit representation debt:
+
+| Declaration | Source evidence and consumer | Deferred representation and removal obligation |
+| --- | --- | --- |
+| `InitializedVm` | dispatch.rs:548; sanctioned load signature and existing initialized View | Prepared partition, VP binders, memory/topology/resources; component Views and their real initialization relationships. |
+| `LoadedVmInner` | dispatch.rs:856; transparent `LoadedVm.inner` | Runtime partition, devices, memory, topology, deferred state; component Views and every restore/adjustment operation used by the real TOP. |
+| `SavedState` | openvmm_defs/src/worker.rs:46; both decoded request bridges | Serialized units and inventory; real codec/refinement and policy-indexed interpretation, not arbitrary bridge equalities. |
+| `StateUnits` | state_unit/src/lib.rs:250; `LoadedVm.state_units` | Unit map, names, dependencies, running state and RPCs; actual restore/advance-time semantics and ordering. |
+| `StopGuard` | partition_unit.rs:639 and its Drop; both LoadedVm guard fields | Stop-token sender and resume-on-drop protocol; actual stop acquisition/lifetime semantics. |
+| `mpsc::Sender<T>` | mesh_channel_core/src/mpsc.rs:76; LoadedVm notification fields and sanctioned load parameter | SenderCore, shared queue and Send/Sync phantom; ownership, message transport and operations remain unproved. |
+| `mpsc::Receiver<T>` | mesh_channel_core/src/mpsc.rs:336; LoadedVm boundary receiver | ReceiverCore, shared queue and Send/Sync phantom; ownership, message transport and stream operations remain unproved. |
+| `Rpc<I,R>` | mesh_channel/src/rpc.rs:30; LoadedVm transaction completion | Input and oneshot response sender; actual RPC completion/ownership and transport semantics. |
+| `MicrovmSnapshotBoundaryRequest` | chipset_resources/src/lib.rs:168; LoadedVm boundary receiver | Scratch policy, oneshot release/completion and timeout; actual device/worker boundary protocol. |
+
+These are temporary project proof obligations, not sanctioned BOTTOM leaves.
+The three simple carried representations (`Instant`, `Timestamp`, scratch
+policy) can instead be translated transparently from their scalar fields.
+Opaque generics will reject recursive type arguments conservatively; no
+recursive representation or positivity fact is assumed.
+
+The proposed opaque `HaltReason` was refuted by its derived non-Copy `Clone`:
+the generated body matches variants. Its replacement keeps the real enum and
+hardware breakpoint/scalar enums transparent. Derived Copy/Clone also visits
+the carried register image's segment/table types; those types and the complete
+register image can all be scalar-transparent instead. No generated operation
+is excluded.
+The initially annotated `TimestampOutOfRange` was unnecessary: its generated
+Display method introduced an unsupported formatter call; removing that
+annotation leaves the actual timestamp declaration valid.
+
+The original TOP `external_body` and all four uninterpreted bridges remain
+separate debt. The TOP still owes the real body on every relevant outcome;
+the bridges still owe concrete saved-request, load-policy, initialized-VM and
+live-VM definitions. This mission does not remove them or use opacity to
+claim those obligations proved. The prior transparent function-pointer
+rejection is accepted as existing evidence and will not be rerun.
+
+## Partition-presence proof: unresolved bindings before experimentation
+
+The accepted activation Rust check is recorded in `research/PIPELINE_STATE.json`
+from its completed durable receipt and stdout/stderr; it is not rerun.
+Activation's final integration log establishes declaration admission only
+(zero verified); its pinned configuration is Verus 0.2026.09.18.8ed93e5
+and source Z3 4.16.0. The current environment does not set `VERUS_Z3_PATH`,
+so experiments must explicitly select that solver.
+
+The selected, initially unproved intermediate fact is:
+`validate_snapshot_restore_partition_presence(saved_state, restore_time)`
+returns `Ok` iff `restore_time` is absent or some actual
+`saved_state.units[i].name` is `"partition"`. No input restriction is needed.
+The unchanged production body at dispatch.rs:3784-3794 directly supports
+this hypothesis: its only rejection is the `anyhow::ensure!` over the
+option and the name search, followed by `Ok(())`. Neither a function result
+nor an uninterpreted request bridge may define presence.
+
+Source establishes the TOP call at dispatch.rs:3832 (using `?`), before
+frequency checks, `self.restore(saved_state)`, state-unit time advancement,
+VP TSC advancement, backend clock advancement, and stop acquisition.
+The load caller is dispatch.rs:3332. The prior call-structure command failed
+because `.verus_agent/proof_state.json` was absent; intake confirms that
+absence. This is a tool setup defect, not call-graph evidence.
+
+`SavedState` is currently opaque. Its real `units: Vec<SavedStateUnit>` and
+`inventory: Vec<String>` (openvmm_defs/src/worker.rs:48-54) must become
+available without assuming a relationship. `SavedStateUnit` has the real
+`name: String` and `state: SavedStateBlob` (state_unit/src/lib.rs:398-405).
+The blob is a protobuf wrapper, not evidence of successful partition decoding.
+Declaration refinements needed to expose names must preserve those fields
+and leave payload semantics unproved. The pinned vstd has an `Iterator::any`
+contract with both true/false outcomes; whether the concrete iterator,
+closure, string comparison and error macro translate and establish the
+desired equivalence is a body-proof obligation, not an admission result.
+
+Partition presence only excludes time adjustment with an omitted partition
+payload. It does not establish decoding, completeness of saved VP entries,
+installed VP state, or the link from adjustment to `restore_vp_projection`'s
+preservation of unsaved entries (dispatch.spec.rs:147-162). The TOP
+`external_body`, four uninterpreted bridges, and activation's remaining
+representation/operation obligations remain unproved. In particular no
+equality between presence and decoded VP coverage is assumed.
+
+The native guard experiment reached a new dependency-interface blocker, not
+a failed SMT obligation. Transparent native declarations for `SavedState`,
+`SavedStateUnit`, `SavedStateBlob`, `ProtobufAny` and `ProtobufMessage`, plus
+vmcore's cargo-verus opt-in, allowed the real fields to appear in a
+no-precondition equivalence contract. A method-only `verus_spec` first failed
+because its generated return-type constraint treated this receiverless
+associated function as free. Giving the existing guard its own
+`#[verus_verify] impl LoadedVm` fixed that syntax issue without changing its
+body. The subsequent focused run rejected `anyhow::__private::not`, called
+by the unchanged `anyhow::ensure!`, before verification conditions.
+
+`research/restore-partition-presence-proof/guard-impl-context.log` records
+that production failure (2.27 s); `experimental-source.log` preserves the
+attempted overlay. `anyhow-not-probe.rs` isolates the exact dependency call
+with only a boolean parameter/result and reproduces the rejection (0.49 s).
+`anyhow-ensure-probe.rs` independently reproduces it through the real macro
+(0.49 s); without the project's compatibility declarations that standalone
+probe also rejects `anyhow::Error` and `anyhow::__private::format_err`.
+Those additional standalone errors are not new production blockers.
+
+The resolved production dependency is anyhow 1.0.99. Its
+`src/ensure.rs:919-924` fallback calls `__private::not`; `src/lib.rs:710-732`
+implements this through a private `Bool` trait, with ordinary negation for
+bool and &bool. Source supports its meaning but supplies no verified native
+import or sanctioned new contract. The project's existing
+`openvmm_core/src/verus_compat.rs` declares the error type and formatting
+operations, not `not`. The pinned vstd's `Iterator::any` specification exists;
+this result does not reject iterator support, establish the closure's
+postcondition, or show that boolean negation itself is unsupported.
+The known reference-identity proof pattern does not apply to this
+pre-VC external-call rejection. No suggested `assume_specification`, error
+type declaration, or temporary assumption was added to bypass it.
+
+All experimental production annotations, the attempted contract, and vmcore
+Cargo/lock changes were restored. `restored-source-integrity.log` compares
+the entire relevant production overlay byte-for-byte with activation's
+`final-source.log`, checks vmcore is unchanged, and checks both manifests,
+the frozen spec/proof files and selector against the frozen branch.
+The only retained result is diagnostic; no guard guarantee is exposed or
+claimed proved. No guard marker was present at intake or removed by a proof.
+The `SavedState` opacity temporarily removed in the experiment is restored;
+all fourteen previously recorded temporary representation/body/bridge
+locations remain. Seven dependency locations are outside the worker scanner.
+The unchanged `verus_compat.rs` external error declaration and four
+`assume_specification` declarations are also outside that scanner and are
+not entries in the manifest's three-item list; this diagnostic neither
+changes them nor treats the scanner's zero assumptions as a whole-program
+trust inventory.
+
+Final required checks, each run once after restoration: `make_verify`
+exit 0 (0 verified, 0 errors, function-selected admission; 10.656 s),
+`spec_drift` exit 0 (1.201 s), `exec_drift` exit 0 (5.034 s), and `boundary`
+exit 1 (1.025 s; seven in-scope temporary locations and the existing
+`tcb_manifest.json was last modified by an autonomous agent commit`
+rejection). Full outputs and exact command sidecars are retained in the
+same research directory. These are not all-functions/full-crate timing
+measurements or a bounded proof/progress handoff.
+
+## Partition-presence continuation: native dependency proof hypothesis
+
+Reviewer requires the actual guard equivalence, not another admission result.
+The missing `anyhow::__private::not` interface is source-supported: its body
+delegates to private `Bool::not`, whose bool and &bool implementations compute
+negation. The next construction annotates the exact pinned dependency sources
+in a local production Cargo patch, preserving both implementations and the
+unchanged guard macro invocation. It does not supply an assumed external
+specification, verification-only replacement, or copied guard.
+
+Before experimentation, the obligations are to prove the generic helper from
+a Bool contract, prove both real Bool implementations, import those native
+contracts on the production dependency edge, and prove the guard iff from
+actual saved names and restore-time option without new requirements.
+Any local dependency source must match the registry source modulo erasing
+proof annotations; runtime-only support and all licenses must be retained.
+This construction is a hypothesis until owner/consumer and executable
+integrity checks succeed. Frozen TOP, BOTTOM, manifests and verifier semantics
+remain unchanged. The earlier possible macro-expansion direction is not
+being applied or used as a proof.
+
+The native helper construction proved the original generic helper and both
+private Bool implementations (three verified, zero errors,
+`native-anyhow-owner-proof.log`, 1.47 s). The initial package-only focus
+found no opted-in workspace crate; adding workspace membership still reused
+an ordinary Rust artifact with no VIR. A scoped `cargo clean -p anyhow`
+made the owner actually enter verification. Its generated mutable temporaries
+then encountered anyhow's `deny(unused_mut)`; a verification-only lint allowance
+fixed that without changing any operation. `native-dependency-integrity.log`
+checks all 53 other imported files byte-for-byte and checks lib.rs against
+the registry source after removing only enumerated ghost annotations.
+No new external declaration, operation assumption or temporary marker was
+introduced for negation. This addresses the earlier blocker constructively.
+
+The unchanged real guard then reached VCs (`guard-native-anyhow.log`), but
+its cross-type `String == &str` comparison had no content-equality contract
+in pinned vstd. An explicit closure contract failed on that operation.
+`string-equality-probe.rs` gives an independent minimal comparison:
+the production String/&str spelling fails while `name.as_str() == "partition"`
+proves the same postcondition (one verified, one error; 0.38 s).
+The matching sysroot `alloc/src/string.rs:2688-2717` defines the former
+comparison through `PartialEq::eq(&self[..], &other[..])`; vstd/string.rs
+specifies as_str and str equality but only String/String equality.
+This is a missing external primitive interface, not a boolean-negation
+limitation or evidence of a runtime bug.
+
+The requested next step is packaged as the single unapplied
+`research/freeze_requests/restore-guard-native-presence/` request.
+It normalizes only the guard source: evaluate the same short-circuit
+condition into a local binding, compare the same full name slice using
+as_str, and give the closure explicit types and a block body. This neither
+changes success/error behavior nor expands trust. The source boundary
+requires approval even though the runtime behavior is preserved.
+The accompanying run patch carries native anyhow annotations and the real
+saved-field declaration closure. Its guard has no precondition and ensures
+Ok iff restore_time is None or some actual units[i].name equals "partition".
+No predicate is defined from the result or from an uninterpreted bridge.
+
+The proposal's actual production function verifies with one verified and
+zero errors (`proposal-native-syntax-check.log`, 17.49 s including isolated
+worktree/build overhead). A proof instantiation of Seq::as_ref transports the
+iterator's false-case contract to the actual indexed unit names; no assumption
+is used. The earlier absence branch failed without this instantiation.
+The declaration-only TOP selector remains separate integration evidence.
+
+There were two package-construction corrections, not new semantic premises.
+The first generated new-file patch headers were invalid. The first
+body-verified version then failed the executable-drift parser's treatment
+of closure attributes. Native Verus closure syntax plus matching explicit
+executable types/block shape resolves that parsing mismatch.
+`submit-native-syntax-request.log` reports both independent patches apply,
+spec_drift PASS, exec_drift PASS and `freeze_request: VALID` (7.53 s).
+No manifest, TOP/BOTTOM contract, verifier or actual frozen source was changed.
+
+All experimental working-tree source and the imported dependency copy were
+restored; `restore-native-source-integrity.log` checks exact equality to
+activation. The frozen guard is therefore still unproved in the working
+tree, rather than being silently replaced by the proposed source.
+Current checks after restoration: make_verify exit 0, zero verified/zero
+errors (11.129 s); spec_drift exit 0 (1.257 s); exec_drift exit 0 (5.104 s);
+boundary exit 1 (1.067 s), with its unchanged seven in-scope temporary
+locations and provenance rejection. These are function-selected admission
+and focused measurements, not all-functions/full-crate timings.
+
+The final submitted run patch also passes the unchanged production restore
+selector (`proposal-integration-full.log`: zero verified, zero errors;
+make_verify 16.091 s) and ordinary Rust 1.95.0 compilation with
+`cargo check -p openvmm_core --locked` (10.87 s in
+`proposal-integration-check.log`). These were checks of the proposed source
+in an isolated worktree, not reruns of the completed activation Rust check.
+The durable integration receipt records exit 0 and 28.7 s total.
+The proposed guard theorem is established for that source, but remains
+unapplied pending the frozen-source decision. All original decoding,
+coverage, adjustment and TOP proof obligations remain.
+
+## Freeze-request submission readiness
+
+The continuation explicitly requests committing the request and preserved
+supporting work while keeping the frozen change unapplied. Delayed durable
+notifications were reconciled with their receipts and stdout/stderr in
+`reconcile-durable-results.log`; the two earlier failed constructions are
+already superseded by the recorded body/reference and native-syntax proofs,
+so they were not rerun.
+
+Mandatory pre-commit commands completed under Rust 1.95.0:
+`cargo clippy --all-targets` for the eleven modified packages (14.40 s),
+`cargo doc --no-deps` for the same packages (7.66 s), followed by the complete
+`cargo xtask fmt --fix` (38.38 s). All commands exited zero; the formatting
+log also records completion of rustfmt, lints, verify-fuzzers and verify-flowey
+without a hidden pass error. Evidence is in `submission-{clippy,doc,fmt}.log`.
+The existing production overlay is preserved; formatting changes only the
+line layout of the guard's existing expression.
+
+Before retargeting, the validated run patch's complete source result was
+captured with the authoritative independent-patch helper. `run.patch` is
+now incremental over the preserved source being committed, rather than
+reapplying that existing declaration overlay. `freeze.patch` is byte-identical,
+and the intended candidate source result is unchanged. Post-commit validation
+must use the resulting branch tips; its evidence and clean-tree result are
+recorded in the shared CHECKPOINT rather than creating an uncommitted log.

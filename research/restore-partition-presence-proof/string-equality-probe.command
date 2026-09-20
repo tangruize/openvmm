@@ -1,0 +1,1 @@
+env VERUS_Z3_PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/z3 toolchain/verus-src/source/target-verus/release/verus --edition 2024 research/restore-partition-presence-proof/string-equality-probe.rs --num-threads 1 --triggers-mode silent 

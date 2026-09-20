@@ -1,0 +1,2 @@
+{"state": "submitted", "task_id": "restore-presence-precommit", "run_id": "restore-presence-precommit-1789887653156031129", "pid": 3678717, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-presence-precommit"}
+elapsed_s=0.15 exit=0

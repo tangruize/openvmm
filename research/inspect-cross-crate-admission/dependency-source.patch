@@ -1,0 +1,57 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..badc6f7a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3962,6 +3962,7 @@ dependencies = [
+  "pal_async",
+  "parking_lot",
+  "thiserror 2.0.16",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/support/inspect/Cargo.toml b/support/inspect/Cargo.toml
+index d8db27be..1439b927 100644
+--- a/support/inspect/Cargo.toml
++++ b/support/inspect/Cargo.toml
+@@ -6,6 +6,9 @@ name = "inspect"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [features]
+ default = ["derive",  "defer", "initiate", "std"]
+ derive = ["inspect_derive"]
+@@ -29,6 +32,7 @@ filepath = ["dep:filepath", "std"]
+ arbitrary = ["dep:arbitrary", "std"]
+ 
+ [dependencies]
++vstd.workspace = true
+ inspect_derive = { workspace = true, optional = true }
+ mesh = { workspace = true, optional = true }
+ 
+diff --git a/support/inspect/src/lib.rs b/support/inspect/src/lib.rs
+index cc5aaffe..c0260cdc 100644
+--- a/support/inspect/src/lib.rs
++++ b/support/inspect/src/lib.rs
+@@ -478,8 +478,10 @@
+ use core::mem::ManuallyDrop;
+ use core::num::Wrapping;
+ use core::ops::Deref;
++use vstd::prelude::verus_verify;
+ 
+ /// An inspection request.
++#[verus_verify]
+ pub struct Request<'a> {
+     params: RequestParams<'a>,
+     node: &'a mut InternalNode,
+@@ -2037,6 +2039,7 @@ fn inspect_mut(&mut self, req: Request<'_>) {
+ ///     }
+ /// }
+ /// ```
++#[verus_verify]
+ pub trait Inspect {
+     /// Inspects the object.
+     fn inspect(&self, req: Request<'_>);

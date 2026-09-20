@@ -1,0 +1,4 @@
+    Checking anyhow v1.0.99 (/home/ruize/openvmm-restore-v1/verification/dependencies/anyhow)
+verification results:: 3 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.97s
+elapsed_s=1.47 exit=0

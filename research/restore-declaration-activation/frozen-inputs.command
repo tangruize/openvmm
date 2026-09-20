@@ -1,0 +1,1 @@
+git --no-pager diff --exit-code argus/restore-v1-frozen -- .verus_agent/scope_manifest.json .verus_agent/tcb_manifest.json openvmm/openvmm_core/src/worker/dispatch.spec.rs openvmm/openvmm_core/src/worker/dispatch.proof.rs verification/tools/verify.sh 

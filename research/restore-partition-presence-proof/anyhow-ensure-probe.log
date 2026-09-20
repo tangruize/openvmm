@@ -1,0 +1,44 @@
+error: `anyhow::Error` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+  --> research/restore-partition-presence-proof/anyhow-ensure-probe.rs:9:41
+   |
+ 8 |   #[verus_spec(result => ensures result.is_ok() == condition)]
+   |                                  --------------
+ 9 |   fn ensure_condition(condition: bool) -> anyhow::Result<()> {
+   |  _________________________________________^^^^^^^^^^^^^^^^^^_-
+10 | |     anyhow::ensure!(condition, "condition must hold");
+   | |     -------------------------------------------------
+11 | |     Ok(())
+   | |     ------
+12 | | }
+   | |_-
+   |
+   = help: The following declaration may resolve this error:
+           #[verifier::external_type_specification]
+           pub struct ExError(anyhow::Error);
+
+error: `anyhow::__private::not` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+  --> research/restore-partition-presence-proof/anyhow-ensure-probe.rs:10:5
+   |
+10 |     anyhow::ensure!(condition, "condition must hold");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification<impl Bool> [anyhow::__private::not] (_0: impl Bool) -> bool
+           where
+           impl Bool: anyhow::__private::not::Bool,;
+   = note: this error originates in the macro `$crate::__fallback_ensure` which comes from the expansion of the macro `anyhow::ensure` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `anyhow::__private::format_err` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+  --> research/restore-partition-presence-proof/anyhow-ensure-probe.rs:10:5
+   |
+10 |     anyhow::ensure!(condition, "condition must hold");
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: The following declaration may resolve this error:
+           pub assume_specification [anyhow::__private::format_err] (_0: std::fmt::Arguments<'_>) -> anyhow::Error;
+   = note: this error originates in the macro `$crate::__anyhow` which comes from the expansion of the macro `anyhow::ensure` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 3 previous errors
+
+Command exited with non-zero status 1
+elapsed_s=0.49 exit=1

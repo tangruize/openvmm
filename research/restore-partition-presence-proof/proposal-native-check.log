@@ -1,0 +1,63 @@
+Traceback (most recent call last):
+  File "/home/ruize/openvmm-restore-v1/research/restore-partition-presence-proof/check-proposal.py", line 19, in <module>
+    with _patch_results(ROOT, ROOT / ".verus_agent", request) as results:
+  File "/usr/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/ruize/openvmm-restore-v1/.argus-runtime/lib/python3.12/site-packages/argus_verus/tools/operator/freeze_request.py", line 314, in _patch_results
+    run_commit = _commit_applied_patch(
+                 ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ruize/openvmm-restore-v1/.argus-runtime/lib/python3.12/site-packages/argus_verus/tools/operator/freeze_request.py", line 253, in _commit_applied_patch
+    raise RequestError(
+argus_verus.tools.operator.freeze_request.RequestError: run.patch does not apply to the current working branch: error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+error: dev/null: does not exist in index
+Command exited with non-zero status 1
+elapsed_s=1.39 exit=1

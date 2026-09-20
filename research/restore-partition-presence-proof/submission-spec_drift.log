@@ -1,0 +1,4 @@
+<frozen runpy>:128: RuntimeWarning: 'argus_verus.tools.checks.spec_drift' found in sys.modules after import of package 'argus_verus.tools.checks', but prior to execution of 'argus_verus.tools.checks.spec_drift'; this may result in unpredictable behaviour
+spec_drift: complete output -> .verus_agent/cache/checks/spec_drift/latest.log
+spec_drift: no frozen specification drift; exit 0; 1.259s
+elapsed_s=1.38 exit=0

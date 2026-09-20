@@ -1,0 +1,381 @@
+Checking unapplied run.patch on its actual production guard
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.18
+   Compiling libc v0.2.184
+   Compiling verus_syn v0.0.0-2026-09-06-0133 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/dependencies/syn)
+    Checking cfg-if v1.0.3
+   Compiling verus_prettyplease v0.0.0-2026-09-06-0133 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/dependencies/prettyplease)
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.15.5
+   Compiling thiserror v2.0.16
+   Compiling convert_case v0.4.0
+   Compiling vstd v0.0.0-2026-09-16-0054 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/source/vstd)
+   Compiling autocfg v1.5.0
+    Checking pin-project-lite v0.2.16
+   Compiling zerocopy v0.8.27
+    Checking once_cell v1.21.3
+    Checking smallvec v1.15.1
+    Checking futures-core v0.3.31
+    Checking verus_builtin v0.0.0-2026-09-16-0054 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/source/builtin)
+   Compiling parking_lot_core v0.9.11
+    Checking memchr v2.7.5
+    Checking scopeguard v1.2.0
+    Checking futures-io v0.3.31
+    Checking open_enum v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/open_enum)
+   Compiling heck v0.5.0
+   Compiling mesh_protobuf v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_protobuf)
+    Checking futures-sink v0.3.31
+    Checking slab v0.4.11
+    Checking pin-utils v0.1.0
+    Checking futures-task v0.3.31
+   Compiling getrandom v0.4.2
+   Compiling anyhow v1.0.99 (/tmp/argus-verus-freeze-zb63rhva/run/verification/dependencies/anyhow)
+   Compiling linkme-impl v0.3.33
+    Checking static_assertions v1.1.0
+   Compiling thiserror v1.0.69
+    Checking parking v2.2.1
+   Compiling crossbeam-utils v0.8.21
+    Checking bitflags v2.9.3
+   Compiling smallbox v0.8.8
+   Compiling io-uring v0.7.11
+   Compiling syn v1.0.109
+    Checking cordyceps v0.3.4
+    Checking fastrand v2.3.0
+    Checking diatomic-waker v0.2.3
+    Checking spin v0.10.0
+    Checking loan_cell v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/loan_cell)
+    Checking async-task v4.7.1
+    Checking fixedbitset v0.5.7
+    Checking jiff v0.2.15
+   Compiling either v1.15.0
+   Compiling rustix v1.0.8
+   Compiling getrandom v0.3.3
+   Compiling rustix v0.38.44
+   Compiling regex-syntax v0.8.6
+   Compiling prettyplease v0.1.25
+   Compiling bytes v1.11.1
+   Compiling linux-raw-sys v0.4.15
+   Compiling linux-raw-sys v0.9.4
+   Compiling fixedbitset v0.4.2
+   Compiling home v0.5.11
+   Compiling multimap v0.8.3
+   Compiling lazy_static v1.5.0
+   Compiling log v0.4.27
+   Compiling heck v0.4.1
+   Compiling build_rs_guest_arch v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/build_rs_guest_arch)
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+    Checking nu-ansi-term v0.50.1
+    Checking stackfuture v0.3.0
+   Compiling crc32fast v1.5.0
+   Compiling typenum v1.18.0
+   Compiling shlex v1.3.0
+   Compiling vcpkg v0.2.15
+   Compiling wchar v0.11.1
+   Compiling serde_json v1.0.143
+   Compiling pkg-config v0.3.32
+   Compiling paste v1.0.15
+    Checking range_map_vec v0.2.0
+    Checking uniset v0.2.4
+   Compiling object v0.37.3
+   Compiling openssl v0.10.80
+    Checking foreign-types-shared v0.1.1
+    Checking arrayvec v0.7.6
+   Compiling cfg_aliases v0.2.1
+   Compiling ryu v1.0.20
+    Checking thread_local v1.1.9
+    Checking safe_intrinsics v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/safe_intrinsics)
+   Compiling itoa v1.0.15
+    Checking sharded-slab v0.1.7
+    Checking cpufeatures v0.3.0
+   Compiling crypto v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/crypto)
+    Checking tracing-core v0.1.35
+    Checking device_emulators v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/support/device_emulators)
+    Checking uuid v1.23.3
+    Checking arc_cyclic_builder v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/arc_cyclic_builder)
+    Checking hex v0.4.3
+    Checking vfio-bindings v0.4.0
+    Checking foreign-types v0.3.2
+   Compiling nix v0.30.1
+    Checking headervec v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/headervec)
+    Checking debug_ptr v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/debug_ptr)
+   Compiling fs-err v3.1.1
+   Compiling lock_api v0.4.13
+   Compiling itertools v0.10.5
+   Compiling indexmap v2.11.0
+    Checking futures-channel v0.3.31
+    Checking futures-lite v2.6.1
+    Checking futures-buffered v0.2.12
+   Compiling vm_topology v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/vm_topology)
+   Compiling cc v1.2.34
+   Compiling virt v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/virt)
+   Compiling loader v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/loader)
+   Compiling vm_loader v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/vm_loader)
+   Compiling vmm_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core)
+   Compiling openvmm_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openvmm/openvmm_core)
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+    Checking tracing-log v0.2.0
+    Checking tracing-subscriber v0.3.22
+    Checking concurrent-queue v2.5.0
+   Compiling quote v1.0.40
+    Checking event-listener v5.4.1
+   Compiling syn v2.0.106
+   Compiling petgraph v0.6.5
+    Checking event-listener-strategy v0.5.4
+    Checking async-channel v2.5.0
+    Checking hybrid-array v0.4.10
+   Compiling regex-automata v0.4.14
+   Compiling openssl-sys v0.9.116
+    Checking block-buffer v0.12.0
+    Checking crypto-common v0.2.1
+    Checking seccompiler v0.5.0
+    Checking unix_socket v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/unix_socket)
+    Checking socket2 v0.6.0
+    Checking parking_lot v0.12.4
+   Compiling tempfile v3.21.0
+   Compiling which v4.4.2
+    Checking fast_select v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/fast_select)
+    Checking unicycle v0.10.2
+    Checking closeable_mutex v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/closeable_mutex)
+    Checking digest v0.11.2
+    Checking sha2 v0.11.0
+   Compiling regex v1.12.3
+   Compiling hyperv_secure_boot_templates v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/hyperv_secure_boot_templates)
+   Compiling wchar-impl v0.11.0
+   Compiling synstructure v0.13.2
+   Compiling thiserror-impl v2.0.16
+   Compiling zerocopy-derive v0.8.27
+   Compiling tracing-attributes v0.1.31
+   Compiling bitfield-struct v0.11.0
+   Compiling mesh_derive v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_derive)
+   Compiling futures-macro v0.3.31
+   Compiling inspect_derive v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/inspect_derive)
+   Compiling async-trait v0.1.89
+   Compiling thiserror-impl v1.0.69
+   Compiling enumflags2_derive v0.7.12
+   Compiling pin-project-internal v1.1.10
+   Compiling pal_async_test v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/pal/pal_async_test)
+   Compiling save_restore_derive v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/save_restore_derive)
+   Compiling serde_derive v1.0.228
+   Compiling open-enum-derive v0.5.2
+   Compiling openssl-macros v0.1.1
+   Compiling bitfield-struct v0.12.1
+   Compiling corim-macros v0.1.3
+    Checking enumflags2 v0.7.12
+    Checking open-enum v0.5.2
+    Checking futures-util v0.3.31
+    Checking linkme v0.3.33
+    Checking pin-project v1.1.10
+    Checking tracing v0.1.43
+    Checking futures-concurrency v7.6.3
+    Checking caps v0.5.5
+    Checking landlock v0.4.2
+    Checking trycopy v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/trycopy)
+    Checking ucs2 v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/ucs2)
+    Checking cache_topology v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/cache_topology)
+    Checking tracelimit v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/tracelimit)
+    Checking cvm_tracing v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/cvm_tracing)
+    Checking pal v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/pal)
+    Checking hvdef v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/hv1/hvdef)
+    Checking sparse_mmap v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/sparse_mmap)
+    Checking safeatomic v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/safeatomic)
+    Checking x86defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/x86/x86defs)
+    Checking aarch64defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/aarch64/aarch64defs)
+    Checking scsi_defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/scsi_defs)
+    Checking igvm_defs v0.4.0 (https://github.com/microsoft/igvm?rev=7184dce1086956342c1bf561f82ff268d06d2c73#7184dce1)
+    Checking page_table v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/loader/page_table)
+    Checking hvs_file v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/hvs_file)
+    Checking acpi_spec v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/acpi_spec)
+    Checking fdt v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/fdt)
+    Checking corim v0.1.3
+    Checking openssl_kdf v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/openssl_kdf)
+   Compiling verus_state_machines_macros v0.0.0-2026-09-06-0133 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/source/state_machines_macros)
+    Checking futures-executor v0.3.31
+   Compiling verus_builtin_macros v0.0.0-2026-09-06-0133 (/tmp/argus-verus-freeze-zb63rhva/run/toolchain/verus-src/source/builtin_macros)
+    Checking futures v0.3.31
+    Checking igvm v0.4.0 (https://github.com/microsoft/igvm?rev=7184dce1086956342c1bf561f82ff268d06d2c73#7184dce1)
+   Compiling prost-derive v0.11.9
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:32:10
+   |
+32 | #[derive(Clone, Debug)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:85:10
+   |
+85 | #[derive(Clone, Protobuf)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+    Checking tracing_helpers v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/tracing_helpers)
+    Checking resource_dll_parser v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/resource_dll_parser)
+   Compiling prost v0.11.9
+   Compiling prost-types v0.11.9
+warning: `mesh_protobuf` (lib) generated 2 warnings
+    Checking mesh_node v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_node)
+    Checking pal_event v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/pal/pal_event)
+    Checking product_policy v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openhcl/product_policy)
+    Checking pal_async v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/pal/pal_async)
+    Checking mesh_channel_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_channel_core)
+   Compiling prost-build v0.11.9
+   Compiling tdisp_proto v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/tdisp_proto)
+    Checking mesh_channel v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_channel)
+    Checking mesh v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh)
+    Checking inspect v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/inspect)
+    Checking openvmm_pcat_locator v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openvmm/openvmm_pcat_locator)
+    Checking vm_resource v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/vm_resource)
+    Checking guestmem v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/guestmem)
+    Checking guid v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/guid)
+    Checking memory_range v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore/memory_range)
+    Checking inspect_counters v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/inspect_counters)
+    Checking task_control v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/task_control)
+    Checking local_clock v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/local_clock)
+    Checking vmgs_format v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmgs/vmgs_format)
+    Checking address_filter v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/address_filter)
+    Checking hcl_compat_uefi_nvram_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/hcl_compat_uefi_nvram_resources)
+    Checking mesh_worker v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/mesh/mesh_worker)
+    Checking storage_string v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/storage_string)
+    Checking virtio_spec v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/virtio/virtio_spec)
+    Checking loader_defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/loader/loader_defs)
+    Checking vfio_sys v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/user_driver/vfio_sys)
+    Checking uefi_specs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/uefi_specs)
+    Checking vmbus_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vmbus/vmbus_core)
+    Checking hybrid_vsock v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/support/hybrid_vsock)
+    Checking vpci_protocol v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/vpci_protocol)
+    Checking tdisp v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/tdisp)
+    Checking vmcore v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmcore)
+    Checking chipset_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/chipset_resources)
+    Checking power_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/power_resources)
+    Checking input_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/input_core)
+    Checking video_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/video_core)
+    Checking serial_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/serial/serial_core)
+    Checking missing_dev_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/missing_dev_resources)
+    Checking ide_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/ide_resources)
+    Checking net_backend_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/net/net_backend_resources)
+    Checking scsidisk_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/scsidisk_resources)
+    Checking hypervisor_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openvmm/hypervisor_resources)
+    Checking floppy_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/floppy_resources)
+    Checking vfio_assigned_device_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/vfio_assigned_device_resources)
+    Checking serial_16550_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/serial/serial_16550_resources)
+    Checking vmgs_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmgs/vmgs_resources)
+    Checking chipset_device_worker_defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/workers/chipset_device_worker_defs)
+    Checking scsi_buffers v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/scsi_buffers)
+    Checking vmbus_ring v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vmbus/vmbus_ring)
+    Checking get_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/get/get_resources)
+    Checking virtio_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/virtio/virtio_resources)
+    Checking uefi_nvram_storage v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/uefi_nvram_storage)
+    Checking firmware_uefi_custom_vars v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/firmware_uefi_custom_vars)
+    Checking hcl_compat_uefi_nvram_storage v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/hcl_compat_uefi_nvram_storage)
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+   --> vm/vmcore/src/save_restore.rs:118:10
+    |
+118 | #[derive(Clone, Debug, Protobuf)]
+    |          ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmcore` (lib) generated 1 warning
+    Checking chipset_device v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/chipset_device)
+    Checking disk_backend v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/disk_backend)
+    Checking scsi_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/scsi_core)
+    Checking vmbus_channel v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vmbus/vmbus_channel)
+    Checking generation_id v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/generation_id)
+    Checking state_unit v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/state_unit)
+    Checking watchdog_vmgs_format v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/watchdog/watchdog_vmgs_format)
+    Checking watchdog_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/watchdog/watchdog_core)
+    Checking pci_core v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/pci_core)
+    Checking chipset_device_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/chipset_device_resources)
+    Checking framebuffer v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/framebuffer)
+    Checking floppy_pcat_stub v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/floppy_pcat_stub)
+    Checking floppy v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/floppy)
+    Checking vmgs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmgs/vmgs)
+    Checking scsidisk v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/scsidisk)
+    Checking firmware_uefi_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/firmware_uefi_resources)
+    Checking chipset v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/chipset)
+    Checking chipset_device_worker v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/workers/chipset_device_worker)
+    Checking vmgs_broker v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/vmgs/vmgs_broker)
+    Checking vmbus_async v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vmbus/vmbus_async)
+    Checking vmbus_server v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vmbus/vmbus_server)
+    Checking pci_resources v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/pci_resources)
+    Checking pci_bus v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/pci_bus)
+    Checking ide v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/storage/ide)
+    Checking missing_dev v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/missing_dev)
+    Checking iommu_common v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/iommu/iommu_common)
+    Checking vga v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/vga)
+    Checking vpci v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/vpci)
+    Checking pci_resource_assignment v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/pci_resource_assignment)
+    Checking cxl_spec v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/cxl)
+    Checking virtio v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/virtio/virtio)
+    Checking amd_iommu v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/iommu/amd_iommu)
+    Checking smmu v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/iommu/smmu)
+    Checking intel_vtd v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/iommu/intel_vtd)
+    Checking chipset_legacy v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/chipset_legacy)
+    Checking pcie v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/pcie)
+    Checking acpi v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/acpi)
+    Checking firmware_pcat v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/firmware/firmware_pcat)
+    Checking vmotherboard v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/vmotherboard)
+    Checking vmm_core_defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/vmm_core_defs)
+    Checking hyperv_dump v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vmm_core/hyperv_dump)
+    Checking membacking v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openvmm/membacking)
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_defs v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/openvmm/openvmm_defs)
+    Checking vfio_assigned_device v0.0.0 (/tmp/argus-verus-freeze-zb63rhva/run/vm/devices/pci/vfio_assigned_device)
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2181:13
+     |
+2181 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2182:13
+     |
+2182 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3033:13
+     |
+3033 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3034:13
+     |
+3034 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: verifying module worker::dispatch (selected functions)
+
+error: postcondition not satisfied
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3787:13
+     |
+3787 | /             result.is_ok() == (
+3788 | |                 restore_time.is_none()
+3789 | |                 || exists|i: int| 0 <= i < saved_state.units@.len()
+3790 | |                     && #[trigger] saved_state.units@[i].name@ == "partition"@
+3791 | |             ),
+     | |_____________^ failed this postcondition
+...
+3804 | /         anyhow::ensure!(
+3805 | |             partition_presence_valid,
+3806 | |             "time-adjusted snapshot restore requires partition state"
+3807 | |         );
+     | |_________- at this exit
+
+verification results:: 0 verified, 1 errors (partial verification with `--verify-*`)
+warning: `openvmm_core` (lib) generated 4 warnings
+error: could not compile `openvmm_core` (lib) due to 1 previous error; 4 warnings emitted
+Command exited with non-zero status 101
+elapsed_s=44.13 exit=101

@@ -1,0 +1,144 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e66d8c4e..a1b701f1 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -4600,6 +4600,7 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
++ "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/support/mesh/mesh_channel_core/Cargo.toml b/support/mesh/mesh_channel_core/Cargo.toml
+index 63ef004c..89ba29c4 100644
+--- a/support/mesh/mesh_channel_core/Cargo.toml
++++ b/support/mesh/mesh_channel_core/Cargo.toml
+@@ -6,7 +6,11 @@ name = "mesh_channel_core"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
++[package.metadata.verus]
++verify = true
++
+ [dependencies]
++vstd.workspace = true
+ mesh_protobuf.workspace = true
+ mesh_node.workspace = true
+ 
+diff --git a/support/mesh/mesh_channel_core/src/error.rs b/support/mesh/mesh_channel_core/src/error.rs
+index 27704c10..e4463c89 100644
+--- a/support/mesh/mesh_channel_core/src/error.rs
++++ b/support/mesh/mesh_channel_core/src/error.rs
+@@ -2,10 +2,12 @@
+ // Licensed under the MIT License.
+ 
+ use thiserror::Error;
++use vstd::prelude::verus_verify;
+ 
+ /// An error representing a failure of a channel.
+ #[derive(Debug, Error)]
+ #[error(transparent)]
++#[verus_verify]
+ pub struct ChannelError(Box<ChannelErrorInner>);
+ 
+ /// The kind of channel failure.
+@@ -41,6 +43,7 @@ fn from(value: mesh_node::local_node::NodeError) -> Self {
+ }
+ 
+ #[derive(Debug, Error)]
++#[verus_verify]
+ enum ChannelErrorInner {
+     #[error("node failure")]
+     NodeFailure(#[source] mesh_node::local_node::NodeError),
+@@ -64,6 +67,7 @@ pub enum TryRecvError {
+ 
+ /// An error when receiving a message from a channel.
+ #[derive(Debug, Error)]
++#[verus_verify]
+ pub enum RecvError {
+     /// The channel is closed.
+     #[error("channel closed")]
+diff --git a/support/mesh/mesh_channel_core/src/oneshot.rs b/support/mesh/mesh_channel_core/src/oneshot.rs
+index 78da7432..d487a723 100644
+--- a/support/mesh/mesh_channel_core/src/oneshot.rs
++++ b/support/mesh/mesh_channel_core/src/oneshot.rs
+@@ -41,6 +41,7 @@
+ use std::task::Waker;
+ use std::task::ready;
+ use thiserror::Error;
++use vstd::prelude::verus_verify;
+ 
+ /// Creates a unidirection channel for sending a single value of type `T`.
+ ///
+@@ -140,6 +141,7 @@ fn decode_message<T: MeshField>(message: Message<'_>) -> Result<BoxedValue, Chan
+ }
+ 
+ #[derive(Debug)]
++#[verus_verify]
+ struct Slot {
+     state: Mutex<SlotState>,
+     // Stored in the shared slot but exclusively owned by the
+@@ -267,6 +269,7 @@ fn from_port(port: Port, send: SendFn) -> OneshotSenderCore {
+ // Note that the `PhantomData` here is necessary to ensure `Send/Sync` traits
+ // are only implemented when `T` is `Send`, since the `OneshotReceiverCore` is
+ // always `Send+Sync`. This behavior is verified in the unit tests.
++#[verus_verify]
+ pub struct OneshotReceiver<T>(
+     ManuallyDrop<OneshotReceiverCore>,
+     PhantomData<Arc<Mutex<T>>>,
+@@ -332,9 +335,11 @@ fn from(port: Port) -> Self {
+ }
+ 
+ #[derive(Debug)]
++#[verus_verify]
+ struct OneshotReceiverCore(Arc<Slot>);
+ 
+ #[derive(Default)]
++#[verus_verify]
+ struct ReceiverState {
+     port: Option<PortWithHandler<SlotHandler>>,
+ }
+@@ -485,6 +490,7 @@ fn from_port(port: Port, decode: DecodeFn) -> OneshotReceiverCore {
+ }
+ 
+ #[derive(Debug)]
++#[verus_verify]
+ enum SlotState {
+     Done,
+     Waiting(Option<Waker>),
+@@ -497,6 +503,7 @@ enum SlotState {
+ type DecodeFn = unsafe fn(Message<'_>) -> Result<BoxedValue, ChannelError>;
+ 
+ #[derive(Debug)]
++#[verus_verify]
+ struct BoxedValue(NonNull<()>);
+ 
+ // SAFETY: `BoxedValue` is `Send` and `Sync` even though the underlying element
+@@ -533,6 +540,7 @@ unsafe fn drop<T>(self) {
+ #[error("unexpected oneshot message")]
+ struct UnexpectedMessage;
+ 
++#[verus_verify]
+ struct SlotHandler {
+     slot: Arc<Slot>,
+     decode: DecodeFn,
+diff --git a/support/mesh/mesh_channel_core/src/sync_unsafe_cell.rs b/support/mesh/mesh_channel_core/src/sync_unsafe_cell.rs
+index 531272f8..69987ab1 100644
+--- a/support/mesh/mesh_channel_core/src/sync_unsafe_cell.rs
++++ b/support/mesh/mesh_channel_core/src/sync_unsafe_cell.rs
+@@ -6,12 +6,14 @@
+ 
+ use std::cell::UnsafeCell;
+ use std::fmt::Debug;
++use vstd::prelude::verus_verify;
+ 
+ /// A wrapper around [`UnsafeCell`] that is [`Sync`] when the inner type is
+ /// [`Sync`].
+ ///
+ /// Replace with `std::cell::SyncUnsafeCell` when stabilized.
+ #[derive(Default)]
++#[verus_verify]
+ pub(crate) struct SyncUnsafeCell<T>(pub UnsafeCell<T>);
+ 
+ impl<T> Debug for SyncUnsafeCell<T> {

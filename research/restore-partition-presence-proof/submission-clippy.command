@@ -1,0 +1,1 @@
+env RUSTUP_TOOLCHAIN=1.95.0 cargo clippy --all-targets -p chipset_resources -p mesh_channel -p mesh_channel_core -p mesh_protobuf -p openvmm_core -p openvmm_defs -p pal_async -p state_unit -p virt -p vmm_core -p vmm_core_defs 

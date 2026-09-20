@@ -55,6 +55,7 @@ use zerocopy::Ref;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Protobuf, Inspect)]
 #[mesh(package = "virt.x86")]
+#[vstd::prelude::verus_verify]
 pub struct Registers {
     #[inspect(hex)]
     #[mesh(1)]

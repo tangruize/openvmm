@@ -1,0 +1,6 @@
+restore-partition-presence-proposal-check error 1 1.4 seconds; stdout and stderr inspected
+restore-partition-presence-proposal-body error 101 44.2 seconds; stdout and stderr inspected
+restore-partition-presence-proposal-reference done 0 17.5 seconds; stdout and stderr inspected
+restore-partition-presence-native-syntax done 0 17.6 seconds; stdout and stderr inspected
+restore-partition-presence-integration done 0 28.7 seconds; stdout and stderr inspected
+elapsed_s=0.02 exit=0

@@ -6,11 +6,15 @@ name = "pal_async"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 # Enable executor_tests module for out-of-crate executor testing.
 tests = ["dep:tempfile"]
 
 [dependencies]
+vstd.workspace = true
 loan_cell.workspace = true
 pal.workspace = true
 unix_socket.workspace = true

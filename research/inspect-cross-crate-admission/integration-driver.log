@@ -1,0 +1,9 @@
++ git --no-pager diff -- Cargo.lock support/inspect/Cargo.toml support/inspect/src/lib.rs openvmm/openvmm_core/src/partition.rs
++ printf '%s\n' '/usr/bin/time -f "elapsed_s=%e exit=%x" timeout --kill-after=5s 110s make verify MODULE=restore'
++ set +e
++ /usr/bin/time -f 'elapsed_s=%e exit=%x' timeout --kill-after=5s 110s make verify MODULE=restore
++ result=2
++ set -e
++ printf 'integration_verification_exit=%s\n' 2
+integration_verification_exit=2
++ exit 2

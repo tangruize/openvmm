@@ -1,0 +1,1 @@
+env VERUS_Z3_PATH=/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/z3 toolchain/verus-src/source/target-verus/release/verus --edition 2024 --crate-name anyhow_ensure_probe --extern anyhow=target/verus-partial/debug/deps/libanyhow-1a1dcdb279f90ff5.rmeta -L dependency=target/verus-partial/debug/deps research/restore-partition-presence-proof/anyhow-ensure-probe.rs 

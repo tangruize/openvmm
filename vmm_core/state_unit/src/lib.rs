@@ -247,6 +247,8 @@ impl StateRequest {
 
 /// A set of state units.
 #[derive(Debug)]
+// TODO(proof): Refine unit identity, dependencies, RPC state, and restore ordering.
+#[vstd::prelude::verus_verify(external_body)]
 pub struct StateUnits {
     inner: Arc<Mutex<Inner>>,
     running: bool,

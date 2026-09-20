@@ -1,0 +1,95 @@
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:32:10
+   |
+32 | #[derive(Clone, Debug)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:85:10
+   |
+85 | #[derive(Clone, Protobuf)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `mesh_protobuf` (lib) generated 2 warnings
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+   --> vm/vmcore/src/save_restore.rs:118:10
+    |
+118 | #[derive(Clone, Debug, Protobuf)]
+    |          ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmcore` (lib) generated 1 warning
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_core)
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2181:13
+     |
+2181 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2182:13
+     |
+2182 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3033:13
+     |
+3033 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3034:13
+     |
+3034 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: verifying module worker::dispatch (selected functions)
+
+error: unable to prove post-condition of closure
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3801:33
+     |
+3801 |                         ensures result == (unit.name@ == "partition"@)
+     |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ failed this postcondition
+3802 |                     { unit.name == "partition" }
+     |                       ------------------------ returning this expression
+
+error: postcondition not satisfied
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3787:13
+     |
+3787 | /             result.is_ok() == (
+3788 | |                 restore_time.is_none()
+3789 | |                 || exists|i: int| 0 <= i < saved_state.units@.len()
+3790 | |                     && #[trigger] saved_state.units@[i].name@ == "partition"@
+3791 | |             ),
+     | |_____________^ failed this postcondition
+...
+3797 | /         anyhow::ensure!(
+3798 | |             restore_time.is_none()
+3799 | |                 || saved_state.units.iter().any(verus_exec_expr!(
+3800 | |                     |unit: &state_unit::SavedStateUnit| -> (result: bool)
+...    |
+3804 | |             "time-adjusted snapshot restore requires partition state"
+3805 | |         );
+     | |_________- at this exit
+
+verification results:: 0 verified, 1 errors (partial verification with `--verify-*`)
+warning: `openvmm_core` (lib) generated 4 warnings
+error: could not compile `openvmm_core` (lib) due to 2 previous errors; 4 warnings emitted
+Command exited with non-zero status 101
+elapsed_s=2.30 exit=101

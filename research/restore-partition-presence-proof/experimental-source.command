@@ -1,0 +1,1 @@
+git --no-pager diff -- Cargo.lock openvmm/openvmm_core/src/worker/dispatch.rs openvmm/openvmm_defs/src/worker.rs vmm_core/state_unit/src/lib.rs vm/vmcore/Cargo.toml vm/vmcore/src/save_restore.rs support/mesh/mesh_protobuf/src/message.rs 

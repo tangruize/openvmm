@@ -43,6 +43,8 @@ pub struct SnapshotRestoreGuards {
 /// Complete saved state consumed by the VM worker.
 #[derive(Protobuf, SavedStateRoot)]
 #[mesh(package = "openvmm")]
+// TODO(proof): Bind units and inventory to the decoded restore request Views.
+#[vstd::prelude::verus_verify(external_body)]
 pub struct SavedState {
     #[mesh(1)]
     pub units: Vec<SavedStateUnit>,

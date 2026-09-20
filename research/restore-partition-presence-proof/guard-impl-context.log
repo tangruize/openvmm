@@ -1,0 +1,81 @@
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:32:10
+   |
+32 | #[derive(Clone, Debug)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+  --> support/mesh/mesh_protobuf/src/message.rs:85:10
+   |
+85 | #[derive(Clone, Protobuf)]
+   |          ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `mesh_protobuf` (lib) generated 2 warnings
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+   --> vm/vmcore/src/save_restore.rs:118:10
+    |
+118 | #[derive(Clone, Debug, Protobuf)]
+    |          ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmcore` (lib) generated 1 warning
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_core v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_core)
+error: `anyhow::__private::not` is not supported (note: you may be able to add a Verus specification to this function with `assume_specification`)
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3797:9
+     |
+3797 | /         anyhow::ensure!(
+3798 | |             restore_time.is_none()
+3799 | |                 || saved_state.units.iter().any(|unit| unit.name == "partition"),
+3800 | |             "time-adjusted snapshot restore requires partition state"
+3801 | |         );
+     | |_________^
+     |
+     = help: The following declaration may resolve this error:
+             pub assume_specification<impl Bool> [anyhow::__private::not] (_0: impl Bool) -> bool
+             where
+             impl Bool: anyhow::__private::not::Bool,;
+     = note: this error originates in the macro `$crate::__fallback_ensure` which comes from the expansion of the macro `anyhow::ensure` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2181:13
+     |
+2181 |             const PCI_LEGACY_INTA_IRQ: u32 = 11;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:2182:13
+     |
+2182 |             const PCI_INTA_IRQ: u32 = 16;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3033:13
+     |
+3033 |             const VIRTIO_MMIO_IOAPIC_IRQ: u32 = 17;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: verus-related attribute has no effect because item is already marked external
+    --> openvmm/openvmm_core/src/worker/dispatch.rs:3034:13
+     |
+3034 |             const VIRTIO_MMIO_PIC_IRQ: u32 = 5;
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `openvmm_core` (lib) generated 4 warnings
+error: could not compile `openvmm_core` (lib) due to 1 previous error; 4 warnings emitted
+Command exited with non-zero status 101
+elapsed_s=2.27 exit=101

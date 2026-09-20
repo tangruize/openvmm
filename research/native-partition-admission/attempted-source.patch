@@ -1,0 +1,15 @@
+diff --git a/openvmm/openvmm_core/src/partition.rs b/openvmm/openvmm_core/src/partition.rs
+index bc6fa805..f5073e3c 100644
+--- a/openvmm/openvmm_core/src/partition.rs
++++ b/openvmm/openvmm_core/src/partition.rs
+@@ -52,8 +52,10 @@
+ use vmm_core::partition_unit::RunCancelled;
+ use vmm_core::partition_unit::VmPartition;
+ use vmm_core::partition_unit::VpRunner;
++use vstd::prelude::verus_verify;
+ 
+ /// A base partition, with methods needed at rutnime along with methods to initialize the vm.
++#[verus_verify]
+ pub trait HvlitePartition: Inspect + Send + Sync + RequestYield {
+     /// Completes backend partition initialization after guest memory is attached.
+     fn finalize_memory(&self) -> anyhow::Result<()>;

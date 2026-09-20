@@ -1,0 +1,27 @@
+{
+  "state": "error",
+  "task_id": "restore-partition-presence-proposal-check",
+  "run_id": "restore-partition-presence-proposal-check-1789886592035389623",
+  "description": "background task",
+  "command": "bash research/restore-partition-presence-proof/run.sh proposal-native-check \"${ARGUS_SKILL_PYTHON:-python3}\" research/restore-partition-presence-proof/check-proposal.py",
+  "exit_code": 1,
+  "elapsed_seconds": 1.4,
+  "completed_at": 1789886593.457688,
+  "pid": 3632700,
+  "worker_pid": 3632699,
+  "mode": "direct",
+  "run_dir": null,
+  "stdout_tail": "proposal-native-check exit=1 log=research/restore-partition-presence-proof/proposal-native-check.log\n",
+  "stderr_tail": "",
+  "stdout_log": ".argus_subagents/restore-partition-presence-proposal-check_logs/stdout.log",
+  "stderr_log": ".argus_subagents/restore-partition-presence-proposal-check_logs/stderr.log",
+  "supervisor_usage_model": "",
+  "supervisor_input_tokens": 0,
+  "supervisor_cached_input_tokens": 0,
+  "supervisor_output_tokens": 0,
+  "supervisor_reasoning_output_tokens": 0,
+  "cwd": "/home/ruize/openvmm-restore-v1",
+  "live": false
+}
+Command exited with non-zero status 1
+elapsed_s=0.19 exit=1

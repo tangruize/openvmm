@@ -156,6 +156,7 @@ pub mod microvm {
 
     /// Scratch handling requested at a microVM snapshot boundary.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, MeshPayload)]
+    #[vstd::prelude::verus_verify]
     pub enum MicrovmSnapshotScratchPolicy {
         /// Scratch is unmounted and restore must attach a fresh image.
         Fresh,
@@ -165,6 +166,8 @@ pub mod microvm {
 
     /// Worker-local request used to establish the exact post-OUT snapshot boundary.
     #[derive(MeshPayload)]
+    // TODO(proof): Refine release/completion channels and the boundary protocol.
+    #[vstd::prelude::verus_verify(external_body)]
     pub struct MicrovmSnapshotBoundaryRequest {
         /// Whether capture must pair the current scratch image.
         pub scratch_policy: MicrovmSnapshotScratchPolicy,

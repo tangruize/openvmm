@@ -1,0 +1,1 @@
+bash -c root=\$\(rustc\ +1.98.1\ --print\ sysroot\)\ \&\&\ printf\ \"%s\\n\"\ \"\$root\"\ \&\&\ test\ -f\ \"\$root/lib/rustlib/src/rust/library/alloc/src/string.rs\"\ \&\&\ printf\ \"%s\\n\"\ \"\$root/lib/rustlib/src/rust/library/alloc/src/string.rs\" 

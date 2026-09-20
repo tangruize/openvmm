@@ -1,0 +1,37 @@
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -
+scope_manifest.json {"frozen_branch": "argus/restore-v1-frozen", "goal": [{"file": "openvmm/openvmm_core/src/worker/dispatch.rs", "symbol": "LoadedVm::restore_snapshot_state"}], "src_roots": ["openvmm/openvmm_core/src/worker"], "top_spec": ["openvmm/openvmm_core/src/worker/dispatch.spec.rs"]}
+tcb_manifest.json {"sanctioned": [{"kind": "symbol", "marker": "external_body", "value": "InitializedVm::load"}, {"kind": "symbol", "marker": "external_type_specification", "value": "ExRestoreReadyFile"}, {"kind": "symbol", "marker": "external_body", "value": "ExRestoreReadyFile"}]}
++ git --no-pager status --short
+ M research/GROUND_TRUTH.md
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
++ git diff --exit-code -- . ':!research/**' ':!.autors/**'
++ git diff --cached --exit-code -- . ':!research/**' ':!.autors/**'
++ git --no-pager log -1 '--format=%cI %s' -- . ':!research/**' ':!.autors/**'
+2026-09-20T11:18:32+08:00 [verus][argus] proposed working result
++ verification/tools/find-verus.sh
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus
++ cat verification/verus-version verification/verus-revision toolchain/verus-src/.argus-verus-revision
+0.2026.09.18.8ed93e5
+8ed93e5d0164885f415c11ad8baa736371bcff92
+8ed93e5d0164885f415c11ad8baa736371bcff92
++ set +e
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_verus.callgraph.graph --project . build --out .verus_agent/cache/callgraph.json
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'
++ graph_status=1
++ set -e
++ printf 'callgraph_exit=%s\n' 1
+callgraph_exit=1
++ RUSTUP_TOOLCHAIN=1.95.0
++ cargo tree --locked --offline -p openvmm_core -e features -i inspect
++ printf 'production_features_exit=0\n'
+production_features_exit=0
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/make_verify/latest.log
+2026-09-20 12:26:56.158017812 +0800 .verus_agent/cache/checks/make_verify/latest.log
++ cmp .verus_agent/cache/checks/make_verify/latest.log research/native-partition-admission/reused-make_verify.log
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/boundary/latest.log
+2026-09-20 13:00:10.391190931 +0800 .verus_agent/cache/checks/boundary/latest.log
++ cmp .verus_agent/cache/checks/boundary/latest.log research/native-partition-admission/reused-boundary.log
+.verus_agent/cache/checks/boundary/latest.log research/native-partition-admission/reused-boundary.log differ: byte 779, line 12

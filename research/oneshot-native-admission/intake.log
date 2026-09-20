@@ -1,0 +1,37 @@
++ git diff --exit-code -- . ':!research/**' ':!.autors/**'
++ git diff --cached --exit-code -- . ':!research/**' ':!.autors/**'
++ git --no-pager log -1 '--format=%H %cI %s' -- . ':!research/**' ':!.autors/**'
+35a03bfb65d360524720caf66e7c212a321e6040 2026-09-20T11:18:32+08:00 [verus][argus] proposed working result
++ verification/tools/find-verus.sh
+/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus
++ cat verification/verus-version verification/verus-revision toolchain/verus-src/.argus-verus-revision
+0.2026.09.18.8ed93e5
+8ed93e5d0164885f415c11ad8baa736371bcff92
+8ed93e5d0164885f415c11ad8baa736371bcff92
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -
+scope_manifest.json {"frozen_branch": "argus/restore-v1-frozen", "goal": [{"file": "openvmm/openvmm_core/src/worker/dispatch.rs", "symbol": "LoadedVm::restore_snapshot_state"}], "src_roots": ["openvmm/openvmm_core/src/worker"], "top_spec": ["openvmm/openvmm_core/src/worker/dispatch.spec.rs"]}
+tcb_manifest.json {"sanctioned": [{"kind": "symbol", "marker": "external_body", "value": "InitializedVm::load"}, {"kind": "symbol", "marker": "external_type_specification", "value": "ExRestoreReadyFile"}, {"kind": "symbol", "marker": "external_body", "value": "ExRestoreReadyFile"}]}
++ set +e
++ /home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_verus.callgraph.graph --project . build --out .verus_agent/cache/callgraph.json
+callgraph: cannot read /home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json: [Errno 2] No such file or directory: '/home/ruize/openvmm-restore-v1/.verus_agent/proof_state.json'
++ status=1
++ set -e
++ printf 'callgraph_exit=%s\n' 1
+callgraph_exit=1
++ RUSTUP_TOOLCHAIN=1.95.0
++ cargo tree --locked --offline -p openvmm_core --prefix none --format '{p} features=[{f}]'
++ sort -u
++ grep -E '^(inspect |mesh_channel_core |mesh_protobuf |mesh_node |parking_lot )' research/oneshot-native-admission/production-tree.log
++ cat research/oneshot-native-admission/production-features.log
+inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect) features=[defer,derive,inspect_derive,std]
+inspect v0.0.0 (/home/ruize/openvmm-restore-v1/support/inspect) features=[defer,derive,inspect_derive,std] (*)
+mesh_channel_core v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_channel_core) features=[]
+mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_node) features=[]
+mesh_node v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_node) features=[] (*)
+mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf) features=[default,std]
+mesh_protobuf v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_protobuf) features=[default,std] (*)
+parking_lot v0.12.4 features=[default]
+parking_lot v0.12.4 features=[default] (*)
++ for check in make_verify boundary spec_drift exec_drift
++ cmp .verus_agent/cache/checks/make_verify/latest.log research/inspect-cross-crate-admission/reused-make_verify.log
+.verus_agent/cache/checks/make_verify/latest.log research/inspect-cross-crate-admission/reused-make_verify.log differ: byte 9581, line 235

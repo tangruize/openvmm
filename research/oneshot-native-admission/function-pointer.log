@@ -1,0 +1,10 @@
+error: The verifier does not yet support the following Rust feature: function pointer types
+  --> research/oneshot-native-admission/function-pointer.rs:11:1
+   |
+11 | / struct Handler {
+12 | |     decode: DecodeFn,
+13 | | }
+   | |_^
+
+error: aborting due to 1 previous error
+

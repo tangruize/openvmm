@@ -1,0 +1,1 @@
+git apply --reverse --check research/oneshot-native-admission/representation-source.patch && git apply --reverse research/oneshot-native-admission/representation-source.patch && git diff --exit-code -- Cargo.lock support/mesh/mesh_channel_core

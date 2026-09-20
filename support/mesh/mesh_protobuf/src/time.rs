@@ -32,6 +32,7 @@ impl DescribeTable for Timestamp {
 
 /// A timestamp representing a point in UTC time with nanosecond resolution.
 #[derive(Debug, Protobuf, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[vstd::prelude::verus_verify]
 pub struct Timestamp {
     /// The number of seconds of UTC time since the Unix epoch.
     #[mesh(1, encoding = "mesh_protobuf::encoding::VarintField")]

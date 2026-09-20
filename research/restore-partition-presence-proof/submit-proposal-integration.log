@@ -1,0 +1,2 @@
+{"state": "submitted", "task_id": "restore-partition-presence-integration", "run_id": "restore-partition-presence-integration-1789887134579210280", "pid": 3662985, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id restore-partition-presence-integration"}
+elapsed_s=0.14 exit=0

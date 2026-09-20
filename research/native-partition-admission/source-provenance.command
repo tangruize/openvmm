@@ -1,0 +1,1 @@
+git log -1 --format='%cI %s' -- ':(glob)**/*.rs' ':(glob)**/Cargo.toml' Cargo.lock Makefile verification .cargo .verus_agent ':(exclude)research' > research/native-partition-admission/source-provenance.log

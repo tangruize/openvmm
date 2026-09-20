@@ -1,0 +1,30 @@
+exec_drift: FAIL - run.patch result differs from freeze.patch result
+exec_drift: freeze.patch result -> run.patch result
+exec_drift: warning: tree-sitter recovered from parse errors in openvmm/openvmm_core/src/worker/dispatch.rs; comparing the recovered AST
+  ❌ openvmm/openvmm_core/src/worker/dispatch.rs: exec body mismatch (mismatched=1 missing=0 extra=0 unknown=0)
+       - LoadedVm::validate_snapshot_restore_partition_presence: MISMATCH
+## openvmm/openvmm_core/src/worker/dispatch.rs::LoadedVm::validate_snapshot_restore_partition_presence (exec-only): MISMATCH
+
+--- baseline
++++ working-tree
+@@ -3,7 +3,11 @@
+         restore_time: Option<(Duration, u64, Option<u64>)>,
+     ) -> anyhow::Result<()> {
+         let partition_presence_valid = restore_time.is_none()
+-            || saved_state.units.iter().any(|unit| unit.name.as_str() == "partition");
++            || saved_state.units.iter().any(
++                
++                |unit| unit.name.as_str() == "partition",
++            );
++        
+         anyhow::ensure!(
+             partition_presence_valid,
+             "time-adjusted snapshot restore requires partition state"
+  checked 20 exec file(s); 1 with body edits; 0 with unknown functions
+exec_drift: DRIFT — freeze.patch result and run.patch result have different executable code.
+freeze_request: INVALID
+freeze.patch: APPLIES
+run.patch: APPLIES
+spec_drift: PASS - both patch results have the same frozen TOP and BOTTOM specifications
+Command exited with non-zero status 1
+elapsed_s=7.84 exit=1

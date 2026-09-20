@@ -1,0 +1,37 @@
++ git diff --exit-code -- . ':!research/**' ':!.autors/**'
++ git diff --cached --exit-code -- . ':!research/**' ':!.autors/**'
++ printf '%s\n' production_source_and_manifests_restored=true
+production_source_and_manifests_restored=true
++ git --no-pager log -1 '--format=%cI %s' -- . ':!research/**' ':!.autors/**'
+2026-09-20T11:18:32+08:00 [verus][argus] proposed working result
++ git apply --check research/inspect-cross-crate-admission/dependency-source.patch
++ git apply --check research/inspect-cross-crate-admission/representation-source.patch
++ git apply --check research/inspect-cross-crate-admission/integration-source.patch
++ bash -n research/inspect-cross-crate-admission/intake.sh research/inspect-cross-crate-admission/dependency.sh research/inspect-cross-crate-admission/integration.sh research/inspect-cross-crate-admission/reproduce.sh research/inspect-cross-crate-admission/preserve-evidence.sh
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/make_verify/latest.log
+2026-09-20 12:26:56.158017812 +0800 .verus_agent/cache/checks/make_verify/latest.log
++ cp .verus_agent/cache/checks/make_verify/latest.log research/inspect-cross-crate-admission/reused-make_verify.log
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/boundary/latest.log
+2026-09-20 13:00:10.391190931 +0800 .verus_agent/cache/checks/boundary/latest.log
++ cp .verus_agent/cache/checks/boundary/latest.log research/inspect-cross-crate-admission/reused-boundary.log
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/spec_drift/latest.log
+2026-09-20 13:00:10.563182422 +0800 .verus_agent/cache/checks/spec_drift/latest.log
++ cp .verus_agent/cache/checks/spec_drift/latest.log research/inspect-cross-crate-admission/reused-spec_drift.log
++ for check in make_verify boundary spec_drift exec_drift
++ stat -c '%y %n' .verus_agent/cache/checks/exec_drift/latest.log
+2026-09-20 13:00:14.170003984 +0800 .verus_agent/cache/checks/exec_drift/latest.log
++ cp .verus_agent/cache/checks/exec_drift/latest.log research/inspect-cross-crate-admission/reused-exec_drift.log
++ stat -c '%y %s %n' target/verus-partial/debug/deps/libinspect-54f38ca0a5f7ca07.vir
+2026-09-20 13:08:07.204462903 +0800 98348 target/verus-partial/debug/deps/libinspect-54f38ca0a5f7ca07.vir
++ wc -l -c research/inspect-cross-crate-admission/dependency.vir research/inspect-cross-crate-admission/representation.vir
+   7558  505618 research/inspect-cross-crate-admission/dependency.vir
+  12765  907087 research/inspect-cross-crate-admission/representation.vir
+  20323 1412705 total
++ git --no-pager status --short
+ M research/GROUND_TRUTH.md
+?? .verus-log/
+?? research/inspect-cross-crate-admission/
+?? research/native-partition-admission/
