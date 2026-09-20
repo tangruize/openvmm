@@ -3777,6 +3777,19 @@ impl LoadedVmInner {
 }
 
 impl LoadedVm {
+    #[cfg(guest_arch = "x86_64")]
+    fn validate_snapshot_restore_partition_presence(
+        saved_state: &SavedState,
+        restore_time: Option<(Duration, u64, Option<u64>)>,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            restore_time.is_none()
+                || saved_state.units.iter().any(|unit| unit.name == "partition"),
+            "time-adjusted snapshot restore requires partition state"
+        );
+        Ok(())
+    }
+
     /// Restores snapshot-owned state and returns with the guest still stopped.
     ///
     /// Destination construction and VP instantiation happen before this
@@ -3812,6 +3825,9 @@ impl LoadedVm {
         saved_state: SavedState,
         restore_time: Option<(Duration, u64, Option<u64>)>,
     ) -> anyhow::Result<()> {
+        #[cfg(guest_arch = "x86_64")]
+        Self::validate_snapshot_restore_partition_presence(&saved_state, restore_time)?;
+
         if let Some((_, saved_frequency, saved_apic_frequency)) = restore_time {
             let destination_frequency = self
                 .inner
