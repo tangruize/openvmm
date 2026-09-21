@@ -1,0 +1,72 @@
+diff --git a/.verus_agent/scope_manifest.json b/.verus_agent/scope_manifest.json
+index b3212ad2..021c9887 100644
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -10,7 +10,6 @@
+     }
+   ],
+   "src_roots": [
+-    "openvmm/openvmm_core/src/worker",
+-    "support/mesh/mesh_channel/src"
++    "openvmm/openvmm_core/src/worker"
+   ]
+ }
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+index a4457e1b..d642603c 100644
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -14,11 +14,6 @@
+       "kind": "symbol",
+       "value": "ExRestoreReadyFile",
+       "marker": "external_body"
+-    },
+-    {
+-      "kind": "symbol",
+-      "value": "ExCoreError",
+-      "marker": "external_trait_specification"
+     }
+   ]
+ }
+diff --git a/support/mesh/mesh_channel/src/rpc.rs b/support/mesh/mesh_channel/src/rpc.rs
+index e7af358a..0c794296 100644
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -249,7 +249,6 @@ fn try_call_failable<F, I, T, E>(
+ /// An error from an RPC call, via
+ /// [`RpcSend::call_failable`] or [`RpcSend::call`].
+ #[derive(Debug, Error)]
+-#[vstd::prelude::verus_verify]
+ pub enum RpcError<E = Infallible> {
+     #[error(transparent)]
+     Call(E),
+@@ -302,6 +301,3 @@ fn send_rpc(self, message: T) {
+         self.send(message);
+     }
+ }
+-
+-#[cfg(verus_keep_ghost)]
+-include!("rpc.spec.rs");
+diff --git a/support/mesh/mesh_channel/src/rpc.spec.rs b/support/mesh/mesh_channel/src/rpc.spec.rs
+deleted file mode 100644
+index 26aa4049..00000000
+--- a/support/mesh/mesh_channel/src/rpc.spec.rs
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright (c) Microsoft Corporation.
+-// Licensed under the MIT License.
+-
+-mod std_error_spec {
+-    use core::fmt::{Debug, Display};
+-    use vstd::prelude::*;
+-
+-    verus! {
+-
+-    #[verifier::external_trait_specification]
+-    pub trait ExCoreError: Debug + Display {
+-        type ExternalTraitSpecificationFor: core::error::Error;
+-
+-        fn source(&self) -> Option<&(dyn core::error::Error + 'static)>;
+-    }
+-
+-    }
+-}

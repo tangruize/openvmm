@@ -1,0 +1,92 @@
+diff --git a/.verus_agent/scope_manifest.json b/.verus_agent/scope_manifest.json
+index b3212ad2..021c9887 100644
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -10,7 +10,6 @@
+     }
+   ],
+   "src_roots": [
+-    "openvmm/openvmm_core/src/worker",
+-    "support/mesh/mesh_channel/src"
++    "openvmm/openvmm_core/src/worker"
+   ]
+ }
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+index a4457e1b..d642603c 100644
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -14,11 +14,6 @@
+       "kind": "symbol",
+       "value": "ExRestoreReadyFile",
+       "marker": "external_body"
+-    },
+-    {
+-      "kind": "symbol",
+-      "value": "ExCoreError",
+-      "marker": "external_trait_specification"
+     }
+   ]
+ }
+diff --git a/Cargo.lock b/Cargo.lock
+index a03eecd8..e66d8c4e 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -4586,7 +4586,6 @@ dependencies = [
+  "test_with_tracing",
+  "thiserror 2.0.16",
+  "tracing",
+- "vstd",
+ ]
+ 
+ [[package]]
+diff --git a/support/mesh/mesh_channel/Cargo.toml b/support/mesh/mesh_channel/Cargo.toml
+index 1b52a079..6b3b9498 100644
+--- a/support/mesh/mesh_channel/Cargo.toml
++++ b/support/mesh/mesh_channel/Cargo.toml
+@@ -6,11 +6,7 @@ name = "mesh_channel"
+ edition.workspace = true
+ rust-version.workspace = true
+ 
+-[package.metadata.verus]
+-verify = true
+-
+ [dependencies]
+-vstd.workspace = true
+ mesh_channel_core.workspace = true
+ mesh_node.workspace = true
+ mesh_protobuf = { workspace = true, features = ["std"] }
+diff --git a/support/mesh/mesh_channel/src/rpc.rs b/support/mesh/mesh_channel/src/rpc.rs
+index 0005fb2f..a1b3c0eb 100644
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -299,6 +299,3 @@ fn send_rpc(self, message: T) {
+         self.send(message);
+     }
+ }
+-
+-#[cfg(verus_keep_ghost)]
+-include!("rpc.spec.rs");
+diff --git a/support/mesh/mesh_channel/src/rpc.spec.rs b/support/mesh/mesh_channel/src/rpc.spec.rs
+deleted file mode 100644
+index 26aa4049..00000000
+--- a/support/mesh/mesh_channel/src/rpc.spec.rs
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright (c) Microsoft Corporation.
+-// Licensed under the MIT License.
+-
+-mod std_error_spec {
+-    use core::fmt::{Debug, Display};
+-    use vstd::prelude::*;
+-
+-    verus! {
+-
+-    #[verifier::external_trait_specification]
+-    pub trait ExCoreError: Debug + Display {
+-        type ExternalTraitSpecificationFor: core::error::Error;
+-
+-        fn source(&self) -> Option<&(dyn core::error::Error + 'static)>;
+-    }
+-
+-    }
+-}
