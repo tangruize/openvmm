@@ -1,0 +1,48 @@
+--- a/support/mesh/mesh_channel/src/rpc.rs
++++ b/support/mesh/mesh_channel/src/rpc.rs
+@@ -259,11 +259,15 @@
+ #[derive(Debug)]
+ pub struct PendingRpc<T>(OneshotReceiver<T>);
+ 
+-impl<T: 'static + Send> Future for PendingRpc<T> {
++impl<T: 'static + Send> Future for PendingRpc<T>
++where
++    Self: Unpin,
++    OneshotReceiver<T>: Unpin,
++{
+     type Output = Result<T, RpcError<Infallible>>;
+ 
+     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+-        Poll::Ready(ready!(Pin::new(&mut self.get_mut().0).poll(cx)).map_err(RpcError::Channel))
++        Poll::Ready(ready!(Pin::new(&mut self.get_mut().0).poll(cx)).map_err(|err| RpcError::Channel(err)))
+     }
+ }
+ 
+@@ -272,7 +276,12 @@
+ #[derive(Debug)]
+ pub struct PendingFailableRpc<T, E = RemoteError>(PendingRpc<Result<T, E>>);
+ 
+-impl<T: 'static + Send, E: 'static + Send> Future for PendingFailableRpc<T, E> {
++impl<T: 'static + Send, E: 'static + Send> Future for PendingFailableRpc<T, E>
++where
++    Self: Unpin,
++    PendingRpc<Result<T, E>>: Unpin,
++    OneshotReceiver<Result<T, E>>: Unpin,
++{
+     type Output = Result<T, RpcError<E>>;
+ 
+     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+--- a/support/mesh/mesh_channel_core/src/oneshot.rs
++++ b/support/mesh/mesh_channel_core/src/oneshot.rs
+@@ -303,7 +303,10 @@
+ 
+ // FUTURE: consider implementing `IntoFuture` instead so that the `!Unpin`
+ // future object can publish a stack pointer for the sender to write into.
+-impl<T> Future for OneshotReceiver<T> {
++impl<T> Future for OneshotReceiver<T>
++where
++    Self: Unpin,
++{
+     type Output = Result<T, RecvError>;
+ 
+     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
