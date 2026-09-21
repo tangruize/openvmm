@@ -14,6 +14,21 @@
       "kind": "symbol",
       "value": "ExRestoreReadyFile",
       "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "whole_seconds",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "subsecond_nanoseconds",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "duration_as_nanos",
+      "marker": "external_fn_specification"
     }
   ]
 }

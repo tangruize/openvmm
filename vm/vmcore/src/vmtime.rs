@@ -50,6 +50,10 @@ use std::task::Waker;
 use std::time::Duration;
 use thiserror::Error;
 
+#[cfg(verus_keep_ghost)]
+#[path = "vmtime_duration/mod.rs"]
+pub mod duration_observation;
+
 /// Roughly analogous to [`std::time::Instant`], but for VM time.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Protobuf, Inspect)]
 #[inspect(transparent)]

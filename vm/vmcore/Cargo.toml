@@ -6,10 +6,14 @@ name = "vmcore"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 hvdef.workspace = true
 save_restore_derive.workspace = true
 vm_resource.workspace = true
+vstd.workspace = true
 
 inspect = { workspace = true, features = ["defer"] }
 loan_cell.workspace = true
