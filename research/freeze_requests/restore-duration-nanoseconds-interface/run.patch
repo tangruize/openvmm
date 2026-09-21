@@ -35,101 +35,57 @@ diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
      }
    ]
  }
-diff --git a/vm/vmcore/Cargo.toml b/vm/vmcore/Cargo.toml
---- a/vm/vmcore/Cargo.toml
-+++ b/vm/vmcore/Cargo.toml
-@@ -6,10 +6,14 @@
- edition.workspace = true
- rust-version.workspace = true
- 
-+[package.metadata.verus]
-+verify = true
-+
- [dependencies]
- hvdef.workspace = true
- save_restore_derive.workspace = true
- vm_resource.workspace = true
-+vstd.workspace = true
- 
- inspect = { workspace = true, features = ["defer"] }
- loan_cell.workspace = true
 diff --git a/vm/vmcore/src/vmtime.rs b/vm/vmcore/src/vmtime.rs
 --- a/vm/vmcore/src/vmtime.rs
 +++ b/vm/vmcore/src/vmtime.rs
-@@ -49,29 +49,54 @@
- use std::task::Waker;
- use std::time::Duration;
- use thiserror::Error;
-+use vstd::prelude::*;
-+
-+#[cfg(verus_keep_ghost)]
+@@ -52,6 +52,10 @@
+ use vstd::prelude::*;
+ 
+ #[cfg(verus_keep_ghost)]
 +#[path = "vmtime_duration/mod.rs"]
 +pub mod duration_observation;
 +
 +#[cfg(verus_keep_ghost)]
-+include!("vmtime.proof.rs");
+ include!("vmtime.proof.rs");
  
  /// Roughly analogous to [`std::time::Instant`], but for VM time.
-+#[verus_verify]
- #[derive(Debug, Copy, Clone, PartialEq, Eq, Protobuf, Inspect)]
- #[inspect(transparent)]
- #[mesh(transparent)]
- pub struct VmTime(#[inspect(hex)] u64);
- 
-+#[verus_verify]
- impl VmTime {
-     /// Converts from a time in 100ns units.
-+    #[verus_spec(result => ensures result@ == n,)]
-     pub fn from_100ns(n: u64) -> Self {
-         Self(n)
-     }
- 
-     /// Gets the time from VM boot (or some other origin) in 100ns units.
-+    #[verus_spec(result => ensures result == self@,)]
+@@ -74,14 +78,24 @@
      pub const fn as_100ns(&self) -> u64 {
          self.0
      }
- 
-     /// Adds `d` to the time.
++    /// Adds `d` to the time.
 +    #[verus_spec(result =>
 +        ensures result@ == ((self@ as nat
 +            + duration_observation::elapsed_nanoseconds(&d) / 100)
 +            % 0x1_0000_0000_0000_0000) as u64,
 +    )]
-     pub fn wrapping_add(self, d: Duration) -> Self {
++    pub fn wrapping_add(self, d: Duration) -> Self {
 +        proof! {
 +            lemma_wrapping_add_100ns(
 +                self.0,
 +                duration_observation::elapsed_nanoseconds(&d) as u128,
 +            );
 +        }
-         Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
-     }
++        Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
++    }
+ }
+ 
+ impl VmTime {
+-    /// Adds `d` to the time.
+-    pub fn wrapping_add(self, d: Duration) -> Self {
+-        Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
+-    }
 -
-+}
-+
-+impl VmTime {
      /// Returns whether `self` is before `t`.
      ///
      /// Note that this is a relative comparison in the 64-bit space and is not
 diff --git a/vm/vmcore/src/vmtime.proof.rs b/vm/vmcore/src/vmtime.proof.rs
-new file mode 100644
---- /dev/null
+--- a/vm/vmcore/src/vmtime.proof.rs
 +++ b/vm/vmcore/src/vmtime.proof.rs
-@@ -0,0 +1,26 @@
-+// Copyright (c) Microsoft Corporation.
-+// Licensed under the MIT License.
-+
-+verus! {
-+
-+impl View for VmTime {
-+    type V = u64;
-+
-+    closed spec fn view(&self) -> u64 {
-+        self.0
-+    }
-+}
-+
+@@ -11,4 +11,16 @@
+     }
+ }
+ 
 +proof fn lemma_wrapping_add_100ns(time: u64, nanos: u128)
 +    ensures
 +        vstd::wrapping::u128_specs::wrapping_add(time as u128, nanos / 100) as u64
@@ -142,7 +98,7 @@ new file mode 100644
 +        by (bit_vector);
 +}
 +
-+} // verus!
+ } // verus!
 diff --git a/vm/vmcore/src/vmtime_duration/mod.rs b/vm/vmcore/src/vmtime_duration/mod.rs
 new file mode 100644
 --- /dev/null
@@ -186,6 +142,206 @@ new file mode 100644
 +    ensures
 +        subsecond_nanoseconds(duration) < 1_000_000_000,
 +        result == elapsed_nanoseconds(duration),
++{
++    duration.as_nanos()
++}
++
++} // verus!
+diff --git a/research/restore-duration-nanoseconds-interface/restore_history.spec.rs b/research/restore-duration-nanoseconds-interface/restore_history.spec.rs
+new file mode 100644
+--- /dev/null
++++ b/research/restore-duration-nanoseconds-interface/restore_history.spec.rs
+@@ -0,0 +1,41 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++use std::time::Duration;
++use vstd::prelude::*;
++use crate::duration_observation::elapsed_nanoseconds;
++
++verus! {
++
++pub type RestoreTime = Option<(Duration, u64, Option<u64>)>;
++
++// A completion receipt, not a clock or an assertion that an RPC succeeded.
++pub enum RestoreHistory {
++    Unbased,
++    Completed { adjustment: Option<Duration> },
++}
++
++pub open spec fn requested_adjustment(request: RestoreTime) -> Option<Duration> {
++    match request {
++        None => None,
++        Some((duration, _, _)) => Some(duration),
++    }
++}
++
++pub open spec fn requested_nanoseconds(request: RestoreTime) -> nat {
++    match requested_adjustment(request) {
++        None => 0,
++        Some(duration) => elapsed_nanoseconds(&duration),
++    }
++}
++
++pub open spec fn completed_elapsed_nanoseconds(history: RestoreHistory) -> Option<nat> {
++    match history {
++        RestoreHistory::Unbased => None,
++        RestoreHistory::Completed { adjustment: None } => Some(0),
++        RestoreHistory::Completed { adjustment: Some(duration) } =>
++            Some(elapsed_nanoseconds(&duration)),
++    }
++}
++
++} // verus!
+diff --git a/research/restore-duration-nanoseconds-interface/restore_history.proof.rs b/research/restore-duration-nanoseconds-interface/restore_history.proof.rs
+new file mode 100644
+--- /dev/null
++++ b/research/restore-duration-nanoseconds-interface/restore_history.proof.rs
+@@ -0,0 +1,149 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++use std::time::Duration;
++use vstd::prelude::*;
++
++#[path = "restore_history.spec.rs"]
++mod history;
++#[path = "../../openvmm/openvmm_core/src/worker/dispatch.spec.rs"]
++mod frozen;
++#[path = "../../vm/vmcore/src/vmtime_duration/mod.rs"]
++mod duration_observation;
++
++use history::*;
++
++verus! {
++
++// These are ghost operations only. Attaching them to the real body is owed.
++pub proof fn clear_history(tracked history: &mut Ghost<RestoreHistory>)
++    ensures final(history)@ == RestoreHistory::Unbased,
++{
++    *history = Ghost(RestoreHistory::Unbased);
++}
++
++pub proof fn record_completed_request(
++    tracked history: &mut Ghost<RestoreHistory>,
++    request: RestoreTime,
++)
++    ensures
++        final(history)@ == (RestoreHistory::Completed {
++            adjustment: requested_adjustment(request),
++        }),
++{
++    *history = Ghost(RestoreHistory::Completed {
++        adjustment: requested_adjustment(request),
++    });
++}
++
++proof fn no_adjustment_is_retained(tracked history: &mut Ghost<RestoreHistory>)
++    ensures
++        final(history)@ == (RestoreHistory::Completed { adjustment: None }),
++{
++    clear_history(history);
++    record_completed_request(history, None);
++}
++
++proof fn exact_duration_value_is_retained(
++    tracked history: &mut Ghost<RestoreHistory>,
++    duration: Duration,
++    frequency: u64,
++    apic_frequency: Option<u64>,
++)
++    ensures
++        final(history)@ == (RestoreHistory::Completed { adjustment: Some(duration) }),
++{
++    clear_history(history);
++    record_completed_request(history, Some((duration, frequency, apic_frequency)));
++}
++
++proof fn new_attempt_or_mutation_invalidates_previous_receipt(
++    tracked history: &mut Ghost<RestoreHistory>,
++    request: RestoreTime,
++)
++    ensures final(history)@ == RestoreHistory::Unbased,
++{
++    record_completed_request(history, request);
++    clear_history(history);
++}
++
++proof fn latest_completion_replaces_previous_request(
++    tracked history: &mut Ghost<RestoreHistory>,
++    first: RestoreTime,
++    second: RestoreTime,
++)
++    ensures
++        final(history)@ == (RestoreHistory::Completed {
++            adjustment: requested_adjustment(second),
++        }),
++{
++    record_completed_request(history, first);
++    clear_history(history);
++    record_completed_request(history, second);
++}
++
++proof fn opaque_duration_values_are_not_collapsed(first: Duration, second: Duration)
++    requires first != second,
++    ensures
++        requested_adjustment(Some((first, 1, None)))
++            != requested_adjustment(Some((second, 1, None))),
++{
++}
++
++proof fn keeper_ticks_do_not_identify_elapsed_nanoseconds()
++    ensures
++        frozen::vm_time_after_downtime(7, 0) == 7,
++        frozen::vm_time_after_downtime(7, 1) == 7,
++        frozen::vm_time_after_downtime(7, 99) == 7,
++        frozen::vm_time_after_downtime(7, 1844674407370955161600) == 7,
++        frozen::vm_time_after_downtime(0xffff_ffff_ffff_ffff, 100) == 0,
++{
++}
++
++proof fn completed_request_has_exact_elapsed(
++    tracked history: &mut Ghost<RestoreHistory>,
++    request: RestoreTime,
++)
++    ensures
++        completed_elapsed_nanoseconds(final(history)@)
++            == Some(requested_nanoseconds(request)),
++{
++    clear_history(history);
++    record_completed_request(history, request);
++}
++
++// Decoding the real request and attaching history to LoadedVm are still owed.
++proof fn completed_elapsed_matches_frozen_projection(
++    history: RestoreHistory,
++    request: RestoreTime,
++    decoded: frozen::RestoreRequestView,
++)
++    requires
++        history == (RestoreHistory::Completed {
++            adjustment: requested_adjustment(request),
++        }),
++        decoded.has_time_adjustment == request.is_some(),
++        request.is_some() ==> decoded.downtime_ns == requested_nanoseconds(request),
++    ensures
++        completed_elapsed_nanoseconds(history) == Some(
++            frozen::restored_virtual_time(
++                decoded.saved_state.virtual_time, decoded,
++            ).elapsed_since_snapshot_ns,
++        ),
++{
++}
++
++// An interface probe, not a replacement for any production restore operation.
++fn observe_retained_duration(
++    duration: Duration,
++    Ghost(history): Ghost<RestoreHistory>,
++) -> (result: u128)
++    requires
++        history == (RestoreHistory::Completed { adjustment: Some(duration) }),
++    ensures
++        completed_elapsed_nanoseconds(history) == Some(result as nat),
 +{
 +    duration.as_nanos()
 +}

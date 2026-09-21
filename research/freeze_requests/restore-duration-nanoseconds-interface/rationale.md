@@ -1,4 +1,4 @@
-# Duration nanosecond observation for virtual-time advancement
+# Duration observation for virtual-time advancement and exact restore elapsed time
 
 ## Exact requested boundary
 
@@ -13,7 +13,11 @@ The proposed external interface is in
 | `duration_as_nanos` (`external_fn_specification` for `Duration::as_nanos`) | Its actual `u128` return equals `whole_seconds(d) * 1_000_000_000 + subsecond_nanoseconds(d)`, and the subsecond observation is below `1_000_000_000`. |
 
 `elapsed_nanoseconds` is a defined natural-number sum, not another opaque
-bridge. The two observations are proposed external representation semantics,
+bridge. This same observation is needed both by the actual
+`VmTime::wrapping_add` body and by the exact
+`loaded_vm_representation(vm).state.virtual_time.elapsed_since_snapshot_ns`
+connection to the retained restore request. Rounding keeper ticks cannot
+recover that exact value. The two observations are proposed external representation semantics,
 not project-owned functions claimed proved. Their intended concrete
 interpretation is part of the trust being requested: merely choosing some
 ghost values that make the arithmetic work would not satisfy this request.
@@ -49,8 +53,8 @@ The comparison must distinguish that trust from project-owned Views. The
 working base already contains `VpIndex::view` in both
 `vm/vmcore/vm_topology/src/processor.proof.rs` and the retained research
 snapshot `research/restore-vp-index-coverage/bitmap-intake-processor.proof.rs`;
-the frozen base does not. The run proposal additionally contains the concrete
-`VmTime::view` needed for its scalar proof; the freeze proposal does not.
+the frozen base does not. The working base also already contains the concrete `VmTime::view` needed
+for its scalar proof; the frozen base does not.
 These differences do not propose new external guarantees for either View.
 
 The retained source-analysis diagnosis explains why the semantic comparator
@@ -104,12 +108,13 @@ intrinsic semantics or trusting any project-owned clock operation.
 
 ## Conditional production-body construction
 
-`run.patch` contains the same proposed boundary plus the accepted scalar View,
-constructor/accessor annotations, and the proof of the actual
-`VmTime::wrapping_add` implementation. Those accepted scalar edits are needed
-in this independent patch because they are currently dirty working-tree input,
-not part of the working branch tip. Neither patch changes the executable body
-of any production operation.
+`run.patch` extends the working tip's existing scalar View and
+constructor/accessor annotations with the proof of the actual
+`VmTime::wrapping_add` implementation. It updates, rather than recreates,
+`vmtime.proof.rs` and does not duplicate vmcore's existing Verus manifest
+entries. `freeze.patch` independently supplies the interface and its wiring
+against the frozen tip. Neither patch changes the executable body of any
+production operation.
 
 The unconditional postcondition is
 
@@ -121,8 +126,12 @@ Here `VmTime@` is the existing closed View of the real private `u64` field.
 There is no new precondition on any public caller. The retained caller report,
 `research/vmtime-scalar-interface/callers.log`, identifies the real
 `VmTimeKeeper::advance -> VmTime::wrapping_add` edge, together with device
-timer callers. Direct source also connects `KeeperUnit::advance_time` to
-`VmTimeKeeper::advance`. No async caller is claimed proved by this arithmetic.
+timer callers. Current source in `vmm_core/src/vmtime_unit.rs` and
+`vm/vmcore/src/vmtime.rs` confirms that edge and the preceding
+`KeeperUnit::advance_time -> VmTimeKeeper::advance` call. The maintained
+callgraph cannot currently be read because `.verus_agent/proof_state.json`
+is absent; no graph rebuild or complete caller-coverage claim is made.
+No async caller is claimed proved by this arithmetic.
 
 The proof lemma establishes that dividing any `u128` nanoseconds by 100 and
 adding a `u64` cannot overflow `u128`. A bit-vector step establishes that
@@ -131,27 +140,91 @@ body consumes that lemma and the proposed `as_nanos` contract. The lemma is
 not a substitute executable; the original expression still invokes the
 actual `d.as_nanos()`, `u128::wrapping_add`, and cast.
 
-Candidate reproduction and native outputs are under
-`research/vmtime-duration-interface-candidate/`: `verify.command`,
-`verify-module.command`, `production-body.log`, `production-module.log`, and
-the final-layout `production-final.log`.
-The initial contract-only attempt leaves a real arithmetic postcondition
-unproved; the named truncation lemma supplies the missing proof, without
-strengthening the trusted interface. Lifetime checking is enabled and no
-rlimit annotation, `assume`, `admit`, or project-body cut is added.
+The earlier contract-only attempt in
+`research/vmtime-duration-interface-candidate/production-body.log` leaves a
+real arithmetic postcondition unproved; the named truncation lemma supplies
+the missing proof without strengthening the trusted interface.
+Current source-matched candidate inputs and commands are under
+`/home/ruize/.argus-skill/projects/9b3370b0cf02/research/refresh-duration-interface-freeze-request/workspace/`.
+`research/GROUND_TRUTH.md` records unresolved bindings before experiments;
+`research/selected-library.log` records the currently selected interface;
+`research/verify-production.sh` invokes module verification of the actual
+vmcore source, with output in `research/production-module.log`.
+Lifetime and trait-conflict checking remain enabled, the command-line
+rlimit is 50, and no `assume`, `admit`, or project-body cut is added.
 `freeze.patch` and `run.patch` are independent proposals for their respective
-branch tips; they are not instructions to modify the current dirty checkout.
+branch tips; they are not instructions to modify the live checkout.
+
+## Exact elapsed-time use and its remaining binding obligations
+
+The accepted elapsed-time investigation is recorded in
+`/home/ruize/.argus-skill/projects/9b3370b0cf02/handoffs/a535358753b0/round-0001.json`
+and its `research/restore-elapsed-time-representation/workspace/research/`
+sources. Its `duration_observer.probe.log` rejects the real `as_nanos`
+observer under the present boundary. Its history helpers retain the actual
+opaque `Option<Duration>`, not a natural number inferred from a keeper clock.
+
+`run.patch` carries those helpers, extended by a partial numeric observation,
+under `research/restore-duration-nanoseconds-interface/`. The observation is
+undefined for Unbased, zero for Completed(None), and
+`elapsed_nanoseconds(&duration)` for Completed(Some(duration)). It does not
+interpret invalid history as physically zero elapsed time. The executable
+interface probe calls the actual `duration.as_nanos()` and relates its return
+to the history containing that same Duration. It is not an alternative
+implementation of a production restore operation.
+
+The conditional projection lemma consumes the frozen
+`restored_virtual_time` definition. It requires decoded
+`has_time_adjustment` to match the actual optional request and, when present,
+decoded `downtime_ns` to equal that Duration observation. These are explicit,
+source-supported but unproved production-decoding obligations, not new TOP
+preconditions or trusted guarantees. Under those bindings, the completed
+receipt supplies exactly the frozen `elapsed_since_snapshot_ns`, without
+the division by 100 used for keeper ticks. The existing examples distinguish
+0, 1 and 99 ns and a full keeper wrap despite coinciding scalar ticks.
+
+The source attachment remains unproved: invalidate old history before the
+first mutating TOP operation; retain the actual request; record completion
+only after the final stop-guard await and before successful return. Errors,
+cancellation, generic restore, reset and subsequent starts must invalidate
+or frame history correctly. The task-owned keeper, its asynchronous updates,
+the other fields of `loaded_vm_representation`, and a total representation
+across lifecycle phases remain separate obligations. The retained remote-TPM
+counterexample is unchanged: the receipt cannot imply RPC success or equality
+of every configured component clock.
+
+For isolated reproduction, use the candidate's selected Verus executable:
+
+```text
+verus --crate-type lib --crate-name restore_duration_history --edition 2024 \
+  --rlimit 50 --num-threads 1 --triggers-mode silent \
+  research/restore-duration-nanoseconds-interface/restore_history.proof.rs
+```
+
+The production command is `cargo verus focus --offline --locked -p vmcore --`
+with `--verify-only-module vmtime --rlimit 50 --multiple-errors 4
+--num-threads 1 --triggers-mode silent`. Neither command disables lifetime
+or trait-conflict checks. The helper's output is `research/retained-duration.log`
+in the isolated workspace; it is not evidence that TOP itself verifies.
 
 ## Explicitly excluded conclusions
 
 This conditional construction does not prove the selected library implementation
 of Duration, install its observation semantics, or establish the frozen
-`snapshot_restore_success` contract. It does not connect the Duration argument
-to decoded `request.downtime_ns`, prove asynchronous stopped-clock installation,
-define any of the four existing restore representation bridges, or discharge
-the TOP body's `external_body`. Those remain proof obligations.
+`snapshot_restore_success` contract. It does not discharge the real request
+decoding, asynchronous stopped-clock installation, or history-attachment
+obligations. All four existing bridges remain uninterpreted:
+`decoded_restore_request_view`, `decoded_load_restore_request_view`,
+`initialized_vm_representation`, and `loaded_vm_representation`. The TOP body's
+`external_body` also remains. No temporary marker is removed or added in
+production, and the existing BOTTOM declarations are unchanged.
 
 The existing boundary rejection of TCB-manifest provenance is independent.
 The restore wrapper's function-selected 0/0 result, with its existing
 `--no-lifetime` flag, is not full-crate verification and is not evidence for
 this candidate. The candidate proof does not use that wrapper or flag.
+This is an update of the existing request identity, not a second submission.
+The installed command rejects `submit` for an existing ID; current-base
+package checking uses `freeze_request validate
+restore-duration-nanoseconds-interface`. Historical validity does not
+authorize this boundary or substitute for current validation.
