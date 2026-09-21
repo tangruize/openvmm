@@ -11,6 +11,7 @@
   ],
   "src_roots": [
     "openvmm/openvmm_core/src/worker",
-    "vm/vmcore/src/vmtime_duration"
+    "vm/vmcore/src/vmtime_duration",
+    "vmm_core/state_unit/src/mutex_observation"
   ]
 }

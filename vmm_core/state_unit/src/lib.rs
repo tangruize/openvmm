@@ -30,6 +30,9 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(verus_keep_ghost)]
+pub mod mutex_observation;
+
 use anyhow::Context as _;
 use futures::FutureExt;
 use futures::StreamExt;
