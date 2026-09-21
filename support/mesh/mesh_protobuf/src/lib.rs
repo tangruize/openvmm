@@ -40,6 +40,7 @@
 #![warn(clippy::std_instead_of_core)]
 #![warn(clippy::alloc_instead_of_core)]
 #![no_std]
+#![cfg_attr(verus_keep_ghost, feature(pattern))]
 
 extern crate alloc;
 extern crate self as mesh_protobuf;

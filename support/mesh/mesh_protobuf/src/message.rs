@@ -160,6 +160,40 @@ mod tests {
     use crate::tests::as_expect_str;
     use expect_test::expect;
     use std::println;
+    use test_with_tracing::test;
+
+    #[test]
+    fn type_url_parse_dispatch() {
+        #[derive(Protobuf, PartialEq, Eq, Copy, Clone, Debug)]
+        #[mesh(package = "test.package")]
+        struct Message {
+            #[mesh(1)]
+            x: u32,
+        }
+
+        let message = Message { x: 5 };
+        for (input, accepted) in [
+            ("type.googleapis.com/test.package.Message", true),
+            ("https://type.googleapis.com/test.package.Message", true),
+            ("http://type.googleapis.com/test.package.Message", false),
+            ("other.googleapis.com/test.package.Message", false),
+            ("type.googleapis.com/wrong.package.Message", false),
+            ("type.googleapis.com/test.package.Other", false),
+            ("type.googleapis.com/Message", false),
+            ("type.googleapis.com/test.package.Message.extra", false),
+            ("type.googleapis.com/test.package.", false),
+        ] {
+            let mut any = ProtobufAny::new(message);
+            any.type_url = input.into();
+            assert_eq!(any.is_message::<Message>(), accepted, "{input:?}");
+            let parsed = any.parse::<Message>();
+            if accepted {
+                assert_eq!(parsed.unwrap(), message, "{input:?}");
+            } else {
+                assert!(parsed.is_err(), "{input:?}");
+            }
+        }
+    }
 
     #[test]
     fn test_message() {

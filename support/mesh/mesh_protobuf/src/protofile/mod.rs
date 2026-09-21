@@ -12,6 +12,14 @@ pub use writer::DescriptorWriter;
 
 use crate::DefaultEncoding;
 use core::fmt::Display;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+mod string_observation;
+#[cfg(verus_keep_ghost)]
+include!("type_url.spec.rs");
+#[cfg(verus_keep_ghost)]
+include!("type_url.proof.rs");
 
 /// A trait for a self-describing protobuf message field.
 pub trait DescribeField<T> {
@@ -47,18 +55,38 @@ pub enum MessageDescription<'a> {
 /// A type URL, used in [`ProtobufAny`](super::message::ProtobufAny) (which
 /// shares an encoding with `google.protobuf.Any`).
 #[derive(Debug, Copy, Clone)]
+#[vstd::prelude::verus_verify]
 pub struct TypeUrl<'a> {
     package: &'a str,
     name: &'a str,
 }
 
 impl TypeUrl<'_> {
+    #[vstd::prelude::verus_verify]
+    #[verus_spec(result =>
+        ensures result == self.accepts(type_url@),
+    )]
     fn eq(&self, type_url: &str) -> bool {
+        proof! {
+            string_observation::observe_str_pattern("https://");
+            string_observation::observe_str_pattern("type.googleapis.com/");
+            string_observation::observe_dot_pattern();
+        }
         let type_url = type_url.strip_prefix("https://").unwrap_or(type_url);
+        proof! { lemma_url_shape(type_url@, self.package@, self.name@); }
         if let Some((package, name)) = type_url
             .strip_prefix("type.googleapis.com/")
-            .and_then(|ty| ty.rsplit_once('.'))
+            .and_then(verus_exec_expr!(
+                |ty: &str| -> (result: Option<(&str, &str)>)
+                    ensures string_observation::last_dot_result(ty@, result),
+                { ty.rsplit_once('.') }
+            ))
         {
+            proof! {
+                lemma_last_dot_unique(package@, name@, self.package@, self.name@);
+                assert(type_url@ =~= "type.googleapis.com/"@ + package@ + seq!['.'] + name@);
+                lemma_url_shape(type_url@, package@, name@);
+            }
             self.package == package && self.name == name
         } else {
             false
@@ -72,15 +100,81 @@ impl Display for TypeUrl<'_> {
     }
 }
 
+#[vstd::prelude::verus_verify]
 impl PartialEq<str> for TypeUrl<'_> {
     fn eq(&self, other: &str) -> bool {
         self.eq(other)
     }
 }
 
+#[vstd::prelude::verus_verify]
 impl PartialEq<TypeUrl<'_>> for str {
     fn eq(&self, other: &TypeUrl<'_>) -> bool {
         other.eq(self)
+    }
+}
+
+#[cfg(test)]
+mod type_url_tests {
+    use super::TypeUrl;
+    use test_with_tracing::test;
+
+    #[test]
+    fn type_url_string_observation_edges() {
+        for (input, prefix, expected) in [
+            ("", "", Some("")),
+            ("abc", "", Some("abc")),
+            ("", "https://", None),
+            ("https://", "https://", Some("")),
+            ("type.googleapis.com/", "type.googleapis.com/", Some("")),
+            ("\u{03b1}\u{03b2}", "\u{03b1}", Some("\u{03b2}")),
+            ("\u{03b1}", "\u{03b1}\u{03b2}", None),
+            ("https://https://x", "https://", Some("https://x")),
+        ] {
+            assert_eq!(input.strip_prefix(prefix), expected);
+        }
+        for (input, expected) in [
+            ("", None),
+            (".", Some(("", ""))),
+            ("..", Some((".", ""))),
+            ("\u{03b1}.\u{1f642}", Some(("\u{03b1}", "\u{1f642}"))),
+            ("\u{03b1}.\u{03b2}.", Some(("\u{03b1}.\u{03b2}", ""))),
+            ("\u{03b1}\u{ff0e}\u{03b2}", None),
+        ] {
+            assert_eq!(input.rsplit_once('.'), expected);
+        }
+    }
+
+    #[test]
+    fn type_url_contents() {
+        for (package, name, input, accepted) in [
+            ("a.b", "C", "type.googleapis.com/a.b.C", true),
+            ("a.b", "C", "https://type.googleapis.com/a.b.C", true),
+            ("a.b", "C", "http://type.googleapis.com/a.b.C", false),
+            ("a.b", "C", "HTTPS://type.googleapis.com/a.b.C", false),
+            ("a.b", "C", "https://https://type.googleapis.com/a.b.C", false),
+            ("a.b", "C", "other.googleapis.com/a.b.C", false),
+            ("a.b", "C", "type.googleapis.com/A.b.C", false),
+            ("a.b", "C", "type.googleapis.com/a.b.c", false),
+            ("a.b", "C", "type.googleapis.com/C", false),
+            ("a.b", "C", "type.googleapis.com/a.b.C.extra", false),
+            ("a", "b.C", "type.googleapis.com/a.b.C", false),
+            ("", "C", "type.googleapis.com/.C", true),
+            ("a", "", "type.googleapis.com/a.", true),
+            ("", "", "type.googleapis.com/.", true),
+            ("", "", "type.googleapis.com/", false),
+            ("a.", "C", "type.googleapis.com/a..C", true),
+            (" a", "C/?", "type.googleapis.com/ a.C/?", true),
+            ("\u{03b1}", "\u{03b2}", "type.googleapis.com/\u{03b1}.\u{03b2}", true),
+            ("", "google.protobuf.Any", "type.googleapis.com/.google.protobuf.Any", false),
+        ] {
+            let ty = TypeUrl { package, name };
+            assert_eq!(ty.eq(input), accepted, "{package:?} {name:?} {input:?}");
+            assert_eq!(&ty == input, accepted, "{input:?}");
+            assert_eq!(&ty != input, !accepted, "{input:?}");
+            assert_eq!(input == &ty, accepted, "{input:?}");
+            assert_eq!(input != &ty, !accepted, "{input:?}");
+        }
     }
 }
 

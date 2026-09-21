@@ -12,6 +12,7 @@
   "src_roots": [
     "openvmm/openvmm_core/src/worker",
     "vm/vmcore/src/vmtime_duration",
-    "vmm_core/state_unit/src/mutex_observation"
+    "vmm_core/state_unit/src/mutex_observation",
+    "support/mesh/mesh_protobuf/src/protofile/string_observation"
   ]
 }
