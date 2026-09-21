@@ -251,13 +251,12 @@ pub proof fn snapshot_restore_success_elapsed_time(
     decoded_restore_request_time_policy(saved_state, restore_time, initial.active_vp_count);
 }
 
-// The load wrapper additionally receives optional saved state and VP-selection
-// policy. Its bridge is separate so the helper contract does not invent those
-// caller-owned facts.
+// The caller resolves the selected count from its explicit selection or
+// destination capacity before decoding the optional snapshot.
 pub uninterp spec fn decoded_load_restore_request_view(
     saved_state: &Option<SavedState>,
     restore_time: &Option<(Duration, u64, Option<u64>)>,
-    restore_vp_count: &Option<u32>,
+    selected_vp_count: nat,
 ) -> RestoreRequestView;
 
 // TODO(uninterp): Replace with component Views for processor topology, memory,
