@@ -1537,7 +1537,10 @@ impl InitializedVm {
             !saved_state.is_some() || restore_proof::decoded_load_restore_request_view(
                 &saved_state,
                 &restore_time,
-                &restore_vp_count,
+                match restore_vp_count {
+                    Some(count) => count as nat,
+                    None => self@.state.vp_capacity,
+                },
             ).valid_for_initialized_vm(self@),
         ensures
             match result {
@@ -1547,7 +1550,10 @@ impl InitializedVm {
                         restore_proof::decoded_load_restore_request_view(
                             &saved_state,
                             &restore_time,
-                            &restore_vp_count,
+                            match restore_vp_count {
+                                Some(count) => count as nat,
+                                None => self@.state.vp_capacity,
+                            },
                         ),
                         loaded@,
                     )
