@@ -1,0 +1,4 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--edition=2024', '--crate-type=lib', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '15', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/unconstrained-mutation.rs']
+verification results:: 1 verified, 0 errors
+
+exit=0; elapsed=0.573s

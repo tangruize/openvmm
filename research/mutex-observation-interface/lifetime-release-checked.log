@@ -1,0 +1,18 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--edition=2024', '--crate-type=lib', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '15', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/lifetime-release.rs']
+error[E0597]: `guard` does not live long enough
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/lifetime-release.rs:12:22
+   |
+11 |         let guard = mutex.lock();
+   |             ----- binding `guard` declared here
+12 |         borrowed = &*guard;
+   |                      ^^^^^ borrowed value does not live long enough
+13 |     }
+   |     - `guard` dropped here while still borrowed
+14 |     *borrowed
+   |     --------- borrow later used here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0597`.
+
+exit=1; elapsed=0.393s

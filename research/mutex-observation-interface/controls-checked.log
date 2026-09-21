@@ -1,0 +1,48 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--edition=2024', '--crate-type=lib', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '15', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs']
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:35:12
+   |
+35 |     assert(*guard == 7);
+   |            ^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:36:12
+   |
+36 |     assert(guard_origin(&guard) == mutex);
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:42:12
+   |
+42 |     assert(*ga == *gb);
+   |            ^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:47:12
+   |
+47 |     assert(guard_origin(&ga) == b);
+   |            ^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:56:12
+   |
+56 |     assert(after == before);
+   |            ^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:69:12
+   |
+69 |     assert(after == before);
+   |            ^^^^^^^^^^^^^^^ assertion failed
+
+error: assertion failed
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/controls.rs:76:12
+   |
+76 |     assert(*guard_observation(&guard) == before);
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ assertion failed
+
+verification results:: 3 verified, 6 errors
+error: aborting due to 7 previous errors
+
+
+exit=1; elapsed=0.455s

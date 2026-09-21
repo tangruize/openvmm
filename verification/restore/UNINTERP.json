@@ -1,9 +1,49 @@
 {
   "schema": "openvmm/restore-uninterp-ledger-v1",
   "completion_status": "proof_debt",
+  "destination_inventory_observation": {
+    "status": "diagnostic_native_external_interface_frontier",
+    "selected_fact": "StateUnits::inventory returns exactly the names in its actual lock-protected units map, in ascending unit-ID order, with the accepted component-name identities. This remains unproved; no observer contract or inventory oracle was installed.",
+    "evidence": "research/destination-inventory-observation/README.md",
+    "unresolved_connections": [
+      "The native production inventory body fails translation at parking_lot/lock_api Mutex, RawMutex, MutexGuard, and Mutex::lock. The external protected-borrow interface is not sanctioned or implemented.",
+      "Transparent Inner also requires admission of its carried standard HashMap and RandomState. Enumeration reads only units, so no names/units consistency invariant is assumed.",
+      "Unit still needs native project-owned StateRequest and inspect::SensitivityLevel admission.",
+      "The exact Arc<str>::to_string expression lacks a proved name-content refinement in the pinned vstd interface; the str receiver control verifies. Production receiver and accepted identity semantics are unchanged.",
+      "The existing BTreeMap values contract already describes ordered exact-domain traversal; its application to the native production body and the map/collect closure proof remain owed.",
+      "An observation must bind to this invocation's acquired guard, not to contents after lock release. The actual LoadedVm owner-bundle invariant and TOP callback/await frame remain separate obligations."
+    ],
+    "marker_changes": "None retained. The diagnostic temporarily removed StateUnits datatype opacity and then restored it; all production inputs match the passing intake verification."
+  },
+  "inventory_binding_obligations": {
+    "status": "selected_inventory_fact_proved_with_full_native_verification",
+    "initial_status": "The selected fact and all unresolved connections below were recorded as source-supported but unproved before the first experiment.",
+    "selected_fact": "The production decoded_restore_request_view must obtain exactly the name identities of SavedState.inventory, independently of SavedState.units, and the frozen restore projection must preserve that set. Equal names must have equal identities and distinct names must not collide.",
+    "source_evidence": [
+      "openvmm/openvmm_defs/src/worker.rs: SavedState has separate units and complete inventory fields",
+      "openvmm/openvmm_core/src/worker/dispatch.rs: LoadedVm::save records StateUnits::inventory; TOP calls LoadedVm::restore, which checks only nonempty inventory before restoring units",
+      "vmm_core/state_unit/src/lib.rs: StateUnits::inventory enumerates every registered unit; validate_inventory compares the complete ordered list; save omits absent blobs; restore resolves blobs by name",
+      "openvmm/openvmm_core/src/worker/dispatch.spec.rs: restore_snapshot_projection copies request.saved_state.component_inventory; compatibility requires equality with initial inventory"
+    ],
+    "established_connections": [
+      "SavedState is a native transparent datatype. saved_inventory_ids is defined from the real inventory vector, independently of units.",
+      "component_name_id is a terminating base-0x110001 encoding of Unicode scalar sequences. component_name_identity proves equality in both directions without an identity oracle.",
+      "Native inventory lemmas prove exact index membership, empty inventory, insertion, repeated-name idempotence, and distinct-name preservation.",
+      "The production decoded_saved_state_view supplies this inventory to decoded_restore_request_view. Native lemmas prove exact ComponentId membership and transport the set through the frozen restore projection and success predicate.",
+      "The accepted request-time binding and success elapsed-time consequence are retained."
+    ],
+    "unresolved_connections": [
+      "SavedStateUnit remains opaque for named-payload decoding; decoded_saved_payload_view remains uninterpreted for partition/VP/mutable-component/saved-time interpretation. Neither carries the complete inventory fact.",
+      "The load-wrapper decoder and its correspondence to the TOP decoder remain unproved.",
+      "Actual registry preservation during restore and destination component representation remain unproved.",
+      "An empty inventory maps to the empty set; runtime validation is skipped, not proved. The frozen compatibility precondition then requires an empty abstract destination inventory.",
+      "TOP body correctness, exact-time history attachment, cancellation and lifecycle frames remain unproved."
+    ]
+  },
   "entries": [
     {
       "symbol": "restore_proof::initialized_vm_representation",
+      "marker_file": "openvmm/openvmm_core/src/worker/dispatch.proof.rs",
       "deferred_fact": "A total abstraction from a production InitializedVm to prepared memory, compatibility, VP capacity and initial/default VP state, boot-online policy, component inventory/state, virtual time, external resources, and host-operational state.",
       "source_evidence": [
         "openvmm/openvmm_core/src/worker/dispatch.rs"
@@ -13,6 +53,7 @@
     },
     {
       "symbol": "restore_proof::decoded_load_restore_request_view",
+      "marker_file": "openvmm/openvmm_core/src/worker/dispatch.proof.rs",
       "deferred_fact": "A total abstraction from load's optional SavedState, restore_time, and restore_vp_count arguments to the logical saved state, selected VP count, and time policy used by the conditional wrapper contract.",
       "source_evidence": [
         "openvmm/openvmm_defs/src/worker.rs",
@@ -22,17 +63,21 @@
       "removal": "Replace with production Views for decoded SavedState, restore-time input, and VP-selection policy."
     },
     {
-      "symbol": "restore_proof::decoded_restore_request_view",
-      "deferred_fact": "A total abstraction from the SavedState and restore_time arguments of LoadedVm::restore_snapshot_state plus the selected VP count read from its LoadedVm pre-state to SavedVmStateView and restore policy. It must expose only SavedState-owned partition, stable-identity VP, inventory, mutable component, and virtual-time state. Prepared memory, compatibility, resources, and snapshot-generation provenance are already represented by or established before the helper's LoadedVm pre-state and must not be invented here.",
+      "symbol": "restore_proof::decoded_saved_payload_view",
+      "marker_file": "openvmm/openvmm_core/src/worker/dispatch.proof.rs",
+      "deferred_fact": "Interpret the real Vec<SavedStateUnit> named protobuf payloads as partition, stable-identity VP, mutable component, and saved virtual-time state. SavedPayloadView has no inventory field, and this bridge receives no inventory or restore-time argument. The complete inventory is now defined and proved independently from SavedState.inventory; adjustment presence, exact Duration nanoseconds, and selected VP count remain directly bound. Payload keys must eventually use the same proved component-name identity. Prepared memory, compatibility, resources, and snapshot-generation provenance must not be invented here.",
       "source_evidence": [
         "openvmm/openvmm_defs/src/worker.rs",
-        "openvmm/openvmm_core/src/worker/dispatch.rs"
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "vmm_core/state_unit/src/lib.rs: StateUnits::save and StateUnits::restore",
+        "vm/vmcore/src/save_restore.rs: SavedStateBlob::parse"
       ],
-      "consumer": "LoadedVm::restore_snapshot_state TOP contract",
-      "removal": "Replace this bridge with production Views for SavedState units and restore-time inputs. Keep preparation and VP-instantiation contracts outside this TOP."
+      "consumer": "Defined decoded_saved_state_view, consumed by decoded_restore_request_view in the LoadedVm::restore_snapshot_state TOP contract",
+      "removal": "Define and prove payload decoding and component refinements, including key correspondence with component_name_id. Keep preparation and VP-instantiation contracts outside this TOP."
     },
     {
       "symbol": "restore_proof::loaded_vm_representation",
+      "marker_file": "openvmm/openvmm_core/src/worker/dispatch.proof.rs",
       "deferred_fact": "A total abstraction from the returned production LoadedVm to memory, preserved destination VP capacity, partition and stable-identity VP state, complete component inventory, active and pending component state, virtual time, resources, active VP count, and execution phase.",
       "source_evidence": [
         "openvmm/openvmm_core/src/worker/dispatch.rs",
@@ -43,5 +88,92 @@
       "consumer": "View for LoadedVm",
       "removal": "Replace the representation bridge with component Views and connect them with closed representation invariants and lemmas."
     }
-  ]
+  ],
+  "temporary_external_bodies": [
+    {
+      "symbol": "LoadedVm::restore_snapshot_state",
+      "deferred_fact": "The real restore body establishes the frozen TOP contract on every relevant return path.",
+      "source_evidence": ["openvmm/openvmm_core/src/worker/dispatch.rs"],
+      "consumer": "Snapshot restore and the InitializedVm::load wrapper",
+      "removal": "Prove the existing body, component operations, request decoding, state projection, time adjustment, and stopped-state preservation."
+    },
+    {
+      "symbol": "InitializedVm",
+      "deferred_fact": "Transparent destination representation and its connection to initialized_vm_representation.",
+      "source_evidence": ["openvmm/openvmm_core/src/worker/dispatch.rs"],
+      "consumer": "InitializedVm::load",
+      "removal": "Admit the real fields and establish their component Views without opacity."
+    },
+    {
+      "symbol": "LoadedVmInner",
+      "deferred_fact": "Transparent partition, topology, component, and virtual-time representation.",
+      "source_evidence": ["openvmm/openvmm_core/src/worker/dispatch.rs"],
+      "consumer": "LoadedVm and loaded_vm_representation",
+      "removal": "Admit the carried production types and refine their component operations."
+    },
+    {
+      "symbol": "SavedStateUnit",
+      "deferred_fact": "The name and protobuf blob carried by a saved unit refine its decoded mutable component state. This opacity does not cover SavedState.inventory.",
+      "source_evidence": [
+        "vmm_core/state_unit/src/lib.rs: SavedStateUnit and StateUnits::restore",
+        "vm/vmcore/src/save_restore.rs: SavedStateBlob"
+      ],
+      "consumer": "SavedState.units and decoded_saved_payload_view",
+      "removal": "Admit the actual payload datatype and prove named blob decoding. SavedState itself is now transparent; its inventory mapping and identity preservation are proved."
+    },
+    {
+      "symbol": "StateUnits",
+      "deferred_fact": "The real component registry and running flag refine component restoration and stopped-state semantics.",
+      "source_evidence": ["vmm_core/state_unit/src/lib.rs"],
+      "consumer": "LoadedVmInner and snapshot component restoration",
+      "removal": "Refine the mutex-owned component registry and prove component-operation contracts."
+    },
+    {
+      "symbol": "StopGuard",
+      "deferred_fact": "The carried partition channel and guard lifetime maintain the stopped partition until release.",
+      "source_evidence": ["vmm_core/src/partition_unit.rs"],
+      "consumer": "LoadedVm::restore_start_guard",
+      "removal": "Refine the real partition request channel and prove guard acquisition, retention, and Drop behavior."
+    },
+    {
+      "symbol": "Sender",
+      "deferred_fact": "The native mpsc sender representation and operations implement the carried channel state.",
+      "source_evidence": ["support/mesh/mesh_channel_core/src/mpsc.rs"],
+      "consumer": "LoadedVm lifecycle channels and StopGuard",
+      "removal": "Admit the real channel representation and prove the channel operations used by restore."
+    },
+    {
+      "symbol": "Receiver",
+      "deferred_fact": "The native mpsc receiver representation and operations implement the carried channel state.",
+      "source_evidence": ["support/mesh/mesh_channel_core/src/mpsc.rs"],
+      "consumer": "LoadedVm lifecycle channels",
+      "removal": "Admit the real channel representation and prove the channel operations used by restore."
+    },
+    {
+      "symbol": "Rpc",
+      "deferred_fact": "The native input and oneshot response channel represent the actual lifecycle RPC.",
+      "source_evidence": ["support/mesh/mesh_channel/src/rpc.rs"],
+      "consumer": "LoadedVm lifecycle channels",
+      "removal": "Admit the real oneshot representation and prove the relevant RPC operations."
+    },
+    {
+      "symbol": "MicrovmSnapshotBoundaryRequest",
+      "deferred_fact": "Scratch policy and the two native channels implement snapshot-boundary coordination.",
+      "source_evidence": ["vm/devices/chipset_resources/src/lib.rs"],
+      "consumer": "LoadedVm snapshot-boundary request channel",
+      "removal": "Admit the actual oneshot fields and prove boundary coordination."
+    }
+  ],
+  "out_of_scope_unsanctioned_trust": {
+    "source": "openvmm/openvmm_core/src/verus_compat.rs",
+    "symbols": [
+      "ExAnyhowError",
+      "anyhow::Error::msg",
+      "anyhow::__private::format_err",
+      "anyhow::__private::must_use",
+      "<std::sync::Arc<T, A> as Clone>::clone"
+    ],
+    "status": "Existing compatibility declarations, not sanctioned by tcb_manifest.json. The frozen source roots do not scan this file; passing scoped admission does not sanction these declarations.",
+    "removal": "Discharge or eliminate each declaration used by the production proof path. A permanent external interface change requires a separately accepted freeze request."
+  }
 }

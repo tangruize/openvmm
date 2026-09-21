@@ -1,0 +1,63 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--internal-test-mode', '--edition=2024', '--crate-type=lib', '--crate-name', 'state_unit', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '20', '--verify-root', '--verify-function', 'StateUnits::inventory', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '--extern', 'inspect=/home/ruize/openvmm-restore-v1/target/debug/deps/libinspect-d2d8b501d56fbbf9.rmeta', '--extern', 'futures=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures-5a1ca119b27a8d6d.rmeta', '--extern', 'mesh=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh-5b91b6b795ed3496.rmeta', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '--extern', 'thiserror=/home/ruize/openvmm-restore-v1/target/debug/deps/libthiserror-bb5470d7886e4e69.rmeta', '--extern', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.rmeta', '--extern', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.rmeta', '--extern', 'anyhow=/home/ruize/openvmm-restore-v1/target/debug/deps/libanyhow-1a1dcdb279f90ff5.rmeta', '--extern', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.rmeta', '--extern', 'tracing=/home/ruize/openvmm-restore-v1/target/debug/deps/libtracing-669be71d75ac272a.rmeta', '--extern', 'event_listener=/home/ruize/openvmm-restore-v1/target/debug/deps/libevent_listener-1c5d4f3f64b7833e.rmeta', '--extern', 'futures_concurrency=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures_concurrency-b7017fe683035931.rmeta', '--import', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.vir', '--import', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.vir', '--import', 'mesh_protobuf=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_protobuf-17bb6d5e2affded7.vir', '--import', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.vir', '--import', 'mesh_channel=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel-e91889d5a760f2d0.vir', '--import', 'mesh_channel_core=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel_core-44778b48af5376ad.vir', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs']
+error: `std::collections::hash::map::HashMap` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+   --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs:278:1
+    |
+278 | / struct Inner {
+279 | |     next_id: u64,
+280 | |     units: BTreeMap<u64, Unit>,
+281 | |     names: HashMap<Arc<str>, u64>,
+282 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::reject_recursive_types(A)]
+            #[verifier::reject_recursive_types(K)]
+            #[verifier::reject_recursive_types(S)]
+            #[verifier::reject_recursive_types(V)]
+            #[verifier::external_type_specification]
+            pub struct ExHashMap<K, V, S, A>(std::collections::HashMap<K, V, S, A>)
+            where
+            A: std::alloc::Allocator,;
+
+error: `std::hash::random::RandomState` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute) (note: the vstd library provides some specification for the Rust std library, but it is currently limited)
+   --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs:278:1
+    |
+278 | / struct Inner {
+279 | |     next_id: u64,
+280 | |     units: BTreeMap<u64, Unit>,
+281 | |     names: HashMap<Arc<str>, u64>,
+282 | | }
+    | |_^
+
+error: cannot use type `state_unit::StateRequest` which is ignored because it is either declared outside the verus! macro or it is marked as `external`.
+   --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs:286:1
+    |
+286 | / struct Unit {
+287 | |     name: Arc<str>,
+288 | |     send: Sender<StateRequest>,
+289 | |     dependencies: Vec<u64>,
+...   |
+292 | |     inspect_sensitivity: inspect::SensitivityLevel,
+293 | | }
+    | |_^
+
+error: `inspect::SensitivityLevel` is not supported (note: you may be able to add a Verus specification to this type with the `external_type_specification` attribute)
+   --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs:286:1
+    |
+286 | / struct Unit {
+287 | |     name: Arc<str>,
+288 | |     send: Sender<StateRequest>,
+289 | |     dependencies: Vec<u64>,
+...   |
+292 | |     inspect_sensitivity: inspect::SensitivityLevel,
+293 | | }
+    | |_^
+    |
+    = help: The following declaration may resolve this error:
+            #[verifier::external_type_specification]
+            pub struct ExSensitivityLevel(inspect::SensitivityLevel);
+
+error: aborting due to 4 previous errors
+
+
+exit=1; elapsed=0.647s

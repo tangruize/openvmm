@@ -1,0 +1,16 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--edition=2024', '--crate-type=lib', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '15', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/lifetime-alias.rs']
+error[E0502]: cannot borrow `guard` as mutable because it is also borrowed as immutable
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/lifetime-alias.rs:11:6
+   |
+10 |     let borrowed = &*guard;
+   |                      ----- immutable borrow occurs here
+11 |     *guard = 7;
+   |      ^^^^^ mutable borrow occurs here
+12 |     *borrowed
+   |     --------- immutable borrow later used here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0502`.
+
+exit=1; elapsed=0.360s

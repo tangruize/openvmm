@@ -15,6 +15,10 @@ use vm_resource::Resource;
 use vmcore::save_restore::SavedStateRoot;
 use vmm_core_defs::HaltReason;
 
+#[cfg(verus_keep_ghost)]
+#[path = "worker.proof.rs"]
+pub mod saved_state_proof;
+
 /// File descriptor (Unix) or handle (Windows) for file-backed guest RAM.
 #[cfg(unix)]
 pub type SharedMemoryFd = std::os::fd::OwnedFd;
@@ -43,8 +47,7 @@ pub struct SnapshotRestoreGuards {
 /// Complete saved state consumed by the VM worker.
 #[derive(Protobuf, SavedStateRoot)]
 #[mesh(package = "openvmm")]
-// TODO(proof): Bind units and inventory to the decoded restore request Views.
-#[vstd::prelude::verus_verify(external_body)]
+#[vstd::prelude::verus_verify]
 pub struct SavedState {
     #[mesh(1)]
     pub units: Vec<SavedStateUnit>,

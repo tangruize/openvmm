@@ -1,0 +1,1 @@
+{"state": "submitted", "task_id": "mutex-delivery-precommit", "run_id": "mutex-delivery-precommit-1789980205356455814", "pid": 3630544, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id mutex-delivery-precommit"}

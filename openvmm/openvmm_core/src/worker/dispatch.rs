@@ -15,6 +15,7 @@ mod restore_spec {
     include!("dispatch.spec.rs");
 }
 
+#[cfg(verus_keep_ghost)]
 #[allow(dead_code, unused_imports)]
 mod restore_proof {
     include!("dispatch.proof.rs");

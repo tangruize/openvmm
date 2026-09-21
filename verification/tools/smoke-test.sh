@@ -6,6 +6,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 verus="$("$repo_root/verification/tools/find-verus.sh")"
+solver="$("$repo_root/verification/tools/find-z3.sh")"
+export VERUS_Z3_PATH="$solver"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 

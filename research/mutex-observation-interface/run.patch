@@ -1,0 +1,165 @@
+diff --git a/.verus_agent/scope_manifest.json b/.verus_agent/scope_manifest.json
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -11,6 +11,7 @@
+   ],
+   "src_roots": [
+     "openvmm/openvmm_core/src/worker",
+-    "vm/vmcore/src/vmtime_duration"
++    "vm/vmcore/src/vmtime_duration",
++    "vmm_core/state_unit/src/mutex_observation"
+   ]
+ }
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -29,6 +29,61 @@
+       "kind": "symbol",
+       "value": "duration_as_nanos",
+       "marker": "external_fn_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExRawMutexTrait",
++      "marker": "external_trait_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExRawMutex",
++      "marker": "external_type_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExRawMutex",
++      "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExMutex",
++      "marker": "external_type_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExMutex",
++      "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExMutexGuard",
++      "marker": "external_type_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "ExMutexGuard",
++      "marker": "external_body"
++    },
++    {
++      "kind": "symbol",
++      "value": "guard_origin",
++      "marker": "uninterp"
++    },
++    {
++      "kind": "symbol",
++      "value": "guard_observation",
++      "marker": "uninterp"
++    },
++    {
++      "kind": "symbol",
++      "value": "mutex_lock",
++      "marker": "external_fn_specification"
++    },
++    {
++      "kind": "symbol",
++      "value": "guard_deref",
++      "marker": "external_fn_specification"
+     }
+   ]
+ }
+diff --git a/vmm_core/state_unit/src/lib.rs b/vmm_core/state_unit/src/lib.rs
+--- a/vmm_core/state_unit/src/lib.rs
++++ b/vmm_core/state_unit/src/lib.rs
+@@ -29,6 +29,9 @@
+ //! works across process boundaries thanks to `mesh`.
+ 
+ #![forbid(unsafe_code)]
++
++#[cfg(verus_keep_ghost)]
++pub mod mutex_observation;
+ 
+ use anyhow::Context as _;
+ use futures::FutureExt;
+diff --git a/vmm_core/state_unit/src/mutex_observation/mod.rs b/vmm_core/state_unit/src/mutex_observation/mod.rs
+new file mode 100644
+--- /dev/null
++++ b/vmm_core/state_unit/src/mutex_observation/mod.rs
+@@ -0,0 +1,4 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++include!("observation.spec.rs");
+diff --git a/vmm_core/state_unit/src/mutex_observation/observation.spec.rs b/vmm_core/state_unit/src/mutex_observation/observation.spec.rs
+new file mode 100644
+--- /dev/null
++++ b/vmm_core/state_unit/src/mutex_observation/observation.spec.rs
+@@ -0,0 +1,61 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT License.
++
++// Unapproved experimental interface; never included by live production.
++use parking_lot::lock_api;
++use std::ops::Deref;
++use vstd::prelude::*;
++
++verus! {
++
++#[verifier::external_trait_specification]
++pub trait ExRawMutexTrait {
++    type ExternalTraitSpecificationFor: lock_api::RawMutex;
++}
++
++#[verifier::external_type_specification]
++#[verifier::external_body]
++pub struct ExRawMutex(parking_lot::RawMutex);
++
++#[verifier::external_type_specification]
++#[verifier::external_body]
++#[verifier::reject_recursive_types(R)]
++#[verifier::reject_recursive_types(T)]
++pub struct ExMutex<R, T: ?Sized>(lock_api::Mutex<R, T>);
++
++#[verifier::external_type_specification]
++#[verifier::external_body]
++#[verifier::reject_recursive_types(R)]
++#[verifier::reject_recursive_types(T)]
++pub struct ExMutexGuard<'a, R: lock_api::RawMutex, T: ?Sized>(lock_api::MutexGuard<'a, R, T>);
++
++/// The mutex reference stored in this acquired guard, not its current contents.
++pub uninterp spec fn guard_origin<'a, R: lock_api::RawMutex, T: ?Sized>(
++    guard: &lock_api::MutexGuard<'a, R, T>,
++) -> &'a lock_api::Mutex<R, T>;
++
++/// This immutable guard borrow's protected data reference.
++pub uninterp spec fn guard_observation<'a, 'b, R: lock_api::RawMutex, T: ?Sized>(
++    guard: &'b lock_api::MutexGuard<'a, R, T>,
++) -> &'b T;
++
++#[verifier::external_fn_specification]
++pub fn mutex_lock<'a, R: lock_api::RawMutex, T: ?Sized>(
++    mutex: &'a lock_api::Mutex<R, T>,
++) -> (guard: lock_api::MutexGuard<'a, R, T>)
++    ensures guard_origin(&guard) == mutex,
++{
++    mutex.lock()
++}
++
++#[verifier::external_fn_specification]
++#[verifier::when_used_as_spec(guard_observation)]
++pub fn guard_deref<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>(
++    guard: &'b lock_api::MutexGuard<'a, R, T>,
++) -> (value: &'b T)
++    ensures value == guard_observation(guard),
++{
++    guard.deref()
++}
++
++}

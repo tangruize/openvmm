@@ -1,0 +1,54 @@
+external_predicates: [
+    (
+        Binder { value: TraitPredicate(<R as std::marker::Sized>, polarity:Positive), bound_vars: [] },
+        /home/ruize/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lock_api-0.4.13/src/mutex.rs:138:18: 138:19 (#0),
+    ),
+    (
+        Binder { value: TraitPredicate(<T as std::marker::MetaSized>, polarity:Positive), bound_vars: [] },
+        /home/ruize/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/lock_api-0.4.13/src/mutex.rs:138:24: 138:30 (#0),
+    ),
+]
+proxy_predicates: [
+    (
+        Binder { value: TraitPredicate(<R as std::marker::Sized>, polarity:Positive), bound_vars: [] },
+        research/mutex-observation-interface/candidate.spec.rs:20:20: 20:21 (#0),
+    ),
+    (
+        Binder { value: TraitPredicate(<T as std::marker::MetaSized>, polarity:Positive), bound_vars: [] },
+        research/mutex-observation-interface/candidate.spec.rs:20:46: 20:52 (#0),
+    ),
+    (
+        Binder { value: TraitPredicate(<R as parking_lot::lock_api::RawMutex>, polarity:Positive), bound_vars: [] },
+        research/mutex-observation-interface/candidate.spec.rs:20:23: 20:41 (#0),
+    ),
+]
+error: external_type_specification: trait bounds should match
+  --> research/mutex-observation-interface/candidate.spec.rs:20:1
+   |
+20 | pub struct ExMutex<R: lock_api::RawMutex, T: ?Sized>(lock_api::Mutex<R, T>);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: assume_specification trait bound mismatch
+  --> research/mutex-observation-interface/candidate.spec.rs:42:1
+   |
+42 | / pub assume_specification<'a, 'b, R: lock_api::RawMutex, T: ?Sized>[
+43 | |     <lock_api::MutexGuard<'a, R, T> as Deref>::deref
+44 | | ](
+45 | |     guard: &'b lock_api::MutexGuard<'a, R, T>,
+46 | | ) -> (value: &'b T)
+   | |__________________^
+   |
+   = help: assume_specification requires function type signatures to match exactly, ignoring any Destruct trait bounds
+           but the proxy function's trait bounds are:
+             - R: std::marker::Sized
+             - T: std::marker::MetaSized
+             - R: parking_lot::lock_api::RawMutex
+           the external function's trait bounds are:
+             - R: std::marker::Sized
+             - T: std::marker::MetaSized
+             - R: parking_lot::lock_api::RawMutex
+             - R: '_
+             - T: '_
+
+error: aborting due to 2 previous errors
+

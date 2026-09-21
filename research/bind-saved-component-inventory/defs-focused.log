@@ -1,0 +1,19 @@
+Fresh verification: clearing 1 selected package(s) in /home/ruize/openvmm-restore-v1/target/verus-partial
+warning: version qualifier in `-p path+file:///home/ruize/openvmm-restore-v1/openvmm/openvmm_defs#0.0.0` is ignored, cleaning all versions of `openvmm_defs` found
+warning: url qualifier in `-p path+file:///home/ruize/openvmm-restore-v1/openvmm/openvmm_defs#0.0.0` ignored, cleaning all versions of `openvmm_defs` found
+     Removed 5 files, 8.5MiB total
+warning: autoderive Clone impl does not take the form Verus expects; continuing, but without adding a specification for the derived Clone impl
+  --> vmm_core/vmm_core_defs/src/lib.rs:36:17
+   |
+36 | #[derive(Debug, Clone, Eq, PartialEq, Protobuf, Inspect)]
+   |                 ^^^^^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmm_core_defs` (lib) generated 1 warning
+    Checking openvmm_defs v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_defs)
+note: verifying module worker::saved_state_proof
+
+verification results:: 9 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.33s
+Fresh verification summary: 9 verified, 0 errors; exit 0; preparation 0.825s; verification 2.842s; total 3.668s

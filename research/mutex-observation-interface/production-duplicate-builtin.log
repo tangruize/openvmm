@@ -1,0 +1,721 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--no-vstd', '--edition=2024', '--crate-type=lib', '--crate-name', 'state_unit', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '20', '--verify-root', '--verify-function', 'StateUnits::inventory', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '--extern', 'inspect=/home/ruize/openvmm-restore-v1/target/debug/deps/libinspect-d2d8b501d56fbbf9.rmeta', '--extern', 'futures=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures-5a1ca119b27a8d6d.rmeta', '--extern', 'mesh=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh-5b91b6b795ed3496.rmeta', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '--extern', 'thiserror=/home/ruize/openvmm-restore-v1/target/debug/deps/libthiserror-bb5470d7886e4e69.rmeta', '--extern', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.rmeta', '--extern', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.rmeta', '--extern', 'anyhow=/home/ruize/openvmm-restore-v1/target/debug/deps/libanyhow-1a1dcdb279f90ff5.rmeta', '--extern', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.rmeta', '--extern', 'tracing=/home/ruize/openvmm-restore-v1/target/debug/deps/libtracing-669be71d75ac272a.rmeta', '--extern', 'event_listener=/home/ruize/openvmm-restore-v1/target/debug/deps/libevent_listener-1c5d4f3f64b7833e.rmeta', '--extern', 'futures_concurrency=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures_concurrency-b7017fe683035931.rmeta', '--import', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.vir', '--import', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.vir', '--import', 'mesh_protobuf=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_protobuf-17bb6d5e2affded7.vir', '--import', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.vir', '--import', 'mesh_channel=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel-e91889d5a760f2d0.vir', '--import', 'mesh_channel_core=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel_core-44778b48af5376ad.vir', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs']
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::admit`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::no_method_body`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::requires`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ensures`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::atomic_spec`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::returns`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::recommends`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::invariant_except_break`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::invariant`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::atomic_call_loop`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::decreases`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::decreases_when`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::decreases_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::recommends_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::extra_dependency`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::opens_invariant_mask`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::no_unwind`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::no_unwind_when`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::reveal_hide`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::reveal_hide_internal_path`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::default_ensures`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::imply`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::forall`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::exists`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::choose`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::choose_tuple`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::with_triggers`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::constrain_type`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::get_future_output_type`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::equal`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ext_equal`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ext_equal_deep`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::old`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::is_variant`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::get_variant_field`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::get_union_field`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inv_mask_none`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inv_mask_any`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inv_mask_list`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inv_mask_list_compl`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inv_mask_set`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assume_`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_by_compute`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_by_compute_only`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_nonlinear_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_bitvector_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_forall_by`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::assert_bit_vector`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::use_type_invariant`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ghost_exec`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::tracked_exec`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::tracked_exec_borrow`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::int`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::nat`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::real`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Structural`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Integer`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Chainable`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_literal_integer`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_literal_int`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_literal_nat`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_literal_decimal`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::add`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::sub`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::mul`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_cast_integer`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_cast_real`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_cast_float`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_eq`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_value`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_le`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_lt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_ge`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_gt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_cmp`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::spec_chained_eq`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::f32_to_bits`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::f64_to_bits`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::strslice_new_strlit`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::strslice_len`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::strslice_get_char`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::reveal_strlit`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::reveal_byteslit`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::FnSpec`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::closure_to_fn_spec`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::call_requires`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::call_ensures`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::FnProof`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::FOpts`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Trk`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::RqEn`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ProofFnOnce`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ProofFnMut`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ProofFn`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::closure_to_fn_proof`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::unsigned_max`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::signed_min`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::signed_max`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::arch_word_bits`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::is_smaller_than`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::is_smaller_than_lexicographic`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::is_smaller_than_recursive_function_field`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::global_size_of`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::inline_air_stmt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::array_index`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::erased_ghost_value`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::shadow_ghost_value`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::verus_erasure_get_first`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::DummyCapture`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::dummy_capture_new`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::dummy_capture_consume`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::mutable_reference_tie`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::two_phase_mutable_reference_tie`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::has_resolved`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::has_resolved_unsized`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::mut_ref_current`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::mut_ref_future`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::final_`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::after_borrow`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::mut_ref_tracked`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::shr_ref_struct_wrap`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecOrd::spec_lt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecOrd::spec_le`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecOrd::spec_gt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecOrd::spec_ge`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecNeg::spec_neg`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecAdd::spec_add`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecSub::spec_sub`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecMul::spec_mul`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecEuclideanOrRealDiv::spec_euclidean_or_real_div`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecEuclideanMod::spec_euclidean_mod`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecBitAnd::spec_bitand`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecBitOr::spec_bitor`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecBitXor::spec_bitxor`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecShl::spec_shl`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::SpecShr::spec_shr`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_add`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_sub`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_mul`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_div`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_eq`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_le`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_ge`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_lt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_gt`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_neg`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_floor`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_ceil`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_round`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_round_ties_even`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_trunc`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_normal`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_subnormal`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_zero`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_infinite`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_nan`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_negative`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloat::ieee_is_positive`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::IeeeFloatCast::ieee_cast`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ProofFnReqEnsDef::req`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::ProofFnReqEnsDef::ens`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::deref`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::deref_mut`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::deref`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::deref_mut`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::view`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::new`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::borrow`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Ghost::borrow_mut`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::view`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::new`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::get`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::borrow`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::Tracked::borrow_mut`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: duplicate diagnostic item in crate `verus_builtin`: `verus::verus_builtin::real::floor`
+  |
+  = note: the diagnostic item is first defined in crate `verus_builtin`
+
+error: aborting due to 179 previous errors
+
+
+exit=1; elapsed=0.588s

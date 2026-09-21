@@ -1,6 +1,33 @@
 {
   "current_stage": "prove",
   "vertical": "verus",
+  "mutex_observation_delivery": {
+    "state": "precommit",
+    "request": "research/freeze_requests/mutex-guard-acquisition-observation",
+    "request_applied": false,
+    "inventory_body_proved": false,
+    "validation_task": "restore-proof-erasure-validation",
+    "validation_run": "restore-proof-erasure-validation-1789980712310657756",
+    "validation_status": ".argus_subagents/restore-proof-erasure-validation.json",
+    "validation_logs": "research/restore-proof-erasure-repair",
+    "clippy": "passed for all targets of openvmm_core, openvmm_defs, and state_unit",
+    "doc": "passed for openvmm_core, openvmm_defs, and state_unit",
+    "tests": "69 passed, 0 skipped",
+    "make_verify": "1949 verified, 0 errors; exit 0; 74.784s",
+    "boundary": "INCOMPLETE; exit 3; 0 permanent violations, 7 temporary locations, 0 assumptions",
+    "boundary_admission": "passed; exit 0",
+    "spec_drift": "passed; exit 0",
+    "exec_drift": "passed; exit 0",
+    "erasure_repair": "Gate only the ghost restore_proof module with verus_keep_ghost; no runtime body or frozen contract change.",
+    "evidence_reuse": "Completed validation postdates all affected production sources; do not repeat the mutex experiment.",
+    "formatting": "The complete formatter passed all inner passes and preserved the exact request. Its only source adjustment was a blank line after the worker.proof.rs license header. Refresh package Clippy/doc on those exact bytes and run the full formatter last; native proof, tests, and drift evidence remains applicable because no proof tokens or executable code changed.",
+    "generated_archive": {
+      "original": "research/mutex-observation-interface/target/accepted-intake.tar",
+      "retained_at": "target/mutex-observation-delivery/accepted-intake.tar",
+      "reason": "Reversible relocation of the generated intake backup, not accepted production or diagnostic source."
+    },
+    "next_action": "Finish the full formatter, preserve the reviewed transaction in a new commit, and run native clean-tree request readiness against the resulting branch inputs. Record the final commit and receipt in the shared CHECKPOINT.md."
+  },
   "vmtime_stopped_state_proof": {
     "state": "blocked",
     "integration_state": "done",

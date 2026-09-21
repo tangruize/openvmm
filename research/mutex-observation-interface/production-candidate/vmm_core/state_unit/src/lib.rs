@@ -67,6 +67,11 @@ use tracing::Instrument;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+#[path = "mutex_observation.spec.rs"]
+mod mutex_observation;
+
 
 /// A state change request.
 #[derive(Debug, MeshPayload)]
@@ -248,13 +253,14 @@ impl StateRequest {
 /// A set of state units.
 #[derive(Debug)]
 // TODO(proof): Refine unit identity, dependencies, RPC state, and restore ordering.
-#[vstd::prelude::verus_verify(external_body)]
+#[verus_verify]
 pub struct StateUnits {
     inner: Arc<Mutex<Inner>>,
     running: bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Inspect)]
+#[verus_verify]
 enum State {
     Stopped,
     Starting,
@@ -268,6 +274,7 @@ enum State {
 }
 
 #[derive(Debug)]
+#[verus_verify]
 struct Inner {
     next_id: u64,
     units: BTreeMap<u64, Unit>,
@@ -275,6 +282,7 @@ struct Inner {
 }
 
 #[derive(Debug)]
+#[verus_verify]
 struct Unit {
     name: Arc<str>,
     send: Sender<StateRequest>,
@@ -504,6 +512,7 @@ impl StateUnits {
     }
 
     /// Returns every registered state-unit name in stable registration order.
+    #[verus_verify]
     pub fn inventory(&self) -> Vec<String> {
         self.inner
             .lock()

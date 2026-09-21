@@ -1,0 +1,1 @@
+{"state": "submitted", "task_id": "mutex-observation-freeze", "run_id": "mutex-observation-freeze-1789979584217362185", "pid": 3588831, "mode": "direct", "run_dir": null, "description": "background task", "cpu_ids": [], "check_with": "/home/ruize/openvmm-restore-v1/.argus-runtime/bin/python -m argus_skill.tools.subagent status --task-id mutex-observation-freeze"}

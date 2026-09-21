@@ -1,0 +1,57 @@
+warning: cannot use external trait lock_api::mutex::RawMutex as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+  --> research/mutex-observation-interface/candidate.spec.rs:28:1
+   |
+28 | / pub uninterp spec fn guard_origin<'a, R: lock_api::RawMutex, T: ?Sized>(
+29 | |     guard: &lock_api::MutexGuard<'a, R, T>,
+30 | | ) -> &'a lock_api::Mutex<R, T>;
+   | |______________________________^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+
+warning: cannot use external trait lock_api::mutex::RawMutex as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+  --> research/mutex-observation-interface/candidate.spec.rs:32:1
+   |
+32 | / pub uninterp spec fn guard_observation<'a, 'b, R: lock_api::RawMutex, T: ?Sized>(
+33 | |     guard: &'b lock_api::MutexGuard<'a, R, T>,
+34 | | ) -> &'b T;
+   | |__________^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+
+warning: cannot use external trait lock_api::mutex::RawMutex as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+  --> research/mutex-observation-interface/candidate.spec.rs:36:1
+   |
+36 | / pub assume_specification<'a, R: lock_api::RawMutex, T: ?Sized>[lock_api::Mutex::<R, T>::lock](
+37 | |     mutex: &'a lock_api::Mutex<R, T>,
+38 | | ) -> (guard: lock_api::MutexGuard<'a, R, T>)
+   | |___________________________________________^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+
+warning: cannot use external trait lock_api::mutex::RawMutex as a bound without declaring the trait (use #[verifier::external_trait_specification] to declare the trait); this is a warning for now but will eventually be an error
+  --> research/mutex-observation-interface/candidate.spec.rs:42:1
+   |
+42 | / pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+43 | |     <lock_api::MutexGuard<'a, R, T> as Deref>::deref
+44 | | ](
+45 | |     guard: &'b lock_api::MutexGuard<'a, R, T>,
+46 | | ) -> (value: &'b T)
+   | |__________________^
+   |
+   = help: to suppress this warning, use `#[verifier::allow(undeclared_external_trait)]` on the surrounding function, datatype, or module or `#![verifier::allow(undeclared_external_trait)]` in the module or crate
+
+error: aborting due to 1 previous error
+
+
+error: cannot find trait `T5_RawMutex` in this scope
+  --> research/mutex-observation-interface/candidate.spec.rs:26:66
+   |
+26 | pub struct ExMutexGuard<'a, R: lock_api::RawMutex, T: ?Sized>(lock_api::MutexGuard<'a, R, T>);
+   |                                                                  ^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+
+note: This error was found in Verus's Trait-Conflict-Checker
+
+error: aborting due to 2 previous errors; 4 warnings emitted
+

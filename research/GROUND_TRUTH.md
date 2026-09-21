@@ -1,3 +1,206 @@
+# Guard-scoped mutex observation: experimental boundary candidate
+
+`research/mutex-observation-interface/` establishes a source-supported,
+native-Verus-expressible read interface for the actual parking_lot 0.12.4 /
+lock_api 0.4.13 lock and guard dereference. It is an **unapplied proposal**,
+not installed TCB or inventory proof. The guard carries an opaque origin
+and a borrow-scoped data observation; there is no mutex contents View or
+frame across release, reacquisition, or mutation.
+
+The primitive origin/borrow connection verifies. Focused controls reject
+cross-mutex correspondence, persistence across release and intervening
+mutation, stale observations after mutable access, and illegal guard-borrow
+lifetimes. Native DerefMut already has an empty generic vstd contract: it
+admits mutable access but forgets the guard model, rather than preserving
+its contents or origin. No additional mutable contract is proposed.
+
+On the isolated, source-matched production annotation overlay, the candidate
+eliminates all four mutex-specific admission errors. HashMap/RandomState and
+StateRequest/SensitivityLevel still block VCs. Arc<str> name conversion,
+ordered inventory enumeration, registry ownership through TOP, loaded
+representation, payload decoding, and TOP correctness remain unproved.
+Existing BTreeMap values semantics need no new trusted iterator interface.
+
+Exact generic/lifetime matching and an empty external RawMutex trait
+declaration are necessary with trait-conflict checking enabled. Safe
+external_fn_specification wrappers avoid assume_specification's generated
+unsafe code under state_unit's unchanged `forbid(unsafe_code)`.
+The research directory records the exact candidate, controlled failures,
+production comparison, and independent proposed patches. No live source,
+frozen input, accepted proof, or temporary marker changed; matching full
+verification and drift evidence is reused. Inventory proof must remain
+blocked on experimental trust until the boundary decision is accepted.
+
+# Destination inventory observation: native interface frontier
+
+`research/destination-inventory-observation/README.md` records a diagnostic,
+not a production observation proof. On the unchanged real
+`StateUnits::inventory` expression, native datatype/function annotations
+reach unsupported `lock_api::Mutex`, `MutexGuard`, `Mutex::lock`, and
+`parking_lot::RawMutex`. Transparent `Inner` also exposes unsupported
+standard HashMap/RandomState types; `Unit` exposes still-unadmitted
+project-owned `StateRequest` and `inspect::SensitivityLevel`.
+The native function-focused run fails before verification conditions
+(exit 101, eight frontend errors, 5.058 seconds). The exact reversible
+annotation overlay and minimal lock probe are retained; production
+annotations were restored to intake.
+
+A separate exact `Arc<str>::to_string()` probe cannot prove String-content
+equality with the pinned vstd contract, whereas the `str` receiver control
+verifies. This is a missing Arc Display/ToString refinement, not evidence
+that name conversion is wrong. The existing BTreeMap `values` contract
+already supplies an increasing, duplicate-free sequence covering the map
+domain; a new trusted iterator contract is not justified by these errors.
+
+No snapshot observer contract, guard-content oracle, invariant, identity
+definition, or new trust was installed. No valid frozen-boundary proposal
+is claimed: a source-bound external guard/borrow interface still needs
+design or native dependency proof before proposing its exact trust change.
+The ordered-name observation, its accepted component-identity image, and
+the distinct TOP ownership/frame obligation all remain unproved.
+The name-lookup map's consistency is unnecessary for enumeration itself.
+
+One fresh full production selection passed (1949 verified, 0 errors,
+79.103 seconds); spec_drift and exec_drift passed; boundary remained
+INCOMPLETE with seven scoped temporary locations and no permanent
+violations. These results apply to the exactly restored production source.
+All intake temporary and out-of-scope unsanctioned debt remains explicit;
+the accepted request-time and saved-inventory proofs are unchanged.
+
+# Destination inventory preservation: unresolved bindings
+
+The diagnostic in `restore-inventory-preservation/` concerns the actual
+`InitializedVm::load -> LoadedVm::restore_snapshot_state` interval, not an
+arbitrary `StateUnits` client. No production proof or executable edit is
+planned. Before any new runtime experiment, the unresolved facts are:
+
+- Does every registration on the actual construction path retain its sole
+  removal handle in the borrowed VM, or permanently detach that handle?
+  Construction of chipset devices, remote devices, VMBus relays, and units
+  without saved blobs must be included, not inferred from payload presence.
+- Can a separately polled restore/advance callback own and destroy another
+  registration handle, even though `LoadedVm` itself is exclusively borrowed?
+  `StateUnits::run_op` releases the registry lock across awaits and suppresses
+  a receive failure if the unit has since been removed. Its signature alone
+  does not supply a registry frame.
+- Does construction finish before TOP, with VM-control removal paths not yet
+  polled, and do the final VP/backend operations preserve the same owners?
+- Does a remote TPM failure remove the local registration, or merely affect
+  the component behind it? The accepted retained-callback evidence must not
+  be reinterpreted as disappearance of a still-configured component.
+- How can the later loaded-state View obtain a construction-owned registry
+  frame? Neither a set-encoding lemma nor successful nonempty validation
+  proves preservation. Empty inventory skips validation and decodes to empty;
+  the frozen precondition, not invented payload coverage, controls that case.
+
+These are source-analysis obligations, not assumed invariants. The maintained
+call-structure command currently reports missing `.verus_agent/proof_state.json`;
+the existing LSP caller report and actual call sites remain connection
+evidence. Accepted saved-inventory and request-time proofs are untouched.
+
+## Destination inventory diagnostic result
+
+The current source supports the ownership/frame condition, but it is not
+Verus-proved. Every registration in the actual load-created registry has its
+removal handle retained in the local `LoadedVm`: vmtime, input, partition,
+both configured VMBus servers, configured VMBus channels, and the entire
+`ChipsetDevices` bundle. That bundle includes the root chipset handle,
+**individually registered** static chipset-device units, and `lines/...`
+units. In particular, static devices are not merely hidden beneath a single
+`"chipset"` registry entry. The per-device finalizer registers every device
+name even when saving its blob is disabled.
+
+`UnitBuilder::spawn` retains the handle outside the spawned future. Concrete
+callbacks have their device/server/partition and request endpoints, not this
+registry's removal handles. Registration finishes before TOP; the VM-control
+loop that can add/remove owners only runs after `load` returns. Registry
+transition operations mutate state, not membership. Their unlocked awaits
+and removed-unit error suppression would invalidate a *generic* unconditional
+frame, but no independent owner needed for that countertrace is available
+on this actual TOP path. No new generic handle-drop experiment was run.
+
+Complete inventory includes units returning no saved blob. Empty saved
+inventory still skips validation; with the proposed binding the actual
+nonempty construction cannot satisfy the frozen empty-equality precondition.
+The accepted remote-TPM stale-clock success does not remove the local proxy
+registration, and does not justify excluding the still-configured TPM.
+Registry membership and successful clock synchronization are different facts.
+
+`restore-inventory-preservation/README.md` records the registration/owner
+closure, actual mutation and callback sites, caller ordering, generic-API
+countertrace limits, and the next proof obligation. The four prescribed
+checks ran once on unchanged proof/build inputs: full `make_verify` passed
+(1949 verified, 0 errors, 73.323 seconds), `spec_drift` and `exec_drift`
+passed, and the scoped `boundary` scan reported seven existing temporary locations
+(exit 3, no permanent violations or assumptions). No marker was changed and
+no frozen change was requested.
+
+The next obligation is to prove registry name/ID consistency and the
+construction-owned registration/removal-authority frame through actual TOP
+callbacks and awaits, then bind `loaded_vm_representation` to those names.
+Inventory preservation, that representation bridge, and TOP completion
+remain unproved; successful validation alone supplies none of these proofs.
+
+# Complete saved-component inventory binding
+
+The production `SavedState.inventory` is now a native transparent field.
+`worker::saved_state_proof::saved_inventory_ids` maps that actual vector's
+String Views to a finite set using a defined, terminating Unicode-name
+encoding. Its native identity lemma proves equality in both directions:
+equal names share an identity and distinct names cannot collide. Index
+membership, empty input, insertion, repeated-name idempotence, and distinct
+names have separate native proofs. No inventory fact comes from `units`;
+the proof applies even when there are no mutable blobs.
+
+The TOP-referenced `decoded_restore_request_view` uses the defined
+`decoded_saved_state_view`, whose complete inventory is
+`saved_component_inventory`. Arbitrary ComponentId membership is equivalent
+to an actual inventory entry's encoded name; named membership is equivalent
+to occurrence of that exact String View. The frozen restore projection and
+success predicate preserve this same set. This is a representation/projection
+result, not proof that the real async body establishes success.
+
+An empty input vector maps to the empty set. `LoadedVm::restore` skips
+validation in that case; no proof claims it validates or substitutes
+destination names. The frozen compatibility precondition therefore requires
+an empty *abstract* initial inventory for such a request. Relating that
+precondition to the real destination registry is still an obligation.
+Nonempty runtime validation compares the complete ordered name vector,
+whereas the frozen set abstraction deliberately forgets ordering and
+multiplicity. Repeated names in the input are represented, not certified
+as a valid runtime registry.
+
+The remaining payload bridge is `decoded_saved_payload_view`, over only
+the real `Vec<SavedStateUnit>`. Its `SavedPayloadView` has no inventory field.
+`SavedStateUnit` remains temporarily opaque for named protobuf payload
+interpretation; admitting `SavedState` does not prove those payloads.
+Partition/VP/component/saved-time decoding, payload-key correspondence with
+the identity encoding, loaded/destination registry representation and
+preservation, the load-wrapper decoder, TOP body correctness, and exact-time
+history attachment remain unproved. The accepted request-time definition
+and its two lemmas are retained, without weakening their guarantees.
+
+Primary sources: `openvmm_defs/src/worker.rs` and `worker.proof.rs`;
+`openvmm_core/src/worker/dispatch.rs`, `dispatch.proof.rs`, and frozen
+`dispatch.spec.rs`; `state_unit/src/lib.rs` (`inventory`, `validate_inventory`,
+`save`, and `restore`). The existing source-matched
+`.verus_agent/cache/restore-time-callers.md` identifies TOP's call to the real
+`LoadedVm::restore`; current source still contains it. The maintained
+call-graph reader has no `proof_state.json` snapshot, so it supplies no new
+graph evidence.
+
+Construction diagnostics live under `bind-saved-component-inventory/`.
+An attempted deeper admission of `SavedStateBlob` stopped at its generated
+Clone constructor accessing an opaque datatype; that experimental annotation
+was removed, with no executable rewrite or new external interface. The
+selected inventory proof does not need blob fields. Predicate `Set::new`
+in the pinned vstd returns an Option, so the final construction uses the
+standard finite sequence image and `to_set`, not an assumed finiteness fact.
+Initial sequence proofs needed explicit extensionality, and a cross-crate
+attempt to reveal a closed definition was replaced by a proved owner-side
+empty-inventory lemma. None of these diagnostics demonstrates a general
+Verus limitation or requires a frozen change.
+
 # Error trait freeze request: unresolved binding facts
 
 The minimal isolated production comparison is

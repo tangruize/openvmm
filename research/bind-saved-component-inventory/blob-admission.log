@@ -1,0 +1,35 @@
+Fresh verification: clearing 1 selected package(s) in /home/ruize/openvmm-restore-v1/target/verus-partial
+warning: version qualifier in `-p path+file:///home/ruize/openvmm-restore-v1/openvmm/openvmm_defs#0.0.0` is ignored, cleaning all versions of `openvmm_defs` found
+warning: url qualifier in `-p path+file:///home/ruize/openvmm-restore-v1/openvmm/openvmm_defs#0.0.0` ignored, cleaning all versions of `openvmm_defs` found
+     Removed 99 files, 194.1MiB total
+    Checking resource_dll_parser v0.0.0 (/home/ruize/openvmm-restore-v1/support/resource_dll_parser)
+    Checking pal_async v0.0.0 (/home/ruize/openvmm-restore-v1/support/pal/pal_async)
+    Checking mesh_worker v0.0.0 (/home/ruize/openvmm-restore-v1/support/mesh/mesh_worker)
+    Checking vmgs_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmgs/vmgs_resources)
+    Checking hypervisor_resources v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/hypervisor_resources)
+    Checking net_backend_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/net/net_backend_resources)
+    Checking floppy_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/storage/floppy_resources)
+    Checking openvmm_pcat_locator v0.0.0 (/home/ruize/openvmm-restore-v1/openvmm/openvmm_pcat_locator)
+    Checking get_resources v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/get/get_resources)
+    Checking vmcore v0.0.0 (/home/ruize/openvmm-restore-v1/vm/vmcore)
+    Checking serial_core v0.0.0 (/home/ruize/openvmm-restore-v1/vm/devices/serial/serial_core)
+error: disallowed: constructor for an opaque datatype
+   --> vm/vmcore/src/save_restore.rs:118:10
+    |
+118 | #[derive(Clone, Debug, Protobuf)]
+    |          ^^^^^ this constructor is disallowed
+...
+122 | pub struct SavedStateBlob(ProtobufAny);
+    | --------------------------------------- Verus treats this datatype as 'opaque' because it is marked 'external_body'
+
+warning: Verus does not (yet) support autoderive Clone impl when the clone is not a copy; continuing, but without adding a specification for the derived Clone impl
+   --> vm/vmcore/src/save_restore.rs:118:10
+    |
+118 | #[derive(Clone, Debug, Protobuf)]
+    |          ^^^^^
+    |
+    = help: to suppress this warning, use `#[verifier::allow(autoderive_clone_without_spec)]` on the surrounding function, datatype, or module or `#![verifier::allow(autoderive_clone_without_spec)]` in the module or crate
+
+warning: `vmcore` (lib) generated 1 warning
+error: could not compile `vmcore` (lib) due to 1 previous error; 1 warning emitted
+Fresh verification summary: 0 verified, 0 errors; exit 101; preparation 0.898s; verification 2.784s; total 3.683s

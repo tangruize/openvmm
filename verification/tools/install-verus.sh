@@ -16,6 +16,19 @@ fi
 
 "$repo_root/verification/tools/install-verus-source.sh"
 
+if ! solver="$("$repo_root/verification/tools/find-z3.sh")"; then
+    if [[ -n "${VERUS_Z3_PATH:-}" ]]; then
+        exit 1
+    fi
+    (
+        cd "$source_root/source"
+        ./tools/get-z3.sh
+    )
+    solver="$("$repo_root/verification/tools/find-z3.sh")"
+fi
+export VERUS_Z3_PATH="$solver"
+echo "Using $("$VERUS_Z3_PATH" --version) at $VERUS_Z3_PATH"
+
 if [[ -x "$install_root/verus" ]]; then
     VERUS="$install_root/verus" "$repo_root/verification/tools/find-verus.sh" >/dev/null
     echo "Verus $version is already installed"
@@ -24,7 +37,6 @@ fi
 
 (
     cd "$source_root/source"
-    ./tools/get-z3.sh
     cargo build --release
     cargo run --release -p cargo-verus -- build --release --manifest-path vstd/Cargo.toml
 )

@@ -1,0 +1,53 @@
+command: ['/home/ruize/openvmm-restore-v1/toolchain/verus-src/source/target-verus/release/verus', '--edition=2024', '--crate-type=lib', '--crate-name', 'state_unit', '--num-threads', '1', '--triggers-mode', 'silent', '--multiple-errors', '20', '--verify-root', '--verify-function', 'StateUnits::inventory', '-L', 'dependency=/home/ruize/openvmm-restore-v1/target/debug/deps', '--extern', 'inspect=/home/ruize/openvmm-restore-v1/target/debug/deps/libinspect-d2d8b501d56fbbf9.rmeta', '--extern', 'futures=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures-5a1ca119b27a8d6d.rmeta', '--extern', 'mesh=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh-5b91b6b795ed3496.rmeta', '--extern', 'parking_lot=/home/ruize/openvmm-restore-v1/target/debug/deps/libparking_lot-3957aa1b9559146d.rmeta', '--extern', 'thiserror=/home/ruize/openvmm-restore-v1/target/debug/deps/libthiserror-bb5470d7886e4e69.rmeta', '--extern', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.rmeta', '--extern', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.rmeta', '--extern', 'anyhow=/home/ruize/openvmm-restore-v1/target/debug/deps/libanyhow-1a1dcdb279f90ff5.rmeta', '--extern', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.rmeta', '--extern', 'tracing=/home/ruize/openvmm-restore-v1/target/debug/deps/libtracing-669be71d75ac272a.rmeta', '--extern', 'event_listener=/home/ruize/openvmm-restore-v1/target/debug/deps/libevent_listener-1c5d4f3f64b7833e.rmeta', '--extern', 'futures_concurrency=/home/ruize/openvmm-restore-v1/target/debug/deps/libfutures_concurrency-b7017fe683035931.rmeta', '--import', 'vstd=/home/ruize/openvmm-restore-v1/target/debug/deps/libvstd-0b932679964ce3b0.vir', '--import', 'pal_async=/home/ruize/openvmm-restore-v1/target/debug/deps/libpal_async-fb6e8a235c24198c.vir', '--import', 'mesh_protobuf=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_protobuf-17bb6d5e2affded7.vir', '--import', 'vmcore=/home/ruize/openvmm-restore-v1/target/debug/deps/libvmcore-8855c710f4131ca5.vir', '--import', 'mesh_channel=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel-e91889d5a760f2d0.vir', '--import', 'mesh_channel_core=/home/ruize/openvmm-restore-v1/target/debug/deps/libmesh_channel_core-44778b48af5376ad.vir', '/home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs']
+error: declaration of an `unsafe` function
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/mutex_observation.spec.rs:41:1
+   |
+41 | / pub assume_specification<'a, R: lock_api::RawMutex, T: ?Sized>[lock_api::Mutex::<R, T>::lock](
+42 | |     mutex: &'a lock_api::Mutex<R, T>,
+43 | | ) -> (guard: lock_api::MutexGuard<'a, R, T>)
+44 | |     ensures guard_origin(&guard) == mutex;
+   | |__________________________________________^
+   |
+note: the lint level is defined here
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/lib.rs:31:11
+   |
+31 | #![forbid(unsafe_code)]
+   |           ^^^^^^^^^^^
+
+error: usage of an `unsafe` block
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/mutex_observation.spec.rs:41:1
+   |
+41 | / pub assume_specification<'a, R: lock_api::RawMutex, T: ?Sized>[lock_api::Mutex::<R, T>::lock](
+42 | |     mutex: &'a lock_api::Mutex<R, T>,
+43 | | ) -> (guard: lock_api::MutexGuard<'a, R, T>)
+44 | |     ensures guard_origin(&guard) == mutex;
+   | |__________________________________________^
+
+error: declaration of an `unsafe` function
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/mutex_observation.spec.rs:46:1
+   |
+46 | / #[verifier::when_used_as_spec(guard_observation)]
+47 | | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+48 | |     <lock_api::MutexGuard<'a, R, T> as Deref>::deref
+49 | | ](
+50 | |     guard: &'b lock_api::MutexGuard<'a, R, T>,
+51 | | ) -> (value: &'b T)
+52 | |     ensures value == guard_observation(guard);
+   | |______________________________________________^
+
+error: usage of an `unsafe` block
+  --> /home/ruize/openvmm-restore-v1/research/mutex-observation-interface/production-candidate/vmm_core/state_unit/src/mutex_observation.spec.rs:46:1
+   |
+46 | / #[verifier::when_used_as_spec(guard_observation)]
+47 | | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+48 | |     <lock_api::MutexGuard<'a, R, T> as Deref>::deref
+49 | | ](
+50 | |     guard: &'b lock_api::MutexGuard<'a, R, T>,
+51 | | ) -> (value: &'b T)
+52 | |     ensures value == guard_observation(guard);
+   | |______________________________________________^
+
+error: aborting due to 4 previous errors
+
+
+exit=1; elapsed=0.910s

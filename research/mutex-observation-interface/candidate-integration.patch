@@ -1,0 +1,14 @@
+diff --git a/vmm_core/state_unit/src/lib.rs b/vmm_core/state_unit/src/lib.rs
+--- a/vmm_core/state_unit/src/lib.rs
++++ b/vmm_core/state_unit/src/lib.rs
+@@ -68,6 +68,10 @@
+ use vmcore::save_restore::SaveError;
+ use vmcore::save_restore::SavedStateBlob;
+ use vstd::prelude::*;
++#[cfg(verus_keep_ghost)]
++#[path = "mutex_observation.spec.rs"]
++mod mutex_observation;
++
+ 
+ /// A state change request.
+ #[derive(Debug, MeshPayload)]

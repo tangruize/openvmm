@@ -1,0 +1,37 @@
+error: expected generics to match: 
+        expected T
+        found parking_lot::RawMutex, T
+  --> research/mutex-observation-interface/candidate.spec.rs:18:1
+   |
+18 | pub struct ExMutex<T>(Mutex<T>);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: expected generics to match: 
+        expected 'a, T
+        found 'a, parking_lot::RawMutex, T
+  --> research/mutex-observation-interface/candidate.spec.rs:23:1
+   |
+23 | pub struct ExMutexGuard<'a, T>(MutexGuard<'a, T>);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: assume_specification requires function type signature to match `lock_api::mutex::impl&%4::lock` exactly 
+             assume_specification provided: `for<T> for<'a> (&'a parking_lot::lock_api::Mutex<parking_lot::RawMutex, T>) -> parking_lot::lock_api::MutexGuard<'a, parking_lot::RawMutex, T>`
+             expected:                      `for<R, T> for<'_> (&parking_lot::lock_api::Mutex<R, T>) -> parking_lot::lock_api::MutexGuard<'_, R, T>`
+  --> research/mutex-observation-interface/candidate.spec.rs:29:1
+   |
+29 | / pub assume_specification<'a, T>[Mutex::<T>::lock](mutex: &'a Mutex<T>)
+30 | |     -> (guard: MutexGuard<'a, T>)
+   | |________________________________^
+
+error: assume_specification requires function type signature to match `lock_api::mutex::impl&%13::deref` exactly 
+             assume_specification provided: `for<T> for<'a, 'b> (&'b parking_lot::lock_api::MutexGuard<'a, parking_lot::RawMutex, T>) -> &'b T`
+             expected:                      `for<'a, R, T> for<'_> (&parking_lot::lock_api::MutexGuard<'a, R, T>) -> &T`
+  --> research/mutex-observation-interface/candidate.spec.rs:34:1
+   |
+34 | / pub assume_specification<'a, 'b, T>[<MutexGuard<'a, T> as Deref>::deref](
+35 | |     guard: &'b MutexGuard<'a, T>,
+36 | | ) -> (value: &'b T)
+   | |__________________^
+
+error: aborting due to 4 previous errors
+

@@ -1,0 +1,115 @@
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+    --> research/mutex-observation-interface/mutation-control.spec.rs:15:9
+     |
+   9 | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+     |                                                              - this type parameter needs to be `Sized`
+...
+  15 |         *value == *guard_observation(old(guard)),
+     |         ^^^^^^----------------------------------
+     |         |
+     |         doesn't have a size known at compile-time
+     |         required by a bound introduced by this call
+     |
+note: required by an implicit `Sized` bound in `vstd::prelude::spec_eq`
+    --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:1249:16
+     |
+1249 | pub fn spec_eq<Lhs: SpecEq<Rhs>, Rhs>(_lhs: Lhs, _rhs: Rhs) -> bool {
+     |                ^^^ required by the implicit `Sized` requirement on this type parameter in `spec_eq`
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+     |
+   9 - pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+   9 + pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: 'a>[
+     |
+help: references are always `Sized`, even if they point to unsized data; consider not dereferencing the expression
+     |
+  15 -         *value == *guard_observation(old(guard)),
+  15 +         value == *guard_observation(old(guard)),
+     |
+
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+    --> research/mutex-observation-interface/mutation-control.spec.rs:15:19
+     |
+   9 | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+     |                                                              - this type parameter needs to be `Sized`
+...
+  15 |         *value == *guard_observation(old(guard)),
+     |         ----------^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |         |         |
+     |         |         doesn't have a size known at compile-time
+     |         required by a bound introduced by this call
+     |
+note: required by an implicit `Sized` bound in `vstd::prelude::spec_eq`
+    --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:1249:34
+     |
+1249 | pub fn spec_eq<Lhs: SpecEq<Rhs>, Rhs>(_lhs: Lhs, _rhs: Rhs) -> bool {
+     |                                  ^^^ required by the implicit `Sized` requirement on this type parameter in `spec_eq`
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+     |
+   9 - pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+   9 + pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: 'a>[
+     |
+help: references are always `Sized`, even if they point to unsized data; consider not dereferencing the expression
+     |
+  15 -         *value == *guard_observation(old(guard)),
+  15 +         *value == guard_observation(old(guard)),
+     |
+
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+    --> research/mutex-observation-interface/mutation-control.spec.rs:16:9
+     |
+   9 | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+     |                                                              - this type parameter needs to be `Sized`
+...
+  16 |         *guard_observation(final(guard)) == *final(value),
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------
+     |         |
+     |         doesn't have a size known at compile-time
+     |         required by a bound introduced by this call
+     |
+note: required by an implicit `Sized` bound in `vstd::prelude::spec_eq`
+    --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:1249:16
+     |
+1249 | pub fn spec_eq<Lhs: SpecEq<Rhs>, Rhs>(_lhs: Lhs, _rhs: Rhs) -> bool {
+     |                ^^^ required by the implicit `Sized` requirement on this type parameter in `spec_eq`
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+     |
+   9 - pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+   9 + pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: 'a>[
+     |
+help: references are always `Sized`, even if they point to unsized data; consider not dereferencing the expression
+     |
+  16 -         *guard_observation(final(guard)) == *final(value),
+  16 +         guard_observation(final(guard)) == *final(value),
+     |
+
+error[E0277]: the size for values of type `T` cannot be known at compilation time
+    --> research/mutex-observation-interface/mutation-control.spec.rs:16:45
+     |
+   9 | pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+     |                                                              - this type parameter needs to be `Sized`
+...
+  16 |         *guard_observation(final(guard)) == *final(value),
+     |         ------------------------------------^^^^^^^^^^^^^
+     |         |                                   |
+     |         |                                   doesn't have a size known at compile-time
+     |         required by a bound introduced by this call
+     |
+note: required by an implicit `Sized` bound in `vstd::prelude::spec_eq`
+    --> /home/ruize/openvmm-restore-v1/toolchain/verus-src/source/builtin/src/lib.rs:1249:34
+     |
+1249 | pub fn spec_eq<Lhs: SpecEq<Rhs>, Rhs>(_lhs: Lhs, _rhs: Rhs) -> bool {
+     |                                  ^^^ required by the implicit `Sized` requirement on this type parameter in `spec_eq`
+help: consider removing the `?Sized` bound to make the type parameter `Sized`
+     |
+   9 - pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: ?Sized + 'a>[
+   9 + pub assume_specification<'a, 'b, R: lock_api::RawMutex + 'a, T: 'a>[
+     |
+help: references are always `Sized`, even if they point to unsized data; consider not dereferencing the expression
+     |
+  16 -         *guard_observation(final(guard)) == *final(value),
+  16 +         *guard_observation(final(guard)) == final(value),
+     |
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
