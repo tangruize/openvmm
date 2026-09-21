@@ -52,6 +52,10 @@ use thiserror::Error;
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
+#[path = "vmtime_duration/mod.rs"]
+pub mod duration_observation;
+
+#[cfg(verus_keep_ghost)]
 include!("vmtime.proof.rs");
 
 /// Roughly analogous to [`std::time::Instant`], but for VM time.
@@ -74,14 +78,24 @@ impl VmTime {
     pub const fn as_100ns(&self) -> u64 {
         self.0
     }
+    /// Adds `d` to the time.
+    #[verus_spec(result =>
+        ensures result@ == ((self@ as nat
+            + duration_observation::elapsed_nanoseconds(&d) / 100)
+            % 0x1_0000_0000_0000_0000) as u64,
+    )]
+    pub fn wrapping_add(self, d: Duration) -> Self {
+        proof! {
+            lemma_wrapping_add_100ns(
+                self.0,
+                duration_observation::elapsed_nanoseconds(&d) as u128,
+            );
+        }
+        Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
+    }
 }
 
 impl VmTime {
-    /// Adds `d` to the time.
-    pub fn wrapping_add(self, d: Duration) -> Self {
-        Self((self.0 as u128).wrapping_add(d.as_nanos() / 100) as u64)
-    }
-
     /// Returns whether `self` is before `t`.
     ///
     /// Note that this is a relative comparison in the 64-bit space and is not
