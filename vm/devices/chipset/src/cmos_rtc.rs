@@ -1253,6 +1253,15 @@ mod save_restore {
                 ));
 
             self.update_timers();
+            if transaction_read_mask.is_some() {
+                // Timer setup samples fresh UTC, but must not consume the saved latch.
+                self.state = RtcState {
+                    addr,
+                    cmos: CmosData(cmos),
+                    time_valid,
+                    transaction_read_mask,
+                };
+            }
             self.update_interrupt_line_level();
 
             Ok(())
