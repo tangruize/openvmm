@@ -1253,6 +1253,15 @@ mod save_restore {
                 ));
 
             self.update_timers();
+            if transaction_read_mask.is_some() {
+                // Timer setup samples fresh UTC, but must not consume the saved latch.
+                self.state = RtcState {
+                    addr,
+                    cmos: CmosData(cmos),
+                    time_valid,
+                    transaction_read_mask,
+                };
+            }
             self.update_interrupt_line_level();
 
             Ok(())
@@ -1384,6 +1393,71 @@ mod tests {
         rtc.io_write(RtcIoPort::ADDR.0, &temp).unwrap();
         rtc.io_read(RtcIoPort::DATA.0, &mut temp).unwrap();
         temp[0]
+    }
+
+    #[test]
+    fn proposed_restore_rearm_preserves_sample_and_fresh_alarm_deadline() {
+        use vmcore::save_restore::{ProtobufSaveRestore, SavedStateBlob};
+
+        for saved_valid in [true, false] {
+            for sample_fails in [false, true] {
+                let (_pool, _keeper, clock, mut source) =
+                    new_test_rtc_with_mode(RtcMode::MicrovmV1);
+                set_utc(&mut source, "2024-12-31T23:59:59Z");
+                assert_eq!(get_cmos_data(&mut source, CmosReg::SECOND), 59);
+                clock.tick(Duration::from_secs(2));
+                let mut saved = SaveRestore::save(&mut source).unwrap();
+                saved.cmos[CmosReg::STATUS_B.0 as usize] |= 0x20;
+                saved.cmos[CmosReg::SECOND_ALARM.0 as usize] = 10;
+                saved.cmos[CmosReg::MINUTE_ALARM.0 as usize] = 0;
+                saved.cmos[CmosReg::HOUR_ALARM.0 as usize] = 0;
+                if !saved_valid {
+                    for reg in [0, 2, 4, 6, 7, 8, 9, 0x32] {
+                        saved.cmos[reg] = 0;
+                    }
+                    saved.time_valid = Some(false);
+                }
+                let saved_addr = saved.addr;
+                let saved_cmos = saved.cmos;
+                let saved_mask = saved.transaction_read_mask;
+                assert_eq!(saved_mask, Some(1));
+
+                let (_destination_pool, _destination_keeper, _, mut destination) =
+                    new_test_rtc_with_mode(RtcMode::MicrovmV1);
+                let (clock, control) = FallibleTestClock::new(
+                    LocalClockTime::from_millis_since_unix_epoch(0),
+                );
+                destination.real_time_source = Box::new(clock);
+                if sample_fails {
+                    control.fail_once();
+                }
+                assert_eq!(destination.vmtime_alarm.get_timeout(), None);
+                ProtobufSaveRestore::restore(&mut destination, SavedStateBlob::new(saved))
+                    .unwrap();
+
+                assert_eq!(destination.state.addr, saved_addr);
+                assert_eq!(destination.state.cmos.0, saved_cmos);
+                assert_eq!(destination.state.time_valid, saved_valid);
+                assert_eq!(destination.state.transaction_read_mask, saved_mask);
+                assert_eq!(destination.vmtime_alarm.now(), VmTime::from_100ns(0));
+                let delay = if sample_fails { 10 } else { 9 };
+                assert_eq!(
+                    destination.vmtime_alarm.get_timeout(),
+                    Some(VmTime::from_100ns(delay * 10_000_000)),
+                );
+                assert_eq!(
+                    get_cmos_data(&mut destination, CmosReg::STATUS_D),
+                    if saved_valid { 0x80 } else { 0 },
+                );
+                assert_eq!(
+                    get_cmos_data(&mut destination, CmosReg::YEAR),
+                    if saved_valid { 24 } else { 0 },
+                );
+                assert_eq!(destination.state.transaction_read_mask, Some(0x41));
+                assert_eq!(get_cmos_data(&mut destination, CmosReg::SECOND), 1);
+                assert_eq!(get_cmos_data(&mut destination, CmosReg::YEAR), 25);
+            }
+        }
     }
 
     fn set_cmos_data(rtc: &mut Rtc, addr: CmosReg, data: u8) {
