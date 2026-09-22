@@ -1246,6 +1246,15 @@ mod save_restore {
                 }
             }
 
+            let status_c = StatusRegC::from(restored_state.cmos[CmosReg::STATUS_C]);
+            if status_c.irq_combined()
+                != (status_c.irq_update() || status_c.irq_periodic() || status_c.irq_alarm())
+            {
+                return Err(RestoreError::InvalidSavedState(anyhow::anyhow!(
+                    "inconsistent RTC status C interrupt flags"
+                )));
+            }
+
             self.state = restored_state;
             self.real_time_source
                 .set_time(LocalClockTime::from_millis_since_unix_epoch(
