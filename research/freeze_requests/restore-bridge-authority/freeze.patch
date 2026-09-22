@@ -1,0 +1,28 @@
+diff --git a/.verus_agent/scope_manifest.json b/.verus_agent/scope_manifest.json
+--- a/.verus_agent/scope_manifest.json
++++ b/.verus_agent/scope_manifest.json
+@@ -7,6 +7,10 @@
+     {
+       "file": "openvmm/openvmm_core/src/worker/dispatch.rs",
+       "symbol": "LoadedVm::restore_snapshot_state"
++    },
++    {
++      "file": "openvmm/openvmm_core/src/worker/dispatch.rs",
++      "symbol": "InitializedVm::load"
+     }
+   ],
+   "src_roots": [
+diff --git a/.verus_agent/tcb_manifest.json b/.verus_agent/tcb_manifest.json
+--- a/.verus_agent/tcb_manifest.json
++++ b/.verus_agent/tcb_manifest.json
+@@ -1,10 +1,5 @@
+ {
+   "sanctioned": [
+-    {
+-      "kind": "symbol",
+-      "value": "InitializedVm::load",
+-      "marker": "external_body"
+-    },
+     {
+       "kind": "symbol",
+       "value": "ExRestoreReadyFile",
