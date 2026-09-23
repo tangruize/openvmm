@@ -1,0 +1,9 @@
+{
+  "archived_pipelines": {},
+  "argus_state_root": "/home/ruize/.argus-skill-snapshot-save-v1/projects/68a765f46cca",
+  "pipeline_state": "/home/ruize/.argus-skill-snapshot-save-v1/projects/68a765f46cca/.argus/PIPELINE_STATE.json",
+  "schema": "argus-verus-limitation/activation-v1",
+  "stage": "limitations",
+  "target_pipeline_state": "/home/ruize/openvmm-snapshot-save-v1/.argus/PIPELINE_STATE.json",
+  "vertical": "verus_limitation"
+}

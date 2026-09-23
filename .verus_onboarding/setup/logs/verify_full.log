@@ -1,0 +1,28 @@
+Verification scope: command=verify package=openvmm_core module=all (lifetime and trait-conflict checking enabled)
+Verification solver: /home/ruize/openvmm-snapshot-save-v1/toolchain/verus-src/source/z3 (Z3 version 4.16.0 - 64 bit; version checking enabled)
+Fresh verification: clearing 2 selected package(s) in /home/ruize/openvmm-snapshot-save-v1/target
+warning: version qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core#0.0.0` is ignored, cleaning all versions of `openvmm_core` found
+warning: url qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core#0.0.0` ignored, cleaning all versions of `openvmm_core` found
+warning: version qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/toolchain/verus-src/source/vstd#0.0.0-2026-09-16-0054` is ignored, cleaning all versions of `vstd` found
+warning: url qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/toolchain/verus-src/source/vstd#0.0.0-2026-09-16-0054` ignored, cleaning all versions of `vstd` found
+     Removed 106 files, 188.0MiB total
+   Compiling vstd v0.0.0-2026-09-16-0054 (/home/ruize/openvmm-snapshot-save-v1/toolchain/verus-src/source/vstd)
+   Compiling openvmm_core v0.0.0 (/home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core)
+warning: fields `storage` and `ptr` are never read
+    --> toolchain/verus-src/source/builtin/src/lib.rs:2565:5
+     |
+2564 | pub struct NativeMutLoan<'a, T> {
+     |            ------------- fields in this struct
+2565 |     storage: &'a mut core::mem::MaybeUninit<T>,
+     |     ^^^^^^^
+2566 |     ptr: *mut T,
+     |     ^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: `verus_builtin` (lib) generated 1 warning
+verification results:: 1907 verified, 0 errors
+verification results:: 0 verified, 0 errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 16s
+Fresh verification summary: 1907 verified, 0 errors; exit 0; preparation 1.370s; verification 77.089s; total 78.459s

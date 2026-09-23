@@ -1,0 +1,11 @@
+{
+  "actionable_categories": [],
+  "categories": [],
+  "classified_findings": 0,
+  "evidence": [
+    ".verus_limitation/runs/20260923T022852844087Z/probe.json: full-scope fixed point, zero findings, successful restoration"
+  ],
+  "run_id": "20260923T022852844087Z",
+  "schema": "argus-verus-limitation/final-v1",
+  "scope_audited": true
+}

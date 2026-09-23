@@ -1,0 +1,9 @@
+{
+  "final_report_sha256": "6ddfab8ed450f22ee5430a294eebcdb85de256548b13e5162ec4677a4e08adfc",
+  "finding_count": 0,
+  "issued_at": "2026-09-23T02:29:46.926388+00:00",
+  "required_model_count": 0,
+  "run_id": "20260923T022852844087Z",
+  "schema": "argus-verus/limitation-handoff-v1",
+  "source_commit": "1f94c06cbd42daefd2b4ac09135237afb261e638"
+}

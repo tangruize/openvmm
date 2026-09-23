@@ -1,0 +1,62 @@
+{
+  "build_inputs": [
+    ".cargo/config.toml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "Makefile",
+    "verification/tools/fresh_verification.py",
+    "verification/tools/verify.sh",
+    "verification/verus-version"
+  ],
+  "crate": "openvmm_core",
+  "dummy_probe": "/home/ruize/openvmm-snapshot-save-v1/.verus_limitation/tools/dummy_probe.py",
+  "dummy_probe_origin": {
+    "features": [
+      "cargo-verus-focus",
+      "fully-enumerated-fixed-point",
+      "non-function-declaration-peeling",
+      "inherent-associated-constant-overlay"
+    ],
+    "files": {
+      "dummy_probe.py": "95521338a1a3b88795fd540bae389096d47afd84c29bcb7afab3981d7773e626",
+      "dummy_probe_report.py": "c3c3aac49c013a3d3ad9fbf20dd91e39218874c7097340b60e1f252b5cb5402c",
+      "eb_diagnose.py": "1d49641ffe967e4acf2a446b760dfccfb971b008720298bce134f9caa2597ecf",
+      "inject_verus_verify.py": "33b26f2562ed4d0f6811f613d1f2b79b69cf9a68297918b51737a7e561ec1294",
+      "probe_limitations.py": "197c5e3e0c80c1119e73c7730f8af562ff7088befb35c3adce12db5aa41f51da",
+      "scan_catalog.py": "023ce13de56fbd3c4167e111cf8d14090417310d539d0bd3dc313c25785b5d2c",
+      "scan_stdlib_xref.py": "97a94344f9a7a021c47cf5ced9a7afc98ffb1b4c69251117b2226913234796ba",
+      "strip_external_body.py": "0b67ae75c71176bd25547bc7274b119dd4cb8e7ed8b2bec1a7ae84abf00d7572",
+      "tree_sitter_compat.py": "31b856391400ae9dc6f651f8b7ad4c4bc70240fd261adecacfc54ad9e9f81904"
+    },
+    "grammar": {
+      "path": "tree-sitter-verus/verus.so",
+      "platform": "linux-x86_64",
+      "sha256": "f11c758fe9934658c75d8a23cd39419c2fd666b0a05a6f7729408e16202c200a",
+      "source_commit": "8639c4e4196ce36dd8a40c57fbad6200735bd2d1"
+    },
+    "kind": "bundled",
+    "local_patches": [
+      "Add rustc-JSON-compatible optional span and child fields to text-mode VerusError records",
+      "Mark inherent associated constants in verification overlays"
+    ],
+    "schema": "argus-verus-limitation/bundled-probe-v1",
+    "sha256": "95521338a1a3b88795fd540bae389096d47afd84c29bcb7afab3981d7773e626",
+    "source_commit": "0f9825f9174fe4f471e208024ca616c3cfb71156",
+    "source_repository": "/home/ruize/verus-ai-exp/verus-ai-argus-virt-mm"
+  },
+  "dummy_probe_python": "/usr/bin/python3.12",
+  "environment": {
+    "RUSTUP_TOOLCHAIN": "1.95.0",
+    "VERUS_LANGUAGE_SO": "/home/ruize/openvmm-snapshot-save-v1/.verus_limitation/tree-sitter-verus/verus.so"
+  },
+  "layered_time_budget_seconds": 1800,
+  "max_layer_rounds": 20,
+  "probe_args": [],
+  "schema": "argus-verus-limitation/config-v2",
+  "scope_roots": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs"
+  ],
+  "verus_bin": "/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus"
+}

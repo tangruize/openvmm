@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs",
+      "reason": "seed-file:openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs"
+    },
+    {
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+      "reason": "seed-file:openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs"
+    },
+    {
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+      "reason": "seed-file:openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs"
+    }
+  ],
+  "schema": "argus-verus-limitation/scope-v1"
+}

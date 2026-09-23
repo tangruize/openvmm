@@ -1,0 +1,184 @@
+{
+  "schema": "argus-verus/assumption-ledger-v1",
+  "campaign_id": "openvmm-snapshot-save-v1",
+  "status": "proposed_for_review",
+  "proposal": ".verus_onboarding/specification/proposal.json",
+  "policy": "Source inspection supports the weak structural contracts, not a completed semantic proof. All assumptions below are temporary and undischargeable by merely verifying an external_body TOP. No assumption authorizes a runtime change or an enlarged proof campaign.",
+  "assumptions": [
+    {
+      "id": "A-REP",
+      "status": "temporary_unproved",
+      "kind": "representation_invariant",
+      "statement": "On a running TOP entry, StateUnits.running is true and all registered unit lifecycles are Running. Ghost running agrees with concrete fields; actual VP stopped status is represented separately.",
+      "basis": "The TOP checks only LoadedVm.running; quiesce_for_save asserts its own running flag and each unit phase. Boundary establishment can hold VPs stopped while LoadedVm.running remains true.",
+      "evidence_ids": ["E-TOP", "E-QUIESCE", "E-BOUNDARY", "E-BRIDGE"],
+      "used_by": ["T-CAPTURE", "B-QUIESCE", "V-VM", "P-STOP"],
+      "risk_if_false": "Lower assertions may panic, or a ghost stopped/running fact may describe neither the manager nor actual execution.",
+      "discharge": "Connect concrete lifecycle transitions in initialization, start, quiesce and failure handling to a non-vacuous representation invariant; demonstrate a real valid entry.",
+      "owner": "future_representation_proof"
+    },
+    {
+      "id": "A-BOUNDARY",
+      "status": "temporary_unproved",
+      "kind": "caller_and_environment",
+      "statement": "A valid running capture owns a live capability for actual post-I/O VP stoppage and host-input gating, tied to its existing stop guard and transaction token.",
+      "basis": "establish_snapshot_boundary performs input gating and obtains the stop guard before notification. The TOP validity scaffold checks only presence; the filter does not reject boundary-less QuiesceForSnapshot calls.",
+      "evidence_ids": ["E-BOUNDARY", "E-FILTER", "E-BRIDGE", "E-PARTITION"],
+      "used_by": ["T-CAPTURE", "V-VM", "P-STOP"],
+      "risk_if_false": "An apparently valid View can permit continued VP execution or input mutation, invalidating a same-cut capture despite a false lifecycle flag.",
+      "discharge": "Prove the selected caller path transfers a live boundary capability and that the supported backend/input gates implement its meaning. Do not infer this for every RPC.",
+      "owner": "future_caller_and_backend_composition"
+    },
+    {
+      "id": "A-REGISTRY",
+      "status": "temporary_unproved",
+      "kind": "ownership_frame",
+      "statement": "Registered unit names, identities and registration order are stable from entry through quiesce, save and the later inventory read.",
+      "basis": "The handler awaits serially and filters management mutations while a boundary is active, but UnitHandle removal uses shared interior mutability. The inspected lower operations tolerate removed units.",
+      "evidence_ids": ["E-DISPATCH", "E-FILTER", "E-HANDLE", "E-QUIESCE", "E-RUN-OP", "E-SAVE", "E-INVENTORY"],
+      "used_by": ["T-CAPTURE", "B-QUIESCE", "B-SAVE", "V-UNITS", "P-INVENTORY"],
+      "risk_if_false": "Payloads and inventory can refer to different registries, and success can skip a removed unit. A mutable borrow is not a sufficient proof.",
+      "discharge": "Account for all handles that can remove units during the call and establish a call-scoped registry frame/ownership capability. No new lock or runtime guard is part of this bootstrap.",
+      "owner": "future_state_unit_ownership_proof"
+    },
+    {
+      "id": "A-QUIESCE",
+      "status": "temporary_unproved",
+      "kind": "lower_semantics",
+      "statement": "For the supported units, successful stop acknowledgements mean asynchronous guest-visible mutations have ceased; together they establish one frozen cut q. Stop may change state before q.",
+      "basis": "StateUnit.stop is documented to stop asynchronous processing, quiesce awaits acknowledgements in reverse dependency order, and virtual time is stopped through a unit. Individual backends/devices were not comprehensively audited.",
+      "evidence_ids": ["E-QUIESCE", "E-UNIT-SAVE", "E-PARTITION", "E-TIME"],
+      "used_by": ["T-CAPTURE", "B-QUIESCE", "V-UNITS", "P-STOP", "P-CUT"],
+      "risk_if_false": "Stopped bookkeeping can coexist with late DMA, timers or device callbacks, so sequential component saves need not describe one cut.",
+      "discharge": "Supply component stop contracts and dependency coverage for an actual supported configuration; prove no post-acknowledgement guest-visible mutation through the save interval.",
+      "owner": "future_component_stop_contracts"
+    },
+    {
+      "id": "A-SAVE-FRAME",
+      "status": "temporary_unproved",
+      "kind": "lower_semantics",
+      "statement": "Successful and returned-error save operations preserve the modeled guest state of already stopped components and do not resume processing. Bookkeeping transitions and profiling are not guest-state changes.",
+      "basis": "StateUnits::save explicitly relies on save not observably mutating state, and run_op restores Stopped bookkeeping on normal completion. This is a protocol expectation, not a proof of every implementation.",
+      "evidence_ids": ["E-UNIT-SAVE", "E-RUN-OP", "E-PARTITION", "E-TIME"],
+      "used_by": ["T-CAPTURE", "B-SAVE", "V-GUEST", "P-STOP", "P-CUT"],
+      "risk_if_false": "Later payloads can describe a different state, or a returned save failure can leave more damage than the RollbackSafe label suggests.",
+      "discharge": "Prove observational frame contracts for the selected component save handlers, including their normal error returns; do not assume completed rollback.",
+      "owner": "future_component_save_contracts"
+    },
+    {
+      "id": "A-CODEC",
+      "status": "temporary_unproved",
+      "kind": "executable_to_ghost_bridge",
+      "statement": "For each supported component schema, the concrete successful blob has the expected protobuf type and decodes to the serializable state actually sampled at q. Distinct modeled states cannot be collapsed by an unconstrained View.",
+      "basis": "SavedStateBlob has typed encoding and fallible parsing APIs; partition and virtual-time units build concrete blobs. No formal decoder or codec correspondence is supplied by the scoped proof file.",
+      "evidence_ids": ["E-BLOB", "E-PARTITION", "E-TIME", "E-BRIDGE"],
+      "used_by": ["T-CAPTURE", "B-SAVE", "V-SAVED", "V-GUEST", "P-CUT", "P-COVERAGE"],
+      "risk_if_false": "The theorem can accept stale, malformed or unrelated bytes while appearing to prove identical guest state.",
+      "discharge": "Implement typed, fallible executable-to-ghost decoding bridges with concrete field projections and round-trip/correspondence lemmas for selected schemas. Show at least two distinguishable states.",
+      "owner": "future_codec_bridge_proof"
+    },
+    {
+      "id": "A-COVERAGE",
+      "status": "temporary_unproved",
+      "kind": "semantic_coverage",
+      "statement": "The explicitly supported configuration has complete coverage of the claimed serializable guest projection: partition, unique saveable VP indices, virtual time and required components. None payloads are valid only where required state is absent or derivable.",
+      "basis": "Inventory includes units without mutable state and save omits None payloads. Partition saves indexed VPs but has an unsaved halted-state TODO; LoadedVm::save notes virtio/vmbus limitations. Full device coverage is not evidenced.",
+      "evidence_ids": ["E-SAVED-TYPE", "E-UNIT-SAVE", "E-PARTITION", "E-SAVE", "E-TIME"],
+      "used_by": ["T-CAPTURE", "B-SAVE", "V-SAVED", "V-GUEST", "P-COVERAGE"],
+      "risk_if_false": "A theorem about a narrow or empty projection could be advertised as all guest-visible state, or missing VP/component state could pass unnoticed.",
+      "discharge": "Name and exhibit at least one real nonempty supported configuration, enumerate its schema coverage and excluded/derived state, then show every claimed mutable component is covered. Do not presume the existing empty required-model ledger proves this.",
+      "owner": "reviewer_then_future_component_coverage"
+    },
+    {
+      "id": "A-RAM",
+      "status": "temporary_unproved",
+      "kind": "external_memory_frame",
+      "statement": "The separately retained live guest RAM and layout are stable from q to TOP return; all relevant writers are stopped or gated and the same memory ownership is retained.",
+      "basis": "The boundary stops VPs and gates input and quiesce stops state units. SavedState has no RAM field; memory flush/sync and snapshot publication are later operations.",
+      "evidence_ids": ["E-BOUNDARY", "E-QUIESCE", "E-SAVED-TYPE", "E-COMPOSITION", "E-CONTROLLER"],
+      "used_by": ["T-CAPTURE", "V-RAM", "P-COVERAGE"],
+      "risk_if_false": "Component state can be correct while the live RAM observed beside it changes, invalidating the full contextual guest-state relation.",
+      "discharge": "Establish ownership and no-writer contracts for guest memory, host mappings and supported DMA/device paths. Prove file backing equality and durability only in later flush/publication composition.",
+      "owner": "future_memory_ownership_composition"
+    },
+    {
+      "id": "A-FRAME",
+      "status": "temporary_unproved",
+      "kind": "adapter_frame",
+      "statement": "The lower calls preserve the identities of existing stop guard, transaction token, stored capture timestamp and input-gate timeout, without releasing/completing the boundary.",
+      "basis": "The inspected adapters and LoadedVm::save do not write these fields; release_snapshot_boundary is a separate awaited handler. Current external_body adapters expose no such verifier-visible frame.",
+      "evidence_ids": ["E-ADAPTERS", "E-SAVE", "E-DISPATCH", "E-BOUNDARY", "E-PARTITION"],
+      "used_by": ["T-CAPTURE", "B-SAVE", "V-VM", "P-STOP"],
+      "risk_if_false": "Presence-only predicates can accept a replaced or released guard and falsely conclude continued stoppage.",
+      "discharge": "Provide narrow field and resource-identity frame contracts for the adapters, rather than assuming all LoadedVm internals unchanged.",
+      "owner": "future_adapter_contracts"
+    }
+  ],
+  "rejected_assumptions": [
+    {
+      "id": "X-ENTRY-EQUALITY",
+      "statement": "All guest-visible state at capture entry equals the state after quiesce.",
+      "reason": "Stop can drain halt requests, device work and clocks. The initial proposal uses a post-quiesce cut; an exact PMIO-time theorem needs separate evidence.",
+      "evidence_ids": ["E-SPEC", "E-PARTITION", "E-TIME"]
+    },
+    {
+      "id": "X-SAVED-RAM",
+      "statement": "saved_snapshot_state_view(&SavedState) can reconstruct arbitrary guest RAM.",
+      "reason": "The type carries only unit blobs and inventory; RAM requires separate context and later artifact composition.",
+      "evidence_ids": ["E-SAVED-TYPE", "E-SAVE", "E-CONTROLLER"]
+    },
+    {
+      "id": "X-TRUST-TOP",
+      "statement": "A verified external_body TOP establishes the central invariant.",
+      "reason": "It trusts the very result being requested. Existing setup receipts are not semantic proof.",
+      "evidence_ids": ["E-TOP", "E-BRIDGE"]
+    },
+    {
+      "id": "X-SET-INVENTORY",
+      "statement": "Set equality or payload-name equality captures the complete component inventory.",
+      "reason": "Order matters to validate_inventory, names must remain unique, and None payloads are omitted from units but remain in inventory.",
+      "evidence_ids": ["E-INVENTORY", "E-SAVED-TYPE", "E-UNIT-SAVE"]
+    },
+    {
+      "id": "X-ERROR-RECOVERY",
+      "statement": "RollbackSafe means unchanged state or successful recovery; Uncertain is safe to resume.",
+      "reason": "Error variants preserve controller policy, not recovery execution or all unit phases. Quiesce errors can leave partial progress.",
+      "evidence_ids": ["E-ERRORS", "E-QUIESCE", "E-DISPATCH"]
+    }
+  ],
+  "limitations": [
+    {
+      "id": "L-PROVENANCE",
+      "statement": "Current upstream main is not established; no main/origin/main ref exists locally. Evidence is pinned to the recorded HEAD and actual worktree hashes.",
+      "review_action": "Accept this baseline explicitly or supply an authoritative main revision before main-relative acceptance."
+    },
+    {
+      "id": "L-NORMAL-RETURN",
+      "statement": "The proposal is partial correctness, not a termination or panic-freedom theorem. Save RPC failure can panic for a registered unit; future cancellation and save hangs have no returned-error contract.",
+      "review_action": "Keep these outcomes outside the initial theorem; do not hide them behind RollbackSafe or a total timeout."
+    },
+    {
+      "id": "L-QUIESCE-SAFE-REACHABILITY",
+      "statement": "The non-uncertain quiesce error mapping is source-evidenced, but a concrete reachable witness under stable registry and well-formed dependencies was not established.",
+      "review_action": "Treat it as a conditional adapter outcome, not a demonstrated production failure class or required liveness path."
+    },
+    {
+      "id": "L-OUTER-ENCODING",
+      "statement": "TOP returns structured SavedState with serialized per-unit blobs. ProtobufMessage wrapping, outer byte encoding, disk durability and restore correctness are downstream.",
+      "review_action": "Do not describe local success as a persisted, fully encoded or universally restorable snapshot."
+    },
+    {
+      "id": "L-SPEC-INTEGRATION",
+      "statement": "This delivery writes proposal artifacts only. The existing three scoped Rust files still contain the challenged scaffold and the adapters still lack semantic contracts.",
+      "review_action": "Approve semantics and a permitted mechanism for lower contracts before any scoped annotation/proof implementation. Do not auto-freeze."
+    }
+  ],
+  "acceptance_obligations": [
+    "Reviewer agrees that the initial capture cut is post-quiesce rather than an unproved exact pre-quiesce or post-OUT image.",
+    "Reviewer agrees to a supported serializable-state projection plus separate stable live RAM, with no implication of persisted RAM or unrestricted device coverage.",
+    "All active temporary assumptions remain visible and have concrete discharge owners; no whole-TOP assumption substitutes for their composition.",
+    "Before a later proof claim, connect Views to concrete data, exhibit a real supported nonempty VM witness, and remove TOP trust without silently expanding the three-file scope.",
+    "Resolve baseline freshness if acceptance specifically requires current upstream main rather than the inspected local production baseline."
+  ],
+  "durable_learning": "No Engineer Skill edit: findings are task-specific contract gaps and unproved hypotheses, not a newly validated reusable procedure."
+}

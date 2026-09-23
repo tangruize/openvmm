@@ -1,0 +1,547 @@
+{
+  "schema": "argus-verus/specification-proposal-v1",
+  "campaign_id": "openvmm-snapshot-save-v1",
+  "status": "proposed_for_review",
+  "stage": "bounded_specification_bootstrap",
+  "acceptance_owner": "reviewer",
+  "frozen": false,
+  "proof_campaign_started": false,
+  "executable_changes": false,
+  "scope_roots": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs"
+  ],
+  "source_commit": "1f94c06cbd42daefd2b4ac09135237afb261e638",
+  "top_functions": [
+    "LoadedVm::capture_snapshot_state"
+  ],
+  "top_specs": [
+    "capture_rep_ok",
+    "quiesce_transition",
+    "saved_matches_cut",
+    "snapshot_state_capture_success",
+    "snapshot_capture_outcome"
+  ],
+  "bottom_candidates": [
+    "snapshot_already_stopped",
+    "quiesce_snapshot_state_units",
+    "capture_saved_state"
+  ],
+  "temporary_assumptions": [
+    "A-REP",
+    "A-BOUNDARY",
+    "A-REGISTRY",
+    "A-QUIESCE",
+    "A-SAVE-FRAME",
+    "A-CODEC",
+    "A-COVERAGE",
+    "A-RAM",
+    "A-FRAME"
+  ],
+  "assumption_ledger": ".verus_onboarding/assumption-ledger/ledger.json",
+  "provenance": {
+    "worktree": "/home/ruize/openvmm-snapshot-save-v1",
+    "branch": "argus/snapshot-save-v1-bootstrap",
+    "source_commit": "1f94c06cbd42daefd2b4ac09135237afb261e638",
+    "production_flow_inspected": "The checked-out production dispatch flow and its existing local extraction were inspected independently of the scaffold contracts. The dispatch diff against HEAD shows the original inline quiesce/save sequence extracted into the candidate and wrapper without changing the order of its executable operations.",
+    "current_main_limit": "Neither main nor origin/main exists locally. HEAD is the available production baseline, not an independently established current upstream main. No remote freshness claim is made.",
+    "existing_dirty_worktree": "Pre-existing Cargo, dispatch, verification and onboarding changes were not authored, replaced or cleaned up by this proposal.",
+    "source_sha256": {
+      "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs": "83a2640a8e731c75b5a9e93ce60ef8f0d4bbca28c3a9af7ede584a8a79a9abae",
+      "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs": "e06af5cb00c214f36aaf42c5ce979dce5e1d5263b93327755cfc463ed4bb1083",
+      "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs": "bebb311f2ee36e2fa54a48b6c30f92900edb433fd055407b5598783260376339",
+      "openvmm/openvmm_core/src/worker/dispatch/snapshot_save_wrapper.rs": "343e344a182273855c2ecf52fad7967e0066bcc082dad0a32847b7a79de70a9c",
+      "openvmm/openvmm_core/src/worker/dispatch.rs": "d353ad2b1a62bf921d333fe7f30f5b7799d9d0e0e0a8ac9b919fd82a5ea2164e",
+      "openvmm/openvmm_core/src/worker/dispatch/snapshot_rpc.rs": "731acf5fe1385e0b3cd0a9a3f54291815738fdfffb427d3d711163dc84f252f3",
+      "openvmm/openvmm_defs/src/worker.rs": "a649347384a259926bd1ef89ad99c12e2dc44c19598559a2c0abb633e31d512e",
+      "openvmm/openvmm_defs/src/rpc.rs": "45a4cf328ad0d6a60a66339d33f0e14c2bc0d30007496403ee8466ef13554c7a",
+      "vmm_core/state_unit/src/lib.rs": "e818242e1cb9b3bf1c76987f895fea5c0a73b27e766a41fbaf73d909de37b7e9",
+      "vmm_core/src/partition_unit.rs": "980041246ae96a09c0b4e17b9cd4ded30e1b3009bd86f3e1e176fdc70ef4a0de",
+      "vmm_core/src/vmtime_unit.rs": "72749feac4f4b0b62a204244fe4a335c0dbf8882c665fe6a942e414cacba6c44",
+      "vm/vmcore/src/save_restore.rs": "015592c5db728a68d535ef10df0b872cdfb2f5e5216dd7fd039982a2ac0ad1b2",
+      "openvmm/openvmm_entry/src/vm_controller.rs": "d39ec20a11ba4dc12ccd6c04e6ac3124055f939d854567848fbc0b6aadfe21f9"
+    }
+  },
+  "evidence": [
+    {
+      "id": "E-TOP",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+      "anchor": "pub(super) async fn capture_snapshot_state(",
+      "observation": "Rejects !self.running; awaits quiesce; sets self.running=false only on quiesce success; awaits capture_saved_state. The whole TOP currently has external_body."
+    },
+    {
+      "id": "E-SPEC",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+      "anchor": "pub open spec fn snapshot_state_capture_success(",
+      "observation": "Current predicate equates initial and captured guest_state, uses a Set inventory, includes memory in the SavedState View, and frames active_vp_count and compatibility without concrete bridges."
+    },
+    {
+      "id": "E-BRIDGE",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs",
+      "anchor": "pub closed spec fn snapshot_capture_request_is_valid",
+      "observation": "Both main Views are uninterpreted. Validity requires both running flags and presence of three boundary fields, but does not connect StateUnits lifecycle, actual VP stoppage, input gating or registry ownership."
+    },
+    {
+      "id": "E-ADAPTERS",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save_wrapper.rs",
+      "anchor": "pub(super) async fn quiesce_snapshot_state_units(",
+      "observation": "All three adapters are external_body with no semantic contracts. Error construction and mapping are explicit; quiesce uses has_uncertain_state, and save errors map to RollbackSafe."
+    },
+    {
+      "id": "E-COMPOSITION",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save_wrapper.rs",
+      "anchor": "pub(super) async fn quiesce_for_snapshot(",
+      "observation": "Microvm profile rejection precedes the TOP; mapped-memory flush, command line, frequencies, timestamp and CPU response composition follow it."
+    },
+    {
+      "id": "E-BOUNDARY",
+      "path": "openvmm/openvmm_core/src/worker/dispatch.rs",
+      "anchor": "async fn establish_snapshot_boundary(",
+      "observation": "Gates input, obtains a post-I/O VP stop guard, then stores guard, transaction completion, wall-clock and gate timeout before notifying the controller. self.running remains the lifecycle flag, not actual VP execution."
+    },
+    {
+      "id": "E-DISPATCH",
+      "path": "openvmm/openvmm_core/src/worker/dispatch.rs",
+      "anchor": "VmRpc::QuiesceForSnapshot(rpc) =>",
+      "observation": "Worker awaits the handler serially. ResumeAfterFailedSnapshot and ReleaseSnapshotBoundary are separate operations, not part of capture."
+    },
+    {
+      "id": "E-FILTER",
+      "path": "openvmm/openvmm_core/src/worker/dispatch/snapshot_rpc.rs",
+      "anchor": "pub(super) fn filter(message: VmRpc, boundary_active: bool)",
+      "observation": "When a guard exists, management mutations are rejected except snapshot control; ReadMemory remains allowed. Without a boundary, QuiesceForSnapshot is not rejected by this filter."
+    },
+    {
+      "id": "E-SAVE",
+      "path": "openvmm/openvmm_core/src/worker/dispatch.rs",
+      "anchor": "async fn save(&mut self) -> anyhow::Result<SavedState>",
+      "observation": "Builds SavedState from state_units.save().await followed by a separate inventory() call. No RAM bytes are included."
+    },
+    {
+      "id": "E-SAVED-TYPE",
+      "path": "openvmm/openvmm_defs/src/worker.rs",
+      "anchor": "pub struct SavedState {",
+      "observation": "SavedState has units: Vec<SavedStateUnit> and inventory: Vec<String>, including units with no mutable state."
+    },
+    {
+      "id": "E-ERRORS",
+      "path": "openvmm/openvmm_defs/src/rpc.rs",
+      "anchor": "pub enum SnapshotQuiesceError",
+      "observation": "Rejected means no transition began; RollbackSafe permits a rollback request; Uncertain requires termination. These names do not themselves implement recovery."
+    },
+    {
+      "id": "E-QUIESCE",
+      "path": "vmm_core/state_unit/src/lib.rs",
+      "anchor": "pub async fn quiesce_for_save(",
+      "observation": "Asserts manager and units running, stops in reverse dependency order, marks successful units Stopped, failed dependencies Running, uncertain units QuiesceUncertain. Aggregate running is cleared only on success; removed units are skipped when collecting results."
+    },
+    {
+      "id": "E-UNIT-SAVE",
+      "path": "vmm_core/state_unit/src/lib.rs",
+      "anchor": "pub async fn save(&mut self) -> Result<Vec<SavedStateUnit>, StateTransitionError>",
+      "observation": "Asserts !running; requests Save from stopped units; drops Ok(None) payloads, aggregates returned save errors, and documents that saving must not observably mutate state."
+    },
+    {
+      "id": "E-RUN-OP",
+      "path": "vmm_core/state_unit/src/lib.rs",
+      "anchor": "async fn run_op<I: 'static, R: 'static + Send>(",
+      "observation": "Restores lifecycle bookkeeping from Saving to Stopped on normal completion. Communication failure for a still-registered unit panics; failure for a removed unit is ignored."
+    },
+    {
+      "id": "E-INVENTORY",
+      "path": "vmm_core/state_unit/src/lib.rs",
+      "anchor": "pub fn inventory(&self) -> Vec<String>",
+      "observation": "Inventory is registration-order BTreeMap traversal, not a set; validate_inventory compares Vec equality. UnitBuilder rejects duplicate live names."
+    },
+    {
+      "id": "E-HANDLE",
+      "path": "vmm_core/state_unit/src/lib.rs",
+      "anchor": "impl Drop for UnitHandle",
+      "observation": "UnitHandle can remove entries through a shared Weak<Mutex<Inner>> independently of a mutable borrow of StateUnits. Stable inventory across awaits is not a consequence of &mut alone."
+    },
+    {
+      "id": "E-PARTITION",
+      "path": "vmm_core/src/partition_unit.rs",
+      "anchor": "impl StateUnit for PartitionUnitRunner",
+      "observation": "Stop drains guest-initiated halt requests. Save collects backend partition and indexed VP blobs; halted-state save has a TODO. Dropping StopGuard sends StartVps."
+    },
+    {
+      "id": "E-TIME",
+      "path": "vmm_core/src/vmtime_unit.rs",
+      "anchor": "impl StateUnit for KeeperUnit<'_>",
+      "observation": "Virtual time is explicitly stopped and serialized by its state unit. Equality to a pre-quiesce clock value is not supplied by this adapter."
+    },
+    {
+      "id": "E-BLOB",
+      "path": "vm/vmcore/src/save_restore.rs",
+      "anchor": "pub struct SavedStateBlob(ProtobufAny);",
+      "observation": "SavedStateBlob is typed protobuf Any; new encodes, parse returns a fallible typed decode. Opaque blobs cannot be replaced with unconstrained semantic integers."
+    },
+    {
+      "id": "E-CONTROLLER",
+      "path": "openvmm/openvmm_entry/src/vm_controller.rs",
+      "anchor": "let saved_state_bytes = mesh::payload::encode(response.saved_state);",
+      "observation": "Controller separately encodes the response, syncs the RAM file, publishes artifacts, rolls back safe failures or terminates. Local capture success is not publication or durability."
+    }
+  ],
+  "top_selection": {
+    "decision": "Retain LoadedVm::capture_snapshot_state as the sole initial executable TOP, with a conditional, post-quiesce capture contract. Do not treat the current scaffold contract as accepted.",
+    "alternatives": [
+      {
+        "function": "LoadedVm::quiesce_for_snapshot",
+        "decision": "Not the initial TOP: includes backend queries, flush and response composition. Retain as a caller composition obligation."
+      },
+      {
+        "function": "LoadedVm::save",
+        "decision": "Too narrow: does not establish stop or preserve boundary ownership by itself and obtains inventory after the save await."
+      },
+      {
+        "function": "LoadedVm::establish_snapshot_boundary",
+        "decision": "A necessary upstream obligation, not a capture TOP: establishes post-OUT VP stoppage and host-input gating but does not serialize state units."
+      }
+    ],
+    "central_invariant": "On normal Ok return, the VM remains stopped at one post-quiesce cut q under the same live boundary ownership. Decoded SavedState payloads and the complete ordered inventory represent the serializable projection of that cut. Together with separately retained, stable live RAM and explicit component-coverage assumptions they describe the same modeled guest-visible state. SavedState alone does not contain RAM or a durable complete snapshot.",
+    "linearization": "q is the successful completion of quiesce_snapshot_state_units, before self.running=false and save. It is not the request entry, PMIO completion timestamp, final file flush or publication commit.",
+    "challenge_resolution": "Quiescing may drain device work, halt requests and clocks; require a valid quiesce transition from entry to q, not equality of all guest state with entry. An exact post-OUT image is a stronger upstream/device theorem, not silently assumed here.",
+    "evidence_ids": ["E-TOP", "E-SPEC", "E-BOUNDARY", "E-SAVE", "E-PARTITION", "E-TIME"]
+  },
+  "top_contracts": [
+    {
+      "id": "T-CAPTURE",
+      "function": "LoadedVm::capture_snapshot_state",
+      "contract_kind": "partial_correctness_of_normal_returns",
+      "requires": [
+        "Concrete/ghost representation agreement for owned fields; do not require self.running unconditionally, so already-stopped rejection remains in the contract domain.",
+        "If self.running: StateUnits manager and registered units are Running at entry, despite VPs already being held by the boundary stop guard.",
+        "If self.running: a live boundary capability records actual VP stoppage, host-input gating and ownership of the same guard and transaction token; Option::is_some alone is insufficient.",
+        "If self.running: no registry membership/order changes during this call, and component save/stop protocols meet the explicitly listed temporary assumptions."
+      ],
+      "ensures_ok": [
+        "There exists a cut q reached by successful quiesce in this call, followed by exactly one save adapter call and no start, resume, boundary-release or publication operation.",
+        "self.running=false, StateUnits.running=false, registered unit lifecycle is Stopped, and the same boundary capability remains owned on return.",
+        "SavedState.inventory exactly equals the ordered registry inventory at q and at return, with unique names.",
+        "SavedState.units has at most one payload per name; its names are a subset of inventory, with exactly one typed payload for every component whose successful Save returned Some.",
+        "For each payload, its fallible typed decode succeeds and equals that component's serializable state at q under the component codec/coverage assumptions. None is allowed only for components whose required state is absent or derived by the supported schema.",
+        "The modeled serializable state at return equals q; live RAM is stable from q to return under the memory ownership assumption, not encoded or flushed by this TOP."
+      ],
+      "ensures_err": {
+        "Rejected": "Entry self.running=false; no adapters are called; self-owned fields are unchanged. No claim that unowned external state is frozen.",
+        "RollbackSafe_from_quiesce": "Quiesce failed with has_uncertain_state=false; self.running stays true and save is not called. Preserve only reported lifecycle information, not all-units-running, all-units-stopped or successful rollback.",
+        "Uncertain_from_quiesce": "Quiesce failed with has_uncertain_state=true; self.running stays true, save is not called, and mixed/uncertain unit states are permitted. No resumability or successful cleanup guarantee.",
+        "RollbackSafe_from_save": "Quiesce succeeded and self.running was cleared; save returned an error. No SavedState escapes; normal save completion restores Stopped bookkeeping. Guest-state preservation is conditional on the save frame assumption, not implied by the error label."
+      },
+      "frame": "Preserve identity and presence of existing snapshot_stop_guard, snapshot_transaction_complete, snapshot_capture_wall_clock and snapshot_input_gate_timeout; do not complete or drop the boundary. Do not promise equality of all LoadedVm internals, host wall time or profiling state.",
+      "not_guaranteed": [
+        "Unconditional safe behavior for arbitrary externally constructed or boundary-less running VMs.",
+        "A total timeout for capture: timeout is passed to quiesce; save has no timeout here.",
+        "Completion, cancellation safety, panic freedom of all lower code or successful rollback/termination.",
+        "Durability, restorability for every device/backend, or pre-quiesce guest-state equality."
+      ],
+      "assumption_ids": ["A-REP", "A-BOUNDARY", "A-REGISTRY", "A-QUIESCE", "A-SAVE-FRAME", "A-CODEC", "A-COVERAGE", "A-RAM", "A-FRAME"],
+      "evidence_ids": ["E-TOP", "E-ADAPTERS", "E-QUIESCE", "E-UNIT-SAVE", "E-RUN-OP", "E-ERRORS"]
+    }
+  ],
+  "spec_functions": [
+    {
+      "name": "capture_rep_ok",
+      "definition": "Connect concrete running flags, unit lifecycle and boundary-owned fields to their Views; keep actual VP stopped distinct from LoadedVm.running."
+    },
+    {
+      "name": "quiesce_transition",
+      "definition": "Relates entry to an acknowledged all-stopped cut q without asserting entry guest-state equality; frames ordered registry under A-REGISTRY."
+    },
+    {
+      "name": "saved_matches_cut",
+      "definition": "Exact ordered inventory equality, unique payload names, supported typed decoding, payload/None coverage and equality to q's serializable projection."
+    },
+    {
+      "name": "snapshot_state_capture_success",
+      "definition": "Compose a witnessed quiesce_transition, actual stopped representation, retained boundary identity and saved_matches_cut. No full-RAM decoder is a function of SavedState alone."
+    },
+    {
+      "name": "snapshot_capture_outcome",
+      "definition": "Relate the returned error variant to the ghost phase trace and explicit lifecycle outcomes; replace Err(_) => true without inventing recovery."
+    }
+  ],
+  "views": [
+    {
+      "id": "V-VM",
+      "executable": "LoadedVm",
+      "proposed_view": "CaptureVmView { lifecycle_running: bool, units: StateUnitsView, boundary: Option<BoundaryCapabilityView>, serializable_state: SerializableGuestView, ram: LiveRamView }",
+      "bridge": "Project self.running and boundary field presence directly. Obtain actual VP stop/input-gate ownership through a separate linear ghost capability tied to the concrete guard and transaction, not through a free uninterpreted bool.",
+      "exclusions": "Drop command-line, frequency, CPU contract and compatibility fields from this initial View. Timestamp may be framed as an opaque stored value but is not q or a proof of exact clock capture.",
+      "assumption_ids": ["A-REP", "A-BOUNDARY", "A-FRAME"]
+    },
+    {
+      "id": "V-UNITS",
+      "executable": "StateUnits and UnitHandle",
+      "proposed_view": "StateUnitsView { running: bool, inventory: Seq<Seq<char>>, phase_by_name: Map<Seq<char>, UnitPhase>, save_schema_by_name: Map<Seq<char>, ComponentSchema> }",
+      "bridge": "Inventory preserves registration order and unique actual string names; lifecycle is independent of payload content. A registry ownership/frame capability must cover external handle drops during awaits.",
+      "assumption_ids": ["A-REGISTRY", "A-QUIESCE"]
+    },
+    {
+      "id": "V-SAVED",
+      "executable": "SavedState, SavedStateUnit, SavedStateBlob",
+      "proposed_view": "SavedStateView { inventory: Seq<Seq<char>>, payloads: Seq<(Seq<char>, TypedBlobView)> }; decode_component(schema, blob) -> Option<ComponentStateView>",
+      "bridge": "Project inventory and unit names from concrete vectors before forming any map. Prove uniqueness before using a map; malformed or unsupported decode is None, never a default semantic state. Preserve protobuf type identity and payload content.",
+      "exclusions": "Payload names need not equal inventory: successful None results have no blob. SavedState carries neither RAM bytes nor a boundary epoch, so attach capture provenance relationally, not as fabricated serialized fields.",
+      "assumption_ids": ["A-CODEC", "A-COVERAGE"]
+    },
+    {
+      "id": "V-GUEST",
+      "executable": "Partition/VP blobs, virtual-time unit and supported component blobs",
+      "proposed_view": "SerializableGuestView { partition: PartitionView, vps: Map<VpIndex, VpView>, virtual_time: VmTimeView, components: Map<ComponentName, ComponentStateView> }",
+      "bridge": "Use indexed VP identity from the saved partition blob, not an unconstrained active_vp_count; require unique indices and audited coverage of the configured saveable VP set. Each component decoder defines the exact guest-observable projection and any derived state.",
+      "exclusions": "Do not silently include currently unsaved halted state or unsupported virtio/vmbus state. A full guest-visible theorem remains blocked until coverage is evidenced for an actual nonempty configuration.",
+      "assumption_ids": ["A-CODEC", "A-COVERAGE", "A-SAVE-FRAME"]
+    },
+    {
+      "id": "V-RAM",
+      "executable": "LoadedVmInner guest memory retained outside SavedState",
+      "proposed_view": "LiveRamView { bytes_by_guest_address: Map<nat, u8>, layout: MemoryLayoutView }",
+      "bridge": "Relate retained live RAM at q and return under no-writer ownership. Combine RAM with decoded serializable state only in a contextual relation.",
+      "exclusions": "No assertion that SavedState encodes RAM, that mapped backing is flushed, or that published RAM has the same bytes until downstream composition is checked.",
+      "assumption_ids": ["A-RAM"]
+    }
+  ],
+  "bottom_contracts": [
+    {
+      "id": "B-REJECT",
+      "function": "snapshot_already_stopped",
+      "requires": [],
+      "weakest_evidenced_ensures": [
+        "Returns SnapshotQuiesceError::Rejected with the diagnostic VM is already stopped.",
+        "Has no VM argument and performs no VM transition. The caller branch, not this constructor, establishes why rejection is appropriate."
+      ],
+      "must_not_assume": ["VM running state, guard existence or rollback behavior from this error value alone."],
+      "assumption_ids": [],
+      "evidence_ids": ["E-ADAPTERS", "E-TOP"]
+    },
+    {
+      "id": "B-QUIESCE",
+      "function": "quiesce_snapshot_state_units",
+      "requires": ["StateUnits.running and every currently registered unit lifecycle are Running; registration/frame and valid dependency assumptions must be explicit for stronger relational claims."],
+      "weakest_evidenced_ensures": [
+        "Forwards timeout unchanged to StateUnits::quiesce_for_save.",
+        "Ok corresponds to the lower call returning Ok; manager running becomes false and surviving registered units are marked Stopped.",
+        "Err is Uncertain exactly when the returned lower error has_uncertain_state; otherwise RollbackSafe. No Rejected is constructed.",
+        "On returned lower error manager running is not cleared. Unit phases may be mixed; do not equate the aggregate flag with every unit still running."
+      ],
+      "conditional_semantic_extension": "Under A-REGISTRY and A-QUIESCE, success establishes a frozen post-quiesce cut for the same inventory. It need not equal entry state. Actual backend/device stopping is an obligation behind acknowledgements, not proved by the assignment to a lifecycle enum.",
+      "must_not_assume": [
+        "Non-uncertain quiesce errors are reachable under a stable well-formed registry; the source maps them defensively but a concrete witness was not established.",
+        "RollbackSafe means unchanged state or a guaranteed successful ResumeAfterFailedSnapshot.",
+        "A strict whole-operation wall-clock bound, particularly with dependency waits or later save."
+      ],
+      "assumption_ids": ["A-REP", "A-REGISTRY", "A-QUIESCE"],
+      "evidence_ids": ["E-ADAPTERS", "E-QUIESCE", "E-HANDLE"]
+    },
+    {
+      "id": "B-SAVE",
+      "function": "capture_saved_state",
+      "requires": ["StateUnits manager and all registered units are stopped; TOP has set vm.running=false. Retain boundary and stable registry for the desired capture relation."],
+      "weakest_evidenced_ensures": [
+        "On normal Ok, returns precisely LoadedVm::save's result: successful Some blobs named by unit, and inventory read after unit saving completes.",
+        "On normal Err, maps the LoadedVm::save error to RollbackSafe; no Rejected or Uncertain is constructed.",
+        "Normal run_op completion restores Saving bookkeeping to Stopped, including returned component save errors. No start or boundary release is present in the inspected save path.",
+        "Without registry stability, inventory and saved payload membership need not correspond to one cut. Without codec/component contracts, returned blobs have no established guest-state semantics."
+      ],
+      "conditional_semantic_extension": "A-REGISTRY gives exact inventory framing and coverage of successful Some/None results. A-SAVE-FRAME and A-CODEC relate per-unit blobs to the already stopped input cut without changing it. A-COVERAGE is separately needed to lift component correctness to the modeled guest state.",
+      "must_not_assume": [
+        "All failures return RollbackSafe: registered-unit communication failure can panic in run_op, and save has no local timeout.",
+        "Capture_saved_state itself establishes quiescence, guest RAM serialization, durable bytes or rollback completion.",
+        "The desired entire TOP postcondition as one opaque lower axiom."
+      ],
+      "assumption_ids": ["A-REGISTRY", "A-SAVE-FRAME", "A-CODEC", "A-COVERAGE", "A-FRAME"],
+      "evidence_ids": ["E-ADAPTERS", "E-SAVE", "E-UNIT-SAVE", "E-RUN-OP", "E-SAVED-TYPE", "E-BLOB"]
+    }
+  ],
+  "behavior_scenarios": [
+    {
+      "id": "S-SUCCESS",
+      "input": "Valid running lifecycle, live boundary and stable nonempty registry; quiesce and all unit saves return success, including at least one Some and one None.",
+      "expected": "One quiesce then one save; stopped on return; exact full ordered inventory, only Some payloads, faithful decoding at q and same retained boundary.",
+      "result_class": "Ok",
+      "property_ids": ["P-ORDER", "P-STOP", "P-INVENTORY", "P-CUT", "P-COVERAGE"]
+    },
+    {
+      "id": "S-STOPPED",
+      "input": "self.running=false, with or without a boundary; includes a repeated call after a successful capture.",
+      "expected": "Rejected before either adapter; self-owned fields unchanged. The existing requires self.running must be relaxed to cover this branch.",
+      "result_class": "Rejected",
+      "property_ids": ["P-REJECT", "P-ORDER"]
+    },
+    {
+      "id": "S-QUIESCE-UNCERTAIN",
+      "input": "Lower quiesce returns uncertain after timeout, request cancellation or communication failure; some other units may already be stopped.",
+      "expected": "Uncertain; no save, self.running remains true despite possible stopped units. Boundary retained; downstream must not infer resumability.",
+      "result_class": "Uncertain",
+      "property_ids": ["P-ERROR", "P-ORDER"]
+    },
+    {
+      "id": "S-QUIESCE-SAFE",
+      "input": "Lower quiesce returns an error with has_uncertain_state=false; conditional adapter scenario, not a claimed reachable production witness under stable-registry assumptions.",
+      "expected": "RollbackSafe; no save; no guarantee of all-stopped state or successful rollback.",
+      "result_class": "RollbackSafe",
+      "property_ids": ["P-ERROR", "P-ORDER"]
+    },
+    {
+      "id": "S-SAVE-FAIL",
+      "input": "Quiesce succeeds; a component returns SaveError, for example unsupported saving.",
+      "expected": "RollbackSafe after self.running=false; no partial SavedState returned; normal lifecycle bookkeeping is Stopped. Recovery remains outside this call.",
+      "result_class": "RollbackSafe",
+      "property_ids": ["P-ERROR", "P-STOP", "P-ORDER"]
+    },
+    {
+      "id": "S-POST-CAPTURE-FAIL",
+      "input": "TOP succeeds; caller later fails mapped-memory flush, metadata query or response construction.",
+      "expected": "TOP contract remains true at its return; enclosing RPC can still fail RollbackSafe. Do not reinterpret local Ok as publication.",
+      "result_class": "outside_top",
+      "property_ids": ["P-SCOPE"]
+    },
+    {
+      "id": "S-UNSUPPORTED-CALL",
+      "input": "Non-Microvm profile or a running call without a live boundary.",
+      "expected": "Caller explicitly rejects the profile; missing boundary is not explicitly checked by capture or filter. Strong capture theorem applies only to valid-boundary callers and must not claim every successful RPC meets it.",
+      "result_class": "outside_precondition",
+      "property_ids": ["P-SCOPE"]
+    },
+    {
+      "id": "S-NONRETURN",
+      "input": "Save channel fails for a registered unit, save hangs, future is dropped, or dependency progress fails.",
+      "expected": "No fabricated returned error or total-timeout claim; panic, nontermination and cancellation are not covered by the normal-return contract.",
+      "result_class": "outside_normal_return",
+      "property_ids": ["P-SCOPE"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "P-ORDER",
+      "statement": "Save occurs exactly once iff quiesce returned Ok on a running entry; rejected/quiesce-failed executions never save. self.running=false precedes save.",
+      "falsification": "Move save ahead of quiesce or bypass the ? propagation; the phase trace must reject the execution.",
+      "assumption_ids": []
+    },
+    {
+      "id": "P-REJECT",
+      "statement": "Stopped entry is an inhabited contract branch with Rejected and no VM mutation or adapter calls.",
+      "falsification": "A requires running predicate erases this scenario and is not acceptable branch coverage.",
+      "assumption_ids": []
+    },
+    {
+      "id": "P-STOP",
+      "statement": "Ok leaves both lifecycle flags false, registered units Stopped, VPs held, and the same boundary unconsumed; returned save failure also leaves lifecycle stopped.",
+      "falsification": "Clear only LoadedVm.running while units run, or replace/drop the guard; neither satisfies stopped representation.",
+      "assumption_ids": ["A-REP", "A-BOUNDARY", "A-QUIESCE", "A-SAVE-FRAME", "A-FRAME"]
+    },
+    {
+      "id": "P-INVENTORY",
+      "statement": "Saved inventory equals the full ordered registry at q and return; unique payload names are a subset, not necessarily all inventory names.",
+      "falsification": "Reordering inventory, removing a stateless unit, adding an unknown payload or duplicating a name must fail; set equality alone is insufficient.",
+      "assumption_ids": ["A-REGISTRY"]
+    },
+    {
+      "id": "P-CUT",
+      "statement": "Each decoded payload equals its component projection at the same q; return state is unchanged from q. Different observable stopped component states must be distinguishable by the View.",
+      "falsification": "Use a stale blob from a different cut or change its decoded register/device value while keeping names identical; saved_matches_cut must fail.",
+      "assumption_ids": ["A-QUIESCE", "A-SAVE-FRAME", "A-CODEC"]
+    },
+    {
+      "id": "P-COVERAGE",
+      "statement": "Every modeled mutable component and saveable VP is represented or explicitly derived; unsupported/malformed payloads cannot decode to an arbitrary default. Live RAM is related separately.",
+      "falsification": "Omit a required partition/VP payload or collapse all bytes to one ghost integer; the supported-state coverage predicate must fail.",
+      "assumption_ids": ["A-CODEC", "A-COVERAGE", "A-RAM"]
+    },
+    {
+      "id": "P-ERROR",
+      "statement": "Returned variant and phase determine the weak failure postcondition; Uncertain never promises rollback, and RollbackSafe does not promise completed recovery.",
+      "falsification": "Classify an uncertain quiesce as safe, save after quiesce failure, or return a successful partial SavedState.",
+      "assumption_ids": []
+    },
+    {
+      "id": "P-SCOPE",
+      "statement": "Only local normal-return capture is claimed; caller establishment, RAM durability, external response composition and recovery remain explicit obligations.",
+      "falsification": "Derive committed snapshot, bounded total latency or arbitrary-RPC safety solely from capture Ok.",
+      "assumption_ids": []
+    }
+  ],
+  "scope_exclusions": [
+    {
+      "surface": "Backend metadata and command-line/frequency/CPU response composition",
+      "decision": "Keep outside initial TOP.",
+      "condition": "Backend partition/VP saved-state payload semantics remain inside the necessary serialization projection; only additional metadata queries and response fields are excluded.",
+      "evidence_ids": ["E-COMPOSITION", "E-PARTITION"]
+    },
+    {
+      "surface": "Mapped-memory flush and RAM file synchronization",
+      "decision": "Keep outside only for a logical live-RAM cut, not for persistence.",
+      "condition": "A-RAM supplies no-writer stability while stopped. Any claim about saved file bytes, crash consistency or a self-contained serialized RAM image must expand composition beyond this TOP.",
+      "evidence_ids": ["E-SAVED-TYPE", "E-COMPOSITION", "E-CONTROLLER"]
+    },
+    {
+      "surface": "Controller publication, rollback and source termination",
+      "decision": "Keep outside.",
+      "condition": "Preserve error distinctions and ownership for the controller, but do not prove that it recovers or terminates merely from a returned enum.",
+      "evidence_ids": ["E-ERRORS", "E-DISPATCH", "E-CONTROLLER"]
+    },
+    {
+      "surface": "Boundary establishment and exact post-OUT semantics",
+      "decision": "Keep outside executable TOP but not outside its precondition obligations.",
+      "condition": "The caller must establish a real live capability; field presence and controller intent do not prove it. If an unconditional QuiesceForSnapshot RPC theorem is required, this exclusion is unsound and scope must be reconsidered by the reviewer.",
+      "evidence_ids": ["E-BOUNDARY", "E-FILTER", "E-BRIDGE"]
+    }
+  ],
+  "reviewer_objections": [
+    {
+      "id": "R-TRUSTED-TOP",
+      "objection": "The entire candidate is external_body; a green setup verifier result can simply trust the desired postcondition.",
+      "disposition": "Do not count the scaffold as proof. Later approved verification must expose the TOP body and account for every lower trust dependency."
+    },
+    {
+      "id": "R-VACUOUS-VIEWS",
+      "objection": "Uninterpreted VM/SavedState Views could make all states identical, and a strong validity predicate could have no concrete witness.",
+      "disposition": "Require concrete field bridges, fallible blob decoders, distinguishable payload witnesses and at least one real supported nonempty VM configuration before accepting the semantic theorem."
+    },
+    {
+      "id": "R-INITIAL-CUT",
+      "objection": "The existing initial.guest_state equality is not established while stop drains asynchronous work.",
+      "disposition": "Use post-quiesce q. Exact PMIO-time state equality is deferred rather than assumed; reviewer must agree this is the intended initial boundary."
+    },
+    {
+      "id": "R-INVENTORY-RACE",
+      "objection": "UnitHandle removal can race save/inventory despite &mut; the full inventory cannot be represented merely by blob names or a set.",
+      "disposition": "Keep ordered inventory and explicit A-REGISTRY. Ownership evidence is still needed; no executable locking change is proposed."
+    },
+    {
+      "id": "R-MEMORY-COVERAGE",
+      "objection": "SavedState lacks RAM, and not every guest-observable component is demonstrably serialized (including halted-state TODOs).",
+      "disposition": "State the projection and separate RAM relation. Full guest-visible completeness remains conditional and is not accepted merely because required-models/ledger.json is empty."
+    },
+    {
+      "id": "R-CALLER",
+      "objection": "The production handler does not enforce boundary validity for every incoming QuiesceForSnapshot RPC.",
+      "disposition": "The initial TOP is a valid-boundary partial contract, not an arbitrary-RPC safety theorem. Caller reachability/ownership remains an acceptance obligation, not a new guard in this delivery."
+    },
+    {
+      "id": "R-FAILURE-LIMITS",
+      "objection": "RollbackSafe can be overread as unchanged state or successful recovery; save communication failure can panic; timeout does not bound save.",
+      "disposition": "Retain phase-specific weak error contracts and normal-return scope. No hardening or total-correctness claim is made."
+    },
+    {
+      "id": "R-FRESHNESS",
+      "objection": "Current upstream main was not identifiable from local refs.",
+      "disposition": "Review against the fingerprinted HEAD/worktree evidence or obtain an authoritative main revision in one later round before requiring main-relative acceptance."
+    }
+  ],
+  "proposed_scoped_refinements_not_applied": [
+    "snapshot_save.rs: remove TOP external_body only in an approved proof phase; use conditional running preconditions and phase-specific returned-error postconditions.",
+    "snapshot_save.spec.rs: correct the stale quiesce_for_snapshot header, replace entry-state equality with a witnessed post-quiesce cut, use ordered named inventory, and separate serializable state from contextual live RAM.",
+    "snapshot_save.proof.rs: replace unrestricted Views with concrete projections and audited component bridges; model both lifecycle flags and live boundary identity. Carrier external type specifications do not discharge semantic assumptions.",
+    "The three BOTTOMs live in the out-of-scope wrapper. Their future specification mechanism must be explicitly approved; this proposal neither edits the wrapper nor silently enlarges the proof scope."
+  ],
+  "validation_policy": {
+    "decisive_check": "One read-only Python standard-library check of both JSON artifacts: duplicate keys, required structure, ID/reference closure, source hashes/anchors, exact TOP/BOTTOM scope, success/failure scenario coverage, and finite counterexamples for ordered inventory and same-cut payload matching.",
+    "limits": "This checks proposal integrity and non-vacuity examples, not Rust compilation, Verus proof, actual component codec correctness or schema acceptance by an external Argus service.",
+    "no_actions": ["No proof campaign", "No automatic freeze", "No source edits", "No restore worktree or restore Argus state access", "No additional artifacts"]
+  }
+}

@@ -48,6 +48,8 @@ vmm_test_results/
 .gdb_history
 .openvmm_history
 __pycache__
+.argus/
+.autors/
 
 flowey-out
 flowey-persist

@@ -1,0 +1,116 @@
+{
+  "build_inputs": {
+    "Cargo.lock": "e4ed120677638fce78c1485f6587d5f9693bdb8f6dece63ba9e48a33d15d5ade",
+    "Cargo.toml": "07069b2620a49943f00e31c1ae5cabd1960695cbaf236f0c45ec4b760e918636",
+    "Makefile": "bc8ec631d76e39ba421697561a2f840bb64f44b2a91b33b2ba8483864b602d48",
+    "verification/tools/fresh_verification.py": "aad23e3e7591446c24490c3b1d2defa6cea626dfff44abe4dc4142776a30694b",
+    "verification/tools/verify.sh": "215868c8b75b3704821b4484f125f12aa3a8a11146393080e13658df2c705da7",
+    "verification/verus-version": "dd7eea59cc3ef697458eef3680d76e11fd8eb0a62824c7b774fc44fbe61f2c85"
+  },
+  "commands": {
+    "build": [
+      "env",
+      "RUSTUP_TOOLCHAIN=1.95.0",
+      "cargo",
+      "check",
+      "--locked",
+      "--offline",
+      "-p",
+      "openvmm_core"
+    ],
+    "test": null,
+    "verify_focused": [
+      "env",
+      "VERUS=/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus",
+      "make",
+      "MODULE={target}",
+      "verify"
+    ],
+    "verify_full": [
+      "env",
+      "VERUS=/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus",
+      "make",
+      "verify"
+    ]
+  },
+  "complete": true,
+  "completed_at": "2026-09-23T02:28:51.462799+00:00",
+  "environment": {},
+  "focused_target": "snapshot-save",
+  "issues": [],
+  "project_root": "/home/ruize/openvmm-snapshot-save-v1",
+  "receipts": [
+    {
+      "command": [
+        "env",
+        "RUSTUP_TOOLCHAIN=1.95.0",
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "-p",
+        "openvmm_core"
+      ],
+      "cwd": "/home/ruize/openvmm-snapshot-save-v1",
+      "elapsed_seconds": 2.67,
+      "error": null,
+      "log": ".verus_onboarding/setup/logs/build.log",
+      "log_sha256": "e03c8f0282f466c74ed2a3aceabf23af08c1d3f5d478c2209ed98689464741b7",
+      "name": "build",
+      "returncode": 0,
+      "started_at": "2026-09-23T02:27:22.031570+00:00",
+      "timed_out": false
+    },
+    {
+      "command": [
+        "env",
+        "VERUS=/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus",
+        "make",
+        "verify"
+      ],
+      "cwd": "/home/ruize/openvmm-snapshot-save-v1",
+      "elapsed_seconds": 78.57,
+      "error": null,
+      "log": ".verus_onboarding/setup/logs/verify_full.log",
+      "log_sha256": "e0973294cf14906609053d78410782e8c22dc99b0885ab8eaf9fb1d8e0d18bcf",
+      "name": "verify_full",
+      "returncode": 0,
+      "started_at": "2026-09-23T02:27:24.701985+00:00",
+      "timed_out": false
+    },
+    {
+      "command": [
+        "env",
+        "VERUS=/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus",
+        "make",
+        "MODULE=snapshot-save",
+        "verify"
+      ],
+      "cwd": "/home/ruize/openvmm-snapshot-save-v1",
+      "elapsed_seconds": 8.181,
+      "error": null,
+      "log": ".verus_onboarding/setup/logs/verify_focused.log",
+      "log_sha256": "de681e0a67f41e6e7f4431286e9c8cba64b03f6f9a6a8021efdc07836e379249",
+      "name": "verify_focused",
+      "returncode": 0,
+      "started_at": "2026-09-23T02:28:43.272753+00:00",
+      "timed_out": false
+    }
+  ],
+  "schema": "argus-verus/setup-v1",
+  "scope_roots": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs"
+  ],
+  "source_commit": "1f94c06cbd42daefd2b4ac09135237afb261e638",
+  "source_sha256": {
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs": "bebb311f2ee36e2fa54a48b6c30f92900edb433fd055407b5598783260376339",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs": "83a2640a8e731c75b5a9e93ce60ef8f0d4bbca28c3a9af7ede584a8a79a9abae",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs": "e06af5cb00c214f36aaf42c5ce979dce5e1d5263b93327755cfc463ed4bb1083"
+  },
+  "toolchain": {
+    "verus_bin": "/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus",
+    "verus_sha256": "d55d6ff8d6712ea13c3b7211b34fef27e6077df46ae60767d52dc19aca9bed28"
+  }
+}

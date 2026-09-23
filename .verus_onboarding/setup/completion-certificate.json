@@ -1,0 +1,7 @@
+{
+  "complete": true,
+  "issued_at": "2026-09-23T02:28:51.463478+00:00",
+  "schema": "argus-verus/setup-certificate-v1",
+  "setup_manifest_sha256": "359fdffb83d214f9ae9559b479fb59497e9f57036a3c210e7d9bbf6226bea7dd",
+  "source_commit": "1f94c06cbd42daefd2b4ac09135237afb261e638"
+}

@@ -1,0 +1,29 @@
+{
+  "crate": "openvmm_core",
+  "project_root": "/home/ruize/openvmm-snapshot-save-v1",
+  "reason": "scope approved; run the bounded limitation campaign",
+  "schema": "argus-verus/limitation-request-v1",
+  "scope_roots": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs"
+  ],
+  "setup_certificate": ".verus_onboarding/setup/completion-certificate.json",
+  "suggested_command": [
+    "/home/ruize/.local/bin/argus-verus-limitation",
+    "init",
+    "--project-root",
+    "/home/ruize/openvmm-snapshot-save-v1",
+    "--crate",
+    "openvmm_core",
+    "--scope-root",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "--scope-root",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "--scope-root",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs",
+    "--verus-bin",
+    "/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus"
+  ],
+  "verus_bin": "/home/ruize/verus-exp/openvmm-snapshot-save-verus/source/target-verus/native-loan-engineer/target-verus/release/verus"
+}

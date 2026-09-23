@@ -10,6 +10,10 @@ mod pcie_topology;
 mod pcie_wiring;
 mod smmu_wiring;
 mod snapshot_rpc;
+mod snapshot_save;
+mod snapshot_save_wrapper;
+
+use vstd::prelude::*;
 
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
@@ -938,6 +942,7 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
+#[verus_verify]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,
@@ -965,6 +970,7 @@ struct DynamicVpciDeviceEntry {
 
 /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
 /// for state machine transitions.
+#[verus_verify(external_body)]
 struct LoadedVmInner {
     driver_source: VmTaskDriverSource,
     resolver: ResourceResolver,
@@ -4521,124 +4527,8 @@ impl LoadedVm {
                         }
                     }
                     VmRpc::QuiesceForSnapshot(rpc) => {
-                        rpc.handle(async |timeout| {
-                            if self.inner.machine_profile != MachineProfile::Microvm {
-                                return Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(
-                                    RemoteError::new(anyhow::anyhow!(
-                                        "guest-requested snapshot quiesce requires the microVM profile"
-                                    )),
-                                ));
-                            }
-                            if !self.running {
-                                return Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(
-                                    RemoteError::new(anyhow::anyhow!("VM is already stopped")),
-                                ));
-                            }
-
-                            let quiesce = openvmm_defs::profile::ProfileSpan::start();
-                            if let Err(error) = self.state_units.quiesce_for_save(timeout).await {
-                                return Err(if error.has_uncertain_state() {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::Uncertain(
-                                        RemoteError::new(error),
-                                    )
-                                } else {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(error),
-                                    )
-                                });
-                            }
-                            quiesce.complete("capture", "quiesce", Default::default());
-                            self.running = false;
-
-                            let save_state = openvmm_defs::profile::ProfileSpan::start();
-                            let saved_state = self.save().await.map_err(|error| {
-                                openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                    RemoteError::new(error),
-                                )
-                            })?;
-                            save_state.complete("capture", "save_state", Default::default());
-                            let mapped_memory_flush =
-                                openvmm_defs::profile::ProfileSpan::start();
-                            self.inner
-                                .memory_manager
-                                .flush_shared_file_backing()
-                                .context("failed to flush mapped guest RAM")
-                                .map_err(|error| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(error),
-                                    )
-                                })?;
-                            mapped_memory_flush.complete(
-                                "capture",
-                                "mapped_memory_flush",
-                                Default::default(),
-                            );
-                            let effective_command_line = match &self.inner.load_mode {
-                                LoadMode::Pvh { cmdline, .. } => cmdline.clone(),
-                                _ => {
-                                    return Err(
-                                        openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                            RemoteError::new(anyhow::anyhow!(
-                                                "microVM snapshot has no effective PVH command line"
-                                            )),
-                                        ),
-                                    );
-                                }
-                            };
-                            let tsc_frequency_hz = self
-                                .inner
-                                .partition
-                                .tsc_frequency_hz()
-                                .map_err(|error| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(error),
-                                    )
-                                })?
-                                .ok_or_else(|| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(anyhow::anyhow!(
-                                            "backend does not expose a guest TSC frequency"
-                                        )),
-                                    )
-                                })?;
-                            let apic_frequency_hz = self
-                                .inner
-                                .partition
-                                .apic_frequency_hz()
-                                .map_err(|error| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(error),
-                                    )
-                                })?
-                                .ok_or_else(|| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(anyhow::anyhow!(
-                                            "backend does not expose a local APIC frequency"
-                                        )),
-                                    )
-                                })?;
-                            let capture_wall_clock = self
-                                .snapshot_capture_wall_clock
-                                .ok_or_else(|| {
-                                    openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                                        RemoteError::new(anyhow::anyhow!(
-                                            "snapshot boundary has no wall-clock timestamp"
-                                        )),
-                                    )
-                                })?;
-                            Ok(openvmm_defs::rpc::SnapshotSaveResponse {
-                                state_unit_names: saved_state.inventory.clone(),
-                                saved_state: ProtobufMessage::new(saved_state),
-                                effective_command_line,
-                                tsc_frequency_hz,
-                                apic_frequency_hz,
-                                capture_wall_clock,
-                                cpu_contract: mesh::payload::encode(
-                                    self.inner.partition.cpu_compatibility_contract(),
-                                ),
-                            })
-                        })
-                        .await;
+                        rpc.handle(async |timeout| self.quiesce_for_snapshot(timeout).await)
+                            .await;
                     }
                     VmRpc::ResumeAfterFailedSnapshot(rpc) => {
                         rpc.handle_failable(async |timeout| {

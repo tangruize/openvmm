@@ -1,0 +1,26 @@
+Verification scope: command=focus package=openvmm_core module=snapshot-save (lifetime and trait-conflict checking enabled)
+Verification solver: /home/ruize/openvmm-snapshot-save-v1/toolchain/verus-src/source/z3 (Z3 version 4.16.0 - 64 bit; version checking enabled)
+Fresh verification: clearing 1 selected package(s) in /home/ruize/openvmm-snapshot-save-v1/target/verus-partial
+warning: version qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core#0.0.0` is ignored, cleaning all versions of `openvmm_core` found
+warning: url qualifier in `-p path+file:///home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core#0.0.0` ignored, cleaning all versions of `openvmm_core` found
+     Removed 28 files, 55.0MiB total
+   Compiling openvmm_core v0.0.0 (/home/ruize/openvmm-snapshot-save-v1/openvmm/openvmm_core)
+warning: fields `storage` and `ptr` are never read
+    --> toolchain/verus-src/source/builtin/src/lib.rs:2565:5
+     |
+2564 | pub struct NativeMutLoan<'a, T> {
+     |            ------------- fields in this struct
+2565 |     storage: &'a mut core::mem::MaybeUninit<T>,
+     |     ^^^^^^^
+2566 |     ptr: *mut T,
+     |     ^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: crypto@0.0.0: No or multiple crypto backends enabled. This may cause a link-time error.
+warning: `verus_builtin` (lib) generated 1 warning
+note: verifying module worker::dispatch::snapshot_save (selected functions)
+
+verification results:: 0 verified, 0 errors (partial verification with `--verify-*`)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.09s
+Fresh verification summary: 0 verified, 0 errors; exit 0; preparation 1.168s; verification 6.905s; total 8.074s
