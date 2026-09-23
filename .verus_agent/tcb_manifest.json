@@ -1,0 +1,129 @@
+{
+  "sanctioned": [
+    {
+      "kind": "symbol",
+      "value": "InitializedVm::load",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRestoreReadyFile",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRestoreReadyFile",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "whole_seconds",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "subsecond_nanoseconds",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "duration_as_nanos",
+      "marker": "external_fn_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRawMutexTrait",
+      "marker": "external_trait_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRawMutex",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExRawMutex",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExMutex",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExMutex",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExMutexGuard",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExMutexGuard",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "guard_origin",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "guard_observation",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "mutex_lock",
+      "marker": "external_fn_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "guard_deref",
+      "marker": "external_fn_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExPattern",
+      "marker": "external_trait_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExSearcher",
+      "marker": "external_trait_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExReverseSearcher",
+      "marker": "external_trait_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "pattern_observation",
+      "marker": "uninterp"
+    },
+    {
+      "kind": "symbol",
+      "value": "observe_str_pattern",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "observe_dot_pattern",
+      "marker": "external_body"
+    },
+    {
+      "kind": "symbol",
+      "value": "str_strip_prefix",
+      "marker": "external_fn_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "str_rsplit_once_dot",
+      "marker": "external_fn_specification"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "openvmm/restore-limitation-review-v1",
+  "disposition": "proof_out_of_scope",
+  "summary": "The original conditional InitializedVm::load wrapper contract is retained, a focused contract is attached to LoadedVm::restore_snapshot_state, and the verification selector targets that helper. This task defines only the reviewable specification boundary; it does not attempt a production-body proof or claim that either function verifies.",
+  "top": {
+    "function": "LoadedVm::restore_snapshot_state",
+    "pre_state": "Prepared destination LoadedVm with memory/resources installed and selected VPs instantiated",
+    "post_state": "PreExecutionRestored with the restore stop guard held"
+  },
+  "remaining_proof_debt": [
+    {
+      "id": "production-view-bridges",
+      "finding": "Replace whole-object LoadedVm and decoded SavedState representation bridges with component Views.",
+      "evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.proof.rs",
+        "verification/restore/UNINTERP.json"
+      ]
+    },
+    {
+      "id": "helper-body-proof",
+      "finding": "Prove LoadedVm::restore_snapshot_state against its attached contract.",
+      "evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "openvmm/openvmm_core/src/worker/dispatch.spec.rs"
+      ]
+    },
+    {
+      "id": "upstream-preparation",
+      "finding": "Separately connect snapshot opening, prepare_snapshot_restore_for_config, decoding, destination construction, and VP instantiation to the helper pre-state.",
+      "evidence": [
+        "verification/restore/PREPARATION.md"
+      ]
+    },
+    {
+      "id": "downstream-lifecycle",
+      "finding": "Separately specify caller failure non-publication, resume, deferred-state activation, and readiness publication.",
+      "evidence": [
+        "verification/restore/SPEC.md",
+        "verification/restore/COMPONENTS.md"
+      ]
+    }
+  ],
+  "historical_note": "Earlier InitializedVm::load frontend probes are not evidence that the new helper TOP verifies and are not treated as the current blocker."
+}

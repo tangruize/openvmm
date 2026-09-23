@@ -50,6 +50,10 @@ use std::task::Waker;
 use std::time::Duration;
 use thiserror::Error;
 
+#[cfg(verus_keep_ghost)]
+#[path = "vmtime_duration/mod.rs"]
+pub mod duration_observation;
+
 /// Roughly analogous to [`std::time::Instant`], but for VM time.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Protobuf, Inspect)]
 #[inspect(transparent)]
@@ -495,7 +499,7 @@ impl VmTimeKeeper {
         assert!(!self.time.is_started(), "should be stopped");
         self.time = TimeState::Stopped(vmtime);
         self.req_send
-            .call(KeeperRequest::Reset, vmtime)
+            .call(|rpc| KeeperRequest::Reset(rpc), vmtime)
             .await
             .unwrap();
     }

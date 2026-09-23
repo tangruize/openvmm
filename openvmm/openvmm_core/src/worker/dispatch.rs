@@ -11,6 +11,18 @@ mod pcie_wiring;
 mod smmu_wiring;
 mod snapshot_rpc;
 
+#[allow(dead_code, unused_imports)]
+mod restore_spec {
+    include!("dispatch.spec.rs");
+}
+
+#[allow(dead_code, unused_imports)]
+mod restore_proof {
+    include!("dispatch.proof.rs");
+}
+
+use vstd::prelude::*;
+
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
 use crate::partition::HvlitePartition;
@@ -541,6 +553,7 @@ enum IommuDevices {
 
 /// A VM that has been initialized but not yet loaded (i.e. the saved state is
 /// not yet available).
+#[verus_verify]
 pub(crate) struct InitializedVm {
     partition: Arc<dyn HvlitePartition>,
     vps: Vec<Box<dyn BindHvliteVp>>,
@@ -938,6 +951,7 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
+#[verus_verify]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,
@@ -1803,10 +1817,35 @@ impl InitializedVm {
         })
     }
 
-    /// Loads the state for an initialized VM.
+    /// Loads an initialized VM.
     ///
     // FUTURE: move more of this logic into new() so that more can be done
     //         outside the VM-PHU/live migration blackout window.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !saved_state.is_some() || restore_proof::decoded_load_restore_request_view(
+                &saved_state,
+                &restore_time,
+                self@.state.vp_capacity,
+            ).valid_for_initialized_vm(self@),
+        ensures
+            match result {
+                Ok(loaded) => !saved_state.is_some() || (
+                    restore_spec::snapshot_load_success(
+                        self@,
+                        restore_proof::decoded_load_restore_request_view(
+                            &saved_state,
+                            &restore_time,
+                            self@.state.vp_capacity,
+                        ),
+                        loaded@,
+                    )
+                    && restore_proof::pre_execution_representation(&loaded, true)
+                ),
+                Err(_) => true,
+            },
+    ))]
     async fn load(
         self,
         saved_state: Option<SavedState>,
@@ -3577,62 +3616,8 @@ impl InitializedVm {
         };
 
         if let Some(saved_state) = saved_state {
-            #[cfg(guest_arch = "x86_64")]
-            validate_snapshot_restore_partition_presence(&saved_state, restore_time)?;
-
-            if let Some((_, saved_frequency, saved_apic_frequency)) = restore_time {
-                let destination_frequency = this
-                    .inner
-                    .partition
-                    .tsc_frequency_hz()?
-                    .context("destination backend does not expose a guest TSC frequency")?;
-                anyhow::ensure!(
-                    destination_frequency == saved_frequency,
-                    "destination TSC frequency {destination_frequency} Hz does not match saved frequency {saved_frequency} Hz"
-                );
-                this.inner.partition.set_tsc_frequency_hz(saved_frequency)?;
-                let destination_apic_frequency = this
-                    .inner
-                    .partition
-                    .apic_frequency_hz()?
-                    .context("destination backend does not expose a local APIC frequency")?;
-                if let Some(saved_apic_frequency) = saved_apic_frequency {
-                    anyhow::ensure!(
-                        destination_apic_frequency == saved_apic_frequency,
-                        "destination APIC frequency {destination_apic_frequency} Hz does not match saved frequency {saved_apic_frequency} Hz"
-                    );
-                }
-            }
-            let saved_state_restore = openvmm_defs::profile::ProfileSpan::start();
-            this.restore(saved_state)
-                .await
-                .context("loadedvm restore failed")?;
-            saved_state_restore.complete("restore", "saved_state_restore", Default::default());
-            if let Some((downtime, frequency, saved_apic_frequency)) = restore_time {
-                this.state_units
-                    .advance_time(downtime)
-                    .await
-                    .context("failed to advance restored VM time")?;
-                #[cfg(guest_arch = "x86_64")]
-                {
-                    let apic_frequency = match saved_apic_frequency {
-                        Some(frequency) => frequency,
-                        None => this.inner.partition.apic_frequency_hz()?.context(
-                            "destination backend does not expose a local APIC frequency",
-                        )?,
-                    };
-                    this.inner
-                        .partition_unit
-                        .advance_tsc(downtime, frequency, Some(apic_frequency))
-                        .await
-                        .context("failed to advance restored vCPU TSC")?;
-                }
-                this.inner
-                    .partition
-                    .advance_snapshot_time(downtime)
-                    .context("failed to advance backend snapshot clock")?;
-            }
-            this.restore_start_guard = Some(this.inner.partition_unit.temporarily_stop_vps().await);
+            this.restore_snapshot_state(saved_state, restore_time)
+                .await?;
         } else {
             // Assign PCI bus numbers/BARs before building firmware so that the
             // ACPI tables (specifically the SRAT generic-initiator entries) can
@@ -4127,6 +4112,102 @@ impl LoadedVmInner {
 }
 
 impl LoadedVm {
+    /// Restores snapshot-owned state and returns with the guest still stopped.
+    ///
+    /// Destination construction and VP instantiation happen before this
+    /// boundary. This helper owns state-unit restore, permitted time
+    /// adjustments, and acquisition of the pre-execution restore guard.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            restore_proof::decoded_restore_request_view(
+                &saved_state,
+                &restore_time,
+                old(self)@.active_vp_count,
+            ).valid_for_loaded_vm(old(self)@),
+        ensures
+            match result {
+                Ok(()) => (
+                    restore_spec::snapshot_restore_success(
+                        old(self)@,
+                        restore_proof::decoded_restore_request_view(
+                            &saved_state,
+                            &restore_time,
+                            old(self)@.active_vp_count,
+                        ),
+                        final(self)@,
+                    )
+                    && restore_proof::pre_execution_representation(final(self), true)
+                ),
+                Err(_) => true,
+            },
+    ))]
+    async fn restore_snapshot_state(
+        &mut self,
+        saved_state: SavedState,
+        restore_time: Option<(Duration, u64, Option<u64>)>,
+    ) -> anyhow::Result<()> {
+        #[cfg(guest_arch = "x86_64")]
+        validate_snapshot_restore_partition_presence(&saved_state, restore_time)?;
+
+        if let Some((_, saved_frequency, saved_apic_frequency)) = restore_time {
+            let destination_frequency = self
+                .inner
+                .partition
+                .tsc_frequency_hz()?
+                .context("destination backend does not expose a guest TSC frequency")?;
+            anyhow::ensure!(
+                destination_frequency == saved_frequency,
+                "destination TSC frequency {destination_frequency} Hz does not match saved frequency {saved_frequency} Hz"
+            );
+            self.inner.partition.set_tsc_frequency_hz(saved_frequency)?;
+            let destination_apic_frequency = self
+                .inner
+                .partition
+                .apic_frequency_hz()?
+                .context("destination backend does not expose a local APIC frequency")?;
+            if let Some(saved_apic_frequency) = saved_apic_frequency {
+                anyhow::ensure!(
+                    destination_apic_frequency == saved_apic_frequency,
+                    "destination APIC frequency {destination_apic_frequency} Hz does not match saved frequency {saved_apic_frequency} Hz"
+                );
+            }
+        }
+        let saved_state_restore = openvmm_defs::profile::ProfileSpan::start();
+        self.restore(saved_state)
+            .await
+            .context("loadedvm restore failed")?;
+        saved_state_restore.complete("restore", "saved_state_restore", Default::default());
+        if let Some((downtime, frequency, saved_apic_frequency)) = restore_time {
+            self.state_units
+                .advance_time(downtime)
+                .await
+                .context("failed to advance restored VM time")?;
+            #[cfg(guest_arch = "x86_64")]
+            {
+                let apic_frequency =
+                    match saved_apic_frequency {
+                        Some(frequency) => frequency,
+                        None => self.inner.partition.apic_frequency_hz()?.context(
+                            "destination backend does not expose a local APIC frequency",
+                        )?,
+                    };
+                self.inner
+                    .partition_unit
+                    .advance_tsc(downtime, frequency, Some(apic_frequency))
+                    .await
+                    .context("failed to advance restored vCPU TSC")?;
+            }
+            self.inner
+                .partition
+                .advance_snapshot_time(downtime)
+                .context("failed to advance backend snapshot clock")?;
+        }
+        self.restore_start_guard = Some(self.inner.partition_unit.temporarily_stop_vps().await);
+
+        Ok(())
+    }
+
     async fn resume(&mut self) -> anyhow::Result<bool> {
         if self.running {
             return Ok(false);

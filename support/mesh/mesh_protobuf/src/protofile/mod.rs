@@ -7,6 +7,9 @@
 
 mod writer;
 
+#[cfg(verus_keep_ghost)]
+mod string_observation;
+
 #[cfg(feature = "std")]
 pub use writer::DescriptorWriter;
 
