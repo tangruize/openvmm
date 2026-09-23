@@ -1,0 +1,18 @@
+{
+  "frozen_branch": "argus/snapshot-save-v1-frozen-candidate",
+  "top_spec": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs"
+  ],
+  "goal": [
+    {
+      "file": "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+      "symbol": "LoadedVm::capture_snapshot_state"
+    }
+  ],
+  "src_roots": [
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.proof.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save.spec.rs",
+    "openvmm/openvmm_core/src/worker/dispatch/snapshot_save_wrapper.rs"
+  ]
+}
