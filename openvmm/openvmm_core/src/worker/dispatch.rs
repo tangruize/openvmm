@@ -1823,25 +1823,20 @@ impl InitializedVm {
     //         outside the VM-PHU/live migration blackout window.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        requires
-            !saved_state.is_some() || restore_proof::decoded_load_restore_request_view(
-                &saved_state,
-                &restore_time,
-                self@.state.vp_capacity,
-            ).valid_for_initialized_vm(self@),
         ensures
             match result {
-                Ok(loaded) => !saved_state.is_some() || (
-                    self@.snapshot_load_success(
-                        restore_proof::decoded_load_restore_request_view(
-                            &saved_state,
+                Ok(loaded) => match saved_state {
+                    Some(saved) => {
+                        let request = restore_spec::RestoreRequestView::decode(
+                            &saved,
                             &restore_time,
-                            self@.state.vp_capacity,
-                        ),
-                        loaded@,
-                    )
-                    && restore_proof::pre_execution_representation(&loaded, true)
-                ),
+                        );
+                        request.is_accepted_by(loaded@.snapshot)
+                        && loaded@.snapshot.installs(request)
+                        && restore_proof::pre_execution_representation(&loaded, true)
+                    },
+                    None => true,
+                },
                 Err(_) => true,
             },
     ))]
@@ -4118,21 +4113,11 @@ impl LoadedVm {
     /// adjustments, and acquisition of the pre-execution restore guard.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        requires
-            restore_proof::decoded_restore_request_view(
-                &saved_state,
-                &restore_time,
-                old(self)@.active_vp_count,
-            ).valid_for_loaded_vm(old(self)@),
         ensures
             match result {
                 Ok(()) => (
                     old(self)@.snapshot_restore_success(
-                        restore_proof::decoded_restore_request_view(
-                            &saved_state,
-                            &restore_time,
-                            old(self)@.active_vp_count,
-                        ),
+                        restore_spec::RestoreRequestView::decode(&saved_state, &restore_time),
                         final(self)@,
                     )
                     && restore_proof::pre_execution_representation(final(self), true)
@@ -5184,6 +5169,17 @@ impl LoadedVm {
     /// Saves the VM's processor, partition, and device state.
     ///
     /// TODO: virtio & vmbus unsupported.
+    // This contract anchors `LoadedVm@`: the snapshot View is what save returns.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            match result {
+                Ok(saved) => restore_spec::VmSnapshotView::of_saved_state(&saved)
+                    == old(self)@.snapshot
+                    && final(self)@ == old(self)@,
+                Err(_) => true,
+            },
+    ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
             units: self.state_units.save().await?,

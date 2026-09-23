@@ -6,16 +6,12 @@
 // Keep Human-owned restore semantics in `dispatch.spec.rs`. Add substantial
 // proof functions here as frontend limitations are removed.
 
-use super::InitializedVm;
 use super::LoadedVm;
-use super::restore_spec::ComponentSnapshotStateView;
-use super::restore_spec::InitializedVmView;
 use super::restore_spec::LoadedVmView;
-use super::restore_spec::PartitionStateView;
-use super::restore_spec::RestoreRequestView;
-use super::restore_spec::VpStateView;
+use super::restore_spec::UnitName;
 use openvmm_defs::worker::SavedState;
-use std::time::Duration;
+use state_unit::SavedStateUnit;
+use vmcore::save_restore::SavedStateBlob;
 use vstd::prelude::*;
 
 verus! {
@@ -25,37 +21,24 @@ verus! {
 #[verifier::external_body]
 pub struct ExRestoreReadyFile(std::fs::File);
 
-// This bridge exposes only SavedState-owned state and the restore-time policy.
-// Prepared memory, compatibility, resources, and VP selection are already
-// represented by the pre-state of LoadedVm at this TOP boundary.
-pub uninterp spec fn decoded_restore_request_view(
-    saved_state: &SavedState,
-    restore_time: &Option<(Duration, u64, Option<u64>)>,
-    selected_vp_count: nat,
-) -> RestoreRequestView;
+// The snapshot wire form. `SavedState` and `SavedStateUnit` are transparent:
+// Verus sees their declared public fields. A `SavedStateBlob` is an opaque
+// protobuf payload compared only as a value; its schema is owned by the unit.
+#[verifier::external_type_specification]
+pub struct ExSavedState(SavedState);
 
-// The caller resolves the selected count from its explicit selection or
-// destination capacity before decoding the optional snapshot.
-pub uninterp spec fn decoded_load_restore_request_view(
-    saved_state: &Option<SavedState>,
-    restore_time: &Option<(Duration, u64, Option<u64>)>,
-    selected_vp_count: nat,
-) -> RestoreRequestView;
+#[verifier::external_type_specification]
+pub struct ExSavedStateUnit(SavedStateUnit);
 
-// TODO(uninterp): Replace with component Views for processor topology, memory,
-// component identity, compatibility, and external resource identity.
-pub uninterp spec fn initialized_vm_representation(vm: &InitializedVm) -> InitializedVmView;
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExSavedStateBlob(SavedStateBlob);
 
-impl View for InitializedVm {
-    type V = InitializedVmView;
-
-    closed spec fn view(&self) -> InitializedVmView {
-        initialized_vm_representation(self)
-    }
-}
-
-// TODO(uninterp): Replace with component Views for partition/VP state,
-// components, memory, virtual time, deferred devices, and lifecycle state.
+// TODO(uninterp): Define as the snapshot-owned state of `vm`, i.e. the
+// decoded `SavedState` that `LoadedVm::save` would return (every state unit's
+// `save` output plus `StateUnits::inventory`). The `LoadedVm::save` contract
+// fixes this meaning: its output is real data, so no other definition can
+// verify against a verified `save` body.
 pub uninterp spec fn loaded_vm_representation(vm: &LoadedVm) -> LoadedVmView;
 
 impl View for LoadedVm {
@@ -66,29 +49,16 @@ impl View for LoadedVm {
     }
 }
 
-// Downtime compensation of opaque leaf snapshot state, used by
-// `VmSnapshotView::after_downtime`. Each advances every guest-visible clock
-// the leaf carries by `downtime_ns` and leaves every other field unchanged.
-impl VpStateView {
-    // TODO(uninterp): Define with the VP state View: TSC advanced by the
-    // downtime cycles at the saved frequency and the local APIC timer by the
-    // corresponding APIC ticks (`PartitionUnit::advance_tsc`, x86_64 only;
-    // identity elsewhere).
-    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> VpStateView;
-}
-
-impl PartitionStateView {
-    // TODO(uninterp): Define with the partition state View: backend snapshot
-    // clock advanced by the downtime (`HvlitePartition::advance_snapshot_time`).
-    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> PartitionStateView;
-}
-
-impl ComponentSnapshotStateView {
-    // TODO(uninterp): Define per component with its snapshot View: the
-    // component's `advance_time` effect, e.g. the CMOS RTC clock; identity for
-    // components using the default no-op (`StateUnits::advance_time`).
-    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> ComponentSnapshotStateView;
-}
+// TODO(uninterp): Define per unit from its saved-state schema: the state its
+// `advance_time` produces (plus `PartitionUnit::advance_tsc` and the backend
+// snapshot clock for the partition unit), as observed by its next `save`.
+// Identity for units with the default no-op `advance_time`. Anchored by the
+// `LoadedVm::save` contract on the restored VM.
+pub uninterp spec fn unit_after_downtime(
+    name: UnitName,
+    state: SavedStateBlob,
+    downtime_ns: nat,
+) -> SavedStateBlob;
 
 pub closed spec fn pre_execution_representation(
     loaded: &LoadedVm,

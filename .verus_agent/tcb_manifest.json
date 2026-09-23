@@ -124,6 +124,26 @@
       "kind": "symbol",
       "value": "str_rsplit_once_dot",
       "marker": "external_fn_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExSavedState",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExSavedStateUnit",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExSavedStateBlob",
+      "marker": "external_type_specification"
+    },
+    {
+      "kind": "symbol",
+      "value": "ExSavedStateBlob",
+      "marker": "external_body"
     }
   ]
 }

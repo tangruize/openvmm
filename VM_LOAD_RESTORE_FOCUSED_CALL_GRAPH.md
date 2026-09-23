@@ -84,7 +84,7 @@ flowchart TD
 | --- | --- |
 | `LoadedVm::restore_snapshot_state` | Establish ordering: validate clock compatibility, restore state, advance time, acquire the restore stop guard, then return. |
 
-`InitializedVm::load` retains its wrapper-level conditional restore contract, but it is not the focused verification target. Both contracts adapt their different pre-state Views to the shared `VmStateView::restores_to` predicate, so snapshot equality, destination-frame preservation, active VP count, and lifecycle semantics have one definition.
+`InitializedVm::load` retains its wrapper-level conditional restore contract, but it is not the focused verification target. Both contracts use the same decoded `RestoreRequestView` and `VmSnapshotView` vocabulary; the helper states `VmSnapshotView::restore_from` exactly, and `load` states `VmSnapshotView::installs`. `LoadedVm::save` anchors the `LoadedVm` View.
 
 ### B. Caller-side precondition producers
 
@@ -117,7 +117,7 @@ These functions provide facts consumed directly by the TOP postcondition.
 | `PartitionUnitRunner::restore` | Restore partition state before VP state and preserve stable VP identities. |
 | `VpSet::restore` | Select and restore states by `VpIndex`, reject invalid identities, and restore exactly the supported instantiated set. |
 | `select_instantiated_vp_states` | Establish the actual relationship among destination capacity, instantiated count, and saved VP identities. |
-| `PartitionUnit::new` / `VpSet::new` | Establish the initial/default state and stable identity of destination VPs used by `VpStates::restore_selected`. |
+| `PartitionUnit::new` / `VpSet::new` | Establish the initial/default state and stable identity of destination VPs restored by the partition unit. |
 | `PartitionUnit::temporarily_stop_vps` | Establish the stop guard used to represent `PreExecutionRestored`. |
 
 The proof must follow semantic message dispatch and trait dispatch. An ordinary static call edge is not required for a function to be in this closure.

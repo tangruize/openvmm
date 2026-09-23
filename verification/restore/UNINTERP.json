@@ -3,76 +3,28 @@
   "completion_status": "proof_debt",
   "entries": [
     {
-      "symbol": "restore_proof::initialized_vm_representation",
-      "deferred_fact": "A total abstraction from a production InitializedVm to prepared memory, compatibility, VP capacity and initial/default VP state, boot-online policy, component inventory/state, virtual time, external resources, and host-operational state.",
-      "source_evidence": [
-        "openvmm/openvmm_core/src/worker/dispatch.rs"
-      ],
-      "consumer": "Retained InitializedVm::load wrapper contract",
-      "removal": "Replace the whole-object bridge with component Views owned by destination construction."
-    },
-    {
-      "symbol": "restore_proof::decoded_load_restore_request_view",
-      "deferred_fact": "A total abstraction from load's optional SavedState and restore_time arguments plus the full destination VP capacity selected by load to the logical VmSnapshotView, selected VP count, and time policy used by the conditional wrapper contract.",
-      "source_evidence": [
-        "openvmm/openvmm_defs/src/worker.rs",
-        "openvmm/openvmm_core/src/worker/dispatch.rs"
-      ],
-      "consumer": "Retained InitializedVm::load wrapper contract",
-      "removal": "Replace with production Views for decoded SavedState, restore-time input, and VP-selection policy."
-    },
-    {
-      "symbol": "restore_proof::decoded_restore_request_view",
-      "deferred_fact": "A total abstraction from the SavedState and restore_time arguments of LoadedVm::restore_snapshot_state plus the selected VP count read from its LoadedVm pre-state to VmSnapshotView and restore policy. It must expose only SavedState-owned partition, stable-identity VP, inventory, per-component ComponentSnapshotStateView, and virtual-time state. Prepared memory, compatibility, resources, and snapshot-generation provenance are already represented by or established before the helper's LoadedVm pre-state and must not be invented here.",
-      "source_evidence": [
-        "openvmm/openvmm_defs/src/worker.rs",
-        "openvmm/openvmm_core/src/worker/dispatch.rs"
-      ],
-      "consumer": "LoadedVm::restore_snapshot_state TOP contract",
-      "removal": "Replace this bridge with production Views for SavedState units and restore-time inputs. Keep preparation and VP-instantiation contracts outside this TOP."
-    },
-    {
       "symbol": "restore_proof::loaded_vm_representation",
-      "deferred_fact": "A total abstraction from the returned production LoadedVm to memory, preserved destination VP capacity, partition and stable-identity VP state, complete component inventory, per-component split of active component state into snapshot, configuration, and host-runtime parts, pending component snapshot state, virtual time, resources, active VP count, and execution phase.",
-      "source_evidence": [
-        "openvmm/openvmm_core/src/worker/dispatch.rs",
-        "vmm_core/src/partition_unit.rs",
-        "vm/devices/virtio/virtio/src/transport/core.rs",
-        "vm/devices/virtio/virtio/src/transport/task.rs"
-      ],
-      "consumer": "View for LoadedVm",
-      "removal": "Replace the representation bridge with component Views and connect them with closed representation invariants and lemmas."
-    },
-    {
-      "symbol": "restore_proof::VpStateView::after_downtime",
-      "deferred_fact": "Downtime compensation of one VP's snapshot state: TSC advanced by the downtime cycles at the saved TSC frequency and the local APIC timer by the corresponding ticks at the saved or destination APIC frequency; every other VP field unchanged. Identity on architectures that do not advance the TSC.",
-      "source_evidence": [
-        "openvmm/openvmm_core/src/worker/dispatch.rs",
-        "vmm_core/src/partition_unit.rs"
-      ],
-      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
-      "removal": "Define it from the VP state View once that View exposes TSC and APIC timer state."
-    },
-    {
-      "symbol": "restore_proof::PartitionStateView::after_downtime",
-      "deferred_fact": "Downtime compensation of partition snapshot state: the backend snapshot clock advanced by the downtime; every other partition field unchanged.",
-      "source_evidence": [
-        "openvmm/openvmm_core/src/worker/dispatch.rs",
-        "openvmm/openvmm_core/src/partition.rs"
-      ],
-      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
-      "removal": "Define it from the partition state View once that View exposes the backend snapshot clock."
-    },
-    {
-      "symbol": "restore_proof::ComponentSnapshotStateView::after_downtime",
-      "deferred_fact": "Downtime compensation of one live component's snapshot state: the component's advance_time effect (for example the CMOS RTC clock); identity for components that keep the default no-op advance_time.",
+      "deferred_fact": "The snapshot-owned state of a production LoadedVm: the decoded SavedState that LoadedVm::save would return, i.e. every registered state unit's save output keyed by unit name plus StateUnits::inventory. No other definition is admissible: the LoadedVm::save contract equates this View with the decoded real save output.",
       "source_evidence": [
         "openvmm/openvmm_core/src/worker/dispatch.rs",
         "vmm_core/state_unit/src/lib.rs",
+        "vmm_core/src/partition_unit.rs",
+        "vm/devices/virtio/virtio/src/transport/task.rs"
+      ],
+      "consumer": "View for LoadedVm; LoadedVm::restore_snapshot_state, InitializedVm::load, and LoadedVm::save contracts",
+      "removal": "Define it from the state units' save observations and discharge it together with a verified LoadedVm::save body (currently external_body, temporary)."
+    },
+    {
+      "symbol": "restore_proof::unit_after_downtime",
+      "deferred_fact": "Per-unit downtime compensation as observed by the unit's next save: the state its advance_time produces (and, for the partition unit, PartitionUnit::advance_tsc and the backend snapshot clock). Identity for units with the default no-op advance_time.",
+      "source_evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "vmm_core/state_unit/src/lib.rs",
+        "vmm_core/src/partition_unit.rs",
         "vm/devices/chipset/src/cmos_rtc.rs"
       ],
-      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
-      "removal": "Define it per component from the component snapshot View, together with the StateUnits::advance_time refinement."
+      "consumer": "VmSnapshotView::after_downtime in the restore and load contracts",
+      "removal": "Define it per unit from that unit's saved-state schema and advance_time refinement; it is anchored through the LoadedVm::save contract on the restored VM."
     }
   ]
 }
