@@ -8,9 +8,12 @@
 
 use super::InitializedVm;
 use super::LoadedVm;
+use super::restore_spec::ComponentSnapshotStateView;
 use super::restore_spec::InitializedVmView;
 use super::restore_spec::LoadedVmView;
+use super::restore_spec::PartitionStateView;
 use super::restore_spec::RestoreRequestView;
+use super::restore_spec::VpStateView;
 use openvmm_defs::worker::SavedState;
 use std::time::Duration;
 use vstd::prelude::*;
@@ -61,6 +64,30 @@ impl View for LoadedVm {
     closed spec fn view(&self) -> LoadedVmView {
         loaded_vm_representation(self)
     }
+}
+
+// Downtime compensation of opaque leaf snapshot state, used by
+// `VmSnapshotView::after_downtime`. Each advances every guest-visible clock
+// the leaf carries by `downtime_ns` and leaves every other field unchanged.
+impl VpStateView {
+    // TODO(uninterp): Define with the VP state View: TSC advanced by the
+    // downtime cycles at the saved frequency and the local APIC timer by the
+    // corresponding APIC ticks (`PartitionUnit::advance_tsc`, x86_64 only;
+    // identity elsewhere).
+    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> VpStateView;
+}
+
+impl PartitionStateView {
+    // TODO(uninterp): Define with the partition state View: backend snapshot
+    // clock advanced by the downtime (`HvlitePartition::advance_snapshot_time`).
+    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> PartitionStateView;
+}
+
+impl ComponentSnapshotStateView {
+    // TODO(uninterp): Define per component with its snapshot View: the
+    // component's `advance_time` effect, e.g. the CMOS RTC clock; identity for
+    // components using the default no-op (`StateUnits::advance_time`).
+    pub uninterp spec fn after_downtime(self, downtime_ns: nat) -> ComponentSnapshotStateView;
 }
 
 pub closed spec fn pre_execution_representation(

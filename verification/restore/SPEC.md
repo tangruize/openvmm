@@ -26,7 +26,7 @@ The human-owned open model separates runtime state from snapshot state at every 
 
 Restore overlays saved state only on snapshot state: `ComponentSnapshotStates::overlay` operates on `ComponentSnapshotStateView`, never on full component runtime state. Component `config` must be preserved. Component `host` state may be rebuilt by restore and is not constrained by this TOP; host-side activity may likewise change `host_operational_state` while restore runs.
 
-The vocabulary is expressed as methods on the Views (`VirtualTimeView::after_downtime`, `VpStates::restore_selected`, `ComponentStates::snapshot`/`configs`, `ComponentSnapshotStates::overlay`, `VmStateView::snapshot`/`has_stable_vp_identities`/`preserves_destination_of`/`restores_to`, `VmSnapshotView::restore_from`, `RestoreRequestView::restored_virtual_time`/`is_compatible_with`/`valid_for_*`, and the `LoadedVmView`/`InitializedVmView` success adapters) rather than free functions.
+The vocabulary is expressed as methods on the Views (`VirtualTimeView::after_downtime`, `VpStates::restore_selected`/`after_downtime`, `ComponentStates::snapshot`/`configs`, `ComponentSnapshotStates::overlay`/`after_downtime`, `VmStateView::snapshot`/`has_stable_vp_identities`/`preserves_destination_of`/`restores_to`, `VmSnapshotView::restore_from`/`after_downtime`, `RestoreRequestView::is_compatible_with`/`valid_for_*`, and the `LoadedVmView`/`InitializedVmView` success adapters) rather than free functions.
 
 ## Snapshot data interpretation
 
@@ -71,9 +71,15 @@ On `Ok(())`, `old(self)@.snapshot_restore_success(request, final(self)@)` requir
 - saved partition state is restored;
 - VP state is restored by stable VP identity for selected VPs present in the saved state, while other destination VP state remains initial/default (`VpStates::restore_selected`);
 - complete component inventory is preserved and saved active/pending component snapshot state overlays the initial/default component snapshot state (`ComponentSnapshotStates::overlay`);
-- virtual time applies exactly the optional downtime adjustment defined by `RestoreRequestView::restored_virtual_time`;
+- without a downtime adjustment, virtual time is the saved time with zero elapsed downtime; with one, the whole restored snapshot state is compensated by `VmSnapshotView::after_downtime` (see below);
 - prepared RAM, destination compatibility, VP capacity, external resources, and every active component's configuration are preserved (`VmStateView::preserves_destination_of`);
 - the active VP count is preserved and the final lifecycle phase is `PreExecutionRestored`.
+
+### Downtime compensation
+
+When the request carries a downtime adjustment, the restored VM must appear to have kept running for that downtime, so restore is not "install the saved state" alone. `VmSnapshotView::after_downtime` applies the compensation after the overlay: virtual time advances by the truncated 100ns downtime (`VirtualTimeView::after_downtime`, concrete), and partition, every VP, and every live component snapshot state advance their own clocks (`PartitionStateView`, `VpStateView`, and `ComponentSnapshotStateView::after_downtime`). Component inventory is unchanged, and deferred (pending) component state is held rather than live, so it is not advanced by this TOP.
+
+The three leaf operations are temporary `uninterp` proof debt declared in `worker/dispatch.proof.rs` with `TODO(uninterp)` notes and recorded in `UNINTERP.json`; they are not part of the sanctioned TCB. The open spec fixes only their role: each leaf advances by the same downtime and nothing else changes. What "advance" means for a particular leaf (TSC and APIC timer for a VP, the backend snapshot clock for the partition, an RTC for a component, identity for clock-free components) is supplied when that leaf's View is refined. Frequencies and other mechanism details stay out of the TOP.
 
 The postcondition deliberately does not constrain component `host` state or `host_operational_state`. It also does not claim guest readiness, deferred-state activation, caller publication, or rollback after failure.
 
@@ -87,6 +93,6 @@ The retained `InitializedVm::load` contract uses `valid_for_initialized_vm` and 
 
 The human-owned open layer in `worker/dispatch.spec.rs` defines the reviewable state vocabulary, runtime/snapshot split, validity relation, and success property.
 
-The closed layer in `worker/dispatch.proof.rs` currently provides only representation bridges needed to attach the open contract to production types. These bridges are recorded in `UNINTERP.json` as proof debt. No proof, `assume`, `admit`, copied restore implementation, or predicate that directly asserts the final theorem is added by this task.
+The closed layer in `worker/dispatch.proof.rs` currently provides only representation bridges needed to attach the open contract to production types, plus the three uninterpreted leaf downtime operations. These are recorded in `UNINTERP.json` as proof debt. No proof, `assume`, `admit`, copied restore implementation, or predicate that directly asserts the final theorem is added by this task.
 
 `#[verus_spec]` contracts are attached to both the retained `InitializedVm::load` wrapper and `LoadedVm::restore_snapshot_state`. `verification/tools/verify.sh` selects the extracted helper as the focused TOP. The `#[verus_verify]` marker remains disabled because proving either body is outside the requested scope.

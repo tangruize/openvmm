@@ -195,6 +195,15 @@ impl VpStates {
             ),
         }
     }
+
+    pub open spec fn after_downtime(self, downtime_ns: nat) -> VpStates {
+        VpStates {
+            states: Map::new(
+                self.states.dom(),
+                |vp_index: nat| self.states[vp_index].after_downtime(downtime_ns),
+            ),
+        }
+    }
 }
 
 impl ComponentStates {
@@ -225,6 +234,15 @@ impl ComponentSnapshotStates {
                     } else {
                         self.states[component]
                     },
+            ),
+        }
+    }
+
+    pub open spec fn after_downtime(self, downtime_ns: nat) -> ComponentSnapshotStates {
+        ComponentSnapshotStates {
+            states: Map::new(
+                self.states.dom(),
+                |component: ComponentId| self.states[component].after_downtime(downtime_ns),
             ),
         }
     }
@@ -282,7 +300,7 @@ impl VmSnapshotView {
         request: RestoreRequestView,
         selected_vp_count: nat,
     ) -> VmSnapshotView {
-        VmSnapshotView {
+        let restored = VmSnapshotView {
             partition_state: request.snapshot.partition_state,
             vp_states: self.vp_states.restore_selected(
                 request.snapshot.vp_states,
@@ -295,22 +313,35 @@ impl VmSnapshotView {
             pending_component_state: self.pending_component_state.overlay(
                 request.snapshot.pending_component_state,
             ),
-            virtual_time: request.restored_virtual_time(),
+            virtual_time: VirtualTimeView {
+                vm_time_100ns: request.snapshot.virtual_time.vm_time_100ns,
+                elapsed_since_snapshot_ns: 0,
+            },
+        };
+        if request.has_time_adjustment {
+            restored.after_downtime(request.downtime_ns)
+        } else {
+            restored
+        }
+    }
+
+    // Downtime compensation: the restored VM appears to have kept running for
+    // `downtime_ns`. Every clock in partition, VP, and live component snapshot
+    // state and in virtual time advances; inventory is unchanged. Deferred
+    // (pending) component state is held, not live, and is not advanced here.
+    pub open spec fn after_downtime(self, downtime_ns: nat) -> VmSnapshotView {
+        VmSnapshotView {
+            partition_state: self.partition_state.after_downtime(downtime_ns),
+            vp_states: self.vp_states.after_downtime(downtime_ns),
+            component_inventory: self.component_inventory,
+            active_component_state: self.active_component_state.after_downtime(downtime_ns),
+            pending_component_state: self.pending_component_state,
+            virtual_time: self.virtual_time.after_downtime(downtime_ns),
         }
     }
 }
 
 impl RestoreRequestView {
-    pub open spec fn restored_virtual_time(self) -> VirtualTimeView {
-        if self.has_time_adjustment {
-            self.snapshot.virtual_time.after_downtime(self.downtime_ns)
-        } else {
-            VirtualTimeView {
-                vm_time_100ns: self.snapshot.virtual_time.vm_time_100ns,
-                elapsed_since_snapshot_ns: 0,
-            }
-        }
-    }
 
     pub open spec fn valid_for_loaded_vm(self, initial: LoadedVmView) -> bool {
         initial.execution_phase == VmExecutionPhase::PreparingRestore

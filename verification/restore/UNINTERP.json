@@ -42,6 +42,37 @@
       ],
       "consumer": "View for LoadedVm",
       "removal": "Replace the representation bridge with component Views and connect them with closed representation invariants and lemmas."
+    },
+    {
+      "symbol": "restore_proof::VpStateView::after_downtime",
+      "deferred_fact": "Downtime compensation of one VP's snapshot state: TSC advanced by the downtime cycles at the saved TSC frequency and the local APIC timer by the corresponding ticks at the saved or destination APIC frequency; every other VP field unchanged. Identity on architectures that do not advance the TSC.",
+      "source_evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "vmm_core/src/partition_unit.rs"
+      ],
+      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
+      "removal": "Define it from the VP state View once that View exposes TSC and APIC timer state."
+    },
+    {
+      "symbol": "restore_proof::PartitionStateView::after_downtime",
+      "deferred_fact": "Downtime compensation of partition snapshot state: the backend snapshot clock advanced by the downtime; every other partition field unchanged.",
+      "source_evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "openvmm/openvmm_core/src/partition.rs"
+      ],
+      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
+      "removal": "Define it from the partition state View once that View exposes the backend snapshot clock."
+    },
+    {
+      "symbol": "restore_proof::ComponentSnapshotStateView::after_downtime",
+      "deferred_fact": "Downtime compensation of one live component's snapshot state: the component's advance_time effect (for example the CMOS RTC clock); identity for components that keep the default no-op advance_time.",
+      "source_evidence": [
+        "openvmm/openvmm_core/src/worker/dispatch.rs",
+        "vmm_core/state_unit/src/lib.rs",
+        "vm/devices/chipset/src/cmos_rtc.rs"
+      ],
+      "consumer": "VmSnapshotView::after_downtime in the LoadedVm::restore_snapshot_state TOP postcondition",
+      "removal": "Define it per component from the component snapshot View, together with the StateUnits::advance_time refinement."
     }
   ]
 }
