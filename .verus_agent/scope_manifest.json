@@ -1,5 +1,5 @@
 {
-  "frozen_branch": "argus/restore-v1-frozen",
+  "frozen_branch": "argus/restore-v2-frozen",
   "top_spec": [
     "openvmm/openvmm_core/src/worker/dispatch.spec.rs"
   ],

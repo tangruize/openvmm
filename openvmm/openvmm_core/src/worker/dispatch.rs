@@ -1832,8 +1832,7 @@ impl InitializedVm {
         ensures
             match result {
                 Ok(loaded) => !saved_state.is_some() || (
-                    restore_spec::snapshot_load_success(
-                        self@,
+                    self@.snapshot_load_success(
                         restore_proof::decoded_load_restore_request_view(
                             &saved_state,
                             &restore_time,
@@ -4128,8 +4127,7 @@ impl LoadedVm {
         ensures
             match result {
                 Ok(()) => (
-                    restore_spec::snapshot_restore_success(
-                        old(self)@,
+                    old(self)@.snapshot_restore_success(
                         restore_proof::decoded_restore_request_view(
                             &saved_state,
                             &restore_time,

@@ -5,6 +5,17 @@
 //
 // This module contains no executable restore implementation. Its abstract
 // Views describe the pre/post-state of `LoadedVm::restore_snapshot_state`.
+//
+// Two kinds of state are kept apart throughout:
+//
+// - runtime state (`*StateView`): everything a live VM or component holds,
+//   including destination configuration and host-bound runtime objects;
+// - snapshot state (`*SnapshotStateView`, `VmSnapshotView`): only the part
+//   that a snapshot serializes and that restore installs.
+//
+// Snapshot state is never obtained by selecting fields of the VM-level View.
+// Each component owns its split: its runtime View carries its snapshot state
+// separately from its non-snapshot configuration and host-runtime state.
 
 use vstd::prelude::*;
 
@@ -19,16 +30,20 @@ pub struct RamView {
     pub regions: Seq<RamRegionView>,
 }
 
-pub struct ResourceId {
+// Destination-side attachment point, such as a configured disk slot or VMGS
+// binding, to which a host resource is attached.
+pub struct ResourceSlotId {
     pub value: int,
 }
 
-pub struct ResourceIdentity {
+// Logical identity of the host backing object bound to a slot, such as the
+// approved disk image. Host handle or descriptor values are not identities.
+pub struct BackingResourceId {
     pub value: int,
 }
 
 pub struct ExternalResourcesView {
-    pub attachments: Map<ResourceId, ResourceIdentity>,
+    pub bindings: Map<ResourceSlotId, BackingResourceId>,
 }
 
 // Host-managed runtime state may be created or changed while restore runs.
@@ -50,43 +65,81 @@ pub struct PartitionStateView {
     pub value: int,
 }
 
-pub struct ComponentId {
-    pub value: int,
-}
-
-pub struct ComponentStateView {
-    pub value: int,
-}
-
 pub struct VirtualTimeView {
     pub vm_time_100ns: u64,
     pub elapsed_since_snapshot_ns: nat,
 }
 
+pub struct ComponentId {
+    pub value: int,
+}
+
+// The serialized state of one component: exactly what its saved-state blob
+// carries and what its restore implementation installs.
+pub struct ComponentSnapshotStateView {
+    pub value: int,
+}
+
+// Destination-constructed component configuration, such as bindings, sizes,
+// and wiring. It is not serialized and restore does not change it.
+pub struct ComponentConfigView {
+    pub value: int,
+}
+
+// Host-bound component runtime objects, such as tasks, timers, queue workers,
+// and handles. They are not serialized; restore may rebuild them.
+pub struct ComponentHostStateView {
+    pub value: int,
+}
+
+// The complete runtime state of one live component. The component's View is
+// responsible for placing every serialized field in `snapshot` and every
+// other field in `config` or `host`.
+pub struct ComponentStateView {
+    pub config: ComponentConfigView,
+    pub snapshot: ComponentSnapshotStateView,
+    pub host: ComponentHostStateView,
+}
+
+pub struct ComponentStates {
+    pub states: Map<ComponentId, ComponentStateView>,
+}
+
+pub struct ComponentSnapshotStates {
+    pub states: Map<ComponentId, ComponentSnapshotStateView>,
+}
+
+pub struct VpStates {
+    pub states: Map<nat, VpStateView>,
+}
+
+// The complete logical runtime state at the restore boundary.
 pub struct VmStateView {
     pub memory: RamView,
     pub compatibility: CompatibilityClass,
     pub vp_capacity: nat,
     pub partition_state: PartitionStateView,
-    pub vp_states: Map<nat, VpStateView>,
+    pub vp_states: VpStates,
     pub component_inventory: Set<ComponentId>,
-    pub active_component_state: Map<ComponentId, ComponentStateView>,
-    pub pending_component_state: Map<ComponentId, ComponentStateView>,
+    // Live components whose state has been applied.
+    pub active_components: ComponentStates,
+    // Deferred components: saved state held until activation. Only snapshot
+    // state exists for them before activation.
+    pub pending_component_state: ComponentSnapshotStates,
     pub virtual_time: VirtualTimeView,
     pub resources: ExternalResourcesView,
     pub host_operational_state: HostOperationalStateView,
 }
 
-// The stable, guest-relevant state represented by snapshot artifacts. This
-// excludes host operational details such as tasks, sockets, wakers, and host
-// queue occupancy.
-pub struct SnapshotVmStateView {
-    pub memory: RamView,
+// The VM state carried by a snapshot's decoded `SavedState`, and equally the
+// snapshot-owned part of a live VM. RAM is carried by the separately prepared
+// memory file and is not part of this View.
+pub struct VmSnapshotView {
     pub partition_state: PartitionStateView,
-    pub vp_states: Map<nat, VpStateView>,
+    pub vp_states: VpStates,
     pub component_inventory: Set<ComponentId>,
-    pub active_component_state: Map<ComponentId, ComponentStateView>,
-    pub pending_component_state: Map<ComponentId, ComponentStateView>,
+    pub active_component_state: ComponentSnapshotStates,
+    pub pending_component_state: ComponentSnapshotStates,
     pub virtual_time: VirtualTimeView,
 }
 
@@ -95,17 +148,8 @@ pub struct InitializedVmView {
     pub boot_online_vps: nat,
 }
 
-pub struct SavedVmStateView {
-    pub partition_state: PartitionStateView,
-    pub vp_states: Map<nat, VpStateView>,
-    pub component_inventory: Set<ComponentId>,
-    pub active_component_state: Map<ComponentId, ComponentStateView>,
-    pub pending_component_state: Map<ComponentId, ComponentStateView>,
-    pub virtual_time: VirtualTimeView,
-}
-
 pub struct RestoreRequestView {
-    pub saved_state: SavedVmStateView,
+    pub snapshot: VmSnapshotView,
     pub selected_vp_count: nat,
     pub downtime_ns: nat,
     pub has_time_adjustment: bool,
@@ -124,193 +168,197 @@ pub struct LoadedVmView {
     pub execution_phase: VmExecutionPhase,
 }
 
-pub open spec fn snapshot_state(state: VmStateView) -> SnapshotVmStateView {
-    SnapshotVmStateView {
-        memory: state.memory,
-        partition_state: state.partition_state,
-        vp_states: state.vp_states,
-        component_inventory: state.component_inventory,
-        active_component_state: state.active_component_state,
-        pending_component_state: state.pending_component_state,
-        virtual_time: state.virtual_time,
+impl VirtualTimeView {
+    // `VmTime::wrapping_add`: truncating 100ns downtime, wrapping to `u64`.
+    pub open spec fn after_downtime(self, downtime_ns: nat) -> VirtualTimeView {
+        VirtualTimeView {
+            vm_time_100ns: ((self.vm_time_100ns as nat + downtime_ns / 100)
+                % 0x1_0000_0000_0000_0000) as u64,
+            elapsed_since_snapshot_ns: downtime_ns,
+        }
     }
 }
 
-pub open spec fn vm_time_after_downtime(
-    snapshot_time_100ns: u64,
-    downtime_ns: nat,
-) -> u64 {
-    ((snapshot_time_100ns as nat + downtime_ns / 100)
-        % 0x1_0000_0000_0000_0000) as u64
-}
-
-pub open spec fn restore_vp_projection(
-    initial_vps: Map<nat, VpStateView>,
-    saved_vps: Map<nat, VpStateView>,
-    selected_vp_count: nat,
-) -> Map<nat, VpStateView> {
-    Map::new(
-        initial_vps.dom(),
-        |vp_index: nat|
-            if vp_index < selected_vp_count && saved_vps.dom().contains(vp_index) {
-                saved_vps[vp_index]
-            } else {
-                initial_vps[vp_index]
-            },
-    )
-}
-
-pub open spec fn overlay_component_state(
-    initial: Map<ComponentId, ComponentStateView>,
-    restored: Map<ComponentId, ComponentStateView>,
-) -> Map<ComponentId, ComponentStateView> {
-    Map::new(
-        initial.dom(),
-        |component: ComponentId|
-            if restored.dom().contains(component) {
-                restored[component]
-            } else {
-                initial[component]
-            },
-    )
-}
-
-pub open spec fn restored_virtual_time(
-    saved: VirtualTimeView,
-    request: RestoreRequestView,
-) -> VirtualTimeView {
-    VirtualTimeView {
-        vm_time_100ns: if request.has_time_adjustment {
-            vm_time_after_downtime(saved.vm_time_100ns, request.downtime_ns)
-        } else {
-            saved.vm_time_100ns
-        },
-        elapsed_since_snapshot_ns: if request.has_time_adjustment {
-            request.downtime_ns
-        } else {
-            0
-        },
+impl VpStates {
+    // Selected VPs present in `saved` take the saved state; every other
+    // destination VP keeps its initial/default state.
+    pub open spec fn restore_selected(self, saved: VpStates, selected_vp_count: nat) -> VpStates {
+        VpStates {
+            states: Map::new(
+                self.states.dom(),
+                |vp_index: nat|
+                    if vp_index < selected_vp_count && saved.states.dom().contains(vp_index) {
+                        saved.states[vp_index]
+                    } else {
+                        self.states[vp_index]
+                    },
+            ),
+        }
     }
 }
 
-pub open spec fn restore_snapshot_projection(
-    initial: SnapshotVmStateView,
-    request: RestoreRequestView,
-    selected_vp_count: nat,
-) -> SnapshotVmStateView {
-    SnapshotVmStateView {
-        memory: initial.memory,
-        partition_state: request.saved_state.partition_state,
-        vp_states: restore_vp_projection(
-            initial.vp_states,
-            request.saved_state.vp_states,
-            selected_vp_count,
-        ),
-        component_inventory: request.saved_state.component_inventory,
-        active_component_state: overlay_component_state(
-            initial.active_component_state,
-            request.saved_state.active_component_state,
-        ),
-        pending_component_state: overlay_component_state(
-            initial.pending_component_state,
-            request.saved_state.pending_component_state,
-        ),
-        virtual_time: restored_virtual_time(request.saved_state.virtual_time, request),
+impl ComponentStates {
+    pub open spec fn snapshot(self) -> ComponentSnapshotStates {
+        ComponentSnapshotStates {
+            states: Map::new(
+                self.states.dom(),
+                |component: ComponentId| self.states[component].snapshot,
+            ),
+        }
+    }
+
+    pub open spec fn configs(self) -> Map<ComponentId, ComponentConfigView> {
+        Map::new(self.states.dom(), |component: ComponentId| self.states[component].config)
     }
 }
 
-pub open spec fn snapshot_restore_result(
-    initial: VmStateView,
-    selected_vp_count: nat,
-    request: RestoreRequestView,
-    restored: LoadedVmView,
-) -> bool {
-    snapshot_state(restored.state) == restore_snapshot_projection(
-        snapshot_state(initial),
-        request,
-        selected_vp_count,
-    )
-    && restored.state.compatibility == initial.compatibility
-    && restored.state.vp_capacity == initial.vp_capacity
-    && restored.state.resources == initial.resources
-    && restored.active_vp_count == selected_vp_count
-    && restored.execution_phase == VmExecutionPhase::PreExecutionRestored
+impl ComponentSnapshotStates {
+    // Saved component snapshot state replaces the initial/default snapshot
+    // state of the same component; components without saved state keep it.
+    pub open spec fn overlay(self, saved: ComponentSnapshotStates) -> ComponentSnapshotStates {
+        ComponentSnapshotStates {
+            states: Map::new(
+                self.states.dom(),
+                |component: ComponentId|
+                    if saved.states.dom().contains(component) {
+                        saved.states[component]
+                    } else {
+                        self.states[component]
+                    },
+            ),
+        }
+    }
 }
 
-pub open spec fn snapshot_restore_success(
-    initial: LoadedVmView,
-    request: RestoreRequestView,
-    restored: LoadedVmView,
-) -> bool {
-    snapshot_restore_result(
-        initial.state,
-        initial.active_vp_count,
-        request,
-        restored,
-    )
+impl VmStateView {
+    // The snapshot-owned part of the live VM, composed from each component's
+    // own snapshot state.
+    pub open spec fn snapshot(self) -> VmSnapshotView {
+        VmSnapshotView {
+            partition_state: self.partition_state,
+            vp_states: self.vp_states,
+            component_inventory: self.component_inventory,
+            active_component_state: self.active_components.snapshot(),
+            pending_component_state: self.pending_component_state,
+            virtual_time: self.virtual_time,
+        }
+    }
+
+    pub open spec fn has_stable_vp_identities(self) -> bool {
+        forall |vp_index: nat|
+            self.vp_states.states.dom().contains(vp_index) <==> vp_index < self.vp_capacity
+    }
+
+    // State that restore must leave unchanged: RAM installed by preparation,
+    // the destination frame, and every component's configuration. Host-bound
+    // component runtime state and host-operational state are unconstrained.
+    pub open spec fn preserves_destination_of(self, initial: VmStateView) -> bool {
+        self.memory == initial.memory
+        && self.compatibility == initial.compatibility
+        && self.vp_capacity == initial.vp_capacity
+        && self.resources == initial.resources
+        && self.active_components.configs() == initial.active_components.configs()
+    }
+
+    // The single definition of a successful restore result.
+    pub open spec fn restores_to(
+        self,
+        request: RestoreRequestView,
+        selected_vp_count: nat,
+        restored: LoadedVmView,
+    ) -> bool {
+        restored.state.snapshot() == self.snapshot().restore_from(request, selected_vp_count)
+        && restored.state.preserves_destination_of(self)
+        && restored.active_vp_count == selected_vp_count
+        && restored.execution_phase == VmExecutionPhase::PreExecutionRestored
+    }
+}
+
+impl VmSnapshotView {
+    // The snapshot state produced by restoring `request` onto `self`, the
+    // destination's initial/default snapshot state.
+    pub open spec fn restore_from(
+        self,
+        request: RestoreRequestView,
+        selected_vp_count: nat,
+    ) -> VmSnapshotView {
+        VmSnapshotView {
+            partition_state: request.snapshot.partition_state,
+            vp_states: self.vp_states.restore_selected(
+                request.snapshot.vp_states,
+                selected_vp_count,
+            ),
+            component_inventory: request.snapshot.component_inventory,
+            active_component_state: self.active_component_state.overlay(
+                request.snapshot.active_component_state,
+            ),
+            pending_component_state: self.pending_component_state.overlay(
+                request.snapshot.pending_component_state,
+            ),
+            virtual_time: request.restored_virtual_time(),
+        }
+    }
 }
 
 impl RestoreRequestView {
+    pub open spec fn restored_virtual_time(self) -> VirtualTimeView {
+        if self.has_time_adjustment {
+            self.snapshot.virtual_time.after_downtime(self.downtime_ns)
+        } else {
+            VirtualTimeView {
+                vm_time_100ns: self.snapshot.virtual_time.vm_time_100ns,
+                elapsed_since_snapshot_ns: 0,
+            }
+        }
+    }
+
     pub open spec fn valid_for_loaded_vm(self, initial: LoadedVmView) -> bool {
         initial.execution_phase == VmExecutionPhase::PreparingRestore
         && initial.active_vp_count <= initial.state.vp_capacity
         && self.selected_vp_count == initial.active_vp_count
-        && initial.vp_identity_is_valid()
-        && self.saved_state_is_compatible_with_state(initial.state)
+        && initial.state.has_stable_vp_identities()
+        && self.is_compatible_with(initial.state)
     }
 
     pub open spec fn valid_for_initialized_vm(self, initial: InitializedVmView) -> bool {
         initial.boot_online_vps <= self.selected_vp_count
         && self.selected_vp_count <= initial.state.vp_capacity
-        && initial.vp_identity_is_valid()
-        && self.saved_state_is_compatible_with_state(initial.state)
+        && initial.state.has_stable_vp_identities()
+        && self.is_compatible_with(initial.state)
     }
 
-    pub open spec fn saved_state_is_compatible_with_state(
-        self,
-        initial: VmStateView,
-    ) -> bool {
-        self.saved_state.vp_states.dom().subset_of(initial.vp_states.dom())
-        && self.saved_state.component_inventory == initial.component_inventory
-        && self.saved_state.active_component_state.dom()
-            .subset_of(self.saved_state.component_inventory)
-        && self.saved_state.pending_component_state.dom()
-            .subset_of(self.saved_state.component_inventory)
-        && self.saved_state.active_component_state.dom()
-            .subset_of(initial.active_component_state.dom())
-        && self.saved_state.pending_component_state.dom()
-            .subset_of(initial.pending_component_state.dom())
-        && self.saved_state.virtual_time.elapsed_since_snapshot_ns == 0
+    pub open spec fn is_compatible_with(self, initial: VmStateView) -> bool {
+        let saved = self.snapshot;
+        saved.vp_states.states.dom().subset_of(initial.vp_states.states.dom())
+        && saved.component_inventory == initial.component_inventory
+        && saved.active_component_state.states.dom().subset_of(saved.component_inventory)
+        && saved.pending_component_state.states.dom().subset_of(saved.component_inventory)
+        && saved.active_component_state.states.dom()
+            .subset_of(initial.active_components.states.dom())
+        && saved.pending_component_state.states.dom()
+            .subset_of(initial.pending_component_state.states.dom())
+        && saved.virtual_time.elapsed_since_snapshot_ns == 0
     }
 }
 
 impl LoadedVmView {
-    pub open spec fn vp_identity_is_valid(self) -> bool {
-        forall |vp_index: nat|
-            self.state.vp_states.dom().contains(vp_index)
-                <==> vp_index < self.state.vp_capacity
+    pub open spec fn snapshot_restore_success(
+        self,
+        request: RestoreRequestView,
+        restored: LoadedVmView,
+    ) -> bool {
+        self.state.restores_to(request, self.active_vp_count, restored)
     }
 }
 
 impl InitializedVmView {
-    pub open spec fn vp_identity_is_valid(self) -> bool {
-        forall |vp_index: nat|
-            self.state.vp_states.dom().contains(vp_index)
-                <==> vp_index < self.state.vp_capacity
+    pub open spec fn snapshot_load_success(
+        self,
+        request: RestoreRequestView,
+        loaded: LoadedVmView,
+    ) -> bool {
+        self.state.restores_to(request, request.selected_vp_count, loaded)
     }
-}
-
-pub open spec fn snapshot_load_success(
-    initial: InitializedVmView,
-    request: RestoreRequestView,
-    loaded: LoadedVmView,
-) -> bool {
-    snapshot_restore_result(
-        initial.state,
-        request.selected_vp_count,
-        request,
-        loaded,
-    )
 }
 
 } // verus!

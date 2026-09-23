@@ -12,17 +12,21 @@ Its pre-state is a destination `LoadedVm` after `InitializedVm::load` has comple
 
 ## Logical state boundary
 
-The human-owned open model separates:
+The human-owned open model separates runtime state from snapshot state at every level where they differ:
 
-- `VmStateView`: the full logical runtime state represented at this boundary, including guest-visible state, destination configuration/resources, and `HostOperationalStateView`.
-- `SnapshotVmStateView`: only state represented by snapshot artifacts and relevant to restore correctness: prepared RAM, partition and stable-identity VP state, component inventory and active/pending component state, and virtual time.
-- `SavedVmStateView`: the component state carried by decoded `SavedState`; it does not contain RAM, external resources, destination compatibility, VP capacity, or snapshot-generation identity.
-- `RestoreRequestView`: `SavedVmStateView`, selected VP count, and the optional downtime policy.
+- `VmStateView`: the full logical runtime state represented at this boundary, including RAM, guest-visible state, destination configuration/resources, live components, and `HostOperationalStateView`.
+- `ComponentStateView`: the full runtime state of one live component. Most components mix serialized and non-serialized fields, so each component View splits them into `snapshot: ComponentSnapshotStateView` (exactly what the component's saved-state blob carries and its restore installs), `config: ComponentConfigView` (destination-constructed configuration such as bindings, sizes, and wiring), and `host: ComponentHostStateView` (host-bound runtime objects such as tasks, timers, queue workers, and handles).
+- `ComponentSnapshotStateView`: serialized component state only. Deferred (pending) components hold only this form before activation.
+- `VmSnapshotView`: the VM state carried by decoded `SavedState`, and equally the snapshot-owned part of a live VM: partition state, stable-identity VP state, component inventory, active and pending component snapshot state, and virtual time. It does not contain RAM (carried by the separately prepared memory file), external resources, destination compatibility, VP capacity, or snapshot-generation identity. One type serves both roles, so the saved state and the live snapshot state are directly comparable.
+- `RestoreRequestView`: the saved `VmSnapshotView`, selected VP count, and the optional downtime policy.
 - `LoadedVmView`: the concrete helper pre/post-state together with active VP count and lifecycle phase.
+- `ExternalResourcesView`: bindings from a destination attachment point (`ResourceSlotId`) to the logical identity of the host backing object bound there (`BackingResourceId`). Handle or descriptor values are not identities.
 
-`snapshot_state(vm_state)` is the explicit projection from full runtime state to snapshot state. It intentionally excludes compatibility metadata, destination VP capacity, external resource identities, and host-operational state such as tasks, sockets, signaling objects, wakers, and transient host queue occupancy.
+`VmStateView::snapshot()` does not select fields of the VM-level View. It composes the partition, VP, inventory, pending, and virtual-time snapshot state with each active component's own `ComponentStateView::snapshot` part (`ComponentStates::snapshot()`). The split between snapshot and non-snapshot fields is therefore owned by each component View, and the future component refinements must place every serialized field in `snapshot` and every other field in `config` or `host`.
 
-Host-side activity may change `host_operational_state` while restore runs. The success condition therefore does not require equality for that field.
+Restore overlays saved state only on snapshot state: `ComponentSnapshotStates::overlay` operates on `ComponentSnapshotStateView`, never on full component runtime state. Component `config` must be preserved. Component `host` state may be rebuilt by restore and is not constrained by this TOP; host-side activity may likewise change `host_operational_state` while restore runs.
+
+The vocabulary is expressed as methods on the Views (`VirtualTimeView::after_downtime`, `VpStates::restore_selected`, `ComponentStates::snapshot`/`configs`, `ComponentSnapshotStates::overlay`, `VmStateView::snapshot`/`has_stable_vp_identities`/`preserves_destination_of`/`restores_to`, `VmSnapshotView::restore_from`, `RestoreRequestView::restored_virtual_time`/`is_compatible_with`/`valid_for_*`, and the `LoadedVmView`/`InitializedVmView` success adapters) rather than free functions.
 
 ## Snapshot data interpretation
 
@@ -51,7 +55,7 @@ The TOP currently uses `decoded_restore_request_view` as an explicit proof-debt 
 - the helper pre-state is `PreparingRestore`;
 - the active VP count does not exceed destination VP capacity;
 - the request's selected VP count equals the active VP count already instantiated in the helper pre-state;
-- the destination VP map has stable identities for the full destination capacity;
+- the destination VP map has stable identities for the full destination capacity (`VmStateView::has_stable_vp_identities`);
 - saved VP identities are a subset of destination VP identities;
 - the complete saved component inventory equals the destination component inventory;
 - active and pending saved-state domains are subsets of that inventory and of the corresponding destination component domains;
@@ -61,28 +65,27 @@ Preparation establishes additional end-to-end facts before this TOP: exact snaps
 
 ## Successful postcondition
 
-On `Ok(())`, `snapshot_restore_success(old(self)@, request, final(self)@)` requires:
+On `Ok(())`, `old(self)@.snapshot_restore_success(request, final(self)@)` requires:
 
-- the final snapshot-state projection equals `restore_snapshot_projection(snapshot_state(initial.state), request, initial.active_vp_count)`;
-- prepared RAM remains the RAM already installed in the helper pre-state;
+- the final snapshot state equals `initial.state.snapshot().restore_from(request, initial.active_vp_count)`;
 - saved partition state is restored;
-- VP state is restored by stable VP identity for selected VPs present in the saved state, while other destination VP state remains initial/default;
-- complete component inventory is preserved and saved active/pending component state overlays the initial/default component state;
-- virtual time applies exactly the optional downtime adjustment defined by `restored_virtual_time`;
-- destination compatibility, VP capacity, external resources, and active VP count are preserved;
-- the final lifecycle phase is `PreExecutionRestored`.
+- VP state is restored by stable VP identity for selected VPs present in the saved state, while other destination VP state remains initial/default (`VpStates::restore_selected`);
+- complete component inventory is preserved and saved active/pending component snapshot state overlays the initial/default component snapshot state (`ComponentSnapshotStates::overlay`);
+- virtual time applies exactly the optional downtime adjustment defined by `RestoreRequestView::restored_virtual_time`;
+- prepared RAM, destination compatibility, VP capacity, external resources, and every active component's configuration are preserved (`VmStateView::preserves_destination_of`);
+- the active VP count is preserved and the final lifecycle phase is `PreExecutionRestored`.
 
-The postcondition deliberately does not constrain `host_operational_state`. It also does not claim guest readiness, deferred-state activation, caller publication, or rollback after failure.
+The postcondition deliberately does not constrain component `host` state or `host_operational_state`. It also does not claim guest readiness, deferred-state activation, caller publication, or rollback after failure.
 
 The `Err` arm has no state rollback guarantee. Failure non-publication and no-resume properties belong to separate caller contracts.
 
-The shared `snapshot_restore_result` predicate contains the single definition of the successful restore result: snapshot projection equality, preserved destination frame, selected active VP count, and `PreExecutionRestored` lifecycle phase. `snapshot_restore_success` adapts the helper's `LoadedVm` pre-state to that predicate, while `snapshot_load_success` adapts the wrapper's `InitializedVm` pre-state. Neither wrapper duplicates the restore semantics.
+`VmStateView::restores_to` contains the single definition of the successful restore result: snapshot equality, preserved destination state, selected active VP count, and `PreExecutionRestored` lifecycle phase. `LoadedVmView::snapshot_restore_success` adapts the helper's `LoadedVm` pre-state to it, while `InitializedVmView::snapshot_load_success` adapts the wrapper's `InitializedVm` pre-state. Neither adapter duplicates the restore semantics.
 
-The retained `InitializedVm::load` contract uses `valid_for_initialized_vm` and `snapshot_load_success`. It keeps the original conditional behavior for `saved_state.is_some()`, including boot-online and selected-VP bounds.
+The retained `InitializedVm::load` contract uses `valid_for_initialized_vm` and `snapshot_load_success`. It keeps the original conditional behavior for `saved_state.is_some()`, including boot-online and selected-VP bounds. On current main, `load` instantiates every destination VP, so the wrapper selects the full destination VP capacity.
 
 ## Open and closed layers
 
-The human-owned open layer in `worker/dispatch.spec.rs` defines the reviewable state vocabulary, projection, validity relation, and success property.
+The human-owned open layer in `worker/dispatch.spec.rs` defines the reviewable state vocabulary, runtime/snapshot split, validity relation, and success property.
 
 The closed layer in `worker/dispatch.proof.rs` currently provides only representation bridges needed to attach the open contract to production types. These bridges are recorded in `UNINTERP.json` as proof debt. No proof, `assume`, `admit`, copied restore implementation, or predicate that directly asserts the final theorem is added by this task.
 

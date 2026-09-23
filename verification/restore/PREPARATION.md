@@ -76,4 +76,4 @@ The following may use narrow trusted contracts:
 - copy-on-write mapping primitives after repository-owned validation;
 - wall-clock sampling as an explicit environment input.
 
-No preparation contract may assert the final `snapshot_restore_success` result.
+No preparation contract may assert the final `LoadedVmView::snapshot_restore_success` result.

@@ -13,7 +13,7 @@
     },
     {
       "symbol": "restore_proof::decoded_load_restore_request_view",
-      "deferred_fact": "A total abstraction from load's optional SavedState, restore_time, and restore_vp_count arguments to the logical saved state, selected VP count, and time policy used by the conditional wrapper contract.",
+      "deferred_fact": "A total abstraction from load's optional SavedState and restore_time arguments plus the full destination VP capacity selected by load to the logical VmSnapshotView, selected VP count, and time policy used by the conditional wrapper contract.",
       "source_evidence": [
         "openvmm/openvmm_defs/src/worker.rs",
         "openvmm/openvmm_core/src/worker/dispatch.rs"
@@ -23,7 +23,7 @@
     },
     {
       "symbol": "restore_proof::decoded_restore_request_view",
-      "deferred_fact": "A total abstraction from the SavedState and restore_time arguments of LoadedVm::restore_snapshot_state plus the selected VP count read from its LoadedVm pre-state to SavedVmStateView and restore policy. It must expose only SavedState-owned partition, stable-identity VP, inventory, mutable component, and virtual-time state. Prepared memory, compatibility, resources, and snapshot-generation provenance are already represented by or established before the helper's LoadedVm pre-state and must not be invented here.",
+      "deferred_fact": "A total abstraction from the SavedState and restore_time arguments of LoadedVm::restore_snapshot_state plus the selected VP count read from its LoadedVm pre-state to VmSnapshotView and restore policy. It must expose only SavedState-owned partition, stable-identity VP, inventory, per-component ComponentSnapshotStateView, and virtual-time state. Prepared memory, compatibility, resources, and snapshot-generation provenance are already represented by or established before the helper's LoadedVm pre-state and must not be invented here.",
       "source_evidence": [
         "openvmm/openvmm_defs/src/worker.rs",
         "openvmm/openvmm_core/src/worker/dispatch.rs"
@@ -33,7 +33,7 @@
     },
     {
       "symbol": "restore_proof::loaded_vm_representation",
-      "deferred_fact": "A total abstraction from the returned production LoadedVm to memory, preserved destination VP capacity, partition and stable-identity VP state, complete component inventory, active and pending component state, virtual time, resources, active VP count, and execution phase.",
+      "deferred_fact": "A total abstraction from the returned production LoadedVm to memory, preserved destination VP capacity, partition and stable-identity VP state, complete component inventory, per-component split of active component state into snapshot, configuration, and host-runtime parts, pending component snapshot state, virtual time, resources, active VP count, and execution phase.",
       "source_evidence": [
         "openvmm/openvmm_core/src/worker/dispatch.rs",
         "vmm_core/src/partition_unit.rs",

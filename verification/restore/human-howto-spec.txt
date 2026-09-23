@@ -11,9 +11,14 @@ snapshot memory and approved resources are already installed and whose selected
 VPs are already instantiated.
 
 Model the complete runtime VM state, including host-operational state that may
-change concurrently. Define snapshot_state as a separate projection containing
-only persisted guest-relevant state. Do not require host tasks, sockets,
-signaling objects, wakers, or transient host queues to equal snapshot data.
+change concurrently. Most components mix snapshot and non-snapshot fields, so
+do not obtain snapshot state by selecting fields of the VM state. Give each
+component a runtime state View that separates its snapshot state
+(ComponentSnapshotStateView) from its destination configuration and host-bound
+runtime objects, and compose VM snapshot state from those per-component parts.
+Use one VM snapshot View for both the saved state and the snapshot part of a
+live VM. Do not require host tasks, sockets, signaling objects, wakers, or
+transient host queues to equal snapshot data.
 
 Interpret SavedState as the named component blobs and complete state-unit
 inventory. SavedState does not contain RAM, destination compatibility,
@@ -21,19 +26,23 @@ external-resource identity, or snapshot-generation provenance.
 
 On success:
 
-- snapshot_state(final VM) equals the restore projection derived from
-  snapshot_state(initial VM), SavedState, the selected VP count already present
+- the snapshot state of the final VM equals the restore result derived from
+  the snapshot state of the initial VM, SavedState, the selected VP count already present
   in the initial LoadedVm, and the optional restore-time adjustment;
-- memory, compatibility, destination VP capacity, external resources, and
-  active VP count remain those of the initial LoadedVm;
+- memory, compatibility, destination VP capacity, external resources,
+  component configuration, and active VP count remain those of the initial
+  LoadedVm;
+- saved component state overlays component snapshot state only;
 - VP restoration uses stable VP identity and preserves initial/default state
   for destination VPs not restored from SavedState;
 - active and pending component state remain distinct;
 - the VM is PreExecutionRestored and guest execution has not begun.
 
-Define these result clauses once in a shared restore-result predicate. Adapt
-the LoadedVm helper pre-state and InitializedVm load pre-state to that predicate
-rather than maintaining two independent copies of the restore guarantee.
+Express the specification vocabulary as methods on the Views rather than
+free functions. Define these result clauses once in a shared restore-result
+predicate. Adapt the LoadedVm helper pre-state and InitializedVm load pre-state
+to that predicate rather than maintaining two independent copies of the restore
+guarantee.
 
 Do not specify or prove snapshot opening, prepare_snapshot_restore_for_config,
 protobuf decoding, destination construction, caller failure publication,

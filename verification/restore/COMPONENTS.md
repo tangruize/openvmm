@@ -25,7 +25,7 @@ SavedStateUnit.name
 SavedStateUnit.state
     -> component-specific SavedStateBlob
 component restore implementation
-    -> component SnapshotVmStateView refinement
+    -> component ComponentSnapshotStateView refinement
 ```
 
 | Generic field | Meaning | Required proof |
@@ -33,7 +33,7 @@ component restore implementation
 | `SavedState.inventory` | Complete ordered inventory, including stateless units | It agrees with the validated manifest machine contract and exactly matches the destination registration inventory when non-empty. |
 | `SavedState.units` | Units carrying mutable serialized state | Names are unique, known, consumed exactly once, and form a subset of the complete inventory. |
 | `SavedStateUnit.name` | Stable dispatch identity | It resolves to the intended production `StateUnit`, not merely to a blob with a compatible schema. |
-| `SavedStateUnit.state` | Opaque `SavedStateBlob` at the generic layer | Successful component parsing yields the concrete component saved-state View used by its restore contract. |
+| `SavedStateUnit.state` | Opaque `SavedStateBlob` at the generic layer | Successful component parsing yields the concrete `ComponentSnapshotStateView` used by its restore contract. |
 
 Protobuf encoding/decoding may be trusted narrowly, but the repository-owned mapping from stable unit name to component semantics and the component restore behavior must be proved.
 
