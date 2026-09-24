@@ -6,19 +6,32 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::mem::MaybeUninit;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("inplace.proof.rs");
 
 /// A type with methods like `Option` but that operates on a mutable reference
 /// to possibly-initialized data.
 ///
 /// This is used to initialize data in place without copying to/from `Option`
 /// types.
+#[verus_verify]
 pub struct InplaceOption<'a, T> {
     val: &'a mut MaybeUninit<T>,
     init: bool,
 }
 
+#[verus_verify]
 impl<'a, T> InplaceOption<'a, T> {
     /// Creates an option in the uninitialized state.
+    #[verus_spec(result =>
+        ensures
+            !result.initialized(),
+            result.contents() == old(val).mem_contents(),
+            result.storage_valid(),
+            final(val).mem_contents() == final(result.storage()).mem_contents(),
+    )]
     pub fn uninit(val: &'a mut MaybeUninit<T>) -> Self {
         Self { val, init: false }
     }
@@ -29,6 +42,14 @@ impl<'a, T> InplaceOption<'a, T> {
     ///
     /// The caller must guarantee that the value referenced by `val` is
     /// initialized.
+    #[verus_spec(result =>
+        requires old(val).mem_contents().is_init(),
+        ensures
+            result.initialized(),
+            result.contents() == old(val).mem_contents(),
+            result.storage_valid(),
+            final(val).mem_contents() == final(result.storage()).mem_contents(),
+    )]
     pub unsafe fn new_init_unchecked(val: &'a mut MaybeUninit<T>) -> Self {
         Self { val, init: true }
     }
@@ -39,14 +60,40 @@ impl<'a, T> InplaceOption<'a, T> {
     ///
     /// The caller must guarantee that the underlying data has been fully
     /// initialized.
+    #[verus_spec(result =>
+        requires old(self).contents().is_init(),
+        ensures
+            *result == old(self).contents().value(),
+            final(self).initialized(),
+            final(self).contents() == vstd::raw_ptr::MemContents::Init(*final(result)),
+            final(self).storage_valid(),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+    )]
     pub unsafe fn set_init_unchecked(&mut self) -> &mut T {
         self.init = true;
         // SAFETY: the caller guarantees val is initialized.
         unsafe { self.val.assume_init_mut() }
     }
+}
 
+impl<'a, T> InplaceOption<'a, T> {
     /// Takes the value, returning `Some(_)` if the value is initialized and
     /// `None` otherwise.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires old(self).storage_valid(),
+        ensures
+            !final(self).initialized(),
+            final(self).storage_valid(),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+            result == if old(self).initialized() {
+                Some(old(self).contents().value())
+            } else {
+                None
+            },
+    )]
     pub fn take(&mut self) -> Option<T> {
         if self.init {
             self.init = false;
@@ -71,6 +118,20 @@ impl<'a, T> InplaceOption<'a, T> {
     }
 
     /// Returns a mutable reference to the data if it's initialized.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires old(self).storage_valid(),
+        ensures
+            final(self).initialized() == old(self).initialized(),
+            final(self).storage_valid(),
+            match result {
+                Some(value) => old(self).initialized()
+                    && *value == old(self).contents().value()
+                    && final(self).contents() == vstd::raw_ptr::MemContents::Init(*final(value)),
+                None => !old(self).initialized()
+                    && final(self).contents() == old(self).contents(),
+            },
+    )]
     pub fn as_mut(&mut self) -> Option<&mut T> {
         if self.init {
             // SAFETY: val is initialized
@@ -81,22 +142,59 @@ impl<'a, T> InplaceOption<'a, T> {
     }
 
     /// Clears the data to the uninitialized state.
+    // This proof interface covers Copy values. Destructive non-Copy cleanup
+    // needs its own contract; the executable operation remains unrestricted.
+    #[verus_verify(preserve_source)]
+    #[verus_spec(
+        with Tracked(copy): Tracked<NativeCopy<T>>,
+        requires old(self).storage_valid(),
+        ensures
+            !final(self).initialized(),
+            final(self).storage_valid(),
+            final(self).contents() == old(self).contents(),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+    )]
     pub fn clear(&mut self) {
         if self.init {
             self.init = false;
             // SAFETY: val is initialized
+            proof_with! { native_copy_drop(Tracked(copy)) }
             unsafe { self.val.assume_init_drop() };
         }
     }
 
     /// Resets the data to the uninitialized state without dropping any
     /// initialized value.
+    #[verus_verify]
+    #[verus_spec(result =>
+        ensures
+            result == old(self).initialized(),
+            !final(self).initialized(),
+            final(self).contents() == old(self).contents(),
+            final(self).storage_valid(),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+    )]
     pub fn forget(&mut self) -> bool {
         core::mem::take(&mut self.init)
     }
 
     /// Initializes the value to `v`, dropping any existing value first.
+    #[verus_verify]
+    #[verus_spec(result =>
+        with Tracked(copy): Tracked<NativeCopy<T>>,
+        requires old(self).storage_valid(),
+        ensures
+            *result == v,
+            final(self).initialized(),
+            final(self).storage_valid(),
+            final(self).contents() == vstd::raw_ptr::MemContents::Init(*final(result)),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+    )]
     pub fn set(&mut self, v: T) -> &mut T {
+        proof_with! { Tracked(copy) }
         self.clear();
         self.init = true;
         self.val.write(v)
@@ -136,7 +234,20 @@ impl<'a, T> InplaceOption<'a, T> {
     }
 
     /// Returns a mut pointer to the underlying value (initialized or not).
+    #[verus_verify]
+    #[verus_spec(result =>
+        with -> loan: Tracked<NativeMutLoan<'_, T>>,
+        ensures
+            loan@.ptr() == result,
+            loan@.storage().mem_contents() == old(self).contents(),
+            final(self).contents() == final(loan@.storage()).mem_contents(),
+            final(self).initialized() == old(self).initialized(),
+            !old(self).initialized() ==> final(self).storage_valid(),
+            final(old(self).storage()).mem_contents()
+                == final(final(self).storage()).mem_contents(),
+    )]
     pub fn as_mut_ptr(&mut self) -> *mut T {
+        proof_with! { native_loan }
         self.val.as_mut_ptr()
     }
 }
@@ -269,6 +380,32 @@ mod tests {
     use alloc::string::String;
     use alloc::string::ToString;
     use alloc::sync::Arc;
+    use test_with_tracing::test;
+
+    #[test]
+    fn test_take_retains_backing_bytes() {
+        let mut storage = core::mem::MaybeUninit::new(37u64);
+        let mut owner = unsafe { super::InplaceOption::new_init_unchecked(&mut storage) };
+        assert_eq!(owner.take(), Some(37));
+        assert_eq!(owner.take(), None);
+        drop(owner);
+        // The Copy value was initialized above; taking relinquishes logical
+        // ownership without physically clearing or overwriting its bytes.
+        assert_eq!(unsafe { storage.assume_init() }, 37);
+    }
+
+    #[test]
+    fn test_take_transfers_non_copy_ownership() {
+        let value = Arc::new(());
+        let weak = Arc::downgrade(&value);
+        inplace_some!(value);
+        let taken = value.take().unwrap();
+        assert!(value.take().is_none());
+        drop(value);
+        assert_eq!(weak.strong_count(), 1);
+        drop(taken);
+        assert!(weak.upgrade().is_none());
+    }
 
     #[test]
     fn test_inplace_some() {

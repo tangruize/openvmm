@@ -58,6 +58,7 @@ use core::num::NonZeroU64;
 use core::num::NonZeroUsize;
 use core::time::Duration;
 use thiserror::Error;
+use vstd::prelude::*;
 use zerocopy::Immutable;
 use zerocopy::KnownLayout;
 
@@ -144,6 +145,7 @@ pub trait FromNumber: Copy {
     /// Convert from an `i64`.
     fn from_i64(v: i64) -> Result<Self>;
     /// Convert from a `u64`.
+    #[verus_verify]
     fn from_u64(v: u64) -> Result<Self>;
 }
 
@@ -160,8 +162,12 @@ macro_rules! number {
         }
 
         impl FromNumber for $ty {
-            fn from_u64(v: u64) -> Result<Self> {
+            verus_trait_impl! {
+            fn from_u64(v: u64) -> (result: Result<Self>)
+                ensures result == Ok(v as Self),
+            {
                 Ok(v as Self)
+            }
             }
             fn from_i64(v: i64) -> Result<Self> {
                 Ok(v as Self)
@@ -589,6 +595,7 @@ impl<C: CopyExtend<u8>> PackedDecode<'_, u8, C> for ByteField {
 }
 
 /// A field encoder for varint fields.
+#[verus_verify]
 pub struct VarintField;
 
 builtin_field_type!(u64, VarintField, "uint64");
@@ -648,13 +655,46 @@ impl<T: ToNumber> PackedEncode<T> for VarintField {
     }
 }
 
+#[verus_specialize(specialize_varint_read_field, read_field)]
 impl<'a, T: FromNumber, R> FieldDecode<'a, T, R> for VarintField {
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires old(item).storage_valid(), reader.varint_payload() is Some,
+        ensures
+            result == Ok(()),
+            final(item).storage_valid(),
+            final(item).initialized(),
+            final(item).contents() == vstd::raw_ptr::MemContents::Init(
+                reader.varint_payload()->Some_0),
+            final(old(item).storage()).mem_contents()
+                == final(final(item).storage()).mem_contents(),
+    )]
     fn read_field(item: &mut InplaceOption<'_, T>, reader: FieldReader<'_, '_, R>) -> Result<()> {
+        proof_decl! { let tracked copy = native_copy::<T>(); }
+        proof_with! { Tracked(copy) }
         item.set(T::from_u64(reader.varint()?)?);
         Ok(())
     }
 
+    #[verus_verify]
+    #[verus_spec(result =>
+        ensures
+            final(item).storage_valid(),
+            final(old(item).storage()).mem_contents()
+                == final(final(item).storage()).mem_contents(),
+            match result {
+                Ok(()) => final(item).initialized()
+                    && final(item).contents().is_init()
+                    && call_ensures(T::from_u64, (0u64,),
+                        Ok(final(item).contents().value())),
+                Err(error) => final(item).initialized() == old(item).initialized()
+                    && final(item).contents() == old(item).contents()
+                    && call_ensures(T::from_u64, (0u64,), Err(error)),
+            },
+    )]
     fn default_field(item: &mut InplaceOption<'_, T>) -> Result<()> {
+        proof_decl! { let tracked copy = native_copy::<T>(); }
+        proof_with! { Tracked(copy) }
         item.set(T::from_u64(0)?);
         Ok(())
     }

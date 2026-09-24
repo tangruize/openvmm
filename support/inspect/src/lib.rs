@@ -480,6 +480,8 @@ use core::num::Wrapping;
 use core::ops::Deref;
 
 /// An inspection request.
+// TODO(proof): Refine request node ownership and deferred inspection state.
+#[vstd::prelude::verus_verify(external_body)]
 pub struct Request<'a> {
     params: RequestParams<'a>,
     node: &'a mut InternalNode,
@@ -1934,6 +1936,7 @@ impl InternalNode {
 /// directly, but instead derive [`InspectMut`](derive@InspectMut).
 ///
 /// See the [`Inspect`] trait for more information on implementation strategies.
+#[vstd::prelude::verus_verify]
 pub trait InspectMut {
     /// Inspects the object.
     fn inspect_mut(&mut self, req: Request<'_>);

@@ -17,6 +17,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops::Range;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("protobuf.spec.rs");
 
 /// Writes a variable-length integer, as defined in the protobuf specification.
 fn write_varint(v: &mut Buf<'_>, mut n: u64) {
@@ -38,18 +42,51 @@ const fn varint_size(n: u64) -> usize {
 }
 
 /// Reads a variable-length integer, advancing `v`.
+#[verus_verify]
+#[verus_spec(result =>
+    requires has_varint(old(v)@),
+    ensures
+        result is Ok,
+        result->Ok_0 == varint_value(old(v)@, varint_len(old(v)@)),
+        final(v)@ == old(v)@.skip(varint_len(old(v)@)),
+)]
 pub(crate) fn read_varint(v: &mut &[u8]) -> Result<u64> {
+    proof_decl! {
+        let ghost original = v@;
+        let ghost end = varint_len(original);
+        let ghost index: int = 0;
+    }
     let mut shift = 0;
     let mut r = 0;
+    #[verus_spec(
+        invariant
+            original == old(v)@,
+            end == varint_len(original),
+            varint_prefix(original, end),
+            0 <= index <= end,
+            v@ == original.skip(index),
+            r == varint_value(original, index),
+        invariant_except_break
+            index < end,
+            shift == 7 * index,
+        ensures index == end,
+        decreases end - index,
+    )]
     loop {
+        proof_with! { native_some_or_return }
         let (b, rest) = v.split_first().ok_or(DecodeError::EofVarInt)?;
         *v = rest;
         r |= (*b as u64 & 0x7f) << shift;
+        proof! {
+            varint_high_bit(*b);
+            index = index + 1;
+        }
         if *b & 0x80 == 0 {
             break;
         }
         shift += 7;
         if shift > 63 {
+            proof_with! { native_unreachable }
             return Err(DecodeError::VarIntTooBig.into());
         }
     }
@@ -95,9 +132,14 @@ struct DecodeInner<'a, R> {
     resources: &'a mut [Option<R>],
 }
 
+// Opaque in logic; native construction evaluates the fresh resource state and
+// checks that the reader forwards symbolic bytes without observing them.
+#[verus_verify(publish_source)]
+#[verus_verify(external_body, reject_recursive_types(R))]
 struct DecodeState<'a, R>(RefCell<DecodeInner<'a, R>>);
 
 impl<'a, R> DecodeState<'a, R> {
+    #[verus_verify(publish_source)]
     fn new(resources: &'a mut [Option<R>]) -> Self {
         Self(RefCell::new(DecodeInner { resources }))
     }
@@ -520,6 +562,7 @@ impl<'a> MessageSizer<'a> {
 }
 
 /// A parsed protobuf value.
+#[verus_verify]
 #[derive(Debug, Clone)]
 enum Value<'a> {
     Varint(u64),
@@ -534,6 +577,7 @@ enum Value<'a> {
 }
 
 /// A reader for a payload field.
+#[verus_verify(reject_recursive_types(R))]
 pub struct FieldReader<'a, 'b, R> {
     field: Value<'a>,
     state: &'b DecodeState<'b, R>,
@@ -581,10 +625,16 @@ impl<'a, 'b, R> FieldReader<'a, 'b, R> {
     }
 
     /// Reads an unsigned variable-sized integer.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires self.varint_payload() is Some,
+        ensures result is Ok, result->Ok_0 == self.varint_payload()->Some_0,
+    )]
     pub fn varint(self) -> Result<u64> {
         if let Value::Varint(n) = self.field {
             Ok(n)
         } else {
+            proof_with! { native_unreachable }
             Err(DecodeError::ExpectedVarInt.into())
         }
     }
@@ -634,22 +684,32 @@ impl<'a, 'b, R> FieldReader<'a, 'b, R> {
 /// Implements [`Iterator`] to return (field number, [`FieldReader`]) pairs.
 /// Users must be prepared to handle fields in any order, allowing unknown and
 /// duplicate fields.
+#[verus_verify(publish_source)]
+#[verus_verify(reject_recursive_types(R))]
 pub struct MessageReader<'a, 'b, R> {
     data: &'a [u8],
     resources: Range<u32>,
     state: &'b DecodeState<'b, R>,
 }
 
+#[verus_verify]
 impl<'a, 'b, R> IntoIterator for MessageReader<'a, 'b, R> {
     type Item = Result<(u32, FieldReader<'a, 'b, R>)>;
     type IntoIter = FieldIterator<'a, 'b, R>;
 
+    #[verus_spec(result =>
+        ensures
+            result.reader_bytes() == self.reader_bytes(),
+            result.resource_range() == self.resource_range(),
+            result.decode_state() == self.decode_state(),
+    )]
     fn into_iter(self) -> Self::IntoIter {
         FieldIterator(self)
     }
 }
 
 impl<'a, 'b, R> MessageReader<'a, 'b, R> {
+    #[verus_verify(publish_source)]
     fn new(data: &'a [u8], state: &'b DecodeState<'b, R>) -> Self {
         let num_resources = state.0.borrow().resources.len() as u32;
         Self {
@@ -660,6 +720,8 @@ impl<'a, 'b, R> MessageReader<'a, 'b, R> {
     }
 
     /// Gets the message data as a byte slice.
+    #[verus_verify]
+    #[verus_spec(result => ensures result@ == self.reader_bytes())]
     pub fn bytes(&self) -> &'a [u8] {
         self.data
     }
@@ -678,61 +740,96 @@ impl<'a, 'b, R> MessageReader<'a, 'b, R> {
         })
     }
 
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires saved_time_field(old(self).reader_bytes()),
+        ensures
+            result is Ok,
+            result->Ok_0.0 == 1,
+            result->Ok_0.1.varint_payload() == Some(varint_value(
+                old(self).reader_bytes().skip(1),
+                varint_len(old(self).reader_bytes().skip(1)))),
+            final(self).reader_bytes() == old(self).reader_bytes().skip(
+                1 + varint_len(old(self).reader_bytes().skip(1))),
+            final(self).resource_range() == old(self).resource_range(),
+            final(self).decode_state() == old(self).decode_state(),
+            result->Ok_0.1.decode_state() == old(self).decode_state(),
+    )]
     fn parse_field(&mut self) -> Result<(u32, FieldReader<'a, 'b, R>)> {
+        proof! { varint_key(self.reader_bytes()); }
         let key = read_varint(&mut self.data)?;
+        proof! { assert((8u64 & 7) == 0 && (8u64 >> 3) == 1) by(bit_vector); }
         let wire_type = (key & 7) as u32;
         let field_number = (key >> 3) as u32;
         let field = match wire_type {
             0 => Value::Varint(read_varint(&mut self.data)?),
             1 => {
-                if self.data.len() < 8 {
-                    return Err(DecodeError::EofFixed64.into());
+                proof_with! { native_unreachable }
+                {
+                    if self.data.len() < 8 {
+                        return Err(DecodeError::EofFixed64.into());
+                    }
+                    let (n, rest) = self.data.split_at(8);
+                    self.data = rest;
+                    Value::Fixed64(u64::from_le_bytes(n.try_into().unwrap()))
                 }
-                let (n, rest) = self.data.split_at(8);
-                self.data = rest;
-                Value::Fixed64(u64::from_le_bytes(n.try_into().unwrap()))
             }
             2 => {
-                let len = read_varint(&mut self.data)?;
-                if (self.data.len() as u64) < len {
-                    return Err(DecodeError::EofByteArray.into());
+                proof_with! { native_unreachable }
+                {
+                    let len = read_varint(&mut self.data)?;
+                    if (self.data.len() as u64) < len {
+                        return Err(DecodeError::EofByteArray.into());
+                    }
+                    let (data, rest) = self.data.split_at(len as usize);
+                    self.data = rest;
+                    Value::Variable(data)
                 }
-                let (data, rest) = self.data.split_at(len as usize);
-                self.data = rest;
-                Value::Variable(data)
             }
             5 => {
-                if self.data.len() < 4 {
-                    return Err(DecodeError::EofFixed32.into());
+                proof_with! { native_unreachable }
+                {
+                    if self.data.len() < 4 {
+                        return Err(DecodeError::EofFixed32.into());
+                    }
+                    let (n, rest) = self.data.split_at(4);
+                    self.data = rest;
+                    Value::Fixed32(u32::from_le_bytes(n.try_into().unwrap()))
                 }
-                let (n, rest) = self.data.split_at(4);
-                self.data = rest;
-                Value::Fixed32(u32::from_le_bytes(n.try_into().unwrap()))
             }
             6 => {
-                let num_resources = read_varint(&mut self.data)? as u32;
-                let len = read_varint(&mut self.data)?;
+                proof_with! { native_unreachable }
+                {
+                    let num_resources = read_varint(&mut self.data)? as u32;
+                    let len = read_varint(&mut self.data)?;
 
-                if self.resources.len() < num_resources as usize {
-                    return Err(DecodeError::InvalidResourceRange.into());
+                    if self.resources.len() < num_resources as usize {
+                        return Err(DecodeError::InvalidResourceRange.into());
+                    }
+                    if (self.data.len() as u64) < len {
+                        return Err(DecodeError::EofByteArray.into());
+                    }
+
+                    let (data, rest) = self.data.split_at(len as usize);
+                    self.data = rest;
+
+                    let resources = self.resources.start..self.resources.start + num_resources;
+                    self.resources = resources.end..self.resources.end;
+
+                    Value::MeshMessage { data, resources }
                 }
-                if (self.data.len() as u64) < len {
-                    return Err(DecodeError::EofByteArray.into());
-                }
-
-                let (data, rest) = self.data.split_at(len as usize);
-                self.data = rest;
-
-                let resources = self.resources.start..self.resources.start + num_resources;
-                self.resources = resources.end..self.resources.end;
-
-                Value::MeshMessage { data, resources }
             }
             7 => {
-                let resource = self.resources.next().ok_or(DecodeError::MissingResource)?;
-                Value::Resource(resource)
+                proof_with! { native_unreachable }
+                {
+                    let resource = self.resources.next().ok_or(DecodeError::MissingResource)?;
+                    Value::Resource(resource)
+                }
             }
-            n => return Err(DecodeError::UnknownWireType(n).into()),
+            n => {
+                proof_with! { native_unreachable }
+                return Err(DecodeError::UnknownWireType(n).into());
+            }
         };
         Ok((
             field_number,
@@ -747,11 +844,34 @@ impl<'a, 'b, R> MessageReader<'a, 'b, R> {
 /// An iterator over message fields.
 ///
 /// Returned by [`MessageReader::into_iter()`].
+#[verus_verify(reject_recursive_types(R))]
 pub struct FieldIterator<'a, 'b, R>(MessageReader<'a, 'b, R>);
 
+#[verus_specialize(specialize_field_iterator_next, next)]
 impl<'a, 'b, R> Iterator for FieldIterator<'a, 'b, R> {
     type Item = Result<(u32, FieldReader<'a, 'b, R>)>;
 
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires saved_time_values(old(self).reader_bytes()) is Some,
+        ensures
+            final(self).resource_range() == old(self).resource_range(),
+            final(self).decode_state() == old(self).decode_state(),
+            if old(self).reader_bytes().len() == 0 {
+                result is None && *final(self) == *old(self)
+            } else {
+                result is Some && result->Some_0 is Ok
+                && result->Some_0->Ok_0.0 == 1
+                && result->Some_0->Ok_0.1.varint_payload()
+                    == Some(saved_time_values(old(self).reader_bytes())->Some_0[0])
+                && result->Some_0->Ok_0.1.decode_state() == old(self).decode_state()
+                && final(self).reader_bytes() == old(self).reader_bytes().skip(
+                    1 + varint_len(old(self).reader_bytes().skip(1)))
+                && saved_time_values(final(self).reader_bytes())
+                    == Some(saved_time_values(old(self).reader_bytes())->Some_0.skip(1))
+                && final(self).reader_bytes().len() < old(self).reader_bytes().len()
+            },
+    )]
     fn next(&mut self) -> Option<Self::Item> {
         if self.0.data.is_empty() {
             return None;
@@ -759,6 +879,9 @@ impl<'a, 'b, R> Iterator for FieldIterator<'a, 'b, R> {
         Some(self.0.parse_field())
     }
 }
+
+#[cfg(verus_keep_ghost)]
+include!("protobuf.proof.rs");
 
 /// A writer for a packed field.
 pub struct PackedWriter<'a, 'buf> {
@@ -958,13 +1081,32 @@ impl<T, R, E: MessageEncode<T, R>> Encoder<T, E, R> {
 ///
 /// If `message` already exists, then the fields are merged according to
 /// protobuf rules.
+#[verus_specialize(specialize_decode_with)]
+#[verus_verify]
+#[verus_spec(result =>
+    requires old(message).storage_valid(), saved_time_values(data@) is Some, old(resources)@.len() == 0,
+    ensures
+        result is Ok,
+        final(message).storage_valid(),
+        final(message).initialized(),
+        final(message).contents() == if saved_time_values(data@)->Some_0.len() > 0 {
+            vstd::raw_ptr::MemContents::Init(T { vmtime: VmTime(saved_time_last(data@)) })
+        } else if old(message).initialized() {
+            old(message).contents()
+        } else { vstd::raw_ptr::MemContents::Init(T { vmtime: VmTime(0) }) },
+        final(final(message).storage()).mem_contents()
+            == final(old(message).storage()).mem_contents(),
+)]
 pub fn decode_with<'a, E: MessageDecode<'a, T, R>, T, R>(
     message: &mut InplaceOption<'_, T>,
     data: &'a [u8],
     resources: &mut [Option<R>],
-) -> Result<()> {
+) -> crate::Result<()> {
+    proof_with! { native_fresh_reader }
     let state = DecodeState::new(resources);
+    proof_with! { native_fresh_reader }
     let reader = MessageReader::new(data, &state);
+    proof_with! { native_specialized_call(read_saved_sequence_message_body) }
     E::read_message(message, reader)?;
     Ok(())
 }

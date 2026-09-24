@@ -362,6 +362,7 @@ impl TimerState {
 
 /// A time keeper, which tracks the current time and all waiters.
 #[derive(Debug, InspectMut)]
+#[verus_verify]
 pub struct VmTimeKeeper {
     #[inspect(skip)]
     _task: Task<()>,
@@ -379,6 +380,7 @@ mod saved_state {
     use super::*;
 
     /// Saved state for [`VmTimeKeeper`].
+    #[verus_verify]
     #[derive(Protobuf, SavedStateRoot)]
     #[mesh(package = "vmtime")]
     pub struct SavedState {
@@ -513,6 +515,11 @@ impl VmTimeKeeper {
     }
 
     /// Saves the time state.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires self.local_stopped_time() is Some,
+        ensures Some(result.saved_time()) == self.local_stopped_time(),
+    )]
     pub fn save(&self) -> SavedState {
         SavedState {
             vmtime: self.time.stop_time().expect("should be stopped"),
@@ -520,6 +527,12 @@ impl VmTimeKeeper {
     }
 
     /// Restores the time state.
+    // TODO(proof): Prove reset_to's stopped assignment and awaited reset RPC.
+    #[verus_verify(external_body)]
+    #[verus_spec(
+        requires old(self).local_stopped_time() is Some,
+        ensures final(self).local_stopped_time() == Some(state.saved_time()),
+    )]
     pub async fn restore(&mut self, state: SavedState) {
         let SavedState { vmtime } = state;
         self.reset_to(vmtime).await
@@ -584,6 +597,8 @@ impl VmTimeKeeper {
 /// across a VM/kernel/network boundary, the resulting time sources will not be
 /// in sync with each other.
 #[derive(MeshPayload, Clone, Debug)]
+// TODO(proof): Refine the sender ownership and remote keeper registration.
+#[verus_verify(external_body)]
 pub struct VmTimeSourceBuilder {
     new_send: mesh::Sender<NewKeeperRequest>,
 }
@@ -649,6 +664,8 @@ struct PrimaryKeeper {
 }
 
 #[derive(MeshPayload)]
+// TODO(proof): Refine request payload ownership and RPC completion.
+#[verus_verify(external_body)]
 enum KeeperRequest {
     Start(Rpc<Timestamp, ()>),
     Stop(Rpc<(), VmTime>),

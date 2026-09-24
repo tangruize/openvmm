@@ -22,6 +22,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 /// A handle to a task.
+// TODO(proof): Refine the aliased task ownership; this cut supplies no task operations.
+#[vstd::prelude::verus_verify(external_body)]
 pub type Task<T> = async_task::Task<T, TaskMetadata>;
 
 /// A handle to a task that's ready to run.
@@ -32,6 +34,8 @@ pub type Runnable = async_task::Runnable<TaskMetadata>;
 /// This can be accessed via [`Task::metadata()`], [`Runnable::metadata()`], or
 /// [`with_current_task_metadata()`].
 #[derive(Debug)]
+// TODO(proof): Refine diagnostic metadata and scheduler ownership.
+#[vstd::prelude::verus_verify(external_body)]
 pub struct TaskMetadata {
     name: Arc<str>,
     location: &'static Location<'static>,

@@ -11,6 +11,26 @@ impl TypeUrl<'_> {
     }
 }
 
+pub proof fn lemma_type_url_spellings(expected: &TypeUrl<'_>)
+    requires !expected.name@.contains('.'),
+    ensures
+        expected.accepts("type.googleapis.com/"@ + expected.package@ + seq!['.'] + expected.name@),
+        expected.accepts("https://type.googleapis.com/"@ + expected.package@ + seq!['.'] + expected.name@),
+{
+    reveal_strlit("https://");
+    reveal_strlit("type.googleapis.com/");
+    reveal_strlit("https://type.googleapis.com/");
+    let canonical = "type.googleapis.com/"@ + expected.package@ + seq!['.'] + expected.name@;
+    let secure = "https://type.googleapis.com/"@ + expected.package@ + seq!['.'] + expected.name@;
+    assert(!"https://"@.is_prefix_of(canonical)) by {
+        assert(canonical[0] == 't');
+        assert(canonical.subrange(0, "https://"@.len() as int)[0] == 't');
+    }
+    assert(secure =~= "https://"@ + canonical);
+    assert(secure.take("https://"@.len() as int) =~= "https://"@);
+    assert(secure.skip("https://"@.len() as int) =~= canonical);
+}
+
 proof fn lemma_url_shape(s: Seq<char>, package: Seq<char>, name: Seq<char>)
     ensures
         "type.googleapis.com/"@.is_prefix_of(s) ==>

@@ -6,6 +6,9 @@ name = "inspect"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 default = ["derive",  "defer", "initiate", "std"]
 derive = ["inspect_derive"]
@@ -29,6 +32,7 @@ filepath = ["dep:filepath", "std"]
 arbitrary = ["dep:arbitrary", "std"]
 
 [dependencies]
+vstd.workspace = true
 inspect_derive = { workspace = true, optional = true }
 mesh = { workspace = true, optional = true }
 

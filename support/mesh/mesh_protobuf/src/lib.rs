@@ -40,15 +40,17 @@
 #![warn(clippy::std_instead_of_core)]
 #![warn(clippy::alloc_instead_of_core)]
 #![no_std]
-#![cfg_attr(verus_keep_ghost, feature(pattern))]
+#![cfg_attr(verus_keep_ghost, feature(pattern, proc_macro_hygiene))]
 
 extern crate alloc;
+use vstd::prelude::*;
 extern crate self as mesh_protobuf;
 #[cfg(feature = "std")]
 extern crate std;
 
 pub mod buffer;
 mod encode_with;
+#[macro_use]
 pub mod encoding;
 pub mod inplace;
 pub mod message;
@@ -262,6 +264,8 @@ pub trait FieldDecode<'a, T, R>: Sized {
     ///
     /// If an implementation returns `Ok(())`, then it must have set an item.
     /// Callers of this method may panic otherwise.
+    #[vstd::prelude::verus_verify]
+    #[vstd::prelude::verus_spec(requires old(item).storage_valid())]
     fn default_field(item: &mut InplaceOption<'_, T>) -> Result<()>;
 
     /// Unless `packed()::must_pack()` is true, the sequence decoder must detect
@@ -383,12 +387,19 @@ where
 }
 
 /// Decodes a message with its default encoding.
-pub fn decode<'a, T: DefaultEncoding>(data: &'a [u8]) -> Result<T>
+#[verus_specialize(specialize_public_decode)]
+#[verus_verify]
+#[verus_spec(result =>
+    requires saved_time_values(data@) is Some,
+    ensures result is Ok, result->Ok_0.vmtime@ == saved_time_last(data@),
+)]
+pub fn decode<'a, T: DefaultEncoding>(data: &'a [u8]) -> crate::Result<T>
 where
     T::Encoding: MessageDecode<'a, T, NoResources>,
 {
     inplace_none!(message: T);
-    protobuf::decode_with::<T::Encoding, _, _>(&mut message, data, &mut [])?;
+    proof_with! { native_specialized_call(decode_saved_with_body) }
+    protobuf::decode_with::<<T as DefaultEncoding>::Encoding, _, NoResources>(&mut message, data, &mut [])?;
     Ok(message.take().expect("should be constructed"))
 }
 
@@ -404,6 +415,7 @@ where
 
 /// An empty resources type, used when an encoding does not require any external
 /// resources (such as files or mesh channels).
+#[vstd::prelude::verus_verify]
 pub enum NoResources {}
 
 /// A serialized message, consisting of binary data and a list
@@ -454,6 +466,8 @@ impl<R> SerializedMessage<R> {
 }
 
 /// A decoding error.
+// Error representation is not part of the conditional defaulting proof.
+#[vstd::prelude::verus_verify(external_body)]
 #[derive(Debug)]
 pub struct Error(Box<ErrorInner>);
 

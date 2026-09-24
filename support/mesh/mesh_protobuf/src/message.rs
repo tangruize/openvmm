@@ -24,12 +24,18 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use thiserror::Error;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("message.spec.rs");
 
 /// An opaque protobuf message.
 //
 // TODO: delay encoding like in mesh::Message. This requires splitting some of
 // the encoding traits up to remove the resource type.
 #[derive(Clone, Debug)]
+#[verus_verify(publish_source)]
+#[verus_verify]
 pub struct ProtobufMessage(Vec<u8>);
 
 impl ProtobufMessage {
@@ -37,9 +43,18 @@ impl ProtobufMessage {
     pub fn new(data: impl Protobuf) -> Self {
         Self(encode(data))
     }
+}
 
+#[verus_specialize(specialize_message_parse)]
+impl ProtobufMessage {
     /// Decodes the protobuf message into `T`.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires saved_time_values(self@) is Some,
+        ensures result is Ok, result->Ok_0.vmtime@ == saved_time_last(self@),
+    )]
     pub fn parse<T: Protobuf>(&self) -> Result<T, Error> {
+        proof_with! { native_specialized_call(decode_saved_body) }
         decode(&self.0)
     }
 }
@@ -82,6 +97,8 @@ impl<R> MessageDecode<'_, ProtobufMessage, R> for ProtobufMessageEncoding {
 ///
 /// This has the encoding of `google.protobuf.Any`.
 #[derive(Clone, Protobuf)]
+#[verus_verify(publish_source)]
+#[verus_verify]
 pub struct ProtobufAny {
     #[mesh(1)]
     type_url: String, // FUTURE: avoid allocation here
@@ -109,6 +126,7 @@ impl core::fmt::Debug for ProtobufAny {
 
 #[derive(Debug, Error)]
 #[error("protobuf type mismatch, expected {expected}, got {actual}")]
+#[verus_verify(publish_source)]
 struct TypeMismatch {
     expected: String,
     actual: String,
@@ -129,20 +147,32 @@ impl ProtobufAny {
             value: ProtobufMessage::new(data),
         }
     }
+}
 
+#[verus_specialize(specialize_any_parse)]
+impl ProtobufAny {
     /// Decodes the protobuf message into `T`.
     ///
     /// Fails if this message is an encoding of a different type.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires saved_time_values(self@.bytes) is Some, saved_type_url().accepts(self@.type_url),
+        ensures result is Ok, result->Ok_0.vmtime@ == saved_time_last(self@.bytes),
+    )]
     pub fn parse<T: DescribedProtobuf>(&self) -> Result<T, Error> {
         if &T::TYPE_URL != self.type_url.as_str() {
+            proof_with! { native_unreachable }
             return Err(Error::new(TypeMismatch {
                 expected: T::TYPE_URL.to_string(),
                 actual: self.type_url.clone(),
             }));
         }
+        proof_with! { native_specialized_call(parse_saved_message_body) }
         self.value.parse()
     }
+}
 
+impl ProtobufAny {
     /// Returns `true` if this message is an encoding of `T`.
     pub fn is_message<T: DescribedProtobuf>(&self) -> bool {
         &T::TYPE_URL == self.type_url.as_str()

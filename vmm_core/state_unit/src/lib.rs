@@ -70,6 +70,7 @@ use tracing::Instrument;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+use vstd::prelude::*;
 
 /// A state change request.
 #[derive(Debug, MeshPayload)]
@@ -109,6 +110,10 @@ pub enum StateRequest {
 /// [`StateRequest`]s.
 #[expect(async_fn_in_trait)] // Don't need Send bounds
 pub trait StateUnit: InspectMut {
+    verus! {
+        /// Implementation-specific restore entry conditions; dispatch establishment is proof debt.
+        open spec fn restore_requires(&self, buffer: &SavedStateBlob) -> bool { true }
+    }
     /// Start asynchronous processing.
     async fn start(&mut self) -> anyhow::Result<()>;
 
@@ -138,6 +143,8 @@ pub trait StateUnit: InspectMut {
     /// Restore state.
     ///
     /// Must only be called while stopped.
+    #[verus_verify]
+    #[verus_spec(requires old(self).restore_requires(&buffer),)]
     async fn restore(&mut self, buffer: SavedStateBlob) -> Result<(), RestoreError>;
 
     /// Advance guest-visible time after restore. Most units derive their

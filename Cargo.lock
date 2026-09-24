@@ -3963,6 +3963,7 @@ dependencies = [
  "pal_async",
  "parking_lot",
  "thiserror 2.0.16",
+ "vstd",
 ]
 
 [[package]]
@@ -4669,6 +4670,7 @@ dependencies = [
  "prost-build",
  "prost-types",
  "socket2",
+ "test_with_tracing",
  "thiserror 2.0.16",
  "vstd",
  "zerocopy",

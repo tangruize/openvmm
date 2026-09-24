@@ -14,6 +14,38 @@ from pathlib import Path
 RESULT = re.compile(r"verification results::?\s*(\d+)\s+verified,\s*(\d+)\s+errors?")
 
 
+def verification_results(lines):
+    """Stream diagnostics and accept complete text or Verus JSON reports."""
+    pending = []
+    for line in lines:
+        print(line, end="", flush=True)
+        if pending or line.startswith("{"):
+            pending.append(line)
+            if not line.rstrip().endswith("}") or (
+                len(pending) > 1 and not line.startswith("}")
+            ):
+                continue
+            report = json.loads("".join(pending))
+            pending.clear()
+            result = report["verification-results"]
+            if result["encountered-error"] or result["encountered-vir-error"]:
+                raise ValueError("Verus JSON report contains a verification failure")
+            if result.get("success") is False:
+                raise ValueError("Verus JSON report reports unsuccessful verification")
+            counts = result["verified"], result["errors"]
+            if any(type(count) is not int or count < 0 for count in counts):
+                raise ValueError("invalid counts in Verus JSON report")
+            # Preserve the evidence format consumed by the outer check wrapper.
+            print(f"verification results:: {counts[0]} verified, {counts[1]} errors", flush=True)
+            yield counts
+        else:
+            result = RESULT.search(line)
+            if result:
+                yield int(result[1]), int(result[2])
+    if pending:
+        raise ValueError("incomplete Verus JSON report")
+
+
 def verification_packages(metadata: dict, package: str, command: str) -> list[str]:
     packages = {item["id"]: item for item in metadata["packages"]}
     roots = [
@@ -73,13 +105,10 @@ def main(argv: list[str] | None = None) -> int:
             command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         ) as process:
             assert process.stdout is not None
-            for line in process.stdout:
-                print(line, end="", flush=True)
-                result = RESULT.search(line)
-                if result:
-                    reports += 1
-                    verified += int(result[1])
-                    errors += int(result[2])
+            for count_verified, count_errors in verification_results(process.stdout):
+                reports += 1
+                verified += count_verified
+                errors += count_errors
             exit_code = process.wait()
         elapsed = time.monotonic() - prepared
         if exit_code == 0 and (

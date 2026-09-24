@@ -1,6 +1,44 @@
 {
   "current_stage": "prove",
   "vertical": "verus",
+  "keeper_restore_native_integration": {
+    "state": "done",
+    "task_id": "keeper-restore-native-integration",
+    "run_id": "keeper-restore-native-integration-1790214378814057166",
+    "exit_code": 0,
+    "elapsed_seconds": 79.7,
+    "result": "Restored intake integration: 2108 verified, 0 errors in 79.586 seconds; production KeeperUnit::restore is not yet admitted or proved.",
+    "verifier": "toolchain/verus-src/source/target-verus/native-parser-engineer/release/verus",
+    "stdout_log": ".argus_subagents/keeper-restore-native-integration_logs/stdout.log",
+    "stderr_log": ".argus_subagents/keeper-restore-native-integration_logs/stderr.log",
+    "completed_evidence_reused": true,
+    "unchanged_integration_rerun": false
+  },
+  "keeper_callback_integration": {
+    "state": "done",
+    "task_id": "keeper-callback-integration-rust195",
+    "run_id": "keeper-callback-integration-rust195-1790218678566213885",
+    "exit_code": 0,
+    "elapsed_seconds": 93.8,
+    "result": "Production KeeperUnit::restore and its original-borrow completion caller verified with explicit keeper restore and representation debt; integration: 2110 verified, 0 errors, exit 0, 83.699s.",
+    "rust_check": "RUSTUP_TOOLCHAIN=1.95.0 cargo check --locked --offline -p vmm_core; exit 0",
+    "rust_check_log": ".verus_agent/cache/keeper-callback-continuation/cargo-check-rust195.log",
+    "status": ".argus_subagents/keeper-callback-integration-rust195.json",
+    "stdout_log": ".argus_subagents/keeper-callback-integration-rust195_logs/stdout.log",
+    "stderr_log": ".argus_subagents/keeper-callback-integration-rust195_logs/stderr.log",
+    "completed_evidence_reused": true,
+    "unchanged_integration_rerun": false,
+    "superseded_validation": {
+      "state": "error",
+      "task_id": "keeper-callback-final-validation",
+      "run_id": "keeper-callback-final-validation-1790218581388943315",
+      "exit_code": 101,
+      "elapsed_seconds": 39.6,
+      "status": ".argus_subagents/keeper-callback-final-validation.json",
+      "diagnostic_log": ".verus_agent/cache/keeper-callback-continuation/cargo-check.log",
+      "reason": "Native verifier build succeeded, but cargo check used Rust 1.94 below repository MSRV 1.95 and stopped before integration. Superseded by keeper-callback-integration-rust195; the unchanged verifier build was not repeated."
+    }
+  },
   "mutex_observation_delivery": {
     "state": "precommit",
     "request": "research/freeze_requests/mutex-guard-acquisition-observation",

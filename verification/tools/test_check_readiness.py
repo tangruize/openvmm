@@ -378,6 +378,79 @@ def test_failed_verification_cache_invalidation_stops_before_verus(tmp_path, mon
     assert fresh_verification.main(["verify", "root"]) == 1
 
 
+def _verus_json_report(**changes):
+    result = {
+        "encountered-error": False, "encountered-vir-error": False,
+        "verified": 11, "errors": 0, "success": True,
+        "is-verifying-entire-crate": True,
+    }
+    result.update(changes)
+    return json.dumps({"verification-results": result, "times-ms": {}}, indent=2) + "\n"
+
+
+def test_fresh_verification_reads_multiple_timed_reports(capsys):
+    output = (
+        "Checking first crate\n" + _verus_json_report()
+        + "warning: existing diagnostic\n" + _verus_json_report(verified=3)
+        + "verification results:: 1 verified, 0 errors\n"
+    )
+    assert list(fresh_verification.verification_results(output.splitlines(True))) == [
+        (11, 0), (3, 0), (1, 0),
+    ]
+    captured = capsys.readouterr().out
+    assert captured.count("verification results::") == 3
+    assert captured.replace(
+        "verification results:: 11 verified, 0 errors\n", ""
+    ).replace("verification results:: 3 verified, 0 errors\n", "") == output
+
+
+def test_timed_reports_retain_argus_make_verify_evidence(tmp_path, monkeypatch, capsys):
+    assert list(fresh_verification.verification_results(
+        _verus_json_report().splitlines(True)
+    )) == [(11, 0)]
+    test_make_verify_requires_nonzero_error_free_evidence(
+        tmp_path, monkeypatch, capsys.readouterr().out, 0, 0
+    )
+
+
+@pytest.mark.parametrize("changes,exit_code,allow_zero,expected", [
+    ({}, 0, False, 0),
+    ({"verified": 0}, 0, False, 1),
+    ({"verified": 0}, 0, True, 0),
+    ({"errors": 1}, 0, False, 1),
+    ({"success": False}, 0, False, 1),
+    ({}, 2, False, 2),
+])
+def test_fresh_verification_requires_current_timed_results(
+    tmp_path, monkeypatch, changes, exit_code, allow_zero, expected
+):
+    test_fresh_verification_requires_current_results(
+        tmp_path, monkeypatch, _verus_json_report(**changes),
+        exit_code, allow_zero, expected,
+    )
+
+
+@pytest.mark.parametrize("changes", [
+    {"encountered-error": True},
+    {"encountered-vir-error": True},
+    {"success": False},
+    {"verified": -1},
+    {"verified": True},
+    {"errors": "0"},
+])
+def test_fresh_verification_rejects_invalid_timed_reports(changes):
+    with pytest.raises(ValueError):
+        list(fresh_verification.verification_results(
+            _verus_json_report(**changes).splitlines(True)
+        ))
+
+
+@pytest.mark.parametrize("output", ["{\n", "{invalid}\n", "{}\n"])
+def test_fresh_verification_rejects_incomplete_timed_reports(output):
+    with pytest.raises((ValueError, KeyError)):
+        list(fresh_verification.verification_results(output.splitlines(True)))
+
+
 def _executable(path, text):
     path.write_text(text)
     path.chmod(0o755)

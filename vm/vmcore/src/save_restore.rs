@@ -76,6 +76,10 @@ use mesh::payload::Protobuf;
 use mesh::payload::encoding::ImpossibleField;
 use mesh::payload::message::ProtobufAny;
 use mesh::payload::protofile::MessageDescription;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+include!("save_restore.spec.rs");
 
 /// Implemented by objects which can be saved/restored with an associated
 /// type that can be serialized as a protobuf message.
@@ -117,6 +121,8 @@ pub trait ProtobufSaveRestore {
 /// An opaque saved state blob, encoded as a protobuf message.
 #[derive(Clone, Debug, Protobuf)]
 #[mesh(transparent)]
+#[verus_verify(publish_source)]
+#[verus_verify]
 pub struct SavedStateBlob(ProtobufAny);
 
 /// Trait implemented by "root" saved state blobs, which are ones that either
@@ -136,12 +142,24 @@ impl SavedStateBlob {
     pub fn new<T: SavedStateRoot>(data: T) -> Self {
         Self(ProtobufAny::new(data))
     }
+}
 
+#[verus_specialize(specialize_blob_parse)]
+impl SavedStateBlob {
     /// Decodes the protobuf message into `T`.
+    #[verus_verify]
+    #[verus_spec(result =>
+        requires saved_time_values(self@.bytes) is Some, saved_type_url().accepts(self@.type_url),
+        ensures result is Ok, result->Ok_0.saved_time() == saved_time_last(self@.bytes),
+    )]
     pub fn parse<T: SavedStateRoot>(&self) -> Result<T, payload::Error> {
+        proof_with! { native_specialized_call(parse_saved_any_body) }
         self.0.parse()
     }
 }
+
+#[cfg(verus_keep_ghost)]
+pub use specialize_blob_parse;
 
 impl<T: SaveRestore> ProtobufSaveRestore for T
 where
@@ -158,6 +176,8 @@ where
 
 /// A restore error.
 #[derive(Debug, thiserror::Error)]
+// TODO(proof): Refine error variants and admit their diagnostic implementations.
+#[verus_verify(external_body)]
 pub enum RestoreError {
     /// unknown entry ID
     #[error("unknown entry id: {0}")]

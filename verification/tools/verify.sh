@@ -45,5 +45,6 @@ echo "Verification scope: command=$command package=$package module=$module (life
         "${selection[@]}" \
         --multiple-errors 20 \
         --num-threads 1 \
-        --triggers-mode silent
+        --triggers-mode silent \
+        --time --output-json
 ) 2>&1 | tee "$repo_root/target/verus/$module.log"

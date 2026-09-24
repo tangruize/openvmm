@@ -55,7 +55,8 @@ pub enum MessageDescription<'a> {
 /// A type URL, used in [`ProtobufAny`](super::message::ProtobufAny) (which
 /// shares an encoding with `google.protobuf.Any`).
 #[derive(Debug, Copy, Clone)]
-#[vstd::prelude::verus_verify]
+#[verus_verify(publish_source)]
+#[verus_verify]
 pub struct TypeUrl<'a> {
     package: &'a str,
     name: &'a str,
