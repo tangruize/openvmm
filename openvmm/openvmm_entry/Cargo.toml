@@ -6,6 +6,9 @@ name = "openvmm_entry"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 default = ["ttrpc", "grpc"]
 
@@ -13,6 +16,7 @@ grpc = ["mesh_rpc/grpc"]
 ttrpc = []
 
 [dependencies]
+vstd.workspace = true
 chipset_resources.workspace = true
 chipset_device_worker_defs.workspace = true
 crypto.workspace = true

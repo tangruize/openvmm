@@ -4,6 +4,17 @@
 //! VM controller task that owns exclusive resources (worker handles,
 //! DiagInspector, vtl2_settings) and exposes them to the REPL via mesh RPC.
 
+#[allow(dead_code, unused_imports)]
+mod vm_controller_snapshot_spec {
+    include!("vm_controller_snapshot.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+#[allow(dead_code, unused_imports)]
+mod vm_controller_snapshot_proof {
+    include!("vm_controller_snapshot.proof.rs");
+}
+
 use crate::DiagInspector;
 use crate::cli_args::GuestPowerAction;
 use crate::meshworker::VmmMesh;
@@ -641,6 +652,20 @@ impl VmController {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            vm_controller_snapshot_proof::snapshot_request_pre(old(self)),
+        ensures
+            vm_controller_snapshot_spec::handle_guest_snapshot_request_success(
+                old(self)@,
+                final(self)@,
+                vm_controller_snapshot_proof::snapshot_scratch_policy_view(
+                    &scratch_policy,
+                ),
+                vm_controller_snapshot_proof::snapshot_action_is_success(&result),
+            ),
+    ))]
     async fn handle_guest_snapshot_request(
         &mut self,
         scratch_policy: chipset_resources::microvm::MicrovmSnapshotScratchPolicy,

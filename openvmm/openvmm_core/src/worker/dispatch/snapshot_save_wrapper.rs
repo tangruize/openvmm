@@ -51,10 +51,8 @@ impl LoadedVm {
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
         timeout: Duration,
-    ) -> Result<
-        openvmm_defs::rpc::SnapshotSaveResponse,
-        openvmm_defs::rpc::SnapshotQuiesceError,
-    > {
+    ) -> Result<openvmm_defs::rpc::SnapshotSaveResponse, openvmm_defs::rpc::SnapshotQuiesceError>
+    {
         if self.inner.machine_profile != MachineProfile::Microvm {
             return Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(
                 RemoteError::new(anyhow::anyhow!(
@@ -122,9 +120,7 @@ impl LoadedVm {
             tsc_frequency_hz,
             apic_frequency_hz,
             capture_wall_clock,
-            cpu_contract: mesh::payload::encode(
-                self.inner.partition.cpu_compatibility_contract(),
-            ),
+            cpu_contract: mesh::payload::encode(self.inner.partition.cpu_compatibility_contract()),
         })
     }
 }

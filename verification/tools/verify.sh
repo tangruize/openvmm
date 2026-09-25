@@ -21,8 +21,15 @@ case "$module" in
         selection=(--verify-only-module worker::dispatch::snapshot_save
             --verify-function 'LoadedVm::capture_snapshot_state')
         ;;
+    snapshot-request)
+        command=focus
+        package=openvmm_entry
+        evidence_options=(--allow-zero)
+        selection=(--verify-only-module vm_controller
+            --verify-function 'VmController::handle_guest_snapshot_request')
+        ;;
     *)
-        echo "error: unknown verification module '$module' (available: all, snapshot-save)" >&2
+        echo "error: unknown verification module '$module' (available: all, snapshot-save, snapshot-request)" >&2
         exit 2
         ;;
 esac
