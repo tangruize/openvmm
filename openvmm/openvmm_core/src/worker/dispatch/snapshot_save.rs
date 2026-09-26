@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 #[allow(dead_code, unused_imports)]
-mod snapshot_save_spec {
+pub(super) mod snapshot_save_spec {
     include!("snapshot_save.spec.rs");
 }
 
 #[cfg(verus_keep_ghost)]
 #[allow(dead_code, unused_imports)]
-mod snapshot_save_proof {
+pub(super) mod snapshot_save_proof {
     include!("snapshot_save.proof.rs");
 }
 

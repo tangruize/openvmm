@@ -6,7 +6,9 @@
 use super::LoadedVm;
 use super::snapshot_save_spec::LoadedVmCaptureView;
 use super::snapshot_save_spec::SavedSnapshotStateView;
+use super::snapshot_save_spec::SnapshotSaveResponseView;
 use openvmm_defs::rpc::SnapshotQuiesceError;
+use openvmm_defs::rpc::SnapshotSaveResponse;
 use openvmm_defs::worker::SavedState;
 use vstd::prelude::*;
 
@@ -72,6 +74,10 @@ pub struct ExSnapshotQuiesceError(SnapshotQuiesceError);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
+pub struct ExSnapshotSaveResponse(SnapshotSaveResponse);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
 pub struct ExSavedState(SavedState);
 
 // TODO(uninterp): Decode state-unit payloads and inventory into the
@@ -87,6 +93,22 @@ pub uninterp spec fn loaded_vm_capture_view(vm: &LoadedVm) -> LoadedVmCaptureVie
 // TODO(uninterp): Replace with phase-specific concrete postconditions for
 // Rejected, RollbackSafe-after-quiesce, Uncertain, and RollbackSafe-after-save.
 pub uninterp spec fn snapshot_capture_error_post(
+    initial: &LoadedVm,
+    error: &SnapshotQuiesceError,
+    captured: &LoadedVm,
+) -> bool;
+
+// TODO(uninterp): Connect the concrete RPC response fields and encoded
+// SavedState to the captured cut and per-unit PCM returned by the state-unit
+// stop/save proofs.
+pub uninterp spec fn snapshot_save_response_view(
+    response: &SnapshotSaveResponse,
+) -> SnapshotSaveResponseView;
+
+// TODO(uninterp): Refine failures after capture separately from failures in
+// quiesce/save. In particular, post-capture metadata or RAM-flush failures
+// leave the VM stopped and require controller rollback.
+pub uninterp spec fn quiesce_for_snapshot_error_post(
     initial: &LoadedVm,
     error: &SnapshotQuiesceError,
     captured: &LoadedVm,

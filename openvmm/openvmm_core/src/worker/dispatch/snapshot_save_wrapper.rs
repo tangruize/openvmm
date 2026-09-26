@@ -48,6 +48,35 @@ pub(super) async fn capture_saved_state(
 }
 
 impl LoadedVm {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            super::snapshot_save::snapshot_save_proof::snapshot_capture_request_is_valid(
+                old(self),
+            ),
+        ensures
+            match result {
+                Ok(response) => (
+                    super::snapshot_save::snapshot_save_spec::quiesce_for_snapshot_success(
+                        old(self)@,
+                        super::snapshot_save::snapshot_save_proof::snapshot_save_response_view(
+                            &response,
+                        ),
+                        final(self)@,
+                    )
+                    && super::snapshot_save::snapshot_save_proof::snapshot_stopped_representation(
+                        final(self),
+                    )
+                ),
+                Err(error) => (
+                    super::snapshot_save::snapshot_save_proof::quiesce_for_snapshot_error_post(
+                        old(self),
+                        &error,
+                        final(self),
+                    )
+                ),
+            },
+    ))]
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
         timeout: Duration,
