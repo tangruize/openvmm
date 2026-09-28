@@ -1,0 +1,42 @@
+schema_version = 1
+
+[project]
+intent = "# Snapshot publication and restore specification investigation\n\nDevelop useful, source-grounded module specifications for OpenVMM's snapshot publication and restore-side artifact access. A snapshot consumer needs to understand what a completed or failed save makes available, what a successful restore-side open establishes, and under what assumptions saved state and memory belong to the intended capture. Begin with the snapshot publication TOP and use shared module Views and dependencies to connect restore access.\n\nUse the current production source and documentation under `openvmm/openvmm_helpers/src/snapshot.rs` and `openvmm/openvmm_helpers/src/snapshot/`, following relevant callers where necessary. Investigate meaningful candidate guarantees, exercise them with actual attacks and implementation-proof feedback, and explain what should be promised rather than simply matching the easiest theorem.\n\nThis first delivery is a reviewable specification, not a complete VM, guest, filesystem-crash, or device proof. Keep original production behavior unchanged. Configuring builds and adding ghost/proof files is allowed. Propose any necessary executable or verifier change explicitly with its effects and evidence; do not quietly weaken the target. The editable project-local Verus checkout is available for genuine limitations.\n\nRetain initial candidates, failed attempts, source correspondence, and unresolved assumptions. Produce `review.md` with an understandable comparison and next proof dependencies. Expert judgment remains pending. Do not publish raw provider logs or change unrelated branches.\n"
+module = "snapshot"
+source_roots = ["openvmm/openvmm_helpers/src/snapshot.rs", "openvmm/openvmm_helpers/src/snapshot"]
+delivery = "review"
+state_dir = ".system-proof"
+
+[progress]
+no_progress_limit = 3
+diagnostic_limit = 2
+
+[git]
+upstream_url = "https://github.com/nanvix/openvmm"
+fork_url = "https://github.com/tangruize/openvmm"
+repository = "tangruize/openvmm"
+frozen_branch = "argus/system-proof-20260928/frozen"
+run_branch = "argus/system-proof-20260928/run"
+
+[verus]
+checkout = "verus"
+upstream = "https://github.com/verus-lang/verus.git"
+revision = "3cf18325f0fd0c3040fbdec8c0f2255c0504c91a"
+executable = "verus/source/target-verus/release/verus"
+z3_path = ".toolchains/release-20260927/verus-x86-linux/z3"
+toolchain = "1.98.1"
+build_cwd = "source"
+build_commands = [
+  ["cargo", "build", "--release", "--quiet"],
+  ["cargo", "run", "--release", "--quiet", "-p", "cargo-verus", "--", "build", "--release", "--manifest-path", "vstd/Cargo.toml"],
+]
+bootstrap = "release"
+bootstrap_sha256 = "6e98ec1231c00bbf60672d0f0bbc44f489b7dc15cb681dfa3d6bd615d5722015"
+
+[verification]
+mode = "native"
+entrypoint = "proofs/snapshot.rs"
+inputs = ["openvmm/openvmm_helpers/src/snapshot.rs", "openvmm/openvmm_helpers/src/snapshot"]
+args = ["--crate-type=lib"]
+toolchain = "1.98.1"
+timeout_seconds = 300

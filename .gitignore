@@ -57,3 +57,9 @@ node_modules/
 
 # Build output directories for logview
 **/logview/dist*
+
+# Local verifier packages and execution evidence are not snapshot specifications.
+/.toolchains/
+/.argus/
+/.argus_subagents/
+/.autors/

@@ -67,7 +67,8 @@ members = [
 ]
 exclude = [
   "xsync",
-  "Guide/mdbook-openvmm-shim"
+  "Guide/mdbook-openvmm-shim",
+  "verus",
 ]
 
 [workspace.package]

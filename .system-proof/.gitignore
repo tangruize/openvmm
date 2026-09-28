@@ -1,0 +1,14 @@
+runtime/
+evidence/
+skills/
+*.lock
+missions/
+task-frontiers/
+revisions/
+native-runs/
+toolchains/
+snapshot-publication-spec/
+reviews/
+adoptions/
+published-tags/
+candidate-sources/
