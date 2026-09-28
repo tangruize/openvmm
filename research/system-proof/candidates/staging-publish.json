@@ -1,0 +1,47 @@
+{
+  "id": "snapshot-staging-publish-v1",
+  "module": "snapshot",
+  "goal": "snapshot.publish",
+  "purpose": "Bind the same-path publication callee and make the rename/context resource boundary explicit after the full write_snapshot_with_memory_publication body hit a Verus frontend limitation on the source and_then closure capturing mutable staging state",
+  "observation": "StagingDirectory::publish retires the staging owner exactly on rename/context success; on rename/context error it returns before retirement and leaves the staging owner path unchanged, while the external filesystem success choice remains outside the method parameters",
+  "target": "publish",
+  "verification_target": "crate#StagingDirectory::publish",
+  "verification_scope": "function",
+  "implementation": [
+    "openvmm/openvmm_helpers/src/snapshot/publish.rs"
+  ],
+  "specification": [
+    "proofs/snapshot.rs"
+  ],
+  "view": [
+    "specs/snapshot/meaning.md"
+  ],
+  "domain": [
+    "specs/snapshot/meaning.md"
+  ],
+  "assumptions": [
+    "specs/snapshot/meaning.md"
+  ],
+  "correspondence": "specs/snapshot/meaning.md",
+  "witnesses": [
+    "research/system-proof/candidates/staging-publish-binding.json",
+    "research/system-proof/candidates/publication-orchestrator-limitation.txt",
+    "research/system-proof/candidates/rename-resource-account.txt"
+  ],
+  "checker_config": "proofs/specdet.toml",
+  "body_kind": "source_derived",
+  "source_binding": {
+    "source": {
+      "file": "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+      "symbol": "StagingDirectory::publish"
+    },
+    "proof": {
+      "file": "proofs/snapshot.rs",
+      "symbol": "StagingDirectory::publish"
+    }
+  },
+  "guarantees_added": "Adds exact-fragment source binding for StagingDirectory::publish, a proof-side postcondition that a successful publish retires the staging path after the no-replace rename returns success, an error postcondition that the staging owner path is unchanged, and a concrete Context::with_context result-shape contract.",
+  "guarantees_removed": "Does not claim the full write_snapshot_with_memory_publication orchestrator is proved; staging failure, rollback classification, committed parent-sync failure, and final success remain open at that caller.",
+  "domain_change": "Narrows this registered non-model candidate from the full publication orchestrator to the same-path staging publish callee because the full source body currently uses a mutable-capturing closure unsupported by Verus.",
+  "trust_change": "rename_no_replace remains an explicit environment and filesystem resource interface: the Linux-GNU source path calls renameat2 with RENAME_NOREPLACE, while non-Linux-GNU fallback semantics are still open. Formatting allocation/display behavior, Path/PathBuf representation, platform no-replace semantics, races, and resource effects remain unproved dependencies. The verifier selector is `crate#StagingDirectory::publish`, which the installed adapter normalizes to the exact proof symbol in source_binding."
+}

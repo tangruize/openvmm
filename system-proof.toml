@@ -11,6 +11,9 @@ state_dir = ".system-proof"
 no_progress_limit = 3
 diagnostic_limit = 2
 
+[argus]
+backend = "copilot"
+
 [git]
 upstream_url = "https://github.com/nanvix/openvmm"
 fork_url = "https://github.com/tangruize/openvmm"

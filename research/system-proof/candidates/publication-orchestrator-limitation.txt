@@ -1,0 +1,53 @@
+The first publication-body attempt kept the executable body shape of `write_snapshot_with_memory_publication` from `openvmm/openvmm_helpers/src/snapshot/publish.rs` in the Verus harness, with explicit unproved interfaces for `stage_snapshot`, `ensure_path_absent`, `StagingDirectory::publish`, `StagingDirectory::rollback`, `snapshot_parent`, `sync_directory`, path ownership, profiling spans, and formatting/context conversion.
+
+The attempted body was:
+
+```rust
+pub fn write_snapshot_with_memory_publication(
+    dir: &Path,
+    manifest: &SnapshotManifest,
+    saved_state_bytes: &[u8],
+    memory_file: &std::fs::File,
+    scratch_file: Option<&std::fs::File>,
+    memory_publication: MemoryPublication,
+) -> (result: Result<(), SnapshotWriteError>)
+    ensures publication_result_classified(result),
+{
+    let mut staging = stage_snapshot(
+        dir,
+        manifest,
+        saved_state_bytes,
+        memory_file,
+        scratch_file,
+        memory_publication,
+    )?;
+    let commit = openvmm_defs::profile::ProfileSpan::start();
+    if let Err(error) =
+        ensure_path_absent(dir, "snapshot destination").and_then(|()| staging.publish(dir))
+    {
+        return Err(staging.rollback(error));
+    }
+    commit.complete("capture", "publication_commit", ());
+
+    let parent = snapshot_parent(dir);
+    let parent_sync = openvmm_defs::profile::ProfileSpan::start();
+    sync_directory(parent).map_err(|error| SnapshotWriteError::Committed {
+        path: dir.to_owned(),
+        error,
+    })?;
+    parent_sync.complete("capture", "publication_parent_sync", ());
+    Ok(())
+}
+```
+
+The configured project-local Verus frontend rejected this body before proof obligations were reached:
+
+```text
+error: Verus does not currently support closures capturing a mutable reference (mutably captured variable `staging`)
+   --> proofs/snapshot.rs:307:70
+    |
+307 |             ensure_path_absent(dir, "snapshot destination").and_then(|()| staging.publish(dir))
+    |                                                                      ^^^^
+```
+
+The retained private receipt is `.system-proof/evidence/publication-orchestrator-verus-limitation.txt`. This limitation is why the registered non-model candidate is narrowed to the same-path callee `StagingDirectory::publish`. The full orchestrator remains open: this fragment does not classify staging failure, rollback safety, cleanup uncertainty, committed parent-sync failure, or successful return for `write_snapshot_with_memory_publication`.

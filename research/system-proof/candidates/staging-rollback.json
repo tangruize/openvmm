@@ -1,0 +1,46 @@
+{
+  "id": "snapshot-staging-rollback-v1",
+  "module": "snapshot",
+  "goal": "snapshot.publish",
+  "purpose": "Bind StagingDirectory::rollback as the source-shaped rollback fragment that write_snapshot_with_memory_publication uses after a pre-commit publication failure",
+  "observation": "Rollback distinguishes BeforeCommit from CleanupUncertain: a failed cleanup while a source-memory alias is present is cleanup-uncertain, while independent cleanup failure still returns BeforeCommit; neither rollback result reports the final destination as published",
+  "target": "rollback",
+  "verification_target": "crate#StagingDirectory::rollback",
+  "verification_scope": "function",
+  "implementation": [
+    "openvmm/openvmm_helpers/src/snapshot/publish.rs"
+  ],
+  "specification": [
+    "proofs/snapshot.rs"
+  ],
+  "view": [
+    "specs/snapshot/meaning.md"
+  ],
+  "domain": [
+    "specs/snapshot/meaning.md"
+  ],
+  "assumptions": [
+    "specs/snapshot/meaning.md"
+  ],
+  "correspondence": "specs/snapshot/meaning.md",
+  "witnesses": [
+    "research/system-proof/candidates/staging-rollback-binding.json",
+    "research/system-proof/candidates/staging-rollback-verus-limitation.txt"
+  ],
+  "checker_config": "proofs/specdet.toml",
+  "body_kind": "source_derived",
+  "source_binding": {
+    "source": {
+      "file": "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+      "symbol": "StagingDirectory::rollback"
+    },
+    "proof": {
+      "file": "proofs/snapshot.rs",
+      "symbol": "StagingDirectory::rollback"
+    }
+  },
+  "guarantees_added": "Adds an exact-fragment source binding for StagingDirectory::rollback and a rollback classification View in which both BeforeCommit and CleanupUncertain are pre-commit, non-published outcomes.",
+  "guarantees_removed": "Does not claim the full write_snapshot_with_memory_publication orchestrator is proved, does not close remove_staging_directory filesystem cleanup semantics, and does not claim that CleanupUncertain is rollback-safe.",
+  "domain_change": "Narrows the current mission to the private rollback callee used after a pre-commit staging or publication failure, under the private-method invariant that an unpublished staging path is still present.",
+  "trust_change": "The cleanup callee, tracing macro, PathBuf clone/expect behavior, path ownership, and filesystem removal/sync effects remain explicit interfaces. The exact source-shaped proof is currently blocked by configured/frontend Verus support for Rust 2024 let-chains and mut self."
+}

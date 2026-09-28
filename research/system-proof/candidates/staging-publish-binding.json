@@ -1,0 +1,10 @@
+{
+  "source": {
+    "file": "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+    "symbol": "StagingDirectory::publish"
+  },
+  "proof": {
+    "file": "proofs/snapshot.rs",
+    "symbol": "StagingDirectory::publish"
+  }
+}

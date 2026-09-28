@@ -1,0 +1,202 @@
+{
+  "nodes": [
+    {
+      "id": "snapshot.publish",
+      "kind": "top",
+      "module": "snapshot",
+      "statement": "Snapshot publication and restore specification investigation. The current frontier distinguishes useful restore-open model feedback from source-bound publication-body evidence, and keeps the full publication orchestrator open until staging, rollback, parent-sync, filesystem, and intended-capture dependencies are proved.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot.rs",
+        "openvmm/openvmm_helpers/src/snapshot",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.write_snapshot_with_memory_publication",
+        "snapshot.publish.staging_directory_publish",
+        "snapshot.restore.opened_generation_view"
+      ],
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.write_snapshot_with_memory_publication",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "The production orchestrator `write_snapshot_with_memory_publication` should preserve staging failure, publication failure with rollback, committed parent-sync failure, and successful return control flow. The source-shaped Verus attempt is currently blocked by the frontend limitation on the `and_then(|()| staging.publish(dir))` closure that mutably captures `staging`.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "proofs/snapshot.rs",
+        "research/system-proof/candidates/publication-orchestrator-limitation.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.staging_directory_publish",
+        "snapshot.publish.stage_snapshot_complete_generation",
+        "snapshot.publish.rollback_classification",
+        "snapshot.publish.parent_sync_committed_generation"
+      ],
+      "status": "open",
+      "proof_target": "write_snapshot_with_memory_publication",
+      "evidence": [
+        ".system-proof/evidence/publication-orchestrator-verus-limitation.txt",
+        "research/system-proof/candidates/publication-orchestrator-limitation.txt"
+      ],
+      "evidence_relation": "The retained attempt kept the executable staging, rollback, parent-sync failure, and success branches recognizable, but Verus rejected the mutable-capturing closure before proof obligations were reached. This is a tool/frontend boundary for the orchestrator, not a proof of the orchestrator."
+    },
+    {
+      "id": "snapshot.publish.staging_directory_publish",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`StagingDirectory::publish` preserves the same executable publication fragment as production: obtain the staging path, call `rename_no_replace(...).with_context(...)`, retire `self.path` only after that call succeeds, and return `Ok(())`. The proof-side postconditions describe the path-retirement result shape, but the current registered tracks are blocked by the exact rollback method later in the shared proof file before this publication proof can be reached. Type, callee, formatting/context, filesystem, and resource semantics remain dependencies.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "proofs/snapshot.rs",
+        "research/system-proof/candidates/staging-publish-binding.json",
+        "research/system-proof/candidates/publication-orchestrator-limitation.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.rename_no_replace_resource_semantics"
+      ],
+      "status": "blocked",
+      "proof_target": "crate#StagingDirectory::publish",
+      "evidence": [
+        ".system-proof/evidence/staging-publish-connection.json",
+        ".system-proof/evidence/verification-957983d9a8ec4802970a9bde21dc9440/correctness.json",
+        ".system-proof/evidence/specdet-b1cf8ada206244a6/completeness.json"
+      ],
+      "evidence_relation": "The refreshed correspondence receipt reports an exact executable-fragment and parameter match for source and proof symbol `StagingDirectory::publish`. The current revision 10 correctness receipt fails before verification because the public verifier command omits the Rust 2024 edition flag needed by the exact rollback let-chain later in `proofs/snapshot.rs`. The current supplied checker run selects `snapshot.rs::StagingDirectory::publish` with `--edition=2024`, then fails when Verus rejects the exact rollback method's `mut self` receiver in the shared proof file. The prior publish proof result is therefore historical feedback, not current body support."
+    },
+    {
+      "id": "snapshot.publish.rename_no_replace_resource_semantics",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "`rename_no_replace`, path ownership, platform no-replace behavior, and filesystem resource effects must be connected to the proof-side interfaces used by `StagingDirectory::publish`. The local `Context::with_context` result-shape and failed-publish owner frame are represented in the current proof, but the external filesystem state that decides rename success remains outside the method parameters.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "proofs/snapshot.rs",
+        "research/system-proof/candidates/rename-resource-account.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "crate#StagingDirectory::publish",
+      "evidence": [
+        ".system-proof/evidence/specdet-b1cf8ada206244a6/completeness.json",
+        "research/system-proof/candidates/rename-resource-account.txt"
+      ],
+      "evidence_relation": "The current checker run selects `snapshot.rs::StagingDirectory::publish` but is blocked by the exact rollback `mut self` receiver in the shared proof file before the resource-determinism question can be discharged. The semantic account in `rename-resource-account.txt` remains the intended open boundary: equal method parameters do not determine external filesystem/resource state or platform no-replace outcomes."
+    },
+    {
+      "id": "snapshot.publish.stage_snapshot_complete_generation",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`stage_snapshot` must establish a complete staging generation when it returns `Ok(StagingDirectory)`, including manifest rewriting, saved-state bytes, memory publication policy, optional scratch handling, owned-memory publication, and staging-directory sync.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "stage_snapshot",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.rollback_classification",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`StagingDirectory::rollback` keeps the production distinction between `BeforeCommit` and `CleanupUncertain`: a failed cleanup while a source-memory alias is present is cleanup-uncertain, independent cleanup failure still returns `BeforeCommit`, and neither rollback result means the final destination was published.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.rename_no_replace_resource_semantics"
+      ],
+      "status": "blocked",
+      "proof_target": "crate#StagingDirectory::rollback",
+      "evidence": [
+        ".system-proof/evidence/staging-rollback-connection.json",
+        ".system-proof/evidence/verification-135649be06a5463abbd4dc6c19c02eb5/correctness.json",
+        ".system-proof/evidence/specdet-89dc4bba501a4bc1/completeness.json",
+        ".system-proof/evidence/staging-rollback-verus-edition-2024.txt"
+      ],
+      "evidence_relation": "The correspondence receipt reports an exact executable fragment and parameter match for source and proof symbol `StagingDirectory::rollback`, so the current candidate preserves the branch that separates `CleanupUncertain` from `BeforeCommit`. Revision 6 correctness fails before verification because the public verifier command omits the Rust 2024 edition flag needed for the source let-chain. The supplied checker uses `--edition=2024`, selects the rollback method, and then fails when Verus rejects the exact `mut self` receiver. The node is blocked by retained frontend limitations rather than supported by a verified body proof."
+    },
+    {
+      "id": "snapshot.publish.parent_sync_committed_generation",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "After publication commit, a parent-directory sync failure must be represented as `SnapshotWriteError::Committed`: the complete generation is considered committed for the current specification, but final durability reporting failed.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.staging_directory_publish"
+      ],
+      "status": "open",
+      "proof_target": "write_snapshot_with_memory_publication",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.restore.opened_generation_view",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`opened_snapshot_open_view` remains useful restore-access model feedback for retained handles and length/generation agreement, but it is not a source-body proof for `OpenedSnapshot::open` because the proof body summarizes source checks with Boolean inputs.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "openvmm/openvmm_helpers/src/snapshot/format.rs",
+        "proofs/snapshot.rs",
+        "specs/snapshot/meaning.md",
+        "research/system-proof/candidates/opened-snapshot-open.json",
+        "research/system-proof/candidates/opened-snapshot-open-binding.json"
+      ],
+      "dependencies": [
+        "snapshot.restore.directory_handle_generation",
+        "snapshot.publish.intended_capture_membership"
+      ],
+      "status": "blocked",
+      "proof_target": "opened_snapshot_open_view",
+      "evidence": [
+        ".system-proof/evidence/restore-body-connection.json",
+        ".system-proof/evidence/verification-e5e8a426a63942acada4892051895b69/correctness.json",
+        ".system-proof/evidence/specdet-4365a3c7aa2f4970/completeness.json"
+      ],
+      "evidence_relation": "The refreshed restore candidate is revision 12 and is classified as a model; its correspondence receipt remains `model_or_transformed` and shows the first executable mismatch at the start of `OpenedSnapshot::open`. The current correctness track fails before verification because the public verifier command omits the Rust 2024 edition flag needed by the exact rollback let-chain later in `proofs/snapshot.rs`. The current supplied checker selects `opened_snapshot_open_view` with `--edition=2024` and then fails when Verus rejects the exact rollback `mut self` receiver in the shared proof file. The restore meaning is retained as model/specification feedback only, with current tool tracks blocked rather than stale."
+    },
+    {
+      "id": "snapshot.restore.directory_handle_generation",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "OpenedSnapshotDirectory and relative artifact opens represent one retained directory generation and regular opened artifact handles, with platform-specific symlink, reparse-point, and file-generation behavior made explicit.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "opened_snapshot_open_view",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.intended_capture_membership",
+      "kind": "composition",
+      "module": "snapshot",
+      "statement": "A publication or caller proof establishes that the opened generation belongs to the intended capture under the stopped snapshot boundary, exact source memory handle, source-file quiescence, and access-control assumptions required by the publication path.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.write_snapshot_with_memory_publication"
+      ],
+      "status": "open",
+      "proof_target": "write_snapshot_with_memory_publication",
+      "evidence": []
+    }
+  ]
+}

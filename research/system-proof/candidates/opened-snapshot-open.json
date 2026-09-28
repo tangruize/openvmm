@@ -1,0 +1,37 @@
+{
+  "id": "snapshot-opened-generation-v1",
+  "module": "snapshot",
+  "goal": "snapshot.publish",
+  "purpose": "Preserve restore-side artifact-access meaning as model and specification feedback after direct correspondence rejected the earlier source-derived label",
+  "observation": "opened snapshot success, retained generation handles, state length agreement, memory generation agreement, and intended-capture propagation from publication",
+  "target": "opened_snapshot_open_view",
+  "verification_target": "opened_snapshot_open_view",
+  "verification_scope": "function",
+  "implementation": [
+    "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+    "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+    "openvmm/openvmm_helpers/src/snapshot/format.rs"
+  ],
+  "specification": [
+    "proofs/snapshot.rs"
+  ],
+  "view": [
+    "specs/snapshot/meaning.md"
+  ],
+  "domain": [
+    "specs/snapshot/meaning.md"
+  ],
+  "assumptions": [
+    "specs/snapshot/meaning.md"
+  ],
+  "correspondence": "specs/snapshot/meaning.md",
+  "witnesses": [
+    "openvmm/openvmm_helpers/src/snapshot/restore.rs"
+  ],
+  "checker_config": "proofs/specdet.toml",
+  "body_kind": "model",
+  "guarantees_added": "No semantic guarantee change. This revision corrects the classification after .system-proof/evidence/restore-body-connection.json showed that the proof body starts from Boolean source-check flags rather than the executable OpenedSnapshot::open body.",
+  "guarantees_removed": "The candidate no longer claims source-derived implementation feedback for OpenedSnapshot::open.",
+  "domain_change": "None.",
+  "trust_change": "The restore-open proof remains useful model and specification feedback only; source-body correspondence for OpenedSnapshot::open is open."
+}

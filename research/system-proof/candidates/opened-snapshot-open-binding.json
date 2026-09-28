@@ -1,0 +1,10 @@
+{
+  "source": {
+    "file": "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+    "symbol": "OpenedSnapshot::open"
+  },
+  "proof": {
+    "file": "proofs/snapshot.rs",
+    "symbol": "opened_snapshot_open_view"
+  }
+}

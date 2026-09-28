@@ -1,0 +1,51 @@
+{
+  "nodes": [
+    {
+      "id": "snapshot.publish.rollback_classification",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`StagingDirectory::rollback` keeps the production distinction between `BeforeCommit` and `CleanupUncertain`: a failed cleanup while a source-memory alias is present is cleanup-uncertain, independent cleanup failure still returns `BeforeCommit`, and neither rollback result means the final destination was published.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "proofs/snapshot.rs",
+        "proofs/specdet.toml",
+        "research/system-proof/candidates/staging-rollback.json",
+        "research/system-proof/candidates/staging-rollback-binding.json",
+        "research/system-proof/candidates/staging-rollback-verus-limitation.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.rename_no_replace_resource_semantics",
+        "snapshot.publish.rollback_cleanup_resource_semantics"
+      ],
+      "status": "blocked",
+      "proof_target": "crate#StagingDirectory::rollback",
+      "evidence": [
+        ".system-proof/evidence/staging-rollback-connection.json",
+        ".system-proof/evidence/verification-135649be06a5463abbd4dc6c19c02eb5/correctness.json",
+        ".system-proof/evidence/specdet-89dc4bba501a4bc1/completeness.json",
+        ".system-proof/evidence/staging-rollback-verus-edition-2024.txt"
+      ],
+      "evidence_relation": "The correspondence receipt reports an exact executable fragment and parameter match for source and proof symbol `StagingDirectory::rollback`, so the current candidate preserves the branch that separates `CleanupUncertain` from `BeforeCommit`. Revision 6 correctness fails before verification because the public verifier command omits the Rust 2024 edition flag needed for the source let-chain. The supplied checker uses `--edition=2024`, selects the rollback method, and then fails when Verus rejects the exact `mut self` receiver. The node is therefore blocked by retained frontend limitations rather than supported by a verified body proof."
+    },
+    {
+      "id": "snapshot.publish.rollback_cleanup_resource_semantics",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "`remove_staging_directory`, path ownership during cleanup, source-memory alias lifetime, cleanup tracing, directory removal, absence check, and parent-directory sync effects must be connected to the proof-side cleanup interface used by `StagingDirectory::rollback`.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "proofs/snapshot.rs",
+        "research/system-proof/candidates/staging-rollback-verus-limitation.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "StagingDirectory::remove_staging_directory",
+      "evidence": [
+        "research/system-proof/candidates/staging-rollback-verus-limitation.txt"
+      ],
+      "evidence_relation": "The rollback proof uses an explicit proof-side interface for cleanup result shape and path retirement. That interface is necessary to state the rollback classification but does not prove filesystem cleanup, absence checking, sync durability, tracing, or alias-lifetime resource semantics."
+    }
+  ]
+}
