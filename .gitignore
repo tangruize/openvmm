@@ -63,3 +63,5 @@ node_modules/
 /.argus/
 /.argus_subagents/
 /.autors/
+.system-proof/
+/CHECKPOINT.md

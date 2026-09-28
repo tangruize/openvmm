@@ -1,0 +1,42 @@
+{
+  "id": "snapshot-generation-access-v1",
+  "module": "snapshot",
+  "goal": "snapshot.publish",
+  "purpose": "Define the shared publication/restore generation View under specs/snapshot after the monolithic proof file made unrelated targets fail on the exact rollback attempt, repair the stage_snapshot error propagation model, and materialize saved-state bytes as the restore payload observation",
+  "observation": "For abstractly equal opened snapshot generations, restore-side caller observations agree on retained handles, saved-state byte payload, memory generation identity, length agreement, and intended-capture propagation; a length-only alternative admits same-length state substitution and is retired",
+  "target": "opened_generation_access_view",
+  "verification_target": "opened_generation_access_view",
+  "verification_scope": "function",
+  "implementation": [
+    "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+    "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+    "openvmm/openvmm_helpers/src/snapshot/fs.rs"
+  ],
+  "specification": [
+    "specs/snapshot/snapshot.rs"
+  ],
+  "view": [
+    "specs/snapshot/meaning.md",
+    "specs/snapshot/snapshot.rs"
+  ],
+  "domain": [
+    "specs/snapshot/meaning.md",
+    "specs/snapshot/snapshot.rs"
+  ],
+  "assumptions": [
+    "specs/snapshot/meaning.md"
+  ],
+  "correspondence": "specs/snapshot/meaning.md",
+  "witnesses": [
+    "specs/snapshot/snapshot.rs",
+    "proofs/attempts/rollback_receiver_repro.rs",
+    "research/system-proof/candidates/staging-rollback-verus-limitation.txt",
+    "research/system-proof/candidates/rename-resource-account.txt"
+  ],
+  "checker_config": "specs/snapshot/specdet-generation.toml",
+  "body_kind": "model",
+  "guarantees_added": "Adds a module-owned SnapshotGenerationView that keeps saved-state bytes, memory generation identity, manifest/state/memory lengths, scratch presence, completeness, and intended-capture membership visible. The opened_generation_access_view contract states restore caller observations from that View rather than from a tuple of success flags or an arbitrary state-content identifier. PublicationOutcomeView now classifies stage_snapshot failures through a StageSnapshotOutcomeView, so CleanupUncertain propagated by the callee's internal rollback is preserved before the caller receives a staging owner; post-staging pre-commit failures still route through the rollback cleanup/source-memory-alias distinction.",
+  "guarantees_removed": "Retires the length-only restore alternative for current use: it remains as weak_length_only_view_misses_same_length_state_substitution and same_length_state_substitution_witness_pair, which show same-length state substitution is invisible to that weak abstraction but visible to SnapshotGenerationView. It also retires the stage-failure Boolean alternative preserved as retired_publication_outcome_stage_failure_boolean and the destination-absence-first alternative preserved as retired_publication_outcome_destination_absence_first; the formal separating cases show that both alternatives incorrectly report source-memory-alias cleanup failures as rollback-safe. This candidate does not claim original-body correctness for OpenedSnapshot::open, stage_snapshot, or write_snapshot_with_memory_publication.",
+  "domain_change": "The current domain is a View/specification investigation over structurally opened generations, source-shaped saved-state byte observations, and the publication outcome model. Publication completeness, filesystem resource state, retained directory generation semantics, and intended-capture establishment remain dependencies.",
+  "trust_change": "No production behavior or verifier trust basis changes. StageSnapshotOutcomeView is an exhaustive enum rather than independent labels requiring a hidden well-formedness restriction. The receiver/let-chain reproducer in proofs/attempts/rollback_receiver_repro.rs is explicitly reduced: stub types, an unchecked cleanup callee, and omitted logging cannot establish source correspondence. The historical conditional publish account points to its immutable earlier run commit."
+}

@@ -1,0 +1,42 @@
+# Snapshot publication and restore access meaning
+
+This file records the stable module meaning for the current `snapshot.publish` checkpoint. It does not cite current receipt names or candidate revision numbers; those live in `review.md` and in the native graph. The formal definitions for this meaning are in `specs/snapshot/snapshot.rs`, with `proofs/snapshot.rs` retained only as a compatibility include wrapper.
+
+## Compact source/API/observation index
+
+| API or source surface | Module-owned observation in this checkpoint | Remaining bridge |
+|---|---|---|
+| `openvmm/openvmm_helpers/src/snapshot/publish.rs::write_snapshot_with_memory_publication` | `PublicationOutcomeView` distinguishes success, rollback-safe pre-commit failure, cleanup-uncertain pre-commit failure, committed parent-sync failure, committed generation availability, and intended-capture commitment. | The original body proof is still open, including the `and_then(|()| staging.publish(dir))` mutable-capture frontend limitation, external filesystem state, and parent-directory sync effects. |
+| `openvmm/openvmm_helpers/src/snapshot/publish.rs::stage_snapshot` | `StageSnapshotOutcomeView` records whether staging completed, failed before any staging owner existed, failed rollback-safely after internal ownership, or propagated `CleanupUncertain` from its internal `staging.rollback(error)`. | A body proof must still establish complete generation construction on `Ok(StagingDirectory)` and the exact classified error on every failing path. |
+| `openvmm/openvmm_helpers/src/snapshot/publish.rs::StagingDirectory::publish` | The publication model preserves that pre-commit failures after a returned staging owner are classified through rollback cleanup and source-memory-alias state. | No-replace rename, path ownership, platform fallback behavior, races, and context formatting remain resource-representation obligations. |
+| `openvmm/openvmm_helpers/src/snapshot/publish.rs::StagingDirectory::rollback` | The model preserves the production distinction between `BeforeCommit` and `CleanupUncertain`; `proofs/attempts/rollback_receiver_repro.rs` isolates the receiver/let-chain limitation with stub types, an unchecked callee and omitted logging. | The reduced reproducer is not a source-preserving implementation proof. The historical original-body attempt was blocked, and cleanup resource semantics remain open. |
+| `openvmm/openvmm_helpers/src/snapshot/restore.rs::OpenedSnapshot::open` | `opened_generation_access_view` exposes retained handles, saved-state byte payload, memory generation identity, length agreement, and intended-capture propagation from the shared generation View. | The source relation from retained directory handles, relative opens, bounded state-byte reads, manifest validation, and platform generation records to the View remains open. |
+| `openvmm/openvmm_helpers/src/snapshot/fs.rs` | Filesystem boundaries are represented as retained directory/opened file generation and no-replace publication effects, not as closed filesystem theorems. | Symlink/reparse behavior, identity stability, directory sync, and resource lifetime facts remain platform obligations. |
+
+## Shared generation View
+
+`SnapshotGenerationView` is the current module-owned publication/restore View. A complete generation keeps manifest generation identity, the actual saved-state bytes as a `Seq<u8>`, observed saved-state length, memory generation identity and length, scratch presence and identity, and intended-capture membership visible.
+
+This replaces the earlier arbitrary `state_content_id: u64`. The production restore abstraction owns actual saved-state bytes: `OpenedSnapshot::open` reads `state.bin` into `state_bytes: Vec<u8>`, checks `state_bytes.len() as u64 == manifest.state_size_bytes`, and `state_bytes()` and `into_parts()` return that payload. Equal lengths, handle metadata, or platform generation metadata are not content authentication for `state.bin`.
+
+The memory observation remains intentionally different. Restore records `opened_file_generation(&memory_file, MEMORY_FILE_NAME)` and later `validate_memory_generation` checks the retained memory handle against that recorded generation before mapping; it does not make memory bytes part of the restore-open payload observation here.
+
+The numeric artifact identifiers, retained-handle flags and supplied check outcomes are still model placeholders, not a representation proof for production file/metadata types or a verified implementation of open. The saved-state byte observation is concrete at the `Vec`/`Seq` boundary; its connection to the actual `OpenedSnapshot` fields and accessors remains an explicit next obligation.
+
+`opened_generation_access_view` is the current restore-access contract for this View. If structural open succeeds, caller observations include retained directory, manifest, state, and memory handles, the saved-state bytes, a recorded memory generation identity, length agreement with the manifest, and intended-capture membership only when an upstream publication or caller proof supplies it. If structural open fails, those observations are absent and the saved-state byte observation is empty.
+
+The weak length-only alternative remains present as `WeakLengthOnlyGenerationView`, `weak_length_only_generation_access_view`, `weak_length_only_view_misses_same_length_state_substitution`, and `same_length_state_substitution_witness_pair`. The constructive witness creates two lawful successful model opens whose saved-state payloads are `vec![1u8]` and `vec![2u8]` with the same saved-state length, same memory length, same scratch state, and same intended-capture flag. Their weak Views agree, while their `SnapshotGenerationView` saved-state byte observations differ. This is not an execution witness for a captured VM or the production filesystem.
+
+## Publication connection and remaining bridge obligations
+
+`PublicationOutcomeView` now uses `StageSnapshotOutcomeView` instead of a coarse stage-success Boolean. This matches the source shape: `stage_snapshot` creates a `StagingDirectory`, can mark a source-memory alias in `publish_owned_memory_file`, can fail later, and returns `Err(staging.rollback(error))`; the caller’s `stage_snapshot(...)?` propagates `CleanupUncertain` unchanged even though no `Ok(StagingDirectory)` owner is returned to the caller.
+
+The stage outcome is an enum, not independent Boolean labels that admit contradictory or unclassified stages. `publication_preserves_every_stage_failure` checks all three failure variants without adding a well-formedness assumption. Its error category describes this publication attempt: rollback-safe does not promise removal of independent leftover staging artifacts, and not committed does not assert that a pre-existing destination is absent.
+
+The retired helper `retired_publication_outcome_stage_failure_boolean` preserves the rejected predicate that mapped every non-completed staging result to rollback-safe failure. The concrete spec witness `stage_cleanup_uncertain_failure_witness` is lawful and distinguishes the repair: the retired predicate reports rollback-safe, while `publication_outcome` reports cleanup-uncertain and not committed.
+
+The earlier rejected post-staging cleanup classification is also preserved. `retired_publication_outcome_destination_absence_first` records the destination-absence-first alternative, and `destination_absence_cleanup_uncertain_witness` distinguishes it from the repaired predicate when staging completed, destination absence failed before rename, a source-memory alias exists, and cleanup failed.
+
+The active bridge obligations remain publication completeness, filesystem resource state, cleanup resource state, parent-directory sync reporting, intended-capture establishment, restore retained-handle generation semantics, and the source-representation relation from concrete saved-state bytes and memory handles to the formal View. This checkpoint is a reviewable Spec/View repair, not an original production-body proof.
+
+`research/system-proof/nodes/snapshot-generation-access.json` is the portable current frontier. Construction, rename preservation and restore consumption all depend on the shared representation; the source saved-state byte observation is an explicit sub-obligation. Intended-capture establishment is a downstream composition goal, not a prerequisite for defining the View itself. This keeps the used representation on the active TOP's dependency path without circularly assuming publication's final guarantee.

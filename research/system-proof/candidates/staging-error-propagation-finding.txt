@@ -1,0 +1,9 @@
+This is a defect in the proposed specification, not a newly discovered production bug.
+
+The native-04 model in proofs/snapshot.rs maps every !stage_succeeded input to rollback_safe=true and cleanup_uncertain_alias=false. The native review fixed the later destination-absence failure case, but its reason that no staging owner is returned to the caller does not justify this earlier classification.
+
+In openvmm/openvmm_helpers/src/snapshot/publish.rs, stage_snapshot creates and owns a StagingDirectory internally, may establish a source-memory alias during publish_owned_memory_file, and can then fail, including during staging-directory sync. Its final match returns Err(staging.rollback(error)). StagingDirectory::rollback returns CleanupUncertain when an alias is present and cleanup fails. The caller's stage_snapshot(...)? propagates that error unchanged even though it never receives an Ok staging owner. The proposed stage-failure branch therefore drops a real callee error category.
+
+A source-faithful model should carry and preserve the classified stage error, distinguishing failures before creation from failures whose internal rollback is cleanup-uncertain. It must not infer rollback safety solely from the absence of a staging owner in the caller. Preserve the rejected predicate and a concrete, satisfiable separating case; no production modification is required.
+
+Related representation gap: state_content_id is currently an arbitrary u64 supplied to the model, with no source definition relating its equality to equality of the actual saved-state bytes. A length-only-versus-ID lemma does not by itself witness different lawful byte payloads. The next repair should use the actual byte-sequence observation for saved state (or establish a justified representation relation, not assume a collision-free identifier), keeping handle/generation metadata separate from content authentication.

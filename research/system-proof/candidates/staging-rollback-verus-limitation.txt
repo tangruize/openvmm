@@ -1,0 +1,35 @@
+Historical limitation report from run checkpoint 699b3154:
+https://github.com/tangruize/openvmm/blob/699b3154/proofs/snapshot.rs
+The following receipt/configuration observations describe that attempt.
+The current configuration aligns both tools on Rust 2024. Its active aggregate
+is under specs/snapshot; proofs/attempts/rollback_receiver_repro.rs is only a
+reduced frontend reproducer, not the earlier source-preserving fragment.
+
+`StagingDirectory::rollback` was the selected source-bound rollback fragment for
+that publication-control-flow investigation. The production body in
+`openvmm/openvmm_helpers/src/snapshot/publish.rs` first treats a failed cleanup
+of a source-memory alias as `SnapshotWriteError::CleanupUncertain`; otherwise it
+warns on independent cleanup failure and returns `SnapshotWriteError::BeforeCommit`.
+Neither branch is a committed-publication report.
+
+The proof body in `proofs/snapshot.rs` preserves that executable body and
+parameter syntax. The local View `rollback_classification_view` records only the
+classification consequence needed here: rollback returns `BeforeCommit` or
+`CleanupUncertain`, and both leave `publication_committed` and
+`final_destination_published` false. `remove_staging_directory`, `PathBuf`,
+`tracing::warn!`, and the cleanup resource effects remain explicit proof-side
+interfaces; the source file's real filesystem cleanup semantics are not closed.
+
+The correspondence receipt `.system-proof/evidence/staging-rollback-connection.json`
+reports `exact_fragment` for source symbol `StagingDirectory::rollback` and proof
+symbol `StagingDirectory::rollback`. The configured public verifier still fails
+before verification because its command omits the Rust 2024 edition flag needed
+for the production let-chain. The supplied checker uses `--edition=2024` from
+`proofs/specdet.toml` and reaches the next frontend limitation, `mut self`, when
+it checks the exact rollback method. A direct diagnostic with the same
+project-local Verus executable and `--edition=2024` records the same `mut self`
+limitation at
+`.system-proof/evidence/staging-rollback-verus-edition-2024.txt`. This is a
+frontend limitation of the exact source-shaped method, not a proof that the
+rollback classification is false and not a license to replace the body with a
+Boolean model.

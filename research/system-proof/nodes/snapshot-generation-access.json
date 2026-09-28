@@ -1,0 +1,225 @@
+{
+  "nodes": [
+    {
+      "id": "snapshot.publish",
+      "kind": "top",
+      "module": "snapshot",
+      "statement": "Snapshot publication and restore specification investigation. The current frontier has a buildable shared generation View under specs/snapshot that keeps saved-state byte payload, memory generation identity, completeness, intended-capture membership, and classified stage_snapshot error propagation visible, while original publication and restore body proofs remain open.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot.rs",
+        "openvmm/openvmm_helpers/src/snapshot",
+        "specs/snapshot/meaning.md",
+        "specs/snapshot/snapshot.rs"
+      ],
+      "dependencies": [
+        "snapshot.publish.write_snapshot_with_memory_publication",
+        "snapshot.publish.staging_directory_publish",
+        "snapshot.restore.opened_generation_view",
+        "snapshot.publish.shared_generation_view",
+        "snapshot.publish.intended_capture_membership"
+      ],
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.shared_generation_view",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "Relate actual staged/opened snapshot artifacts to SnapshotGenerationView, preserving saved-state bytes and length, artifact/handle generation observations, memory length and scratch metadata. The formal carrier is materialized, but the concrete-source representation bridge remains open. Define intended-capture association here without assuming it true; establishing that association is a separate composition obligation.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "specs/snapshot/snapshot.rs",
+        "specs/snapshot/specdet-generation.toml",
+        "specs/snapshot/specdet-weak-length.toml",
+        "specs/snapshot/meaning.md",
+        "research/system-proof/candidates/snapshot-generation-access.json"
+      ],
+      "dependencies": [
+        "snapshot.restore.directory_handle_generation",
+        "snapshot.restore.saved_state_byte_observation"
+      ],
+      "status": "open",
+      "evidence": [],
+      "evidence_relation": "Current model feedback is indexed in review.md and the candidate registry. It does not establish this concrete-source representation relation."
+    },
+    {
+      "id": "snapshot.restore.opened_generation_view",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "Prove that the actual OpenedSnapshot::open and its payload/handle accessors establish and consume the shared generation representation, including bounded saved-state byte reads and platform generation checks. The current opened_generation_access_view function is model feedback, not this body proof.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "specs/snapshot/snapshot.rs",
+        "specs/snapshot/specdet-generation.toml",
+        "specs/snapshot/meaning.md",
+        "research/system-proof/candidates/snapshot-generation-access.json"
+      ],
+      "dependencies": [
+        "snapshot.publish.shared_generation_view",
+        "snapshot.restore.directory_handle_generation"
+      ],
+      "status": "open",
+      "proof_target": "crate#OpenedSnapshot::open",
+      "evidence": [],
+      "evidence_relation": "The original-body target is not replaced by the name of a passing model constructor."
+    },
+    {
+      "id": "snapshot.publish.stage_snapshot_complete_generation",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "`stage_snapshot` must establish a complete staging generation when it returns `Ok(StagingDirectory)`, including manifest rewriting, saved-state bytes, memory publication policy, optional scratch handling, owned-memory publication, and staging-directory sync. Its failing result is no longer modeled as a coarse stage-failure Boolean: failures before staging ownership, rollback-safe internal failures, and cleanup-uncertain internal rollback are distinct outcomes that the caller's `stage_snapshot(...)?` propagates.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "specs/snapshot/snapshot.rs",
+        "specs/snapshot/meaning.md",
+        "research/system-proof/candidates/staging-error-propagation-finding.txt"
+      ],
+      "dependencies": [
+        "snapshot.publish.shared_generation_view",
+        "snapshot.publish.rollback_classification"
+      ],
+      "status": "open",
+      "proof_target": "stage_snapshot",
+      "evidence": [],
+      "evidence_relation": "The repaired model preserves the callee's error categories; proving the constructor's concrete byte/resource relation and all failing paths remains work."
+    },
+    {
+      "id": "snapshot.publish.rollback_classification",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "Prove the actual StagingDirectory::rollback distinction between BeforeCommit and CleanupUncertain under an owned unpublished staging-directory invariant. The historical source-preserving attempt hit a frontend limitation; the isolated receiver/let-chain reproducer has stub types/callee and omitted logging and is not source-body evidence.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "proofs/attempts/rollback_receiver_repro.rs",
+        "research/system-proof/candidates/staging-rollback-verus-limitation.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.rollback_cleanup_resource_semantics"
+      ],
+      "status": "blocked",
+      "proof_target": "crate#StagingDirectory::rollback",
+      "evidence": [],
+      "evidence_relation": "The historical attempt remains at run commit 699b3154. A reduced reproducer and a passing outcome model do not discharge the production-body obligation."
+    },
+    {
+      "id": "snapshot.publish.write_snapshot_with_memory_publication",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "Prove the production orchestrator's classified staging failure, publication failure with rollback, committed parent-sync failure and successful publication. The historical source-shaped attempt hit the mutable-capturing and_then closure limitation.",
+      "sources": ["openvmm/openvmm_helpers/src/snapshot/publish.rs", "specs/snapshot/meaning.md"],
+      "dependencies": [
+        "snapshot.publish.staging_directory_publish",
+        "snapshot.publish.stage_snapshot_complete_generation",
+        "snapshot.publish.rollback_classification",
+        "snapshot.publish.parent_sync_committed_generation"
+      ],
+      "status": "blocked",
+      "proof_target": "write_snapshot_with_memory_publication",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.staging_directory_publish",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "Prove that StagingDirectory::publish retires the staging owner only after successful publication and preserves the owner on failure. Earlier conditional fragments are history, not a current body proof in the module aggregate.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "research/system-proof/candidates/rename-resource-account.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": ["snapshot.publish.rename_no_replace_resource_semantics"],
+      "status": "open",
+      "proof_target": "crate#StagingDirectory::publish",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.rename_no_replace_resource_semantics",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "Connect rename_no_replace to path/resource ownership and preservation of the staged generation. State Linux-GNU no-replace semantics and other platform fallback behavior separately; an operation name is not a portable no-overwrite theorem.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "research/system-proof/candidates/rename-resource-account.txt",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": ["snapshot.publish.shared_generation_view"],
+      "status": "open",
+      "proof_target": "rename_no_replace",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.rollback_cleanup_resource_semantics",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "Relate remove_staging_directory to path ownership, source-memory alias lifetime, removal/absence checks and parent sync. BeforeCommit may leave independent staging artifacts; CleanupUncertain is a conservative report, not proof that an alias certainly persists.",
+      "sources": ["openvmm/openvmm_helpers/src/snapshot/publish.rs", "specs/snapshot/meaning.md"],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "crate#StagingDirectory::remove_staging_directory",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.parent_sync_committed_generation",
+      "kind": "body",
+      "module": "snapshot",
+      "statement": "After successful publication, a parent-directory sync failure reports SnapshotWriteError::Committed and does not roll back publication. Visibility/commit and final durability reporting remain distinct.",
+      "sources": ["openvmm/openvmm_helpers/src/snapshot/publish.rs", "specs/snapshot/meaning.md"],
+      "dependencies": ["snapshot.publish.staging_directory_publish"],
+      "status": "open",
+      "proof_target": "write_snapshot_with_memory_publication",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.restore.directory_handle_generation",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "Relate retained directory/opened-file handles and relative artifact opens to their platform-specific identities, regular-file checks and generation observations. Metadata equality does not authenticate arbitrary content or establish a stopped VM capture.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/fs.rs",
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.restore.saved_state_byte_observation",
+      "kind": "representation",
+      "module": "snapshot",
+      "statement": "Connect the actual OpenedSnapshot.state_bytes Vec and its state_bytes accessor to the module's Seq<u8> observation. Establish the concrete field/type and returned-slice relation; an arbitrary content ID, empty stand-in type or copied success flag cannot discharge it.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "specs/snapshot/snapshot.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [],
+      "status": "open",
+      "proof_target": "crate#OpenedSnapshot::state_bytes",
+      "evidence": []
+    },
+    {
+      "id": "snapshot.publish.intended_capture_membership",
+      "kind": "composition",
+      "module": "snapshot",
+      "statement": "Establish intended-capture membership from publication/caller relations, the stopped snapshot boundary, exact source memory handle, source-file quiescence and access-control facts. Copying the model's membership Boolean does not establish this obligation.",
+      "sources": [
+        "openvmm/openvmm_helpers/src/snapshot.rs",
+        "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+        "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+        "specs/snapshot/meaning.md"
+      ],
+      "dependencies": [
+        "snapshot.publish.write_snapshot_with_memory_publication",
+        "snapshot.publish.shared_generation_view"
+      ],
+      "status": "open",
+      "evidence": []
+    }
+  ]
+}
