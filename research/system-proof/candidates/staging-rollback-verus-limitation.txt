@@ -1,5 +1,12 @@
-`StagingDirectory::rollback` is the selected source-bound rollback fragment for
-the current publication-control-flow investigation. The production body in
+Historical limitation report from run checkpoint 699b3154:
+https://github.com/tangruize/openvmm/blob/699b3154/proofs/snapshot.rs
+The following receipt/configuration observations describe that attempt.
+The current configuration aligns both tools on Rust 2024. Its active aggregate
+is under specs/snapshot; proofs/attempts/rollback_receiver_repro.rs is only a
+reduced frontend reproducer, not the earlier source-preserving fragment.
+
+`StagingDirectory::rollback` was the selected source-bound rollback fragment for
+that publication-control-flow investigation. The production body in
 `openvmm/openvmm_helpers/src/snapshot/publish.rs` first treats a failed cleanup
 of a source-memory alias as `SnapshotWriteError::CleanupUncertain`; otherwise it
 warns on independent cleanup failure and returns `SnapshotWriteError::BeforeCommit`.

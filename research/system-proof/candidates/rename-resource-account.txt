@@ -1,4 +1,9 @@
-Source-grounded representation account for the staging publish rename boundary.
+Historical representation account for the staging publish rename boundary.
+
+This note describes the conditional fragment in run checkpoint 699b3154, not
+the current module-owned aggregate:
+https://github.com/tangruize/openvmm/blob/699b3154/proofs/snapshot.rs
+Its filesystem/type correspondence was not discharged.
 
 The production caller is `StagingDirectory::publish` in
 `openvmm/openvmm_helpers/src/snapshot/publish.rs`. Its executable body obtains
@@ -25,7 +30,7 @@ publish body obligation: a successful rename result is the only path to
 retiring the staging owner, and an error result stays before commitment and
 leaves the staging owner path unchanged.
 
-The repaired proof-side interface in `proofs/snapshot.rs` now makes that
+The proof-side interface in that checkpoint's `proofs/snapshot.rs` made that
 boundary explicit through `rename_no_replace_view`, the concrete
 `Result<T, Error>::with_context` result-shape postcondition, and the
 `StagingDirectory::publish` postconditions for unchanged failure state. The

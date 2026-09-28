@@ -1,0 +1,28 @@
+{
+  "id": "snapshot-generation-length-only-v1",
+  "module": "snapshot",
+  "goal": "snapshot.publish",
+  "purpose": "Attack the retained length-only input View using the supplied checker's bounded witness assistance after its mechanical counterexample catalog reported an unsupported value layout",
+  "observation": "Equal weak input Views do not imply equal saved-state byte payloads; this is a negative alternative, not the accepted restore observation",
+  "target": "weak_length_only_generation_access_view",
+  "verification_target": "weak_length_only_generation_access_view",
+  "verification_scope": "function",
+  "implementation": [
+    "openvmm/openvmm_helpers/src/snapshot/publish.rs",
+    "openvmm/openvmm_helpers/src/snapshot/restore.rs",
+    "openvmm/openvmm_helpers/src/snapshot/fs.rs"
+  ],
+  "specification": ["specs/snapshot/snapshot.rs"],
+  "view": ["specs/snapshot/meaning.md", "specs/snapshot/snapshot.rs"],
+  "domain": ["specs/snapshot/meaning.md", "specs/snapshot/snapshot.rs"],
+  "assumptions": ["specs/snapshot/meaning.md"],
+  "correspondence": "specs/snapshot/meaning.md",
+  "witnesses": ["specs/snapshot/snapshot.rs"],
+  "checker_config": "specs/snapshot/specdet-weak-length-live.toml",
+  "body_kind": "model",
+  "disposition": "deferred",
+  "guarantees_added": "No accepted API guarantee is added. This records an attempted machine-confirmed refutation of the weaker observation. The initial one-request attempt and two-request retry exposed Copilot text rendering inserting line breaks inside JSON keys at 100 columns. Use the raw JSONL compatibility executable while retaining the supplied Copilot provider, isolated configuration, original request and mechanical validators. Keep the two-request bound and exclude proof/report assistance.",
+  "guarantees_removed": "The negative alternative intentionally forgets saved-state byte contents in the input View while retaining the full returned byte observation. It does not replace the active byte-sequence View.",
+  "domain_change": "The same lawful restore-input model is wrapped by WeakRestoreOpenInput; the production source-representation bridge remains open.",
+  "trust_change": "No source, predicate, input View or output observation may be changed by assistance. Generated witness text is not evidence until the supplied tool validates it with the configured Verus."
+}

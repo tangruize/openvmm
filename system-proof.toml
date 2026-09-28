@@ -13,6 +13,7 @@ diagnostic_limit = 2
 
 [argus]
 backend = "copilot"
+checker_auth = "github_cli"
 
 [git]
 upstream_url = "https://github.com/nanvix/openvmm"
@@ -38,8 +39,8 @@ bootstrap_sha256 = "6e98ec1231c00bbf60672d0f0bbc44f489b7dc15cb681dfa3d6bd615d572
 
 [verification]
 mode = "native"
-entrypoint = "proofs/snapshot.rs"
+entrypoint = "specs/snapshot/snapshot.rs"
 inputs = ["openvmm/openvmm_helpers/src/snapshot.rs", "openvmm/openvmm_helpers/src/snapshot"]
-args = ["--crate-type=lib"]
+args = ["--edition=2024", "--crate-type=lib"]
 toolchain = "1.98.1"
 timeout_seconds = 300

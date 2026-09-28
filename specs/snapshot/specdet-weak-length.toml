@@ -15,8 +15,12 @@ adapter = "verus.single_file"
 extra_args = ["--edition=2024", "--crate-type=lib"]
 
 [analysis]
-kind = "concrete_determinism"
+kind = "abstract_determinism"
 observation_policy = "verus-observable-v1"
+
+[analysis.abstract]
+inputs = ["opened"]
+require_concrete = true
 
 [limits]
 verifier_timeout_seconds = 30
@@ -25,7 +29,7 @@ max_search_rounds = 12
 seed = 0
 
 [artifacts]
-output_dir = ".system-proof/snapshot-restore-open/specdet-results"
+output_dir = ".system-proof/snapshot-weak-length/specdet-results"
 
 [assistance]
 mode = "off"

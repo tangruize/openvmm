@@ -1,0 +1,42 @@
+schema_version = 1
+
+[project]
+root = "."
+
+[language]
+name = "verus"
+
+[targets]
+include = ["snapshot.rs"]
+visibility = "public"
+
+[build]
+adapter = "verus.single_file"
+extra_args = ["--edition=2024", "--crate-type=lib"]
+
+[analysis]
+kind = "abstract_determinism"
+observation_policy = "verus-observable-v1"
+
+[analysis.abstract]
+inputs = ["opened"]
+require_concrete = true
+
+[limits]
+verifier_timeout_seconds = 30
+solver_timeout_ms = 1000
+max_search_rounds = 12
+seed = 0
+
+[artifacts]
+output_dir = ".system-proof/snapshot-weak-length-live/specdet-results"
+
+[assistance]
+mode = "live"
+provider = "copilot"
+executable = "system-proof-copilot-raw"
+excluded_stages = ["proof_generation", "proof_checking", "report"]
+max_rounds_per_stage = 2
+max_requests_per_target = 2
+max_requests_per_run = 2
+request_timeout_seconds = 90
