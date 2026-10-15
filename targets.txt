@@ -1,0 +1,4 @@
+SAVE TOP | openvmm/openvmm_entry/src/vm_controller/microvm.rs:VmController::handle_guest_snapshot_request
+RESTORE ARTIFACT ROOT | openvmm/openvmm_entry/src/snapshot_restore/prepare.rs:prepare_snapshot_restore_for_config
+RESTORE WORKER TOP | openvmm/openvmm_core/src/worker/dispatch.rs:VmWorker::new(VmWorkerParameters) | inherent contracted constructor; impl Worker::new(Self::Parameters) is its forwarding adapter | branch condition: parameters.saved_state.is_some()
+RESTORE INTERNAL COMPOSITION BOUNDARY | openvmm/openvmm_core/src/worker/dispatch.rs:InitializedVm::load | call condition: saved_state = Some(_)

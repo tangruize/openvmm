@@ -1,0 +1,4 @@
+[submodule "production"]
+	path = production
+	url = https://github.com/tangruize/openvmm.git
+	branch = system-proof/snapshot-save-restore-seed
