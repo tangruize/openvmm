@@ -6,6 +6,9 @@ name = "openvmm_entry"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 default = ["ttrpc", "grpc"]
 
@@ -103,6 +106,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 unicycle.workspace = true
+vstd.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc.workspace = true

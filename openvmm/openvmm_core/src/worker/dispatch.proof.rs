@@ -1,9 +1,11 @@
 use super::InitializedVm;
 use super::LoadedVm;
+use super::VmWorker;
 use super::snapshot_spec::*;
 use mesh::payload::message::ProtobufMessage;
 use openvmm_defs::rpc::SnapshotSaveResponse;
 use openvmm_defs::worker::SavedState;
+use openvmm_defs::worker::VmWorkerParameters;
 use vstd::prelude::*;
 
 verus! {
@@ -39,6 +41,10 @@ pub uninterp spec fn loaded_restore_request_view(
     state: &SavedState,
 ) -> RestoreRequestView;
 
+pub uninterp spec fn worker_restore_request_view(
+    parameters: &VmWorkerParameters,
+) -> RestoreRequestView;
+
 impl View for InitializedVm {
     type V = InitializedVmView;
 
@@ -52,6 +58,14 @@ impl View for LoadedVm {
 
     open spec fn view(&self) -> RuntimeVmView {
         loaded_vm_representation(self)
+    }
+}
+
+impl View for VmWorker {
+    type V = RuntimeVmView;
+
+    open spec fn view(&self) -> RuntimeVmView {
+        loaded_vm_representation(&self.vm)
     }
 }
 

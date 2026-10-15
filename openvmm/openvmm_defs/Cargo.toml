@@ -6,6 +6,9 @@ name = "openvmm_defs"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 chipset_resources.workspace = true
 hypervisor_resources.workspace = true
@@ -37,6 +40,7 @@ unix_socket = { workspace = true, features = ["mesh"] }
 
 anyhow.workspace = true
 thiserror.workspace = true
+vstd.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 virt_whp.workspace = true

@@ -8,6 +8,14 @@ use crate::Options;
 use crate::microvm;
 use anyhow::Context;
 
+#[cfg(verus_keep_ghost)]
+mod snapshot_proof {
+    include!("prepare.proof.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 /// An opened snapshot generation, validated against the VM configuration and
 /// prepared for the VM worker.
 pub(crate) struct PreparedSnapshotRestore {
@@ -46,6 +54,24 @@ pub(super) fn prepare_snapshot_restore(
 /// Validates an opened snapshot generation against a VM configuration and
 /// prepares it for the VM worker. A microVM restore passes the contract the
 /// snapshot must match and the options of its time ABI restore.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    ensures
+        match result {
+            Ok(prepared) =>
+                snapshot_proof::opened_snapshot_representation(&snapshot)
+                    .prepares_as(prepared@)
+                && prepared@.request.snapshot.saved_state
+                    == snapshot_proof::prepared_saved_state_representation(
+                        &prepared.saved_state,
+                    )
+                && prepared@.request.snapshot.ram
+                    == snapshot_proof::prepared_ram_representation(
+                        &prepared.shared_memory,
+                    ),
+            Err(_) => true,
+        },
+))]
 pub(crate) fn prepare_snapshot_restore_for_config(
     snapshot: openvmm_helpers::snapshot::restore::OpenedSnapshot,
     expected_memory_size: u64,

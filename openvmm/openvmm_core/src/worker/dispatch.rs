@@ -26,6 +26,8 @@ mod snapshot_proof {
 
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
+#[cfg(not(verus_keep_ghost))]
+use vstd::prelude::{verus_spec, verus_verify};
 
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
@@ -350,12 +352,26 @@ pub struct VmWorker {
     _snapshot_restore_guards: Option<openvmm_defs::worker::SnapshotRestoreGuards>,
 }
 
-impl Worker for VmWorker {
-    type Parameters = VmWorkerParameters;
-    type State = RestartState;
-    const ID: WorkerId<Self::Parameters> = VM_WORKER;
-
-    fn new(mut parameters: Self::Parameters) -> anyhow::Result<Self> {
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl VmWorker {
+    /// Constructs a VM worker from launch or snapshot-restore parameters.
+    #[verus_verify(external_body)]
+    #[verus_spec(result =>
+        ensures
+            match result {
+                Ok(worker) => match &parameters.saved_state {
+                    Some(saved_state) =>
+                        snapshot_proof::worker_restore_request_view(&parameters)
+                            .snapshot.saved_state
+                            == snapshot_proof::encoded_saved_state_representation(saved_state)
+                        && snapshot_proof::worker_restore_request_view(&parameters)
+                            .worker_restore_succeeds(worker@),
+                    None => true,
+                },
+                Err(_) => true,
+            },
+    )]
+    pub fn new(mut parameters: VmWorkerParameters) -> anyhow::Result<Self> {
         let worker_construct = openvmm_defs::profile::ProfileSpan::start();
         let restore_params = restore::RestoreParameters::take(&mut parameters)?;
         let microvm_params = microvm::MicrovmParameters::take(&mut parameters)?;
@@ -431,6 +447,16 @@ impl Worker for VmWorker {
             device_thread,
             _snapshot_restore_guards: restore_params.guards,
         })
+    }
+}
+
+impl Worker for VmWorker {
+    type Parameters = VmWorkerParameters;
+    type State = RestartState;
+    const ID: WorkerId<Self::Parameters> = VM_WORKER;
+
+    fn new(parameters: Self::Parameters) -> anyhow::Result<Self> {
+        VmWorker::new(parameters)
     }
 
     fn restart(state: Self::State) -> anyhow::Result<Self> {

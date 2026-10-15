@@ -6015,6 +6015,7 @@ dependencies = [
  "vmgs_resources",
  "vmm_core_defs",
  "vmotherboard",
+ "vstd",
 ]
 
 [[package]]
@@ -6115,6 +6116,7 @@ dependencies = [
  "vmotherboard",
  "vmswitch",
  "vnc_worker_defs",
+ "vstd",
  "vtl2_settings_proto",
  "whp",
  "win_etw_tracing",
