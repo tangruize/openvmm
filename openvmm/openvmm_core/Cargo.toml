@@ -6,6 +6,9 @@ name = "openvmm_core"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 gdb = ["vmm_core/gdb"]
 
@@ -19,6 +22,7 @@ hypervisor_resources.workspace = true
 openvmm_defs.workspace = true
 openvmm_pcat_locator.workspace = true
 membacking.workspace = true
+vstd.workspace = true
 amd_iommu.workspace = true
 intel_vtd.workspace = true
 iommu_common.workspace = true

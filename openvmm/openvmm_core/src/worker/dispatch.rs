@@ -14,6 +14,19 @@ mod smmu_wiring;
 mod snapshot_rpc;
 mod time_abi;
 
+#[cfg(verus_keep_ghost)]
+mod snapshot_spec {
+    include!("dispatch.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod snapshot_proof {
+    include!("dispatch.proof.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
 use crate::partition::HvlitePartition;
@@ -509,6 +522,7 @@ enum IommuDevices {
 
 /// A VM that has been initialized but not yet loaded (i.e. the saved state is
 /// not yet available).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct InitializedVm {
     partition: Arc<dyn HvlitePartition>,
     vps: Vec<Box<dyn BindHvliteVp>>,
@@ -930,6 +944,7 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,
@@ -1733,6 +1748,29 @@ impl InitializedVm {
     ///
     // FUTURE: move more of this logic into new() so that more can be done
     //         outside the VM-PHU/live migration blackout window.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !saved_state.is_some() || snapshot_proof::load_restore_request_view(
+                &self,
+                &saved_state,
+                &snapshot_restore,
+            ).valid_for(self@),
+        ensures
+            match result {
+                Ok(loaded) => !saved_state.is_some() || snapshot_spec::load_restore_success(
+                    self@,
+                    snapshot_proof::load_restore_request_view(
+                        &self,
+                        &saved_state,
+                        &snapshot_restore,
+                    ),
+                    snapshot_proof::optional_saved_state_representation(&saved_state),
+                    loaded@,
+                ),
+                Err(_) => true,
+            },
+    ))]
     async fn load(
         self,
         saved_state: Option<SavedState>,
@@ -4629,6 +4667,19 @@ impl LoadedVm {
     /// Saves the VM's processor, partition, and device state.
     ///
     /// TODO: virtio & vmbus unsupported.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !old(self)@.guest_can_execute,
+        ensures
+            match result {
+                Ok(saved) => snapshot_spec::save_success(
+                    old(self)@,
+                    snapshot_proof::saved_state_representation(&saved),
+                ),
+                Err(_) => true,
+            },
+    ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
             units: self.state_units.save().await?,
@@ -4637,6 +4688,20 @@ impl LoadedVm {
     }
 
     /// Restore state on the VM.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !old(self)@.guest_can_execute,
+        ensures
+            match result {
+                Ok(()) => snapshot_spec::component_restore_success(
+                    old(self)@,
+                    snapshot_proof::saved_state_representation(&state),
+                    final(self)@,
+                ),
+                Err(_) => !final(self)@.guest_can_execute,
+            },
+    ))]
     async fn restore(&mut self, state: SavedState) -> anyhow::Result<()> {
         restore::validate_inventory(&self.state_units, &state)?;
         self.state_units.restore(state.units).await?;

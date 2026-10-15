@@ -32,6 +32,9 @@ use std::time::Duration;
 use vm_resource::ResourceId;
 use vmm_core::partition_unit::StopGuard;
 
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 /// Snapshot-restore inputs taken from the [`VmWorkerParameters`].
 pub(super) struct RestoreParameters {
     /// Restore state handed to the loaded VM.
@@ -270,6 +273,30 @@ pub(super) fn validate_inventory(
 impl LoadedVm {
     /// Applies saved state and restore-time adjustments, then keeps the VPs
     /// stopped through the snapshot-load return boundary.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self)@.prepared_restore == Some(
+                super::snapshot_proof::loaded_restore_request_view(
+                    &*old(self),
+                    &saved_state,
+                ),
+            ),
+        ensures
+            match result {
+                Ok(()) => super::snapshot_spec::restore_success(
+                    old(self)@,
+                    super::snapshot_proof::loaded_restore_request_view(
+                        &*old(self),
+                        &saved_state,
+                    ),
+                    super::snapshot_proof::saved_state_representation(&saved_state),
+                    final(self)@,
+                ),
+                Err(_) => !final(self)@.guest_can_execute
+                    && !final(self)@.externally_ready,
+            },
+    ))]
     pub(super) async fn restore_from_snapshot(
         &mut self,
         saved_state: SavedState,

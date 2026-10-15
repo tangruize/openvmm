@@ -40,6 +40,9 @@ use vm_loader::InitialLoad;
 use vmcore::vm_task::VmTaskDriverSource;
 use vmm_core::partition_unit::StopGuard;
 
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 /// The microVM part of the worker [`Manifest`]: the subset of
 /// [`MicrovmConfig`] that the worker consumes after validating the
 /// configuration.
@@ -308,6 +311,17 @@ impl LoadedVm {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            match result {
+                Ok(response) => super::snapshot_spec::quiesce_success(
+                    final(self)@,
+                    super::snapshot_proof::save_response_representation(&response),
+                ),
+                Err(_) => true,
+            },
+    ))]
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
         timeout: Duration,
