@@ -30,9 +30,7 @@ pub struct PartitionStateView {
     pub value: int,
 }
 
-pub struct ComponentId {
-    pub value: int,
-}
+pub type ComponentId = Seq<char>;
 
 pub struct ComponentSnapshotStateView {
     pub value: int,
@@ -74,9 +72,10 @@ pub struct ComponentSnapshotStatesView {
 }
 
 impl ComponentStatesView {
-    pub open spec fn matches_inventory(self, inventory: Set<ComponentId>) -> bool {
-        self.active.dom().subset_of(inventory)
-        && self.pending.dom().subset_of(inventory)
+    pub open spec fn matches_inventory(self, inventory: Seq<ComponentId>) -> bool {
+        inventory.no_duplicates()
+        && self.active.dom().subset_of(inventory.to_set())
+        && self.pending.dom().subset_of(inventory.to_set())
     }
 }
 
@@ -119,9 +118,10 @@ impl ComponentSnapshotStatesView {
             }
     }
 
-    pub open spec fn matches_inventory(self, inventory: Set<ComponentId>) -> bool {
-        self.active.dom().subset_of(inventory)
-        && self.pending.dom().subset_of(inventory)
+    pub open spec fn matches_inventory(self, inventory: Seq<ComponentId>) -> bool {
+        inventory.no_duplicates()
+        && self.active.dom().subset_of(inventory.to_set())
+        && self.pending.dom().subset_of(inventory.to_set())
     }
 }
 
@@ -146,7 +146,7 @@ pub struct LogicalVmState {
     pub ram: RamView,
     pub partition_state: PartitionStateView,
     pub vps: Seq<VpStateView>,
-    pub component_inventory: Set<ComponentId>,
+    pub component_inventory: Seq<ComponentId>,
     pub components: ComponentStatesView,
     pub clocks: ClockView,
     pub generation_id: Seq<u8>,
@@ -165,9 +165,16 @@ pub struct CaptureBoundary {
 pub struct SavedStateEnvelopeView {
     pub partition_state: PartitionStateView,
     pub vps: Seq<VpStateView>,
-    pub component_inventory: Set<ComponentId>,
+    pub component_inventory: Seq<ComponentId>,
     pub components: ComponentSnapshotStatesView,
     pub clocks: ClockView,
+}
+
+impl SavedStateEnvelopeView {
+    pub open spec fn structurally_valid(self) -> bool {
+        &&& self.component_inventory.no_duplicates()
+        &&& self.components.matches_inventory(self.component_inventory)
+    }
 }
 
 /// Complete published snapshot artifacts.
@@ -185,7 +192,7 @@ pub struct RestoreEnvironment {
     pub compatibility: CompatibilityClass,
     pub ram_backing_compatible: bool,
     pub initialized_components: ComponentStatesView,
-    pub component_inventory: Set<ComponentId>,
+    pub component_inventory: Seq<ComponentId>,
     pub resources: ExternalResourcesView,
     pub host_operational_state: HostOperationalStateView,
     pub requested_vp_count: Option<nat>,
@@ -211,7 +218,7 @@ pub struct InitializedVmView {
     pub destination_compatibility: CompatibilityClass,
     pub destination_ram_backing_compatible: bool,
     pub destination_components: ComponentStatesView,
-    pub destination_component_inventory: Set<ComponentId>,
+    pub destination_component_inventory: Seq<ComponentId>,
     pub destination_resources: ExternalResourcesView,
     pub destination_host_operational_state: HostOperationalStateView,
 }
@@ -219,6 +226,8 @@ pub struct InitializedVmView {
 pub struct SnapshotSaveResponseView {
     pub snapshot: PublishedSnapshotView,
     pub boundary: CaptureBoundary,
+    pub state_unit_names: Seq<ComponentId>,
+    pub effective_command_line: Seq<char>,
 }
 
 impl PublishedSnapshotView {
@@ -242,9 +251,7 @@ impl PublishedSnapshotView {
         &&& self.saved_state.components.captures(
             source_at_capture_cut.logical.components,
         )
-        &&& self.saved_state.components.matches_inventory(
-            self.saved_state.component_inventory,
-        )
+        &&& self.saved_state.structurally_valid()
         &&& self.saved_state.clocks == source_at_capture_cut.logical.clocks
         &&& self.generation_id == source_at_capture_cut.logical.generation_id
         &&& self.entropy_state == source_at_capture_cut.logical.entropy_state
@@ -314,7 +321,7 @@ impl SavedStateEnvelopeView {
         before: RuntimeVmView,
         after: RuntimeVmView,
     ) -> bool {
-        &&& self.components.matches_inventory(self.component_inventory)
+        &&& self.structurally_valid()
         &&& self.components.overlays(
             before.logical.components,
             after.logical.components,
@@ -353,9 +360,7 @@ impl RestoreRequestView {
             == initialized.destination_host_operational_state
         &&& self.snapshot.saved_state.component_inventory
             == self.environment.component_inventory
-        &&& self.snapshot.saved_state.components.matches_inventory(
-            self.snapshot.saved_state.component_inventory,
-        )
+        &&& self.snapshot.saved_state.structurally_valid()
         &&& self.environment.initialized_components.matches_inventory(
             self.environment.component_inventory,
         )
@@ -379,11 +384,11 @@ impl RestoreRequestView {
     pub open spec fn load_succeeds(
         self,
         initialized: InitializedVmView,
-        saved: Option<SavedStateEnvelopeView>,
+        saved: SavedStateEnvelopeView,
         loaded: RuntimeVmView,
     ) -> bool {
         &&& self.valid_for(initialized)
-        &&& saved == Some(self.snapshot.saved_state)
+        &&& saved.matches_snapshot(self.snapshot)
         &&& self.snapshot.restores_into(self.environment, loaded)
     }
 }
@@ -395,14 +400,15 @@ impl RuntimeVmView {
         &&& saved.vps == self.logical.vps
         &&& saved.component_inventory == self.logical.component_inventory
         &&& saved.components.captures(self.logical.components)
-        &&& saved.components.matches_inventory(saved.component_inventory)
+        &&& saved.structurally_valid()
         &&& saved.clocks == self.logical.clocks
     }
 }
 
 impl SnapshotSaveResponseView {
     pub open spec fn quiesce_succeeds(self, stopped_vm: RuntimeVmView) -> bool {
-        self.snapshot.captures(stopped_vm, self.boundary)
+        &&& self.state_unit_names == self.snapshot.saved_state.component_inventory
+        &&& self.snapshot.captures(stopped_vm, self.boundary)
     }
 }
 
@@ -424,6 +430,18 @@ pub proof fn capture_then_restore_composes(
             request.environment.initialized_components,
             restored.logical.components,
         ),
+        restored.logical.ram == source.logical.ram,
+        restored.logical.partition_state == source.logical.partition_state,
+        request.environment.requested_vp_count.is_none() ==>
+            restored.logical.vps == source.logical.vps,
+        restored.logical.clocks == (ClockView {
+            guest_reference_time: source.logical.clocks.guest_reference_time
+                + request.environment.downtime,
+            partition_reference_time: source.logical.clocks.partition_reference_time
+                + request.environment.downtime,
+            tsc_reference_time: source.logical.clocks.tsc_reference_time
+                + request.environment.downtime,
+        }),
         !restored.guest_can_execute,
         !restored.externally_ready,
 {

@@ -1751,23 +1751,46 @@ impl InitializedVm {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
-            !saved_state.is_some() || snapshot_proof::load_restore_request_view(
-                &self,
-                &saved_state,
-                &snapshot_restore,
-            ).valid_for(self@),
-        ensures
-            match result {
-                Ok(loaded) => !saved_state.is_some()
-                    || snapshot_proof::load_restore_request_view(
+            match &saved_state {
+                Some(saved) =>
+                    snapshot_proof::saved_state_representation(saved)
+                        .component_inventory == saved.inventory.deep_view()
+                    && snapshot_proof::load_restore_request_view(
                         &self,
                         &saved_state,
                         &snapshot_restore,
-                    ).load_succeeds(
-                        self@,
-                        snapshot_proof::optional_saved_state_representation(&saved_state),
-                        loaded@,
-                    ),
+                    ).snapshot.saved_state.component_inventory
+                        == saved.inventory.deep_view()
+                    && snapshot_proof::load_restore_request_view(
+                        &self,
+                        &saved_state,
+                        &snapshot_restore,
+                    ).valid_for(self@),
+                None => true,
+            },
+        ensures
+            match result {
+                Ok(loaded) => match &saved_state {
+                    Some(saved) =>
+                        snapshot_proof::saved_state_representation(saved)
+                            .component_inventory == saved.inventory.deep_view()
+                        && snapshot_proof::load_restore_request_view(
+                            &self,
+                            &saved_state,
+                            &snapshot_restore,
+                        ).snapshot.saved_state.component_inventory
+                            == saved.inventory.deep_view()
+                        && snapshot_proof::load_restore_request_view(
+                            &self,
+                            &saved_state,
+                            &snapshot_restore,
+                        ).load_succeeds(
+                            self@,
+                            snapshot_proof::saved_state_representation(saved),
+                            loaded@,
+                        ),
+                    None => true,
+                },
                 Err(_) => true,
             },
     ))]
@@ -4673,9 +4696,12 @@ impl LoadedVm {
             !old(self)@.guest_can_execute,
         ensures
             match result {
-                Ok(saved) => old(self)@.saves_as(
-                    snapshot_proof::saved_state_representation(&saved),
-                ),
+                Ok(saved) =>
+                    snapshot_proof::saved_state_representation(&saved)
+                        .component_inventory == saved.inventory.deep_view()
+                    && old(self)@.saves_as(
+                        snapshot_proof::saved_state_representation(&saved),
+                    ),
                 Err(_) => true,
             },
     ))]
@@ -4693,8 +4719,11 @@ impl LoadedVm {
             !old(self)@.guest_can_execute,
         ensures
             match result {
-                Ok(()) => snapshot_proof::saved_state_representation(&state)
-                    .restores_components(old(self)@, final(self)@),
+                Ok(()) =>
+                    snapshot_proof::saved_state_representation(&state)
+                        .component_inventory == state.inventory.deep_view()
+                    && snapshot_proof::saved_state_representation(&state)
+                        .restores_components(old(self)@, final(self)@),
                 Err(_) => !final(self)@.guest_can_execute,
             },
     ))]

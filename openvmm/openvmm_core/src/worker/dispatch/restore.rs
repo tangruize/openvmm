@@ -284,7 +284,15 @@ impl LoadedVm {
             ),
         ensures
             match result {
-                Ok(()) => super::snapshot_proof::loaded_restore_request_view(
+                Ok(()) =>
+                    super::snapshot_proof::saved_state_representation(&saved_state)
+                        .component_inventory == saved_state.inventory.deep_view()
+                    && super::snapshot_proof::loaded_restore_request_view(
+                        &*old(self),
+                        &saved_state,
+                    ).snapshot.saved_state.component_inventory
+                        == saved_state.inventory.deep_view()
+                    && super::snapshot_proof::loaded_restore_request_view(
                         &*old(self),
                         &saved_state,
                     ).restore_succeeds(

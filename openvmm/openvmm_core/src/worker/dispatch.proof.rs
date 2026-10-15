@@ -1,6 +1,7 @@
 use super::InitializedVm;
 use super::LoadedVm;
 use super::snapshot_spec::*;
+use mesh::payload::message::ProtobufMessage;
 use openvmm_defs::rpc::SnapshotSaveResponse;
 use openvmm_defs::worker::SavedState;
 use vstd::prelude::*;
@@ -19,9 +20,9 @@ pub uninterp spec fn saved_state_representation(
     state: &SavedState,
 ) -> SavedStateEnvelopeView;
 
-pub uninterp spec fn optional_saved_state_representation(
-    state: &Option<SavedState>,
-) -> Option<SavedStateEnvelopeView>;
+pub uninterp spec fn encoded_saved_state_representation(
+    message: &ProtobufMessage,
+) -> SavedStateEnvelopeView;
 
 pub uninterp spec fn save_response_representation(
     response: &SnapshotSaveResponse,

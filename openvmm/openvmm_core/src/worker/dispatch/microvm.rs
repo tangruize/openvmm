@@ -195,6 +195,25 @@ pub(super) fn load_linux_x86_mptable(
     )?)
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    ensures
+        result.1.deep_view() == saved_state.inventory.deep_view(),
+        super::snapshot_proof::encoded_saved_state_representation(&result.0)
+            .component_inventory == saved_state.inventory.deep_view(),
+        super::snapshot_proof::saved_state_representation(&saved_state)
+            .component_inventory == saved_state.inventory.deep_view(),
+))]
+fn encode_snapshot_saved_state(
+    saved_state: openvmm_defs::worker::SavedState,
+) -> (mesh::payload::message::ProtobufMessage, Vec<String>) {
+    let state_unit_names = saved_state.inventory.clone();
+    (
+        mesh::payload::message::ProtobufMessage::new(saved_state),
+        state_unit_names,
+    )
+}
+
 impl LoadedVm {
     pub(super) async fn establish_snapshot_boundary(
         &mut self,
@@ -315,8 +334,19 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures
             match result {
-                Ok(response) => super::snapshot_proof::save_response_representation(&response)
-                    .quiesce_succeeds(final(self)@),
+                Ok(response) =>
+                    super::snapshot_proof::save_response_representation(&response)
+                        .state_unit_names == response.state_unit_names.deep_view()
+                    && super::snapshot_proof::save_response_representation(&response)
+                        .effective_command_line == response.effective_command_line@
+                    && super::snapshot_proof::save_response_representation(&response)
+                        .snapshot.saved_state.component_inventory
+                            == response.state_unit_names.deep_view()
+                    && super::snapshot_proof::encoded_saved_state_representation(
+                        &response.saved_state,
+                    ).component_inventory == response.state_unit_names.deep_view()
+                    && super::snapshot_proof::save_response_representation(&response)
+                        .quiesce_succeeds(final(self)@),
                 Err(_) => true,
             },
     ))]
@@ -325,8 +355,6 @@ impl LoadedVm {
         timeout: Duration,
     ) -> Result<openvmm_defs::rpc::SnapshotSaveResponse, openvmm_defs::rpc::SnapshotQuiesceError>
     {
-        use mesh::payload::message::ProtobufMessage;
-
         if self.inner.machine_profile != MachineProfile::Microvm {
             return Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(
                 RemoteError::new(anyhow::anyhow!(
@@ -388,9 +416,10 @@ impl LoadedVm {
                 ));
             }
         };
+        let (saved_state, state_unit_names) = encode_snapshot_saved_state(saved_state);
         Ok(openvmm_defs::rpc::SnapshotSaveResponse {
-            state_unit_names: saved_state.inventory.clone(),
-            saved_state: ProtobufMessage::new(saved_state),
+            state_unit_names,
+            saved_state,
             effective_command_line,
             time,
         })
