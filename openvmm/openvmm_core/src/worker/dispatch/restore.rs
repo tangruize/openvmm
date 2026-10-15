@@ -268,6 +268,19 @@ pub(super) fn validate_inventory(
 }
 
 impl LoadedVm {
+    /// Applies saved state and restore-time adjustments, then keeps the VPs
+    /// stopped through the snapshot-load return boundary.
+    pub(super) async fn restore_from_snapshot(
+        &mut self,
+        saved_state: SavedState,
+    ) -> anyhow::Result<()> {
+        let saved_state_restore = self.begin_snapshot_restore(&saved_state).await?;
+        self.restore(saved_state)
+            .await
+            .context("loadedvm restore failed")?;
+        self.finish_snapshot_restore(saved_state_restore).await
+    }
+
     /// Prepares to restore `saved_state` into the loaded VM: checks that a
     /// time ABI restore has partition state, and starts the profile span of
     /// the restore. A time ABI restore drops the VPs' saved TSC values, which

@@ -3502,11 +3502,7 @@ impl InitializedVm {
         };
 
         if let Some(saved_state) = saved_state {
-            let saved_state_restore = this.begin_snapshot_restore(&saved_state).await?;
-            this.restore(saved_state)
-                .await
-                .context("loadedvm restore failed")?;
-            this.finish_snapshot_restore(saved_state_restore).await?;
+            this.restore_from_snapshot(saved_state).await?;
         } else {
             // Assign PCI bus numbers/BARs before building firmware so that the
             // ACPI tables (specifically the SRAT generic-initiator entries) can
