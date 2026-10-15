@@ -1758,16 +1758,16 @@ impl InitializedVm {
             ).valid_for(self@),
         ensures
             match result {
-                Ok(loaded) => !saved_state.is_some() || snapshot_spec::load_restore_success(
-                    self@,
-                    snapshot_proof::load_restore_request_view(
+                Ok(loaded) => !saved_state.is_some()
+                    || snapshot_proof::load_restore_request_view(
                         &self,
                         &saved_state,
                         &snapshot_restore,
+                    ).load_succeeds(
+                        self@,
+                        snapshot_proof::optional_saved_state_representation(&saved_state),
+                        loaded@,
                     ),
-                    snapshot_proof::optional_saved_state_representation(&saved_state),
-                    loaded@,
-                ),
                 Err(_) => true,
             },
     ))]
@@ -4673,8 +4673,7 @@ impl LoadedVm {
             !old(self)@.guest_can_execute,
         ensures
             match result {
-                Ok(saved) => snapshot_spec::save_success(
-                    old(self)@,
+                Ok(saved) => old(self)@.saves_as(
                     snapshot_proof::saved_state_representation(&saved),
                 ),
                 Err(_) => true,
@@ -4694,11 +4693,8 @@ impl LoadedVm {
             !old(self)@.guest_can_execute,
         ensures
             match result {
-                Ok(()) => snapshot_spec::component_restore_success(
-                    old(self)@,
-                    snapshot_proof::saved_state_representation(&state),
-                    final(self)@,
-                ),
+                Ok(()) => snapshot_proof::saved_state_representation(&state)
+                    .restores_components(old(self)@, final(self)@),
                 Err(_) => !final(self)@.guest_can_execute,
             },
     ))]

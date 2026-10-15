@@ -315,10 +315,8 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures
             match result {
-                Ok(response) => super::snapshot_spec::quiesce_success(
-                    final(self)@,
-                    super::snapshot_proof::save_response_representation(&response),
-                ),
+                Ok(response) => super::snapshot_proof::save_response_representation(&response)
+                    .quiesce_succeeds(final(self)@),
                 Err(_) => true,
             },
     ))]

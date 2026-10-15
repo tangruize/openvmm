@@ -284,15 +284,14 @@ impl LoadedVm {
             ),
         ensures
             match result {
-                Ok(()) => super::snapshot_spec::restore_success(
-                    old(self)@,
-                    super::snapshot_proof::loaded_restore_request_view(
+                Ok(()) => super::snapshot_proof::loaded_restore_request_view(
                         &*old(self),
                         &saved_state,
+                    ).restore_succeeds(
+                        old(self)@,
+                        super::snapshot_proof::saved_state_representation(&saved_state),
+                        final(self)@,
                     ),
-                    super::snapshot_proof::saved_state_representation(&saved_state),
-                    final(self)@,
-                ),
                 Err(_) => !final(self)@.guest_can_execute
                     && !final(self)@.externally_ready,
             },

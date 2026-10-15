@@ -17,11 +17,11 @@ pub uninterp spec fn loaded_vm_representation(
 
 pub uninterp spec fn saved_state_representation(
     state: &SavedState,
-) -> SavedEnvelopeView;
+) -> SavedStateEnvelopeView;
 
 pub uninterp spec fn optional_saved_state_representation(
     state: &Option<SavedState>,
-) -> Option<SavedEnvelopeView>;
+) -> Option<SavedStateEnvelopeView>;
 
 pub uninterp spec fn save_response_representation(
     response: &SnapshotSaveResponse,
@@ -57,11 +57,11 @@ impl View for LoadedVm {
 pub proof fn restore_core_implies_pre_execution(
     before: RuntimeVmView,
     request: RestoreRequestView,
-    saved: SavedEnvelopeView,
+    saved: SavedStateEnvelopeView,
     after: RuntimeVmView,
 )
     requires
-        restore_success(before, request, saved, after),
+        request.restore_succeeds(before, saved, after),
     ensures
         !after.guest_can_execute,
         !after.externally_ready,
