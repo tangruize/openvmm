@@ -1,0 +1,5 @@
+Prove the supplied unified OpenVMM snapshot save/restore specification against the real production lifecycle.
+
+A successful published snapshot must capture the snapshot-relevant projection of the source VM at a justified capture cut, and the projection observed at a successful compatible `InitializedVm::load(Some(_))` return before guest execution must equal the allowed restore transform of that captured projection.
+
+Verify the real capture/publication route, prepared RAM and artifact boundary, component save/restore chain, `LoadedVm::restore_from_snapshot`, and its connection to `InitializedVm::load(Some(_))`. If source grounding reveals a defect in the supplied specification or implementation, make a focused repair while preserving the same lifecycle objective. Do not replace it with a weaker or detached model theorem.
