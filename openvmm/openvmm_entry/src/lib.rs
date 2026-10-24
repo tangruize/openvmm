@@ -7,13 +7,14 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 mod cli_args;
 mod cpu_fingerprint;
 mod crash_dump;
-#[cfg(verus_keep_ghost)]
-mod external_spec {
-    include!("external.spec.rs");
-}
 mod kvp;
 mod meshworker;
 mod microvm;

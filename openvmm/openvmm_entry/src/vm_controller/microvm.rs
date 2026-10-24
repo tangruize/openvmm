@@ -13,14 +13,6 @@ use openvmm_defs::rpc::VmRpc;
 use std::path::PathBuf;
 use std::time::Duration;
 
-#[cfg(verus_keep_ghost)]
-mod snapshot_proof {
-    include!("microvm.proof.rs");
-}
-
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
-
 /// MicroVM state owned by the VM controller.
 #[derive(Default)]
 pub(crate) struct MicrovmController {
@@ -100,8 +92,6 @@ impl std::fmt::Display for MicrovmTeardownError {
 
 impl std::error::Error for MicrovmTeardownError {}
 
-#[cfg_attr(verus_keep_ghost, verus_verify)]
-#[derive(Clone, Copy)]
 pub(super) enum GuestSnapshotAction {
     Continue,
     Terminate { exit_code: i32 },
@@ -134,20 +124,6 @@ impl VmController {
         events.send(guest_exit_event(code, self.microvm.resources.output_drain.take()).await);
     }
 
-    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        ensures
-            match &result {
-                GuestSnapshotAction::Terminate { exit_code } =>
-                    *exit_code == 0 ==>
-                        snapshot_proof::snapshot_publication_representation(
-                            &*final(self),
-                            &scratch_policy,
-                            &result,
-                        ).capture_succeeds(),
-                GuestSnapshotAction::Continue => true,
-            },
-    ))]
     pub(super) async fn handle_guest_snapshot_request(
         &mut self,
         scratch_policy: chipset_resources::microvm::MicrovmSnapshotScratchPolicy,

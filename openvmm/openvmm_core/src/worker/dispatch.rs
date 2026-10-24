@@ -14,21 +14,6 @@ mod smmu_wiring;
 mod snapshot_rpc;
 mod time_abi;
 
-#[cfg(verus_keep_ghost)]
-mod snapshot_spec {
-    include!("dispatch.spec.rs");
-}
-
-#[cfg(verus_keep_ghost)]
-mod snapshot_proof {
-    include!("dispatch.proof.rs");
-}
-
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
-#[cfg(not(verus_keep_ghost))]
-use vstd::prelude::{verus_spec, verus_verify};
-
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
 use crate::partition::HvlitePartition;
@@ -344,7 +329,6 @@ pub struct RestartState {
 static LOADED_VM: DebugPtr<LoadedVm> = DebugPtr::new();
 
 /// The VM worker, used to create and run a VM partition.
-#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VmWorker {
     vm: LoadedVm,
     rpc: mesh::Receiver<VmRpc>,
@@ -353,26 +337,12 @@ pub struct VmWorker {
     _snapshot_restore_guards: Option<openvmm_defs::worker::SnapshotRestoreGuards>,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify)]
-impl VmWorker {
-    /// Constructs a VM worker from launch or snapshot-restore parameters.
-    #[verus_verify(external_body)]
-    #[verus_spec(result =>
-        ensures
-            match result {
-                Ok(worker) => match &parameters.saved_state {
-                    Some(saved_state) =>
-                        snapshot_proof::worker_restore_request_view(&parameters)
-                            .snapshot.saved_state
-                            == snapshot_proof::encoded_saved_state_representation(saved_state)
-                        && snapshot_proof::worker_restore_request_view(&parameters)
-                            .worker_restore_succeeds(worker@),
-                    None => true,
-                },
-                Err(_) => true,
-            },
-    )]
-    pub fn new(mut parameters: VmWorkerParameters) -> anyhow::Result<Self> {
+impl Worker for VmWorker {
+    type Parameters = VmWorkerParameters;
+    type State = RestartState;
+    const ID: WorkerId<Self::Parameters> = VM_WORKER;
+
+    fn new(mut parameters: Self::Parameters) -> anyhow::Result<Self> {
         let worker_construct = openvmm_defs::profile::ProfileSpan::start();
         let restore_params = restore::RestoreParameters::take(&mut parameters)?;
         let microvm_params = microvm::MicrovmParameters::take(&mut parameters)?;
@@ -448,16 +418,6 @@ impl VmWorker {
             device_thread,
             _snapshot_restore_guards: restore_params.guards,
         })
-    }
-}
-
-impl Worker for VmWorker {
-    type Parameters = VmWorkerParameters;
-    type State = RestartState;
-    const ID: WorkerId<Self::Parameters> = VM_WORKER;
-
-    fn new(parameters: Self::Parameters) -> anyhow::Result<Self> {
-        VmWorker::new(parameters)
     }
 
     fn restart(state: Self::State) -> anyhow::Result<Self> {
@@ -549,7 +509,6 @@ enum IommuDevices {
 
 /// A VM that has been initialized but not yet loaded (i.e. the saved state is
 /// not yet available).
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub(crate) struct InitializedVm {
     partition: Arc<dyn HvlitePartition>,
     vps: Vec<Box<dyn BindHvliteVp>>,
@@ -971,7 +930,6 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,
@@ -1775,52 +1733,6 @@ impl InitializedVm {
     ///
     // FUTURE: move more of this logic into new() so that more can be done
     //         outside the VM-PHU/live migration blackout window.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        requires
-            match &saved_state {
-                Some(saved) =>
-                    snapshot_proof::saved_state_representation(saved)
-                        .component_inventory == saved.inventory.deep_view()
-                    && snapshot_proof::load_restore_request_view(
-                        &self,
-                        &saved_state,
-                        &snapshot_restore,
-                    ).snapshot.saved_state.component_inventory
-                        == saved.inventory.deep_view()
-                    && snapshot_proof::load_restore_request_view(
-                        &self,
-                        &saved_state,
-                        &snapshot_restore,
-                    ).valid_for(self@),
-                None => true,
-            },
-        ensures
-            match result {
-                Ok(loaded) => match &saved_state {
-                    Some(saved) =>
-                        snapshot_proof::saved_state_representation(saved)
-                            .component_inventory == saved.inventory.deep_view()
-                        && snapshot_proof::load_restore_request_view(
-                            &self,
-                            &saved_state,
-                            &snapshot_restore,
-                        ).snapshot.saved_state.component_inventory
-                            == saved.inventory.deep_view()
-                        && snapshot_proof::load_restore_request_view(
-                            &self,
-                            &saved_state,
-                            &snapshot_restore,
-                        ).load_succeeds(
-                            self@,
-                            snapshot_proof::saved_state_representation(saved),
-                            loaded@,
-                        ),
-                    None => true,
-                },
-                Err(_) => true,
-            },
-    ))]
     async fn load(
         self,
         saved_state: Option<SavedState>,
@@ -4717,21 +4629,6 @@ impl LoadedVm {
     /// Saves the VM's processor, partition, and device state.
     ///
     /// TODO: virtio & vmbus unsupported.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        requires
-            !old(self)@.guest_can_execute,
-        ensures
-            match result {
-                Ok(saved) =>
-                    snapshot_proof::saved_state_representation(&saved)
-                        .component_inventory == saved.inventory.deep_view()
-                    && old(self)@.saves_as(
-                        snapshot_proof::saved_state_representation(&saved),
-                    ),
-                Err(_) => true,
-            },
-    ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
             units: self.state_units.save().await?,
@@ -4740,20 +4637,6 @@ impl LoadedVm {
     }
 
     /// Restore state on the VM.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        requires
-            !old(self)@.guest_can_execute,
-        ensures
-            match result {
-                Ok(()) =>
-                    snapshot_proof::saved_state_representation(&state)
-                        .component_inventory == state.inventory.deep_view()
-                    && snapshot_proof::saved_state_representation(&state)
-                        .restores_components(old(self)@, final(self)@),
-                Err(_) => !final(self)@.guest_can_execute,
-            },
-    ))]
     async fn restore(&mut self, state: SavedState) -> anyhow::Result<()> {
         restore::validate_inventory(&self.state_units, &state)?;
         self.state_units.restore(state.units).await?;

@@ -12,6 +12,11 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene))]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 mod emuplat;
 pub mod hypervisor_backend;
 mod partition;
