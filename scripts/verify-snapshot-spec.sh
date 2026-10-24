@@ -13,6 +13,17 @@
 #                  (default: $HOME/programs/verus/source/target-verus/release)
 #   RUSTUP_TOOLCHAIN  toolchain to use (default: the channel in Verus's
 #                  rust-toolchain.toml)
+#
+# Prerequisites:
+#   - A Verus build matching the pinned vstd (=0.0.0-2026-10-04-0306); tested
+#     with Verus 426d8b0 on toolchain 1.98.1.
+#   - Repo packages restored, so the build finds protoc (run from the repo root;
+#     needs libarchive-tools for bsdtar on Ubuntu):
+#       cargo xflowey restore-packages
+#
+# Expected result: "==> OK: openvmm_defs openvmm_core openvmm_entry", with
+# 0 errors reported for each crate. Cargo may reuse earlier results and print
+# no "verification results" line for unchanged crates.
 
 set -euo pipefail
 
