@@ -448,7 +448,7 @@ save_restore_derive = { path = "vm/vmcore/save_restore_derive" }
 vm_resource = { path = "vm/vmcore/vm_resource" }
 vm_topology = { path = "vm/vmcore/vm_topology" }
 vmcore = { path = "vm/vmcore" }
-vstd = { version = "=0.0.0-2026-10-04-0306", default-features = false, features = ["alloc"] }
+vstd = { version = "=0.0.0-2026-10-04-0306", default-features = false, features = ["std"] }
 
 # vmm_core
 cpu_profile = { path = "vmm_core/cpu_profile" }
