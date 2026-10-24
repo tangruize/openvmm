@@ -122,6 +122,7 @@ fn select_instantiated_vps<T>(
 }
 
 /// Snapshot-restore state of a [`LoadedVm`].
+#[cfg_attr(verus_keep_ghost, verifier::external_body, verifier::external_derive)]
 #[derive(Default)]
 pub(super) struct SnapshotRestore {
     /// The time ABI inputs of a restore, validated by the controller.

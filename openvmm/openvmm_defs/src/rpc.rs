@@ -61,6 +61,7 @@ pub enum VmRpc {
 }
 
 /// State returned after a successful bounded snapshot quiesce.
+#[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify(external_derive))]
 #[derive(Debug, MeshPayload)]
 pub struct SnapshotSaveResponse {
     /// Encoded VM saved state.

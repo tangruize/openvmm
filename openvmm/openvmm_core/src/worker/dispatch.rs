@@ -344,6 +344,7 @@ pub struct RestartState {
 static LOADED_VM: DebugPtr<LoadedVm> = DebugPtr::new();
 
 /// The VM worker, used to create and run a VM partition.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VmWorker {
     vm: LoadedVm,
     rpc: mesh::Receiver<VmRpc>,
@@ -548,7 +549,7 @@ enum IommuDevices {
 
 /// A VM that has been initialized but not yet loaded (i.e. the saved state is
 /// not yet available).
-#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub(crate) struct InitializedVm {
     partition: Arc<dyn HvlitePartition>,
     vps: Vec<Box<dyn BindHvliteVp>>,
@@ -970,7 +971,7 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
-#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,

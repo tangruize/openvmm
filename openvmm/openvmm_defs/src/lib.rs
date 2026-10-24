@@ -8,6 +8,10 @@
 
 pub mod config;
 pub mod entrypoint;
+#[cfg(verus_keep_ghost)]
+pub mod external_spec {
+    include!("external.spec.rs");
+}
 pub mod microvm;
 pub mod profile;
 pub mod rpc;

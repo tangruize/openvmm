@@ -64,9 +64,17 @@ impl View for LoadedVm {
 impl View for VmWorker {
     type V = RuntimeVmView;
 
-    open spec fn view(&self) -> RuntimeVmView {
+    // Closed because `vm` is private to `dispatch`; the definition is exported
+    // to `dispatch` by `lemma_vm_worker_view`.
+    closed spec fn view(&self) -> RuntimeVmView {
         loaded_vm_representation(&self.vm)
     }
+}
+
+pub(super) proof fn lemma_vm_worker_view(worker: &VmWorker)
+    ensures
+        worker@ == loaded_vm_representation(&worker.vm),
+{
 }
 
 pub proof fn restore_core_implies_pre_execution(

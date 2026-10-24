@@ -41,6 +41,7 @@ pub struct SnapshotRestoreGuards {
 }
 
 /// Complete saved state consumed by the VM worker.
+#[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify(external_derive))]
 #[derive(Protobuf, SavedStateRoot)]
 #[mesh(package = "openvmm")]
 pub struct SavedState {
@@ -52,6 +53,7 @@ pub struct SavedState {
 }
 
 /// Launch parameters for the VM worker.
+#[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify(external_derive))]
 #[derive(MeshPayload)]
 pub struct VmWorkerParameters {
     /// The hypervisor to use.

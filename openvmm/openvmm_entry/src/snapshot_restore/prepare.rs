@@ -18,6 +18,7 @@ use vstd::prelude::*;
 
 /// An opened snapshot generation, validated against the VM configuration and
 /// prepared for the VM worker.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct PreparedSnapshotRestore {
     pub(crate) shared_memory: openvmm_defs::worker::SharedMemoryFd,
     pub(crate) guards: openvmm_defs::worker::SnapshotRestoreGuards,

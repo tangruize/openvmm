@@ -100,6 +100,7 @@ impl std::fmt::Display for MicrovmTeardownError {
 
 impl std::error::Error for MicrovmTeardownError {}
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[derive(Clone, Copy)]
 pub(super) enum GuestSnapshotAction {
     Continue,
