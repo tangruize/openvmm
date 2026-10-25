@@ -285,11 +285,92 @@ Also expected on the Verus side:
    side on its `StateUnit` save/restore, connected to the PIT's own
    `SaveRestore`.
 
+### Stage 1 status
+
+Done: `verus-patches/verus-rpc-prototype` verifies (40 items, 0 errors) with
+the patched Verus. It has a trusted RPC channel (sync `rpc.rs` and async
+`rpc_async.rs`), a single unit, and a two-unit case where the source re-drives
+a shared pin into the target on restore. It shows that FracGhost halves can be
+passed through a trusted RPC spec and held across `.await`.
+
+The prototype's channel and protocol were designed for the experiment, not
+taken from OpenVMM. Its requests (`Save`, `Restore`, `Resume`, `Run`) are test
+requests, not OpenVMM's `StateRequest`.
+
+### Gaps between the prototype and OpenVMM
+
+What Stage 2 still needs, found by comparing the prototype with
+`vmm_core/state_unit` and the mesh RPC code.
+
+1. **Unsupported Verus features.** Both were checked against the patched
+   Verus with small examples:
+   - `async fn` in a trait: "does not yet support Opaque types in trait def".
+     `StateUnit` (`vmm_core/state_unit/src/lib.rs:110`) is such a trait.
+   - Async closures: "does not yet support coroutine closure types". The unit
+     side answers each request with
+     `rpc.handle_failable(async |()| unit.save().await)` (`lib.rs:224-245`).
+
+   Each needs a Verus fix or a wrapper on the unit side.
+2. **Trusted spec for mesh RPC.** The caller sends with
+   `send.call(StateRequest::Save, input)` on a `mesh::Sender<StateRequest>`,
+   which places an `Rpc<I, R>` (input plus a oneshot reply sender) inside the
+   request (`lib.rs:843`). The unit reads plain `StateRequest`s from a
+   `mesh::Receiver` and answers through `Rpc::handle_failable` or `complete`
+   (`support/mesh/mesh_channel/src/rpc.rs`). The trusted spec, or a wrapper,
+   must cover these types and say where the ghost travels. `StateRequest`
+   derives `MeshPayload`, so it cannot simply gain a `Tracked` field.
+3. **One ghost type and per-unit contracts.** The prototype has one protocol
+   type per channel. OpenVMM uses one `StateRequest` type for every unit, while
+   the contract differs per unit. `StateUnits` holds all units' halves, so
+   they need a single abstract-state type covering every kind of unit, and the
+   per-unit contract must be carried by the channel (e.g. in its constant).
+4. **Unit saved state is encoded inside `save`.** `LoadedVm::save` itself does
+   not encode: it returns a decoded `SavedState`, and encoding the whole
+   `SavedState` into a `ProtobufMessage` happens later in
+   `quiesce_for_snapshot` (out of scope). But each `SavedStateUnit.state` is a
+   `SavedStateBlob(ProtobufAny)` (`vm/vmcore/src/save_restore.rs:120`) that
+   the unit has already encoded: `ProtobufSaveRestore` wraps the typed
+   `SaveRestore::save` result with `SavedStateBlob::new` and decodes with
+   `parse()` on restore (`save_restore.rs:151-160`). Relating a unit's half
+   to its blob therefore needs a trusted contract on `SavedStateBlob`: an
+   abstract view (the typed value it encodes), `new(x)` gives a blob whose
+   view is `x`, and a successful `parse()` returns the view. Protobuf
+   encoding itself is not verified. (Alternative: state unit contracts at the
+   typed `SaveRestore` level and trust the blanket `ProtobufSaveRestore`
+   impl.)
+5. **Hand-off points must follow OpenVMM's requests.** The prototype's `Save`
+   stops the unit and splits its ghost once. In OpenVMM, `Stop` is a separate
+   request, and `Save` may be sent repeatedly while stopped, so a second
+   `Save` would have to split a half the unit no longer holds whole. The
+   hand-off probably moves to `Stop`/`Start`. The protocol must also cover
+   `Reset`, `AdvanceTime`, `QuiesceInput`/`ResumeInput`, and concurrent
+   `Inspect`; and a unit that saved `None` receives no `Restore`
+   (`lib.rs:648`).
+6. **Concurrent caller.** The prototype's caller calls units one after
+   another. `run_op` (`lib.rs:688`) starts all calls concurrently, collects
+   them with `join_all`, and orders them through `ReadySet` signals
+   (`Arc<Ready>`). This needs a spec for `join_all` and a way to pass ghost
+   resources between concurrent futures (e.g. a pin's resource from the PIC's
+   restore to the PIT's) through `Ready` or a shared invariant. That is new
+   trusted code.
+7. **Device state behind a lock.** Chipset devices are
+   `Arc<CloseableMutex<...>>`. While the VM runs, vCPU threads change them
+   through MMIO and port I/O, not through the unit's task, so "while running,
+   the unit holds the whole permission and updates the ghost in step" does not
+   hold. Likely fix: let the ghost be stale while running; at `Stop`, the
+   unit, holding the whole permission, sets the ghost to the device's current
+   state. "Frozen" then relies on the closed mutex keeping vCPUs out while
+   stopped, a trusted assumption.
+8. **Task spawning.** Units are spawned on `pal_async` executors, not with
+   `vstd::thread::spawn`; spawning needs a small trusted spec.
+
 ## Out of scope for now
 
 - **Guest RAM.** It has no in-memory Rust structure (it is a file-backed
   mapping). RAM will be removed from the spec rather than left unverified.
-- **Protobuf encoding/decoding** of `SavedState` (`ProtobufMessage`).
+- **Protobuf encoding/decoding** of `SavedState` (`ProtobufMessage`). Each
+  unit's `SavedStateBlob` is also protobuf-encoded; that is covered by a
+  trusted contract, not verified (see gap 4 above).
 - **`SnapshotManifest`** and snapshot files (`manifest.bin`, `state.bin`,
   `memory.bin`), the controller (`VmController`), and publication.
 
