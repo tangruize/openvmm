@@ -16,7 +16,8 @@
 #
 # Prerequisites:
 #   - A Verus build matching the pinned vstd (=0.0.0-2026-10-04-0306); tested
-#     with Verus 426d8b0 on toolchain 1.98.1.
+#     with Verus 426d8b0 on toolchain 1.98.1, with the patches in
+#     verus-patches/ applied (see verus-patches/README.md).
 #   - Repo packages restored, so the build finds protoc (run from the repo root;
 #     needs libarchive-tools for bsdtar on Ubuntu):
 #       cargo xflowey restore-packages

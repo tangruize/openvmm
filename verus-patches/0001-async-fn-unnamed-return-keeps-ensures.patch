@@ -1,0 +1,148 @@
+diff --git a/source/rust_verify/src/rust_to_vir_func.rs b/source/rust_verify/src/rust_to_vir_func.rs
+index b099381..84fe0bd 100644
+--- a/source/rust_verify/src/rust_to_vir_func.rs
++++ b/source/rust_verify/src/rust_to_vir_func.rs
+@@ -481,6 +481,36 @@ fn check_fn_decl<'tcx>(
+     }
+ }
+ 
++/// The `Output` type of an async function's opaque return type
++/// (`impl Future<Output = T>`), if it can be found.
++fn async_fn_output_typ<'tcx>(
++    ctxt: &Context<'tcx>,
++    id: DefId,
++    span: Span,
++    output_ty: rustc_middle::ty::Ty<'tcx>,
++) -> Result<Option<Typ>, VirErr> {
++    let tcx = ctxt.tcx;
++    let rustc_middle::ty::TyKind::Alias(_, al_ty) = output_ty.kind() else {
++        return Ok(None);
++    };
++    let rustc_middle::ty::AliasTyKind::Opaque { def_id } = al_ty.kind else {
++        return Ok(None);
++    };
++    let Some(future_output) = tcx.lang_items().future_output() else {
++        return Ok(None);
++    };
++    for (clause, _) in tcx.explicit_item_bounds(def_id).skip_binder() {
++        if let rustc_middle::ty::ClauseKind::Projection(pred) = clause.kind().skip_binder() {
++            if pred.projection_term.expect_projection_def_id() == future_output {
++                if let Some(ty) = pred.term.as_type() {
++                    return Ok(Some(ctxt.mid_ty_to_vir(id, span, &ty, None)?));
++                }
++            }
++        }
++    }
++    Ok(None)
++}
++
+ pub(crate) fn find_body_krate<'tcx>(tcx: TyCtxt<'tcx>, body_id: &BodyId) -> &'tcx Body<'tcx> {
+     tcx.hir_body(*body_id)
+ }
+@@ -2400,6 +2430,18 @@ pub(crate) fn finish_function<'tcx>(
+         let mut retx = ret.x.clone();
+         retx.typ = typ.clone();
+         ret = ret.new_x(retx);
++    } else if is_async {
++        // Without a named return there is no ensure_id_typ, so `ret` would keep
++        // the opaque future type. The async ensures are then stated about
++        // `awaited(future)` at the wrong output type and do not match what
++        // `.await` provides, so callers lose them (e.g. `ensures *final(x) == 0`).
++        // Use the future's `Output` type, as for a named return.
++        let output_ty = ctxt.tcx.fn_sig(def_id).skip_binder().output().skip_binder();
++        if let Some(typ) = async_fn_output_typ(ctxt, def_id, sig.span, output_ty)? {
++            let mut retx = ret.x.clone();
++            retx.typ = typ;
++            ret = ret.new_x(retx);
++        }
+     }
+ 
+     let mut functionx = FunctionX {
+diff --git a/source/rust_verify_test/tests/async_functions.rs b/source/rust_verify_test/tests/async_functions.rs
+index 9ad3316..a994fbe 100644
+--- a/source/rust_verify_test/tests/async_functions.rs
++++ b/source/rust_verify_test/tests/async_functions.rs
+@@ -199,3 +199,83 @@ test_verify_one_file! {
+         }
+     } => Ok(())
+ }
++
++test_verify_one_file! {
++    #[test] test_async_function_mut_ref_unnamed_return_ok verus_code! {
++        use vstd::prelude::*;
++        // No named return: the `final(x)` postcondition must still be
++        // available to the caller after `.await`.
++        async fn set_zero(x: &mut usize)
++            ensures *final(x) == 0,
++        {
++            *x = 0;
++        }
++
++        async fn foo() {
++            let mut x = 233;
++            set_zero(&mut x).await;
++            assert(x == 0);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_async_method_mut_self_unnamed_return_ok verus_code! {
++        use vstd::prelude::*;
++        struct S { x: u64 }
++
++        impl S {
++            async fn set(&mut self)
++                ensures final(self).x == 7,
++            {
++                self.x = 7;
++            }
++        }
++
++        #[verifier::exec_allows_no_decreases_clause]
++        async fn foo() {
++            let mut s = S { x: 7 };
++            loop
++                invariant s.x == 7,
++            {
++                s.set().await;
++            }
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_async_function_unnamed_non_unit_return_ok verus_code! {
++        use vstd::prelude::*;
++        async fn bump(x: &mut u64) -> u64
++            requires *old(x) < 100,
++            ensures *final(x) == *old(x) + 1,
++        {
++            *x = *x + 1;
++            5
++        }
++
++        async fn foo() {
++            let mut x = 1;
++            let r = bump(&mut x).await;
++            assert(x == 2);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_async_function_mut_ref_unnamed_return_fail verus_code! {
++        use vstd::prelude::*;
++        async fn set_zero(x: &mut usize)
++            ensures *final(x) == 0,
++        {
++            *x = 0;
++        }
++
++        async fn foo() {
++            let mut x = 233;
++            set_zero(&mut x).await;
++            assert(x == 1); // FAILS
++        }
++    } => Err(e) => assert_one_fails(e)
++}

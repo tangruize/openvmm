@@ -34,8 +34,56 @@ Provenance (from the removed `SNAPSHOT-SPEC.md` reading guide):
 These four files are historical inputs to the earlier specification and
 describe its targets, not the current plan.
 
-Design rule: no free spec functions. Abstractions of concrete types belong on
-the type (e.g. a `View` impl, written `x@`); free lemmas are acceptable.
+## Conventions
+
+Style reference: [microsoft/verified-storage](https://github.com/microsoft/verified-storage)
+(capybaraKV), with the differences noted below.
+
+- **No free spec functions.** Abstractions of concrete types belong on the
+  type (a `View` impl, written `x@`); free lemmas are acceptable.
+- **Annotation style.** Contracts are written as `verus_spec` / `verus_verify`
+  attributes on the production functions. `verus! { ... }` blocks may be used
+  where they are easier; mixing the two is fine. (verified-storage uses
+  `verus!` throughout.)
+- **File layout.** Keep production `.rs` files as clean as possible.
+  - `<file>.spec.rs`: high-level spec meant for human review (abstract types,
+    `View` impls, spec functions on types).
+  - `<file>.proof.rs`: lemmas.
+  - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`.
+  (verified-storage instead splits by trust, `_t.rs` trusted and `_v.rs`
+  verified.)
+
+### Naming
+
+Following verified-storage:
+
+- `FooView` is used only for the view of a concrete type `Foo`
+  (`impl View for Foo { type V = FooView; }`), as in `KvStore` →
+  `KvStoreView`.
+- Pure abstract states are named for what they are, with no `View` suffix,
+  as in `AtomicKvStore`, `KeyTableSnapshot`, and `JournalEntry`. If such a
+  name would clash with a concrete type, the concrete type gets a `Concrete`
+  prefix (`impl View for ConcreteJournalEntry { type V = JournalEntry; }`).
+- A view is composed of named abstract parts, as in
+  `KeyTableView { durable: KeyTableSnapshot, tentative: Option<KeyTableSnapshot>, ... }`.
+
+Applied here:
+
+```rust
+pub struct VmSnapshot { ... }      // abstract snapshotable VM state
+
+pub struct LoadedVmView {          // view of the concrete LoadedVm
+    pub snapshot: VmSnapshot,      // the snapshotable part
+    pub runtime: ...,              // the non-snapshot part
+}
+
+impl View for LoadedVm   { type V = LoadedVmView; }
+impl View for SavedState { type V = VmSnapshot; }
+```
+
+The view has a non-snapshot part so that `restore` can state that it changes
+only the snapshotable part (`final(self)@.runtime == old(self)@.runtime`) and
+`save` can state that it changes nothing (`final(self)@ == old(self)@`).
 
 Configuration: microVM machine profile, Linux host, x86_64 guest.
 
@@ -91,6 +139,151 @@ The restore side has corresponding later layers:
 preparation, `restore`, then guest-clock adjustment) and
 `InitializedVm::load(Some(saved_state))` (`dispatch.rs:1824`, which builds the
 `LoadedVm` and calls `restore_from_snapshot` at `dispatch.rs:3593`).
+
+## Verification approach: fractional ghost ownership
+
+### Problem
+
+The snapshotable state is not reachable from `LoadedVm`'s fields.
+`LoadedVm.state_units` is a `StateUnits` (`vmm_core/state_unit/src/lib.rs:253`),
+which holds only a channel to each unit. Each unit's real state lives in a
+device object owned by that unit's own task. `StateUnits::save`/`restore` reach
+the units only by RPC: `run_op` (`lib.rs:688`) sends each unit a
+`StateRequest` through `state_change` (`lib.rs:843`, `send.call(...)`), and the
+unit's task dispatches it to its `StateUnit::save`/`restore` (`run_unit` and
+`StateRequest::apply`, `lib.rs:151, 224`).
+
+An RPC can be reasoned about like a local call (plus a failure case), but the
+caller never holds the callee's `self`: the callee's postcondition (e.g. "the
+blob describes the PIT's state") talks about an object the caller has no way to
+name. Treating the units as opaque and trusting their save/restore would prove
+only the thin `LoadedVm` layer, which is the weakness of the earlier spec
+(everything abstracted away, little proved, no bugs found).
+
+### Approach
+
+Use `vstd::resource::frac::FracGhost` (fractional ghost ownership). A
+`FracGhost` is a proof-only value with an id; it can be split into halves and
+recombined; halves with the same id agree on the value; and only the holder of
+the whole (fraction 1) can change the value. See
+`verus-concurrency_tutorial/my_fracghost_basics.rs` and `my_count_to_2.rs`.
+
+- **One `FracGhost` per stateful unit**, whose value is the unit's abstract
+  state (e.g. `pit@`). The unit's task holds it with the device, under the
+  invariant "the ghost's value equals the device's view".
+- **While running**, the unit holds the whole permission, so it may change its
+  device state, updating the ghost in step. `LoadedVm` holds nothing and does
+  not know the units' states.
+- **On save (and later quiesce)**, the unit proves its save correct, splits
+  its permission, and returns one half in its reply, keeping the other half
+  tied to its device. From its half, `LoadedVm` knows:
+  - the unit's state (the half's value);
+  - that the state is frozen: no one holds the whole, so the value cannot
+    change, and the unit's invariant ties the device to its half;
+  - that the snapshot is correct: the returned blob's view equals the half's
+    value.
+- **On restore**, `LoadedVm` sends its half back with the blob; the unit
+  recombines, restores, updates the value to the blob's view, and may split
+  again.
+
+The proof burden moves into each unit (its own save/restore code, where bugs
+are plausible). What remains trusted is RPC delivery.
+
+### Views
+
+A `View` contains values, and a `FracGhost` is a tracked resource, so the
+halves are held in a tracked field and the view is computed from their values:
+
+```rust
+// in StateUnits (or LoadedVm)
+units_ghost: Tracked<Map<Seq<char>, FracGhost<UnitState>>>   // unit name -> half
+
+// in the view
+snapshot.units == units_ghost@.map_values(|g| g@)            // unit name -> state
+```
+
+The map is keyed by unit name; `SavedState.inventory` gives the order. The
+snapshot part of the view is meaningful only while the VM is stopped and
+`LoadedVm` holds the halves.
+
+### Interrupt lines as resources
+
+Units are not fully independent: during restore, `pit`, `rtc`, and each
+virtio-mmio unit re-drive their interrupt lines into the PIC and IOAPIC (see
+"Concurrency among state units"), changing PIC/IOAPIC state after those units
+have restored. Per-unit ownership alone cannot express this.
+
+- Model **each interrupt pin as its own `FracGhost`** (its line level), shared
+  between the driving unit and the target. Concurrent drivers use distinct
+  pins, so each has its own resource, matching the concurrency analysis.
+- The PIC's and IOAPIC's abstract states exclude the line levels; their
+  invariants relate their internal state to the current values of their pin
+  resources.
+- The PIC's output into the partition (LINT0, KVM `request_interrupt_window`)
+  is another cross-unit effect and needs a resource of its own.
+
+### The dependency graph as coordinator
+
+`run_op` starts a unit's restore only after all its dependencies have
+finished. That is when the resources a unit needs can be handed to it. For
+example: the PIC restores and returns its half; then the PIT receives its pin's
+resource, restores, drives the pin, and returns the resource with the new
+value. The dependency graph is the schedule for moving ghost ownership between
+units.
+
+### Changes needed on the Verus side
+
+Verus and `vstd` provide no channel or RPC support; the only specified
+cross-task primitive is `vstd::thread::spawn` (`vstd/thread.rs:107`), whose
+trusted spec relates the child's postcondition to what `join` returns. Tracked
+values travel through it as ordinary captured arguments and results.
+
+We need the same for RPC: a trusted (`external_body`) spec on the call that
+`StateUnits` makes to a unit, in which the request and the reply each carry a
+`Tracked<...>` and the caller obtains the callee handler's postcondition:
+
+```rust
+fn call(&self, input: I, ghost_in: Tracked<GIn>) -> (Result<R, RpcError>, Tracked<GOut>)
+    ensures Ok(r) ==> handler.ensures((input, ghost_in), (r, ghost_out))
+```
+
+Tracked values are zero-sized at runtime, so nothing crosses the channel; the
+trusted spec is what makes "passing" them sound. It must guarantee:
+
+- exactly-once delivery: a ghost half is never duplicated;
+- matching: the reply's ghost belongs to this request;
+- on failure, the ghost may be lost, after which `LoadedVm` can prove nothing
+  about that unit (acceptable on an error path).
+
+This is our own trusted design (it could later be proposed to `vstd`). It
+needs careful soundness review.
+
+Also expected on the Verus side:
+
+- **Async with tracked values.** Verus's async support is recent; moving
+  `Tracked` values through `async` functions and closures may hit verifier
+  limits or bugs (Verus already panicked on `exec_await` without vstd's `std`
+  feature). Such issues may need focused Verus fixes. One has been fixed so
+  far: an `async fn` without a named return lost its postconditions at
+  `.await` (`verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch`,
+  described in `verus-patches/README.md`).
+- **Production signatures.** The unit side must return a ghost half, but
+  `StateUnit` is a trait with many implementations and the request types
+  derive `MeshPayload`. Carrying the ghost without changing those types may
+  need wrapper functions or small source changes.
+
+### Plan
+
+1. **Stage 1, standalone prototype** (outside OpenVMM, tutorial style): a
+   channel RPC with the trusted `call` spec; a unit task owning a device and a
+   `FracGhost` that handles Save and Restore; a caller that receives the half
+   on save, returns it on restore, and proves the round trip. Include a
+   two-unit case with a shared interrupt pin, to test cross-unit effects
+   early.
+2. **Stage 2, OpenVMM, one unit at a time**, starting with the PIT: the trusted
+   spec on `state_change` / `send.call` in `vmm_core/state_unit`, and the unit
+   side on its `StateUnit` save/restore, connected to the PIT's own
+   `SaveRestore`.
 
 ## Out of scope for now
 
