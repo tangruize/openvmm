@@ -40,6 +40,23 @@ loop, an unnamed non-unit return, and a negative case. The three positive
 cases fail without the fix and pass with it; the negative case fails as
 expected in both.
 
+**Test results.** With the patch applied (Verus `426d8b0`, `vargo test
+--release`), every `rust_verify_test` file that uses `async` or tests
+return values passes: 302 passed, 0 failed, 1 ignored.
+
+| Test file               | Passed | Failed | Ignored |
+|-------------------------|--------|--------|---------|
+| `async_functions`       | 15     | 0      | 0       |
+| `functions`             | 10     | 0      | 0       |
+| `mut_refs`              | 117    | 0      | 0       |
+| `mut_refs_old`          | 27     | 0      | 0       |
+| `opaque_types`          | 23     | 0      | 0       |
+| `regression`            | 83     | 0      | 1       |
+| `return`                | 13     | 0      | 0       |
+| `returns_postcondition` | 14     | 0      | 0       |
+
+The full `rust_verify_test` suite has not been run.
+
 **Found by.** The async state-unit prototype (`verus-rpc-prototype`,
 `two_units_async.rs`): the unit's request loop could not keep its invariant
 after awaiting `handle(&mut self, ...)`.
