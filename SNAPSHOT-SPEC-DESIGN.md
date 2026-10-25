@@ -57,28 +57,31 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
 
 Following verified-storage:
 
-- `FooView` is used only for the view of a concrete type `Foo`
+- The view of a concrete type `Foo` is always named `FooView`
   (`impl View for Foo { type V = FooView; }`), as in `KvStore` →
-  `KvStoreView`.
-- Pure abstract states are named for what they are, with no `View` suffix,
-  as in `AtomicKvStore`, `KeyTableSnapshot`, and `JournalEntry`. If such a
-  name would clash with a concrete type, the concrete type gets a `Concrete`
-  prefix (`impl View for ConcreteJournalEntry { type V = JournalEntry; }`).
+  `KvStoreView`. This holds even when the view type is reused elsewhere.
+- Abstract states that are not the view of a concrete type are named for
+  what they are, with no `View` suffix, as in `AtomicKvStore`,
+  `KeyTableSnapshot`, and `JournalEntry`. If such a name would clash with a
+  concrete type, the concrete type gets a `Concrete` prefix
+  (`impl View for ConcreteJournalEntry { type V = JournalEntry; }`).
 - A view is composed of named abstract parts, as in
   `KeyTableView { durable: KeyTableSnapshot, tentative: Option<KeyTableSnapshot>, ... }`.
 
 Applied here:
 
 ```rust
-pub struct VmSnapshot { ... }      // abstract snapshotable VM state
+pub struct SavedStateView { ... }  // view of the concrete SavedState:
+                                   // unit name -> abstract unit state
 
 pub struct LoadedVmView {          // view of the concrete LoadedVm
-    pub snapshot: VmSnapshot,      // the snapshotable part
+    pub snapshot: SavedStateView,  // the snapshotable part, in the same form
+                                   // as a saved state
     pub runtime: ...,              // the non-snapshot part
 }
 
+impl View for SavedState { type V = SavedStateView; }
 impl View for LoadedVm   { type V = LoadedVmView; }
-impl View for SavedState { type V = VmSnapshot; }
 ```
 
 The view has a non-snapshot part so that `restore` can state that it changes
