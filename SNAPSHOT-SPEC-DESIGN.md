@@ -221,6 +221,45 @@ No atomic invariant is needed: exact knowledge comes from holding halves;
 the lock invariant only ties the uncollected halves to the registered
 senders.
 
+### Request protocol
+
+`MeshProtocol::request_ok` for `StateRequest` (`vmm_core/state_unit/src/lib.proof.rs`).
+`k` is the unit's ghost id; the caller (`StateUnits`) holds one half, the
+unit the other.
+
+| Request | Ghost sent | Reply must satisfy |
+|---|---|---|
+| `Stop` | caller's half (lent) | a half back recording a known state (not `Unknown`) |
+| `Save` | caller's half (lent), not `Unknown` | the same half back; `Ok(Some(blob))` iff it records `Saved(blob@)`, `Ok(None)` iff `NoSavedState` |
+| `Restore(blob)` | caller's half | a half back; on `Ok` it records `Saved(blob@)` |
+| `Reset`, `AdvanceTime` | caller's half | a half back, any value |
+| `Start`, `QuiesceInput`, `ResumeInput`, `Inspect` | none | no ghost |
+
+A reply to a request that carried the half returns a half also on `Err`,
+so the caller keeps it (`save` promises to change nothing).
+
+Verified examples (Verus-only, in `lib.proof.rs`): `example_save_call`, a
+caller that lends its half for `Save` and learns that the blob matches it;
+and `ExampleUnit::handle`, a stopped unit that answers `Stop`, `Save`, and
+`Restore` by the rules (its invariant: its half belongs to the channel and,
+unless `Unknown`, records what its save returns). Three injected bugs (`Save`
+always `None`; `Restore` ignoring the blob; `Stop` not recording) each fail.
+
+New trusted facts and assumptions:
+
+- `SavedStateBlob::clone` preserves the encoded value
+  (`assume_specification`, `vm/vmcore/src/save_restore.spec.rs`; part of the
+  blob contract, gap 4).
+- `Inspect` requests do not change a unit's saved state (they reach the unit
+  through `InspectMut`, with no ghost).
+- Channel failures (a unit's task gone) do not happen for a registered unit:
+  OpenVMM's `run_op` panics on them, and the ghost would be lost.
+
+Not yet done: the real unit side (`run_unit`, `StateRequest::apply`, each
+`StateUnit`) is blocked on async trait functions and async closures (gap 1);
+`StateUnits::stop`/`save`/`restore` and `run_op` are not yet verified
+against the protocol.
+
 ### Mutex wrapper
 
 `StateUnits` uses `parking_lot::Mutex`. vstd has `RwLock` but not `Mutex`;

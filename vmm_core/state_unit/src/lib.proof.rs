@@ -12,7 +12,10 @@ use super::Unit;
 use super::mesh_rpc_t::*;
 use super::mutex_t::MutexPredicate;
 use super::spec::UnitSnapshot;
+use mesh::error::RemoteError;
+use mesh::rpc::Rpc;
 use std::sync::Arc;
+use vmcore::save_restore::SavedStateBlob;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
@@ -50,8 +53,15 @@ impl ArcStrView for Arc<str> {
 pub(super) struct ExInnerPred(InnerPred);
 
 #[verifier::external_type_specification]
-#[verifier::external_body]
 pub struct ExStateRequest(StateRequest);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRemoteError(RemoteError);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExDeferred(inspect::Deferred);
 
 /// The ghosts that travel on a state unit's channel. The channel's constant is
 /// the id of the unit's FracGhost.
@@ -66,9 +76,72 @@ impl MeshProtocol for StateRequest {
     /// The unit's half, attached at creation.
     type ReceiverGhost = FracGhost<UnitSnapshot>;
 
-    /// No rules yet: they come with the request protocol.
+    /// The request protocol. `k` is the id of the unit's FracGhost; the
+    /// caller (`StateUnits`) holds one half and the unit the other.
+    ///
+    /// - `Stop`: the caller lends its half; the unit records its state and
+    ///   returns a half recording it (not `Unknown`).
+    /// - `Save`: the caller lends its half, which must record a known state;
+    ///   the unit returns the same half, with a blob that matches it.
+    /// - `Restore(blob)`: the caller sends its half; on success the unit
+    ///   returns a half recording `Saved(blob@)`.
+    /// - `Reset`, `AdvanceTime`: the caller sends its half; the unit returns a
+    ///   half (its state may have changed).
+    /// - `Start`, `QuiesceInput`, `ResumeInput`, `Inspect`: no ghost.
+    ///
+    /// Every reply to a request that carried the half returns a half, also
+    /// on `Err`, so the caller keeps it.
     open spec fn request_ok(k: Loc, msg: StateRequest, gin: Self::GhostIn) -> bool {
-        true
+        match msg {
+            StateRequest::Start(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
+            StateRequest::QuiesceInput(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
+            StateRequest::ResumeInput(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
+            StateRequest::Inspect(_) => gin is None,
+            StateRequest::Stop(rpc) => {
+                &&& StateRequest::lends_half(k, gin)
+                &&& forall|r: (), gout: Self::GhostOut|
+                    gout matches Some(h) && h.valid(k, 0.5real) && !(h@ is Unknown)
+                        ==> #[trigger] rpc.reply_ok(r, gout)
+            },
+            StateRequest::Save(rpc) => {
+                &&& StateRequest::lends_half(k, gin)
+                &&& !(gin->Some_0@ is Unknown)
+                &&& forall|r: Result<Option<SavedStateBlob>, RemoteError>, gout: Self::GhostOut|
+                    gout == gin && match r {
+                        Ok(Some(blob)) => gin->Some_0@ == UnitSnapshot::Saved(blob@),
+                        Ok(None) => gin->Some_0@ == UnitSnapshot::NoSavedState,
+                        Err(_) => true,
+                    } ==> #[trigger] rpc.reply_ok(r, gout)
+            },
+            StateRequest::Restore(rpc) => {
+                &&& StateRequest::lends_half(k, gin)
+                &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
+                    gout matches Some(h) && h.valid(k, 0.5real) && (r is Ok ==> h@
+                        == UnitSnapshot::Saved(rpc.spec_input()@)) ==> #[trigger] rpc.reply_ok(r, gout)
+            },
+            StateRequest::Reset(rpc) => StateRequest::lends_half(k, gin)
+                && StateRequest::half_reply(k, rpc),
+            StateRequest::AdvanceTime(rpc) => StateRequest::lends_half(k, gin)
+                && StateRequest::half_reply(k, rpc),
+        }
+    }
+}
+
+impl StateRequest {
+    /// `gin` is the caller's half of the unit's FracGhost.
+    pub open spec fn lends_half(k: Loc, gin: Option<FracGhost<UnitSnapshot>>) -> bool {
+        gin matches Some(h) && h.valid(k, 0.5real)
+    }
+
+    /// The reply to `rpc` carries no ghost.
+    pub open spec fn no_ghost_reply<I, R>(rpc: Rpc<I, R>) -> bool {
+        forall|r: R| #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>)
+    }
+
+    /// The reply to `rpc` returns a half of the unit's FracGhost, with any value.
+    pub open spec fn half_reply<I, R>(k: Loc, rpc: Rpc<I, R>) -> bool {
+        forall|r: R, gout: Option<FracGhost<UnitSnapshot>>|
+            gout matches Some(h) && h.valid(k, 0.5real) ==> #[trigger] rpc.reply_ok(r, gout)
     }
 }
 
@@ -131,6 +204,131 @@ impl StateUnits {
             i += 1;
         }
         handle.release(inner);
+    }
+}
+
+// Examples showing that the request protocol can be met, by a caller and by
+// a unit. Not production code.
+
+/// A caller lends its half for `Save` and learns that the reply's blob
+/// matches what the half records.
+pub(super) async fn example_save_call(
+    send: &mesh::Sender<StateRequest>,
+    half: Tracked<FracGhost<UnitSnapshot>>,
+) -> (result: Option<(Option<SavedStateBlob>, Tracked<FracGhost<UnitSnapshot>>)>)
+    requires
+        half@.valid(send.constant(), 0.5real),
+        !(half@@ is Unknown),
+    ensures
+        result matches Some((saved, h)) ==> h@ == half@ && match saved {
+            Some(blob) => half@@ == UnitSnapshot::Saved(blob@),
+            None => half@@ == UnitSnapshot::NoSavedState,
+        },
+{
+    let ghost k = send.constant();
+    let ghost lent = half@;
+    let Tracked(half) = half;
+    let pending = call(
+        send,
+        |rpc: Rpc<(), Result<Option<SavedStateBlob>, RemoteError>>| -> (msg: StateRequest)
+            ensures
+                msg == StateRequest::Save(rpc),
+            { StateRequest::Save(rpc) },
+        (),
+        Tracked(Some(half)),
+        Ghost(
+            |r: Result<Option<SavedStateBlob>, RemoteError>, gout: Option<FracGhost<UnitSnapshot>>|
+                gout == Some(lent) && match r {
+                    Ok(Some(blob)) => lent@ == UnitSnapshot::Saved(blob@),
+                    Ok(None) => lent@ == UnitSnapshot::NoSavedState,
+                    Err(_) => true,
+                },
+        ),
+    );
+    match pending.recv().await {
+        Ok((Ok(saved), gout)) => {
+            let Tracked(gout) = gout;
+            Some((saved, Tracked(gout.tracked_unwrap())))
+        },
+        _ => None,
+    }
+}
+
+/// A stopped unit whose save returns `saved`, holding its half.
+pub(super) struct ExampleUnit {
+    saved: Option<SavedStateBlob>,
+    half: Tracked<FracGhost<UnitSnapshot>>,
+}
+
+impl ExampleUnit {
+    /// What the unit's save returns, as a `UnitSnapshot`.
+    pub(super) closed spec fn snapshot(&self) -> UnitSnapshot {
+        match self.saved {
+            Some(blob) => UnitSnapshot::Saved(blob@),
+            None => UnitSnapshot::NoSavedState,
+        }
+    }
+
+    /// The half belongs to the unit's channel; unless it is still
+    /// `Unknown`, it records what the unit's save returns.
+    pub(super) closed spec fn inv(&self, k: Loc) -> bool {
+        &&& self.half@.valid(k, 0.5real)
+        &&& !(self.half@@ is Unknown) ==> self.half@@ == self.snapshot()
+    }
+
+    /// Answers `Stop`, `Save`, and `Restore` by the protocol.
+    pub(super) fn handle(&mut self, k: Ghost<Loc>, msg: StateRequest, gin: Tracked<
+        Option<FracGhost<UnitSnapshot>>,
+    >)
+        requires
+            old(self).inv(k@),
+            StateRequest::request_ok(k@, msg, gin@),
+        ensures
+            final(self).inv(k@),
+    {
+        let Tracked(gin) = gin;
+        match msg {
+            StateRequest::Stop(rpc) => {
+                let tracked mut lent = gin.tracked_unwrap();
+                proof {
+                    // Both halves: record the current state, then split again.
+                    self.half.borrow_mut().combine(lent);
+                    let ghost now = self.snapshot();
+                    self.half.borrow_mut().update(now);
+                    lent = self.half.borrow_mut().split();
+                }
+                complete(rpc, (), Tracked(Some(lent)));
+            },
+            StateRequest::Save(rpc) => {
+                let tracked lent = gin.tracked_unwrap();
+                proof {
+                    // The lent half agrees with ours, which records the state.
+                    self.half.borrow().agree(&lent);
+                }
+                let saved = match &self.saved {
+                    Some(blob) => Some(blob.clone()),
+                    None => None,
+                };
+                complete(rpc, Ok(saved), Tracked(Some(lent)));
+            },
+            StateRequest::Restore(rpc) => {
+                let tracked mut lent = gin.tracked_unwrap();
+                let (blob, rpc) = split::<SavedStateBlob, Result<(), RemoteError>, Option<FracGhost<UnitSnapshot>>>(rpc);
+                self.saved = Some(blob);
+                proof {
+                    self.half.borrow_mut().combine(lent);
+                    let ghost now = self.snapshot();
+                    self.half.borrow_mut().update(now);
+                    lent = self.half.borrow_mut().split();
+                }
+                complete(rpc, Ok(()), Tracked(Some(lent)));
+            },
+            _ => {
+                // Other requests are not part of this example. (Their
+                // messages are dropped; for those carrying the caller's half,
+                // the caller gets an error and the half is lost.)
+            },
+        }
     }
 }
 

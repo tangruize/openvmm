@@ -93,6 +93,13 @@ Baseline: upstream `nanvix/openvmm` commit
     `StateUnitsView` and `View for StateUnits`. No runtime change.
 14. **`LoadedVm::save` precondition** `snapshot_recorded()`
     (`dispatch.rs`, defined in `dispatch.spec.rs`).
+15. **Request protocol** (`vmm_core/state_unit/src/lib.proof.rs`, Verus
+    only): `request_ok` for `StateRequest`, helper predicates on
+    `StateRequest`, `StateRequest` made transparent to Verus, declarations of
+    `RemoteError` and `inspect::Deferred`, and two verified examples
+    (`example_save_call`, `ExampleUnit`). `vm/vmcore/src/save_restore.spec.rs`
+    gains a trusted `assume_specification` for `SavedStateBlob::clone`. No
+    runtime change.
 
 ### Planned: mesh RPC trusted spec
 

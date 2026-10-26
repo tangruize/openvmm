@@ -32,4 +32,12 @@ impl View for SavedStateBlob {
     uninterp spec fn view(&self) -> SavedStateBlobView;
 }
 
+/// Trusted: a clone encodes the same value.
+pub assume_specification[ <SavedStateBlob as Clone>::clone ](
+    blob: &SavedStateBlob,
+) -> (result: SavedStateBlob)
+    ensures
+        result@ == blob@,
+;
+
 } // verus!
