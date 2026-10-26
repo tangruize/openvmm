@@ -183,6 +183,15 @@ Baseline: upstream `nanvix/openvmm` commit
     trusted` in `save_restore.rs`) holds the injectivity axiom, the `clone`
     spec (moved from the spec file), and the stated `new`/`parse` contract,
     not yet attached.
+22. **`SaveRestore` contract** (Verus only, no runtime change; the trait
+    and its implementations are unchanged): `vm/vmcore/src/save_restore.spec.rs`
+    gives it with `external_trait_specification` and
+    `external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)`, and
+    declares `SaveError` and `RestoreError`. New
+    `vm/vmcore/src/save_restore.proof.rs` (included as `mod proof` inside
+    `spec`): the verified `ExampleDevice`. (Declaring the trait in `verus!`
+    in place was tried and dropped: a Verus build then requires every
+    implementation in every crate to define `saved_state`.)
 
 ### Planned: mesh RPC trusted spec
 

@@ -250,10 +250,17 @@ pub mod private {
     }
 }
 
-/// Verus specification of saved-state blobs.
+/// Verus specification of saved-state blobs and of `SaveRestore`.
 #[cfg(verus_keep_ghost)]
+#[allow(missing_docs)] // items that Verus generates for the trait extension
 pub mod spec {
     include!("save_restore.spec.rs");
+
+    /// Examples supporting the spec. Inside `spec`, so that lemmas can
+    /// unfold its closed views.
+    mod proof {
+        include!("save_restore.proof.rs");
+    }
 }
 
 /// Trusted encode/decode contract of saved-state blobs.

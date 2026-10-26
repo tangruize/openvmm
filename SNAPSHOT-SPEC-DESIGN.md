@@ -240,6 +240,91 @@ the recorded units. `StateUnits::wf()`: `self@.inv()`, and `StateUnits`
 holds a half of each collected unit's FracGhost, belonging to its channel;
 collected units have distinct names.
 
+### Unit-side contract
+
+What a state unit must do for the request protocol to hold, layer by layer,
+from the device up.
+
+1. **Device: `SaveRestore`** (`vm/vmcore`). *Attached.* Each implementation
+   has a spec function `saved_state()`, its snapshotable state: what `save`
+   returns. `save` does not change it and returns it; a successful
+   `restore(state)` sets it to `state`. Given in
+   `vm/vmcore/src/save_restore.spec.rs` with `external_trait_specification`
+   and `external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)`
+   (vstd's pattern for `Iterator`), so the trait and its many
+   implementations are unchanged; a verified implementation defines
+   `saved_state` by implementing `SaveRestoreSpecImpl`. Example:
+   `ExampleDevice` (`save_restore.proof.rs`) verifies; injecting a `restore`
+   that ignores its state, or a `save` that returns another value, each
+   fails.
+2. **Blob: `ProtobufSaveRestore`** (blanket impl for `SaveRestore` types).
+   *Stated, not attached.* `save` returns a blob with view
+   `of(old.saved_state())`; a successful `restore(blob)` leaves
+   `of(saved_state()) == blob@`. Follows from layer 1 and the `SavedStateBlob`
+   contract.
+3. **State unit: `StateUnit`** (async trait, `vmm_core/state_unit`).
+   *Stated, not attached.* Through the unit's `UnitSnapshot`: `save` returns
+   `Ok(Some(blob))` with `Saved(blob@)`, or `Ok(None)` with `NoSavedState`,
+   the unit's current snapshot; `restore(blob)` on success makes it
+   `Saved(blob@)`; `stop` leaves the unit stopped with its state stable;
+   `reset` and `advance_time` may change it. For a chipset device
+   (`ArcMutexChipsetDeviceUnit`, `vmm_core/vmotherboard`), the snapshot is
+   `NoSavedState` if `omit_saved_state`, else `Saved(of(saved_state()))` of
+   its device.
+4. **Request loop: `run_unit` / `StateRequest::apply`**. *Stated, not
+   attached.* The unit's task takes the receiver's half
+   (`take_receiver_ghost`) when it starts, keeps a ghost running/stopped
+   flag, and answers each request by the request protocol, keeping the
+   invariant "while stopped, my half records my current snapshot".
+
+Concerns:
+
+- **`SavedStateRoot` trait chain** blocks layer 2 and the `SavedStateBlob`
+  `new`/`parse` contract: the bound needs `SavedStateRoot`,
+  `DescribedProtobuf`, `Protobuf`, and `Protobuf`'s four generic codec traits
+  (two with higher-ranked lifetimes) declared to Verus, matching exactly.
+  Plan: a local trait with `encode`/`decode` methods carrying the contract,
+  blanket-implemented for `SavedStateRoot` types, used by the
+  `ProtobufSaveRestore` blanket impl (a source change there).
+- **Other `ProtobufSaveRestore` implementations** need their own contracts:
+  `ChipsetDeviceProxy` (`workers/chipset_device_worker`), `BoundVp`
+  (`vmm_core/src/partition_unit/vp_set.rs`), and `ErasedChipsetDevice`
+  (`vm/chipset_device_resources`).
+- **`async fn` in traits** (Verus: "Opaque types in trait def") blocks
+  layer 3 on `StateUnit` itself. Options: Verus support, or contracts on each
+  unit's concrete implementation through wrapper functions.
+- **Async closures** in `StateRequest::apply` (`rpc.handle_failable(async
+  |..| ..)`) block layer 4; `apply` would be rewritten without them (a
+  source change).
+- **`run_async_unit`** handles concurrent `Inspect` requests while a state
+  change runs, with the unit as `&T`: interior mutability, and the
+  assumption that inspects do not change saved state.
+- **`saved_state()` is a spec function on the trait**, alongside each
+  implementation's view (if any). Open question: whether a device's view
+  should be its saved state, or `saved_state()` derived from its view.
+- **Deterministic `save`**: the contract makes `save`'s result a function
+  of the state (`saved_state()`). A device whose saved state includes
+  something else (time, counters that `save` itself advances) must model it
+  in `saved_state`, or does not meet the contract.
+- **`restore(s)` then `saved_state() == s`**: a device that normalizes or
+  only partly restores a saved state does not meet the contract as stated.
+- **`save` takes `&mut self`** (e.g. `WrappedVp::save` flushes async
+  requests); the contract says `saved_state()` is unchanged.
+- **Devices behind `CloseableMutex`**: while running, vCPUs change them
+  outside the unit's task (the ghost goes stale, which is fine); while
+  stopped, the closed mutex keeps them unchanged (assumption, gap 7).
+- **`reset` and `advance_time`** change unit state; the protocol only
+  returns the half. `advance_time` runs after restore
+  (`restore_from_snapshot`), so that layer must account for it.
+- **Units not built on `SaveRestore`**: the partition unit (VPs through the
+  hypervisor, KVM state; trusted), vmtime, time-abi, input, and the line
+  sets need their own snapshot definitions and contracts.
+- **Cross-unit effects at restore**: PIT, RTC, and virtio-mmio re-drive
+  their interrupt lines into the PIC and IOAPIC; not yet modelled (see
+  "Interrupt lines as resources").
+- **Lossless protobuf encoding** (the `SavedStateBlob` injectivity axiom)
+  underlies layers 2 and 3.
+
 ### Where the halves come from
 
 Facts from the code:

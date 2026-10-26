@@ -90,7 +90,8 @@ contracts are assumptions about mesh. See the file header.
 | Registry lock invariant kept by unverified code | `lib.proof.rs`, `InnerPred` | `UnitBuilder::build` and `UnitHandle` removal are unverified and change the registry; they are trusted to keep the invariant: each registered sender's attached half (while there) belongs to its channel and records `Unknown`, and registered units have distinct names (`build` checks `names`). In particular, `build`'s callers pass a sender from `unit_channel`. |
 | `Inspect` requests | `lib.proof.rs`, request protocol | An inspect request does not change a unit's saved state (it reaches the unit through `InspectMut`, with no ghost). |
 | No channel failure for a registered unit | request protocol | A registered unit's task does not exit: OpenVMM's `run_op` panics on such a failure, and the unit's half would be lost. |
-| Unit side follows the protocol | request protocol | Until the unit side (`run_unit`, `StateRequest::apply`, each `StateUnit`) is verified, units are assumed to answer by `request_ok`. Blocked on Verus support for async trait functions and async closures (design doc, gap 1). |
+| Unit side follows the protocol | request protocol | Until the unit side (`run_unit`, `StateRequest::apply`, each `StateUnit`) is verified, units are assumed to answer by `request_ok`. Blocked on Verus support for async trait functions and async closures (design doc, gap 1, and "Unit-side contract"). |
+| Unverified `SaveRestore` implementations meet its contract | `vm/vmcore/src/save_restore.spec.rs` | The `SaveRestore` contract (`saved_state()`; `save` returns it and keeps it; `restore` sets it) is checked only for implementations that are verified (with `SaveRestoreSpecImpl`); all others, i.e. every device today, are trusted to meet it. |
 
 ## Assumed device facts
 
