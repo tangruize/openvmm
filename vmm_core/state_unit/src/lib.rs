@@ -28,7 +28,10 @@
 //! This model allows for asynchronous, highly concurrent state changes, and it
 //! works across process boundaries thanks to `mesh`.
 
-#![forbid(unsafe_code)]
+#![cfg_attr(not(verus_keep_ghost), forbid(unsafe_code))]
+// Under Verus, `assume_specification` (in `registry_t`) expands to `unsafe`
+// declarations; everything else still may not use `unsafe`.
+#![cfg_attr(verus_keep_ghost, deny(unsafe_code))]
 
 mod advance_time;
 mod inventory;
@@ -38,6 +41,7 @@ mod mesh_rpc_t;
 mod mutex_t;
 pub mod quiesce;
 #[cfg(verus_keep_ghost)]
+#[allow(unsafe_code)]
 mod registry_t;
 mod start;
 mod unit_channel;

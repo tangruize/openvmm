@@ -132,6 +132,22 @@ Baseline: upstream `nanvix/openvmm` commit
     invariant adds distinct names; `collect_halves` uses `lock_registry`.
     `LoadedVm::snapshot_recorded` (`dispatch.spec.rs`) also requires
     `state_units.wf()`.
+18. **More registry specs** (Verus only, no runtime change):
+    `registry_t.rs` gains `lock_registry_exact` (the exact-registry axiom)
+    and assumed specifications for `State`'s equality, `ReadySet`'s clone,
+    and `Inner::ready_set`; `lib.proof.rs` declares `ReadySet`,
+    `ReadyState`, `UnitRecvError`, `StateTransitionError`, and
+    `SavedStateUnit` (moved here from `openvmm_defs/src/worker.proof.rs`,
+    since `state_unit` is now built by Verus), and adds `ReadySet::ids`,
+    `Inner::unit_ids`, and `StateUnits::agrees_exactly`. `state_unit`'s
+    `#![forbid(unsafe_code)]` becomes `deny` under Verus only, with
+    `registry_t` allowed (Verus expands `assume_specification` to `unsafe`
+    declarations); normal builds still `forbid`.
+
+    (An attempt to verify `run_op`'s ghost flow, which moved it into
+    `verus!`-style `ops.rs` with trusted helpers, is saved on branch
+    `system-proof/run-op-proof-attempt`, commit `b5c333c5a`; it is not
+    merged.)
 
 ### Planned: mesh RPC trusted spec
 

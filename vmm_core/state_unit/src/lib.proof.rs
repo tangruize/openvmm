@@ -32,8 +32,24 @@ pub(super) struct ExInner(Inner);
 pub(super) struct ExUnit(Unit);
 
 #[verifier::external_type_specification]
-#[verifier::external_body]
 pub(super) struct ExState(State);
+
+#[verifier::external_type_specification]
+pub(super) struct ExReadySet(super::ReadySet);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub(super) struct ExReadyState(super::ReadyState);
+
+#[verifier::external_type_specification]
+pub(super) struct ExUnitRecvError(super::UnitRecvError);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExStateTransitionError(super::StateTransitionError);
+
+#[verifier::external_type_specification]
+pub struct ExSavedStateUnit(super::SavedStateUnit);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -145,6 +161,20 @@ impl StateRequest {
     }
 }
 
+impl super::ReadySet {
+    /// The units in the set.
+    pub closed spec fn ids(&self) -> Set<u64> {
+        self.0@.dom()
+    }
+}
+
+impl Inner {
+    /// The registered units.
+    pub closed spec fn unit_ids(&self) -> Set<u64> {
+        self.units@.dom()
+    }
+}
+
 impl MutexPredicate<Inner> for InnerPred {
     /// Each registered unit's sender, until `StateUnits` collects its half,
     /// carries a half of that unit's FracGhost (the channel's constant is its
@@ -215,6 +245,16 @@ impl StateUnits {
         &&& forall|id: u64|
             #[trigger] inner.units@.contains_key(id) && !collected.contains_key(id)
                 ==> inner.units@[id].send.attached() is Some
+    }
+
+    /// The registry as seen under the lock holds exactly the collected units,
+    /// with the same names and channels.
+    pub(crate) open spec fn agrees_exactly(collected: Map<u64, (Seq<char>, Loc)>, inner: Inner) -> bool {
+        &&& inner.units@.dom() == collected.dom()
+        &&& forall|id: u64| #[trigger] collected.contains_key(id) ==> {
+            &&& inner.units@[id].name.view_str() == collected[id].0
+            &&& inner.units@[id].send.constant() == collected[id].1
+        }
     }
 
     /// Collects the halves still attached to registered units' senders.
