@@ -1,13 +1,13 @@
-//! Async version of `rpc.rs`: the same trusted contracts, with `call` and
+//! Async version of `rpc_t.rs`: the same trusted contracts, with `call` and
 //! `recv` as `async fn`s over `futures` channels, as OpenVMM's units are async
 //! tasks reached through `mesh` channels.
 //!
 //! Everything in this file is TRUSTED, under the same assumptions as
-//! `rpc.rs` (exactly-once delivery, replies matched to requests, ghost lost on
-//! failure). It reuses `RpcProtocol` and `RpcError` from `rpc.rs`.
+//! `rpc_t.rs` (exactly-once delivery, replies matched to requests, ghost lost on
+//! failure). It reuses `RpcProtocol` and `RpcError` from `rpc_t.rs`.
 
-use crate::rpc::RpcError;
-use crate::rpc::RpcProtocol;
+use crate::rpc_t::RpcError;
+use crate::rpc_t::RpcProtocol;
 use futures::StreamExt;
 use futures::channel::mpsc;
 use futures::channel::oneshot;

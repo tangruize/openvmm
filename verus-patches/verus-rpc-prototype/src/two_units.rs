@@ -20,7 +20,7 @@
 //!
 //! Everything in this file is verified.
 
-use crate::rpc::*;
+use crate::rpc_t::*;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;

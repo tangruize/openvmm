@@ -4,7 +4,7 @@
 //!
 //! Everything in this file is verified.
 
-use crate::rpc::*;
+use crate::rpc_t::*;
 use crate::unit::*;
 use vstd::prelude::*;
 use vstd::resource::frac::FracGhost;

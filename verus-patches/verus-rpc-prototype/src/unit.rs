@@ -8,7 +8,7 @@
 //!
 //! Everything in this file is verified.
 
-use crate::rpc::*;
+use crate::rpc_t::*;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
@@ -37,21 +37,21 @@ impl Device {
     }
 
     /// Guest activity changes the register.
-    fn run(&mut self, value: u64)
+    pub(crate) fn run(&mut self, value: u64)
         ensures
             final(self)@ == value,
     {
         self.value = value;
     }
 
-    fn save(&self) -> (blob: u64)
+    pub(crate) fn save(&self) -> (blob: u64)
         ensures
             blob == self@,
     {
         self.value
     }
 
-    fn restore(&mut self, blob: u64)
+    pub(crate) fn restore(&mut self, blob: u64)
         ensures
             final(self)@ == blob,
     {

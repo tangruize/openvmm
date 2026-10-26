@@ -9,12 +9,8 @@ and all `verus_spec` contracts. It remains available in git at commit
 `d326b4d6f` for reference (e.g. `git show d326b4d6f:openvmm/openvmm_defs/src/snapshot.spec.rs`).
 It is not a design reference.
 
-Source state relative to upstream `7f225e2`: the only code change is the
-behavior-preserving extraction of `LoadedVm::restore_from_snapshot`
-(`dispatch/restore.rs`). Verus wiring is kept: the `vstd` dependency (with the
-`std` feature, required for async), `[package.metadata.verus]`, the
-`verus_keep_ghost` cfg in `build.rs`, a Verus-only `vstd` import in each crate
-root, and `scripts/verify-snapshot-spec.sh`.
+Code changes to OpenVMM (relative to upstream `7f225e2`) and to Verus, made
+and planned, are listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`.
 
 Provenance (from the removed `SNAPSHOT-SPEC.md` reading guide):
 
@@ -50,8 +46,9 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
     `View` impls, spec functions on types).
   - `<file>.proof.rs`: lemmas.
   - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`.
-  (verified-storage instead splits by trust, `_t.rs` trusted and `_v.rs`
-  verified.)
+  - `<name>_t.rs`: trusted code (`external_body` wrappers and the
+    assumptions they state), as in verified-storage. Each such file begins
+    with what it assumes.
 
 ### Naming
 
@@ -241,14 +238,9 @@ cross-task primitive is `vstd::thread::spawn` (`vstd/thread.rs:107`), whose
 trusted spec relates the child's postcondition to what `join` returns. Tracked
 values travel through it as ordinary captured arguments and results.
 
-We need the same for RPC: a trusted (`external_body`) spec on the call that
-`StateUnits` makes to a unit, in which the request and the reply each carry a
-`Tracked<...>` and the caller obtains the callee handler's postcondition:
-
-```rust
-fn call(&self, input: I, ghost_in: Tracked<GIn>) -> (Result<R, RpcError>, Tracked<GOut>)
-    ensures Ok(r) ==> handler.ensures((input, ghost_in), (r, ghost_out))
-```
+We need the same for RPC: a trusted spec on mesh RPC in which the request and
+the reply each carry a `Tracked<...>`, so that the caller obtains what the
+unit promises. See "Mesh RPC trusted spec" below for the design.
 
 Tracked values are zero-sized at runtime, so nothing crosses the channel; the
 trusted spec is what makes "passing" them sound. It must guarantee:
@@ -272,8 +264,74 @@ Also expected on the Verus side:
   described in `verus-patches/README.md`).
 - **Production signatures.** The unit side must return a ghost half, but
   `StateUnit` is a trait with many implementations and the request types
-  derive `MeshPayload`. Carrying the ghost without changing those types may
-  need wrapper functions or small source changes.
+  derive `MeshPayload`. The mesh RPC spec avoids changing those types by
+  using wrapper functions, at the cost of small source changes at the call
+  sites (listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`).
+
+### Mesh RPC trusted spec
+
+Draft: `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`, written against
+the real `mesh` crate. It will move to `vmm_core/state_unit`.
+
+Mesh RPC in brief: `send.call(f, input)` creates a one-shot reply channel,
+builds an `Rpc(input, reply_sender)`, wraps it in a message with `f` (e.g.
+`StateRequest::Save`), sends it, and returns a `PendingRpc` that the caller
+awaits. The receiver reads messages from a `Receiver` and answers with
+`rpc.complete(r)` (or `handle_failable`).
+
+Tracked arguments change a function's signature, which `assume_specification`
+cannot do, so the spec is a set of `external_body` wrappers that call mesh:
+
+| Wrapper | Wraps | Contract |
+|---|---|---|
+| `channel(Ghost(k))` | `mesh::channel()` | both ends get the ghost constant `k` |
+| `clone_sender(&send)` | `Sender::clone` | same constant |
+| `call(&send, f, input, Tracked(gin), Ghost(post))` | `RpcSend::call` | requires `request_ok` for the message `f` builds; the result carries `post` |
+| `PendingCall::recv().await` | awaiting `PendingRpc` | on `Ok`, the reply and its ghost satisfy `post` |
+| `recv(&mut receiver).await` | `Receiver::recv` | the message and its ghost satisfy `request_ok` |
+| `split(rpc)` | `Rpc::split` | returns the input; keeps the reply contract |
+| `complete(rpc, r, Tracked(gout))` | `Rpc::complete` | requires the `Rpc`'s reply contract |
+
+The rules for what crosses a channel are supplied by its message type, through
+a trait we define:
+
+```rust
+pub trait MeshProtocol {     // implemented by the message type, e.g. StateRequest
+    type Const;              // per-channel ghost constant, e.g. the unit's ghost ids
+    type GhostIn;            // sent with a request (e.g. the caller's half on restore)
+    type GhostOut;           // returned with a reply (e.g. a half on save)
+    spec fn request_ok(k: Self::Const, msg: Self, gin: Self::GhostIn) -> bool;
+}
+```
+
+- The request ghost travels with the message; the reply ghost travels with
+  the `Rpc`'s reply.
+- `post` is the caller's expectation of the reply, chosen at `call`.
+  `request_ok` for a message holding an `Rpc` states which replies satisfy
+  that expectation (`rpc.reply_ok(r, gout)`), so the receiver knows what it
+  must answer.
+- Specs on mesh's own types (`constant()`, `spec_input()`, `reply_ok()`) come
+  from traits with uninterpreted spec functions implemented for those types,
+  as vstd does for foreign types (`FutureAdditionalSpecFns`).
+- Verus rejects a datatype constructor used as a function value, so `f` is a
+  closure: `|rpc| -> (m: StateRequest) ensures m == StateRequest::Save(rpc) { ... }`.
+
+Example: `src/mesh_unit.rs` serves a stopped unit over a real mesh channel.
+On `Save`, the caller lends its half and gets it back with a blob equal to its
+value; on `Restore(blob)`, it sends its half and gets back a half whose value
+is `blob`. `round_trip` proves that after save, restore of another value, and
+restore of the saved blob, the caller's half equals the saved value. Three
+injected bugs (wrong final claim, wrong blob on `Save`, wrong half on
+`Restore`) each fail verification; `cargo test` runs it over mesh.
+
+Open points:
+
+- **Soundness review.** The reply ghost's type is a type parameter of
+  `complete`, and `reply_ok` is uninterpreted for every type; the argument
+  that a mismatched type cannot be used is in the file header.
+- Not yet covered: `FailableRpc` replies (`Result<_, RemoteError>`), the
+  `StateRequest` variants, the hand-off at `Stop`, and the concurrent
+  `run_op`.
 
 ### Plan
 
@@ -290,15 +348,17 @@ Also expected on the Verus side:
 
 ### Stage 1 status
 
-Done: `verus-patches/verus-rpc-prototype` verifies (40 items, 0 errors) with
-the patched Verus. It has a trusted RPC channel (sync `rpc.rs` and async
-`rpc_async.rs`), a single unit, and a two-unit case where the source re-drives
-a shared pin into the target on restore. It shows that FracGhost halves can be
-passed through a trusted RPC spec and held across `.await`.
+Done: `verus-patches/verus-rpc-prototype` verifies (45 items, 0 errors) with
+the patched Verus. It has a trusted RPC channel designed for the experiment
+(sync `rpc_t.rs` and async `rpc_async_t.rs`), a single unit, and a two-unit
+case where the source re-drives a shared pin into the target on restore. It
+shows that FracGhost halves can be passed through a trusted RPC spec and held
+across `.await`. Its requests there (`Save`, `Restore`, `Resume`, `Run`) are
+test requests, not OpenVMM's `StateRequest`.
 
-The prototype's channel and protocol were designed for the experiment, not
-taken from OpenVMM. Its requests (`Save`, `Restore`, `Resume`, `Run`) are test
-requests, not OpenVMM's `StateRequest`.
+It also has the first draft of the trusted spec for the real mesh RPC
+(`mesh_rpc_t.rs`) with an example (`mesh_unit.rs`); see "Mesh RPC trusted
+spec" above.
 
 ### Gaps between the prototype and OpenVMM
 
@@ -322,6 +382,9 @@ What Stage 2 still needs, found by comparing the prototype with
    (`support/mesh/mesh_channel/src/rpc.rs`). The trusted spec, or a wrapper,
    must cover these types and say where the ghost travels. `StateRequest`
    derives `MeshPayload`, so it cannot simply gain a `Tracked` field.
+
+   *Status:* drafted as wrappers in `mesh_rpc_t.rs` (see "Mesh RPC trusted
+   spec"); not yet applied to `StateRequest` or moved into OpenVMM.
 3. **One ghost type and per-unit contracts.** The prototype has one protocol
    type per channel. OpenVMM uses one `StateRequest` type for every unit, while
    the contract differs per unit. `StateUnits` holds all units' halves, so

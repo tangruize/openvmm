@@ -1,13 +1,13 @@
 //! Async version of `two_units.rs`: the same units, protocols, and caller,
-//! with the units as async tasks served over `rpc_async.rs`. Tracked ghost
+//! with the units as async tasks served over `rpc_async_t.rs`. Tracked ghost
 //! halves are held across `.await` points: in the caller, and in the source's
 //! `drive_pin`, which lends its pin half to the target mid-request.
 //!
 //! Everything in this file is verified.
 
 #[allow(unused_imports)]  // used only in specs
-use crate::rpc::RpcProtocol;
-use crate::rpc_async::*;
+use crate::rpc_t::RpcProtocol;
+use crate::rpc_async_t::*;
 use crate::two_units::*;
 use vstd::prelude::*;
 use vstd::resource::frac::FracGhost;

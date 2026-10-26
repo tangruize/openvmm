@@ -10,6 +10,7 @@ verify = true
 [dependencies]
 vstd = { version = "=0.0.0-2026-10-04-0306", default-features = false, features = ["std"] }
 futures = { version = "=0.3.31", default-features = false, features = ["std", "executor"] }
+mesh = { path = "../../support/mesh" }
 
 # Not part of the openvmm workspace.
 [workspace]

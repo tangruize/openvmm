@@ -3,8 +3,10 @@
 #[allow(unused_imports)]
 use vstd::prelude::*;
 
-pub mod rpc;
-pub mod rpc_async;
+pub mod rpc_t;
+pub mod rpc_async_t;
+pub mod mesh_rpc_t;
+pub mod mesh_unit;
 pub mod unit;
 pub mod caller;
 pub mod two_units;
@@ -37,5 +39,12 @@ mod tests {
         assert_eq!(target_snapshot, 1);
         assert_eq!(source_snapshot, 5);
         assert!(level);
+    }
+
+    #[test]
+    fn mesh_round_trip_restores_saved_state() {
+        let (saved, _half) =
+            crate::rpc_async_t::block_on(crate::mesh_unit::round_trip()).expect("round trip failed");
+        assert_eq!(saved, 3);
     }
 }
