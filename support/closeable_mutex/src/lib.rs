@@ -22,6 +22,24 @@
 // UNSAFETY: unsafe needed to implement interior mutability to locked values.
 #![expect(unsafe_code)]
 
+mod closeable_mutex_t;
+
+pub use closeable_mutex_t::LockInvariant;
+pub use closeable_mutex_t::VerifiedClosedGuard;
+
+/// Verified examples of the trusted specification. Not production code.
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("lib.proof.rs");
+}
+
+// In a normal build the trait has no spec functions, so every type satisfies
+// it.
+#[cfg(not(verus_keep_ghost))]
+impl<T> LockInvariant for T {
+    type Key = ();
+}
+
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 use std::cell::UnsafeCell;
@@ -201,6 +219,22 @@ mod tests {
         // Locks are allowed again.
         assert_eq!(*x.lock_if_open().unwrap(), 7);
         assert_eq!(*x.lock(), 7);
+    }
+
+    #[test]
+    fn test_verified_guard() {
+        let x = Arc::new(CloseableMutex::new_verified(0));
+
+        // Released: the mutex is open again.
+        let mut g = CloseableMutex::close_verified(x.clone());
+        *g.borrow_mut() = 5;
+        assert!(x.lock_if_open().is_none());
+        let x = g.release();
+        assert_eq!(*x.lock(), 5);
+
+        // Dropped without release: the mutex stays closed.
+        drop(CloseableMutex::close_verified(x.clone()));
+        assert!(x.lock_if_open().is_none());
     }
 
     #[test]

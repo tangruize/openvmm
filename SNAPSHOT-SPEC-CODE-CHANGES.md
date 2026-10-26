@@ -223,6 +223,14 @@ Baseline: upstream `nanvix/openvmm` commit
     not hold; `lemma_view_inv` no longer needs a half per unit;
     `collect_halves`' proof is updated. `ExampleUnit` follows the rule
     (fields `frac` and `running`, new method `set`).
+26. **`CloseableMutex` trusted spec** (`support/closeable_mutex`; no change
+    to existing behavior): new `closeable_mutex_t.rs` (trait
+    `LockInvariant`; verified-code API `CloseableMutex::new_verified`,
+    `close_verified`, and `VerifiedClosedGuard` with `borrow`, `borrow_mut`,
+    `release`; the guard's `Drop` keeps the mutex closed if not released),
+    `lib.proof.rs` (example, Verus only), a runtime test, `build.rs` (declares
+    the `verus_keep_ghost` cfg), and a `vstd` dependency with
+    `[package.metadata.verus] verify = true`.
 
 ### Planned: mesh RPC trusted spec
 

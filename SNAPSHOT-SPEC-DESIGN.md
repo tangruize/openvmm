@@ -488,8 +488,22 @@ paths, including its I/O handlers.
 2. *Decided.* `unit_channel()` keeps creating the FracGhost with `Unknown`,
    so a device's `wf()` allows `Unknown` ("state equals ghost, unless the
    ghost is `Unknown`").
-3. A trusted spec of `CloseableMutex` (`vmm_core/vmotherboard`), so that
-   the device, with its ghost, is reached only through it.
+3. *Done.* A trusted spec of `CloseableMutex`
+   (`support/closeable_mutex/src/closeable_mutex_t.rs`): a lock invariant
+   given by the value's type (`LockInvariant`: `inv()`, and a `key()` that
+   every holder keeps, for a device its FracGhost's id, so that verified
+   code relates the values it sees on different acquisitions). Verified
+   code closes with `CloseableMutex::close_verified`, gets the value
+   through the guard's `borrow` / `borrow_mut` (a `&mut` with a prophecy
+   spec), and reopens with `release`, which requires `inv()` and the key
+   unchanged. A guard dropped without `release` leaves the mutex closed
+   (later locks panic): safe, not unsound. The predicate comes from the
+   type because `CloseableMutex<T>` has no parameter for one and is created
+   by unverified, generic code. No verified `lock` yet: the vCPU paths that
+   lock are unverified and trusted to keep the invariant. Example
+   `ExampleCounter` (`support/closeable_mutex/src/lib.proof.rs`) verifies;
+   three negative checks (breaking the invariant twice, changing the key)
+   fail; a runtime test covers release and drop.
 4. The PIT: its ghost field, `saved_state()`, `wf()`, and contracts on its
    I/O handlers.
 5. The unit loop: `ArcMutexChipsetDeviceUnit::run`, and

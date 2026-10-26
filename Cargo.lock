@@ -840,6 +840,7 @@ name = "closeable_mutex"
 version = "0.0.0"
 dependencies = [
  "parking_lot",
+ "vstd",
 ]
 
 [[package]]

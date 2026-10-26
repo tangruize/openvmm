@@ -6,8 +6,12 @@ name = "closeable_mutex"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 parking_lot.workspace = true
+vstd.workspace = true
 
 [lints]
 workspace = true

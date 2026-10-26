@@ -86,6 +86,15 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`.
 | `Mutex::lock` (hidden from Verus) | ASSUMPTION: unverified code that locks keeps the invariant. |
 | Normal-build blanket impl | In a non-Verus build every type implements `MutexPredicate`. No effect on verification. |
 
+## Closeable mutex (`support/closeable_mutex/src/closeable_mutex_t.rs`)
+
+| Item | What is assumed |
+|---|---|
+| `CloseableMutex::new_verified`, `close_verified`, `VerifiedClosedGuard::borrow`, `borrow_mut`, `release` | While neither locked nor closed, the value satisfies its type's `LockInvariant::inv`, and its `key()` is the mutex's `key()`: `new_verified` and `release` require it, `close_verified` provides it; `borrow_mut` gives the guard's value to change. Runtime: the real `CloseableMutex`; a `VerifiedClosedGuard` dropped without `release` leaves the mutex closed, so later `lock` / `close` panic. |
+| Unverified `lock`, `lock_if_open`, `close` | ASSUMPTION: unverified code keeps the invariant and the key. For a device: the vCPU dispatch and line-set code change it only through methods whose contracts keep its `wf()`, and call them only when their preconditions hold (for I/O handlers: the device is running). |
+| Unverified `CloseableMutex::new` | ASSUMPTION: as if by `new_verified`: the value satisfied the invariant, and the mutex's key is the value's key. (Today every device's mutex is created this way, in `vmm_core/vmotherboard`.) |
+| Normal-build blanket impl | In a non-Verus build every type implements `LockInvariant` (with `Key = ()`). No effect on verification. |
+
 ## State units (`vmm_core/state_unit`)
 
 | Item | Where | What is assumed |
