@@ -69,6 +69,11 @@ Baseline: upstream `nanvix/openvmm` commit
    every `.lock()` call site is unchanged. `InnerPred` (an empty enum) names
    the lock invariant, which `lib.proof.rs` defines (trivial for now). Same
    change for `UnitHandle::inner` and `StateUnitsInspector::inner`.
+10. **New file `vmm_core/state_unit/src/mesh_rpc_t.rs`** (trusted): the mesh
+    RPC wrappers from the prototype, plus ghosts attached to a channel's ends
+    (`channel(k, gs, gr)`, `take_sender_ghost`, `take_receiver_ghost`;
+    `clone_sender` carries none); `recv` is renamed `recv_msg`. Not yet used
+    by production code. Has a runtime test (`call_round_trip`).
 
 ### Planned: mesh RPC trusted spec
 
@@ -77,8 +82,8 @@ From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
 
 All in `vmm_core/state_unit`:
 
-1. **New file `src/mesh_rpc_t.rs`**: the trusted wrappers, moved from the
-   prototype. `LoadedVm::halves` (made, item 7) is then removed.
+1. *(Done: `src/mesh_rpc_t.rs`, item 10 above.)* `LoadedVm::halves`
+   (made, item 7) is to be removed once `StateUnits` holds the halves.
 2. *(Done: Verus wiring and the mutex wrapper, items 8 and 9 above.)*
 3. **`UnitBuilder::spawn`** (`src/lib.rs:989`): `mesh::channel()` →
    `channel(Ghost(k))`.

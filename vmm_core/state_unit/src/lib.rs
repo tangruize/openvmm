@@ -32,7 +32,9 @@
 
 mod advance_time;
 mod inventory;
-#[allow(dead_code)] // `acquire` and `release` are for verified code, still to come.
+#[allow(dead_code)] // for verified code, still to come
+mod mesh_rpc_t;
+#[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
 pub mod quiesce;
 mod start;

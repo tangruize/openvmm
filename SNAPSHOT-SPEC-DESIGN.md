@@ -394,8 +394,10 @@ Also expected on the Verus side:
 
 ### Mesh RPC trusted spec
 
-Draft: `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`, written against
-the real `mesh` crate. It will move to `vmm_core/state_unit`.
+Now in `vmm_core/state_unit/src/mesh_rpc_t.rs` (first drafted in
+`verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`, written against the
+real `mesh` crate; the prototype copy is kept for its example and lacks the
+attached ghosts).
 
 Mesh RPC in brief: `send.call(f, input)` creates a one-shot reply channel,
 builds an `Rpc(input, reply_sender)`, wraps it in a message with `f` (e.g.
@@ -408,11 +410,12 @@ cannot do, so the spec is a set of `external_body` wrappers that call mesh:
 
 | Wrapper | Wraps | Contract |
 |---|---|---|
-| `channel(Ghost(k))` | `mesh::channel()` | both ends get the ghost constant `k` |
-| `clone_sender(&send)` | `Sender::clone` | same constant |
+| `channel(Ghost(k), Tracked(gs), Tracked(gr))` | `mesh::channel()` | both ends get the ghost constant `k`; `gs` is attached to the sender, `gr` to the receiver |
+| `take_sender_ghost(&mut send)`, `take_receiver_ghost(&mut recv)` | (none) | return the attached ghost, once |
+| `clone_sender(&send)` | `Sender::clone` | same constant, no attached ghost |
 | `call(&send, f, input, Tracked(gin), Ghost(post))` | `RpcSend::call` | requires `request_ok` for the message `f` builds; the result carries `post` |
 | `PendingCall::recv().await` | awaiting `PendingRpc` | on `Ok`, the reply and its ghost satisfy `post` |
-| `recv(&mut receiver).await` | `Receiver::recv` | the message and its ghost satisfy `request_ok` |
+| `recv_msg(&mut receiver).await` | `Receiver::recv` | the message and its ghost satisfy `request_ok` |
 | `split(rpc)` | `Rpc::split` | returns the input; keeps the reply contract |
 | `complete(rpc, r, Tracked(gout))` | `Rpc::complete` | requires the `Rpc`'s reply contract |
 
@@ -424,6 +427,8 @@ pub trait MeshProtocol {     // implemented by the message type, e.g. StateReque
     type Const;              // per-channel ghost constant, e.g. the unit's ghost ids
     type GhostIn;            // sent with a request (e.g. the caller's half on restore)
     type GhostOut;           // returned with a reply (e.g. a half on save)
+    type SenderGhost;        // attached to the sender at creation
+    type ReceiverGhost;      // attached to the receiver at creation
     spec fn request_ok(k: Self::Const, msg: Self, gin: Self::GhostIn) -> bool;
 }
 ```
@@ -447,6 +452,11 @@ is `blob`. `round_trip` proves that after save, restore of another value, and
 restore of the saved blob, the caller's half equals the saved value. Three
 injected bugs (wrong final claim, wrong blob on `Save`, wrong half on
 `Restore`) each fail verification; `cargo test` runs it over mesh.
+
+Attached ghosts carry each unit's initial halves from its channel's
+creation to `build` (sender) and to the unit's run loop (receiver); see
+"Where the halves come from". Assumption: an end whose ghost is taken was
+created by `channel`, not by `mesh::channel` directly.
 
 Open points:
 
