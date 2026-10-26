@@ -122,6 +122,16 @@ Baseline: upstream `nanvix/openvmm` commit
       both).
     Checks: `cargo test -p state_unit` (10 passed), `cargo check -p
     openvmm_entry`.
+17. **`StateUnits`' ghost state keyed by unit id, with the registry axiom**
+    (Verus only, no runtime change): the Verus-only field of `StateUnits` is
+    now `units_ghost: Tracked<proof::UnitHalves>` (halves by unit id, and
+    the collected units' names and ghost ids), replacing `halves`. New file
+    `vmm_core/state_unit/src/registry_t.rs` (trusted, Verus-only module):
+    `StateUnits::lock_registry`, the registry axiom. `lib.proof.rs`:
+    `UnitHalves`, `StateUnits::wf`, `collected`, `agrees_with`; the lock
+    invariant adds distinct names; `collect_halves` uses `lock_registry`.
+    `LoadedVm::snapshot_recorded` (`dispatch.spec.rs`) also requires
+    `state_units.wf()`.
 
 ### Planned: mesh RPC trusted spec
 

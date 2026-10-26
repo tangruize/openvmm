@@ -35,9 +35,16 @@ pub struct StateUnitsView {
 impl View for StateUnits {
     type V = StateUnitsView;
 
+    /// `units`: for each collected unit, by name, what the half held for it
+    /// records. (Collected units have distinct names; see `wf`.)
     closed spec fn view(&self) -> StateUnitsView {
         StateUnitsView {
-            units: self.halves@.map_values(|half: vstd::resource::frac::FracGhost<UnitSnapshot>| half@),
+            units: Map::new(
+                self.units_ghost@.registry.values().map(|entry: (Seq<char>, vstd::resource::Loc)| entry.0),
+                |name: Seq<char>|
+                    self.units_ghost@.halves[choose|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
+                        && self.units_ghost@.registry[id].0 == name]@,
+            ),
             inventory: self.spec_inventory(),
             running: self.running,
         }

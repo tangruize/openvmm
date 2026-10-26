@@ -37,6 +37,8 @@ mod mesh_rpc_t;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
 pub mod quiesce;
+#[cfg(verus_keep_ghost)]
+mod registry_t;
 mod start;
 mod unit_channel;
 
@@ -275,10 +277,10 @@ impl StateRequest {
 pub struct StateUnits {
     inner: Arc<InnerMutex>,
     running: bool,
-    /// Verus only (zero-sized): the FracGhost half held for each state unit,
-    /// by unit name, once collected from the unit's sender.
+    /// Verus only (zero-sized): the units collected so far and the FracGhost
+    /// half held for each.
     #[cfg(verus_keep_ghost)]
-    halves: Tracked<Map<Seq<char>, vstd::resource::frac::FracGhost<spec::UnitSnapshot>>>,
+    units_ghost: Tracked<proof::UnitHalves>,
 }
 
 /// The mutex holding a [`StateUnits`]'s registry, with its invariant
@@ -509,7 +511,7 @@ impl StateUnits {
             })),
             running: false,
             #[cfg(verus_keep_ghost)]
-            halves: proof::no_halves(),
+            units_ghost: proof::no_halves(),
         }
     }
 

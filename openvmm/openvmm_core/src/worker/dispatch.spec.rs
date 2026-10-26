@@ -48,12 +48,14 @@ impl View for LoadedVm {
 }
 
 impl LoadedVm {
-    /// Every state unit's state is recorded: `LoadedVm` holds a half for each
-    /// unit in the inventory, and none records `Unknown` (each unit has been
-    /// stopped or restored since it was created).
+    /// Every state unit's state is recorded: `StateUnits`' ghost state is
+    /// consistent, it holds a half for each unit in the inventory, and none
+    /// records `Unknown` (each unit has been stopped or restored since it was
+    /// created).
     pub open(super) spec fn snapshot_recorded(&self) -> bool {
         let units = self.state_units@;
-        forall|i: int|
+        &&& self.state_units.wf()
+        &&& forall|i: int|
             0 <= i < units.inventory.len() ==> #[trigger] units.units.contains_key(units.inventory[i])
                 && !(units.units[units.inventory[i]] is Unknown)
     }

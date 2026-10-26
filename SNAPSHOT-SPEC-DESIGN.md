@@ -208,14 +208,22 @@ Design:
    sender's half stays attached to the `Sender` that `build` (unverified)
    stores in the registry, behind the mutex. The lock invariant
    (`InnerPred`, `lib.proof.rs`): each registered sender's attached half,
-   if still there, belongs to its channel and records `Unknown`.
-   `StateUnits::collect_halves(&mut self)` (verified, Verus-only) takes the
-   attached halves into the Verus-only field `StateUnits::halves`, which
-   the view reads. Each `&mut` operation (`stop`, `save`, `restore`) will
-   call it first, under `#[cfg(verus_keep_ghost)]`; it has no runtime
-   effect. Trusted assumptions: callers of `build` pass a sender from
-   `unit_channel`; no unit is added or removed between a collection and the
-   end of the operation that made it.
+   if still there, belongs to its channel and records `Unknown`; registered
+   units have distinct names. `StateUnits::collect_halves(&mut self)`
+   (verified, Verus-only) takes the attached halves into the Verus-only
+   field `StateUnits::units_ghost` (`UnitHalves`: halves by unit id, and
+   the collected units' names and ghost ids), which the view reads by name.
+   Each `&mut` operation (`stop`, `save`, `restore`) will call it first,
+   under `#[cfg(verus_keep_ghost)]`; it has no runtime effect.
+   `StateUnits::wf` ties the halves to the collected units.
+
+   Verified code locks the registry with `StateUnits::lock_registry`
+   (`registry_t.rs`), which carries the **registry axiom**: the value taken
+   out agrees with the collected units (none removed or changed; units
+   added since still have their halves attached). No lock invariant can say
+   this, because registration and removal are unverified and go through
+   `&StateUnits` and `Weak` handles. The axiom and the other trusted items
+   are listed in `SNAPSHOT-SPEC-TRUSTED.md`.
 4. Done: `LoadedVm::halves` is removed; `LoadedVm`'s view reads
    `state_units@`.
 
