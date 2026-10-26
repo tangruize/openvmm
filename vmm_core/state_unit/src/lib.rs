@@ -32,12 +32,22 @@
 
 mod advance_time;
 mod inventory;
-#[allow(dead_code)] // for verified code, still to come
+#[allow(dead_code)] // the RPC wrappers are for verified code, still to come
 mod mesh_rpc_t;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
 pub mod quiesce;
 mod start;
+mod unit_channel;
+
+pub use unit_channel::unit_channel;
+
+/// Verus specification of state units.
+#[cfg(verus_keep_ghost)]
+#[allow(missing_docs)] // methods that Verus generates for spec enums
+pub mod spec {
+    include!("lib.spec.rs");
+}
 
 #[cfg(verus_keep_ghost)]
 mod proof {
@@ -1006,7 +1016,7 @@ impl UnitBuilder<'_> {
         Fut: 'static + Send + Future,
         Fut::Output: 'static + Send,
     {
-        let (send, recv) = mesh::channel();
+        let (send, recv) = unit_channel();
         let task_name = format!("unit-{}", self.name);
         let handle = self.build(send)?;
         let fut = (f)(recv);

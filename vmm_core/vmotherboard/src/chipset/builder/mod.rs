@@ -149,7 +149,7 @@ impl<'a> ChipsetBuilder<'a> {
         trace_unknown_mmio: bool,
         fallback_mmio_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
     ) -> Self {
-        let (send, chipset_recv) = mesh::channel();
+        let (send, chipset_recv) = state_unit::unit_channel();
         let chipset_unit = units.add("chipset").build(send).unwrap();
 
         Self {

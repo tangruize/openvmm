@@ -73,7 +73,19 @@ Baseline: upstream `nanvix/openvmm` commit
     RPC wrappers from the prototype, plus ghosts attached to a channel's ends
     (`channel(k, gs, gr)`, `take_sender_ghost`, `take_receiver_ghost`;
     `clone_sender` carries none); `recv` is renamed `recv_msg`. Not yet used
-    by production code. Has a runtime test (`call_round_trip`).
+    by production code. Has a runtime test (`call_round_trip`). In a normal
+    build a blanket impl satisfies `MeshProtocol`, with `()` ghosts.
+11. **`state_unit::unit_channel()`** (new file
+    `vmm_core/state_unit/src/unit_channel.rs`, verified, in `verus!`): creates
+    a state unit's channel and, in Verus builds, its FracGhost (value
+    `UnitSnapshot::Unknown`), one half attached to each end. At runtime it is
+    `mesh::channel()`. Callers switched from `mesh::channel()`:
+    `UnitBuilder::spawn` (`vmm_core/state_unit/src/lib.rs`) and
+    `ChipsetBuilder::new` (`vmm_core/vmotherboard/src/chipset/builder/mod.rs`).
+12. **State-unit spec files** in `vmm_core/state_unit/src`: `lib.spec.rs`
+    (`UnitSnapshot`, included as `pub mod spec`) and, in `lib.proof.rs`, the
+    `MeshProtocol` impl for `StateRequest` (ghost types; request rules still
+    to come).
 
 ### Planned: mesh RPC trusted spec
 

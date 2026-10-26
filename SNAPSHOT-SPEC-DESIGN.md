@@ -185,18 +185,24 @@ Facts from the code:
 
 Design:
 
-1. **Created with the channel.** The trusted `channel(Ghost(k))` creates the
-   unit's FracGhost and attaches one half to each end. `build(send)` takes
+1. **Created with the channel.** `unit_channel()` (verified,
+   `vmm_core/state_unit/src/unit_channel.rs`) creates the unit's FracGhost
+   and, through the trusted `channel(k, gs, gr)`, attaches one half to each
+   end; the channel's constant is the ghost's id. `UnitBuilder::spawn` and
+   the chipset builder (the one unit that makes its own channel) call it. `build(send)` takes
    the sender's half into `StateUnits`; the unit's run loop takes the
    receiver's half when it starts. A cloned sender carries none. Crates in
    between need no signature changes.
-2. **Initial value "not yet known".** The ghost value is
-   `Option<SavedStateBlobView>`, starting `None`. On `Stop`, `StateUnits`
-   lends its half and the unit sets the value to `Some(device@)`; `Restore`
-   sets `Some(blob@)` (this covers restore on a fresh VM); `Save` only
-   lends. `save` requires every half to be `Some`. The unit's run loop keeps
-   a ghost-only running/stopped flag; its invariant is "while stopped, my
-   half's value is `Some(device@)`".
+2. **Initial value "not yet known".** The ghost value is a `UnitSnapshot`
+   (`vmm_core/state_unit/src/lib.spec.rs`): `Unknown`, `NoSavedState`, or
+   `Saved(SavedStateBlobView)`, starting `Unknown`. (`NoSavedState` is
+   needed because a unit whose save returns `None` has a known state that
+   is not a blob.) On `Stop`, `StateUnits` lends its half and the unit
+   records what its save would return; `Restore` records `Saved(blob@)`
+   (this covers restore on a fresh VM); `Save` only lends. `save` requires
+   no half to be `Unknown`. The unit's run loop keeps a ghost-only
+   running/stopped flag; its invariant is "while stopped, my half records
+   what my save returns".
 3. **Stored in `StateUnits`.** Registration is through `&self`, so new
    halves go into `Inner`, behind the mutex, with a lock invariant
    (trusted wrapper `mutex_t.rs`, below). Each `&mut` operation (`stop`,

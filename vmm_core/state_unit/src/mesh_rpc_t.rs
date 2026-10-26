@@ -302,6 +302,17 @@ pub fn complete<I, R: 'static + Send, G>(rpc: Rpc<I, R>, r: R, gout: Tracked<G>)
 
 } // verus!
 
+// In a normal build the trait's spec function is erased, so every type
+// satisfies it, with no ghosts.
+#[cfg(not(verus_keep_ghost))]
+impl<T> MeshProtocol for T {
+    type Const = ();
+    type GhostIn = ();
+    type GhostOut = ();
+    type SenderGhost = ();
+    type ReceiverGhost = ();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,6 +324,7 @@ mod tests {
         Double(Rpc<u32, u32>),
     }
 
+    #[cfg(verus_keep_ghost)]
     verus! {
 
     impl MeshProtocol for TestMsg {
