@@ -78,6 +78,8 @@ contracts are assumptions about mesh. See the file header, and
 
 ## Mutex (`vmm_core/state_unit/src/mutex_t.rs`)
 
+Explained in `SNAPSHOT-SPEC-MUTEX.md`.
+
 | Item | What is assumed |
 |---|---|
 | `Mutex::new`, `acquire`, `MutexHandle::release` | The value satisfies `Pred::inv` while unlocked: `new` and `release` require it, `acquire` provides it. Runtime: `parking_lot::Mutex<Option<V>>`; a handle dropped without `release` leaves `None` and the next lock panics. |

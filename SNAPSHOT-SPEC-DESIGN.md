@@ -535,6 +535,9 @@ against the protocol.
 
 ### Mutex wrapper
 
+A standalone explanation (mental model, how to use it, design choices) is
+in `SNAPSHOT-SPEC-MUTEX.md`.
+
 `StateUnits` uses `parking_lot::Mutex`. vstd has `RwLock` but not `Mutex`;
 vstd's `RwLock` is a spinlock that is not released on drop, so switching
 would change runtime behavior. Instead, a trusted wrapper,
