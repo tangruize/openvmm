@@ -17,7 +17,7 @@ only where a trusted item gives them meaning.
 
 | Item | Where | What is trusted |
 |---|---|---|
-| Verus `426d8b0` with patch 0001 | `~/programs/verus`; `verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch` | The verifier, and the patch: an `async fn` without a named return keeps its postconditions at `.await`. Targeted tests pass (`verus-patches/README.md`); the full test suite has not been run. |
+| Verus `426d8b0` with patches 0001 and 0002 | `~/programs/verus`; `verus-patches/` | The verifier, and the patches: 0001, an `async fn` without a named return keeps its postconditions at `.await`; 0002, annotation-style ghost parameters work on an `async fn`. Targeted tests pass (`verus-patches/README.md`); the full test suite has not been run. |
 | `vstd` `=0.0.0-2026-10-04-0306` | crates.io | vstd's own trusted specs (e.g. `BTreeMap::get_mut`, `FracGhost`). |
 
 ## Contracts assumed until verified

@@ -1,0 +1,97 @@
+diff --git a/source/rust_verify/src/pre_header.rs b/source/rust_verify/src/pre_header.rs
+index 1a75c22..58e0dc8 100644
+--- a/source/rust_verify/src/pre_header.rs
++++ b/source/rust_verify/src/pre_header.rs
+@@ -135,7 +135,18 @@ fn unwrap_param_extract_idents<'tcx>(
+     };
+     let rhs_name = crate::rust_to_vir_expr::pat_to_var(rhs_pat)?;
+ 
+-    let idx = hir_params.iter().position(|param| param.pat.hir_id == rhs_pat.hir_id);
++    let idx = hir_params.iter().position(|param| param.pat.hir_id == rhs_pat.hir_id).or_else(|| {
++        // In an async fn, the body refers to the parameter through the binding
++        // that moves it into the coroutine (`let x = x;`), which has the same
++        // name as the parameter but a different HirId.
++        let rustc_hir::PatKind::Binding(_, _, rhs_ident, None) = rhs_pat.kind else {
++            return None;
++        };
++        hir_params.iter().position(|param| match param.pat.kind {
++            rustc_hir::PatKind::Binding(_, _, ident, None) => ident.name == rhs_ident.name,
++            _ => false,
++        })
++    });
+     let Some(idx) = idx else {
+         internal_err!(stmt.span, "ill-formed unwrap_parameter header");
+     };
+diff --git a/source/rust_verify_test/tests/syntax_attr.rs b/source/rust_verify_test/tests/syntax_attr.rs
+index 9e02f6c..f9f3134 100644
+--- a/source/rust_verify_test/tests/syntax_attr.rs
++++ b/source/rust_verify_test/tests/syntax_attr.rs
+@@ -1771,3 +1771,68 @@ test_verify_one_file! {
+         static MY_STATIC2: u64 = 0;
+     } => Err(e) => assert_any_vir_error_msg(e, "#[verifier::external_body] doesn't make sense for this item type -- it is only applicable to functions and datatype declarations" )
+ }
++
++test_verify_one_file! {
++    #[test] test_async_fn_with_ghost_params code!{
++        use vstd::prelude::*;
++        #[verus_spec(ret =>
++            with
++                Tracked(y): Tracked<&mut int>,
++                Ghost(w): Ghost<u32>,
++            requires
++                *old(y) < 100,
++                w == x,
++            ensures
++                ret == x,
++                *final(y) == x,
++        )]
++        async fn f(x: u32) -> u32 {
++            proof!{
++                *y = x as int;
++            }
++            x
++        }
++
++        #[verus_spec]
++        async fn g() {
++            proof_decl!{
++                let tracked mut y = 0int;
++            }
++            let fut = {
++                proof_with!{Tracked(&mut y), Ghost(3)}
++                f(3)
++            };
++            let r = fut.await;
++            proof!{
++                assert(r == 3);
++                assert(y == 3);
++            }
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_async_fn_with_ghost_params_fail code!{
++        use vstd::prelude::*;
++        #[verus_spec(ret =>
++            with
++                Ghost(w): Ghost<u32>,
++            requires
++                w == x,
++            ensures
++                ret == x,
++        )]
++        async fn f(x: u32) -> u32 {
++            x
++        }
++
++        #[verus_spec]
++        async fn g() {
++            let fut = {
++                proof_with!{Ghost(4)}
++                f(3) // FAILS
++            };
++            let _ = fut.await;
++        }
++    } => Err(e) => assert_one_fails(e)
++}

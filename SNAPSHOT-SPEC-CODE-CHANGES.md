@@ -170,6 +170,15 @@ itself is unmodified.
    Applied to the local checkout (`~/programs/verus`, uncommitted) and built.
    Bug, fix, and test results: `verus-patches/README.md`.
 
+2. **`0002-async-fn-ghost-params.patch`** (`verus-patches/`):
+   annotation-style ghost parameters (`#[verus_spec(with ...)]`) on an
+   `async fn` failed with an internal error. Changes
+   `rust_verify/src/pre_header.rs` (find the parameter by name when the
+   async body refers to it through the binding that moves it into the
+   coroutine) and adds two tests to `rust_verify_test/tests/syntax_attr.rs`.
+   Applied to the local checkout and built. Ghost outputs of an `async fn`
+   are still unsupported. Details and test results: `verus-patches/README.md`.
+
 ### Possibly needed
 
 From the gaps in the design doc; not started.

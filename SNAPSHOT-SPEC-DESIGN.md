@@ -445,8 +445,12 @@ Also expected on the Verus side:
   limits or bugs (Verus already panicked on `exec_await` without vstd's `std`
   feature). Such issues may need focused Verus fixes. One has been fixed so
   far: an `async fn` without a named return lost its postconditions at
-  `.await` (`verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch`,
-  described in `verus-patches/README.md`).
+  `.await` (`verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch`),
+  and annotation-style ghost parameters on an `async fn` hit an internal
+  error (`0002-async-fn-ghost-params.patch`); both are described in
+  `verus-patches/README.md`. Still unsupported: `async` blocks (rewritten as
+  `async fn`s, code change 16), ghost outputs of an `async fn` (tracked
+  `&mut` inputs are used instead), `async fn` in traits, async closures.
 - **Production signatures.** The unit side must return a ghost half, but
   `StateUnit` is a trait with many implementations and the request types
   derive `MeshPayload`. The mesh RPC spec avoids changing those types by
