@@ -34,6 +34,30 @@ Baseline: upstream `nanvix/openvmm` commit
    - `Cargo.lock` updated for `vstd`.
 3. **`scripts/verify-snapshot-spec.sh`**: runs `cargo verus verify` over the
    spec crates.
+4. **Verus wiring for `vmcore`** (`vm/vmcore`), as for the crates above:
+   `vstd.workspace = true` and `[package.metadata.verus] verify = true` in
+   `Cargo.toml`, a new `build.rs` declaring `verus_keep_ghost`, and a
+   Verus-only `use vstd::prelude::*;` in `src/lib.rs`. Needed because the
+   `View` impl for `SavedStateBlob` must live in the crate that defines it.
+5. **Spec files included under `#[cfg(verus_keep_ghost)]`** (no effect on a
+   normal build):
+   - `vm/vmcore/src/save_restore.rs`: `pub mod spec` including
+     `save_restore.spec.rs`;
+   - `openvmm/openvmm_defs/src/worker.rs`: `pub mod spec` including
+     `worker.spec.rs`, and `mod proof` including `worker.proof.rs`;
+   - `openvmm/openvmm_core/src/worker/dispatch.rs`: `mod spec` and
+     `mod proof` including `dispatch.spec.rs` and `dispatch.proof.rs`, and a
+     Verus-only `use vstd::prelude::*;`.
+6. **Contracts on `LoadedVm::save` and `LoadedVm::restore`**
+   (`dispatch.rs`): `verus_spec` attributes under
+   `cfg_attr(verus_keep_ghost, ...)`, with `verus_verify(external_body)` for
+   now. No code change.
+7. **Ghost field `LoadedVm::halves`** (`dispatch.rs`): the FracGhost halves
+   `LoadedVm` holds, by unit name. Declared and initialized (in `make_ids`,
+   via `proof::no_halves()`) only under `#[cfg(verus_keep_ghost)]`, so a
+   normal build is unchanged. `LoadedVm` also gets
+   `#[cfg_attr(verus_keep_ghost, verus_verify)]`, so that Verus sees its
+   fields.
 
 ### Planned: mesh RPC trusted spec
 
@@ -43,7 +67,10 @@ From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
 All in `vmm_core/state_unit`:
 
 1. **New file `src/mesh_rpc_t.rs`**: the trusted wrappers, moved from the
-   prototype.
+   prototype. **New file `src/mutex_t.rs`**: the trusted `Mutex` wrapper,
+   moved from the prototype; `StateUnits::inner` and `UnitHandle::inner`
+   change from `parking_lot::Mutex<Inner>` to it (`lock()` call sites
+   unchanged). `LoadedVm::halves` (made, item 7) is then removed.
 2. **Verus wiring** for `state_unit`, as for the crates above.
 3. **`UnitBuilder::spawn`** (`src/lib.rs:989`): `mesh::channel()` →
    `channel(Ghost(k))`.

@@ -42,9 +42,11 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   where they are easier; mixing the two is fine. (verified-storage uses
   `verus!` throughout.)
 - **File layout.** Keep production `.rs` files as clean as possible.
-  - `<file>.spec.rs`: high-level spec meant for human review (abstract types,
-    `View` impls, spec functions on types).
-  - `<file>.proof.rs`: lemmas.
+  - `<file>.spec.rs`: spec that a human must check (abstract types, `View`
+    impls, spec functions on types that the top-level contracts use).
+  - `<file>.proof.rs`: spec that need not be checked by a human, such as the
+    contracts of functions called by `LoadedVm::save` or by a unit's save,
+    and declarations of types to Verus; and lemmas.
   - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`.
   - `<name>_t.rs`: trusted code (`external_body` wrappers and the
     assumptions they state), as in verified-storage. Each such file begins
@@ -108,6 +110,128 @@ unit) and `inventory` (state-unit names).
 
 Intended property: restoring the `SavedState` produced by `save` reproduces
 the snapshot-relevant state of the VM at save time.
+
+### Contracts
+
+Written in `dispatch.rs` (bodies `external_body` for now); the types are in
+`vm/vmcore/src/save_restore.spec.rs`, `openvmm/openvmm_defs/src/worker.spec.rs`,
+and `openvmm/openvmm_core/src/worker/dispatch.spec.rs`.
+
+```rust
+// save
+requires !old(self)@.runtime.running,
+ensures
+    final(self)@ == old(self)@,                                  // changes nothing
+    result matches Ok(saved) ==> saved@ == old(self)@.snapshot,  // captures the VM's state
+
+// restore
+requires !old(self)@.runtime.running,
+ensures
+    final(self)@.runtime == old(self)@.runtime,
+    final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+    result is Ok ==> {
+        // units with saved state take it; the others keep theirs
+        &&& final(self)@.snapshot.units
+            == old(self)@.snapshot.units.union_prefer_right(state@.units)
+        // the saved inventory, if any, matches the VM's
+        &&& state@.inventory.len() == 0 || state@.inventory == old(self)@.snapshot.inventory
+    },
+```
+
+- `SavedStateView { units: Map<Seq<char>, SavedStateBlobView>, inventory: Seq<Seq<char>> }`
+  is the view of `SavedState`, and also `LoadedVmView::snapshot`.
+- `SavedStateBlobView` is the abstract value a unit's blob encodes. It is
+  opaque until the trusted `SavedStateBlob` encode/decode contract (gap 4)
+  is written.
+- `restore`'s `union_prefer_right` reflects the code: units absent from the
+  saved state get no `Restore` and keep their state; `validate_inventory`
+  skips the check when the saved inventory is empty.
+- `lemma_restore_gives_saved_state` (`dispatch.proof.rs`) states the round
+  trip: restoring a saved state into a VM with the same stateful units and
+  inventory gives back that state.
+
+`LoadedVm`'s view (`dispatch.spec.rs`):
+
+- `snapshot.units` is defined from a ghost field,
+  `halves: Tracked<Map<Seq<char>, FracGhost<SavedStateBlobView>>>` (unit
+  name to the half `LoadedVm` holds), as `halves@.map_values(|h| h@)`. The
+  field exists only under `verus_keep_ghost`; the constructor (`make_ids`)
+  sets it to the empty map.
+- `snapshot.inventory` and `runtime.running` are uninterpreted
+  (`LoadedVm::inventory`, `LoadedVm::units_running`) until `StateUnits` has
+  a view; `state_unit` is not yet wired for Verus.
+- `VmRuntime` has only `running`; more fields will come.
+
+Not yet connected: the halves are not tied to the units, and nothing gives
+`LoadedVm` its halves (it starts with none). The agreed fix follows; the
+`halves` field above is interim and moves into `StateUnits`.
+
+### Where the halves come from
+
+Facts from the code:
+
+- Loading a snapshot builds a new `LoadedVm` and calls `restore` on it
+  (`make_ids`, `dispatch.rs:3505`) before any unit has started; units are
+  registered `Stopped` (`UnitBuilder::build`). So the halves must exist from
+  unit creation, not only after a `Stop`.
+- Units are registered through a shared `&StateUnits` from several crates
+  (the chipset builder keeps a `&'a StateUnits`; also `vmbus_unit`,
+  `partition_unit`, vmtime, time-abi). The registry is behind
+  `Arc<Mutex<Inner>>`, and dropping a `UnitHandle` removes its unit through
+  a `Weak`.
+- Not every unit is created by `spawn`: the chipset makes its own channel
+  and calls `build(send)`. What every unit shares is the creation of its
+  channel, then `build`.
+
+Design:
+
+1. **Created with the channel.** The trusted `channel(Ghost(k))` creates the
+   unit's FracGhost and attaches one half to each end. `build(send)` takes
+   the sender's half into `StateUnits`; the unit's run loop takes the
+   receiver's half when it starts. A cloned sender carries none. Crates in
+   between need no signature changes.
+2. **Initial value "not yet known".** The ghost value is
+   `Option<SavedStateBlobView>`, starting `None`. On `Stop`, `StateUnits`
+   lends its half and the unit sets the value to `Some(device@)`; `Restore`
+   sets `Some(blob@)` (this covers restore on a fresh VM); `Save` only
+   lends. `save` requires every half to be `Some`. The unit's run loop keeps
+   a ghost-only running/stopped flag; its invariant is "while stopped, my
+   half's value is `Some(device@)`".
+3. **Stored in `StateUnits`.** Registration is through `&self`, so new
+   halves go into `Inner`, behind the mutex, with a lock invariant
+   (trusted wrapper `mutex_t.rs`, below). Each `&mut` operation (`stop`,
+   `save`, `restore`) first moves them into an ordinary ghost field of
+   `StateUnits`, which its view reads. Trusted assumption, as a
+   precondition on registration and removal (whose callers are unverified):
+   no unit is added or removed between that collection and the end of
+   `save`/`restore`.
+4. `LoadedVm::halves` goes away; `LoadedVm`'s view reads `state_units@`.
+
+No atomic invariant is needed: exact knowledge comes from holding halves;
+the lock invariant only ties the uncollected halves to the registered units.
+
+### Mutex wrapper
+
+`StateUnits` uses `parking_lot::Mutex`. vstd has `RwLock` but not `Mutex`;
+vstd's `RwLock` is a spinlock that is not released on drop, so switching
+would change runtime behavior. Instead, a trusted wrapper
+(`verus-patches/verus-rpc-prototype/src/mutex_t.rs`, to move to
+`vmm_core/state_unit`):
+
+- Runtime: `parking_lot::Mutex<Option<V>>`; the real lock is unchanged.
+- Verified code: `acquire(&self) -> (V, MutexHandle)` gives the value, which
+  satisfies the invariant (a `vstd::rwlock::RwLockPredicate`);
+  `MutexHandle::release(v)` requires the invariant. A handle dropped
+  without `release` leaves `None`, so the next lock panics: safe, not
+  unsound.
+- Unverified code: `lock()` returns an ordinary (mapped) guard, so its call
+  sites do not change. It is `verifier::external`. Assumption: unverified
+  code keeps the invariant.
+
+Example (`mutex_unit.rs`): units registered through `&self` leave their
+half in the mutex; `collect(&mut self)` moves them into a ghost field.
+Verified; a negative check (dropping `add`'s `frac == 0.5` precondition)
+fails; runtime tests cover `acquire`/`release` and the unverified `lock`.
 
 ### Roadmap
 

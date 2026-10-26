@@ -7,6 +7,8 @@ pub mod rpc_t;
 pub mod rpc_async_t;
 pub mod mesh_rpc_t;
 pub mod mesh_unit;
+pub mod mutex_t;
+pub mod mutex_unit;
 pub mod unit;
 pub mod caller;
 pub mod two_units;
@@ -46,5 +48,30 @@ mod tests {
         let (saved, _half) =
             crate::rpc_async_t::block_on(crate::mesh_unit::round_trip()).expect("round trip failed");
         assert_eq!(saved, 3);
+    }
+
+    #[test]
+    fn mutex_registry_collects_halves() {
+        let mut units = crate::mutex_unit::Units::new();
+        units.add(1, vstd::prelude::Tracked::assume_new());
+        units.add(2, vstd::prelude::Tracked::assume_new());
+        units.collect();
+        units.add(3, vstd::prelude::Tracked::assume_new());
+        units.collect();
+    }
+
+    #[test]
+    fn mutex_unverified_lock_sees_released_value() {
+        use crate::mutex_unit::{Registry, RegistryPred};
+        use vstd::prelude::{Ghost, Tracked};
+        let r = Registry { ids: Vec::new(), inbox: Tracked::assume_new() };
+        let m = crate::mutex_t::Mutex::<Registry, RegistryPred>::new(r, Ghost::assume_new());
+        let (mut r, handle) = m.acquire();
+        r.ids.push((1, Ghost::assume_new()));
+        handle.release(r);
+        m.lock().ids.push((2, Ghost::assume_new()));
+        let (r, handle) = m.acquire();
+        assert_eq!(r.ids.iter().map(|(n, _)| *n).collect::<Vec<_>>(), [1, 2]);
+        handle.release(r);
     }
 }
