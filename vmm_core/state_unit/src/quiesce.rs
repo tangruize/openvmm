@@ -15,6 +15,8 @@ use mesh::CancelContext;
 use mesh::rpc::FailableRpc;
 use std::time::Duration;
 use std::time::Instant;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use thiserror::Error;
 
 /// A bounded quiesce failed and the VM must not be saved.
@@ -94,6 +96,21 @@ impl StateUnits {
     /// ownership uncertain. The returned error reports this via
     /// [`QuiesceForSaveError::has_uncertain_state`]; callers must terminate the
     /// VM rather than attempt rollback in that case.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            old(self)@.running,
+        ensures
+            final(self).wf(),
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.units.dom() == old(self)@.units.dom(),
+            // On success the units are stopped and each has recorded its
+            // state (each received `Stop`); on failure they are still
+            // marked running.
+            result is Ok ==> !final(self)@.running && final(self)@.all_recorded(),
+            result is Err ==> final(self)@.running,
+    ))]
     pub async fn quiesce_for_save(&mut self, timeout: Duration) -> Result<(), QuiesceForSaveError> {
         assert!(self.running);
 

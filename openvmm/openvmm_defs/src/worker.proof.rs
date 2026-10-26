@@ -15,4 +15,13 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExSavedState(SavedState);
 
+// Types in the snapshot RPC's contracts.
+
+#[verifier::external_type_specification]
+pub struct ExSnapshotQuiesceError(crate::rpc::SnapshotQuiesceError);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExTimeCapture(crate::time_abi::TimeCapture);
+
 } // verus!

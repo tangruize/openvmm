@@ -240,6 +240,45 @@ the recorded units. `StateUnits::wf()`: `self@.inv()`, and `StateUnits`
 holds a half of each collected unit's FracGhost, belonging to its channel;
 collected units have distinct names.
 
+### Quiesce and save
+
+`LoadedVm::quiesce_for_snapshot` (`dispatch/microvm.rs`) is split,
+behavior-preserving, into `quiesce_and_save` (reject unless microVM and
+running; `StateUnits::quiesce_for_save`; time ABI capture; `save`; VM-time
+cut) and a thin `quiesce_for_snapshot` that calls it, flushes guest RAM,
+reads the effective command line, and encodes the saved state into a
+`ProtobufMessage`. Contracts (bodies `external_body`):
+
+| Function | Requires | Ensures |
+|---|---|---|
+| `quiesce_and_save` | `wf` | `wf`; inventory unchanged; on `Ok((saved, time))`: stopped, `recorded`, `saved.wf()`, `saved@ == final@.snapshot`; on `Err(Rejected)`: nothing changed |
+| `StateUnits::quiesce_for_save` (`vmm_core/state_unit/src/quiesce.rs`) | `wf`, running | `wf`; same units and inventory; on `Ok`: stopped, `all_recorded`; on `Err`: still marked running |
+| `capture_time_abi` | `wf` | `wf`; the view is unchanged |
+
+These compose: after `quiesce_for_save` succeeds the units are stopped and
+recorded, `capture_time_abi` changes nothing, so `save`'s precondition holds
+and its result is the snapshot at the quiesce point.
+
+Concerns:
+
+- **The time capture is unconstrained.** `TimeCapture` (time contract, CPU
+  profile) and `record_vm_time_cut` are not specified; the restore side's
+  clock adjustment depends on them.
+- **`quiesce_for_save` sends `Stop` through the unverified `state_change`
+  path**, with its own dependency order, timeout, and cancellation; the
+  contract assumes it records each unit's state as the request protocol's
+  `Stop` does. Its `Err` cases (`RollbackSafe`, then
+  `resume_after_failed_snapshot`; `Uncertain`, after which the VM must be
+  terminated) are not specified beyond "still marked running".
+- **`capture_time_abi` is trusted not to change the view**: it sends
+  `CheckTimers` to every VP (`check_one_shot_timers`) and reads time
+  records from the partition.
+- **Two running flags**: `LoadedVm::running` (checked and cleared by
+  `quiesce_and_save`) and `StateUnits::running` (the view's
+  `runtime.running`). The contract speaks only of the latter.
+- **After `quiesce_and_save` the VM stays stopped**; resuming or ending it
+  is the caller's (controller's) business.
+
 ### Unit-side contract
 
 What a state unit must do for the request protocol to hold, layer by layer,
@@ -457,7 +496,7 @@ fails; runtime tests cover `acquire`/`release` and the unverified `lock`.
 want to verify the save side up to the controller, layer by layer.
 
 1. **`LoadedVm::save` and `LoadedVm::restore`** (current target).
-2. **Quiesce, after `save` and `restore` are verified.**
+2. **Quiesce** (contracts written; see "Quiesce and save").
    `LoadedVm::quiesce_for_snapshot` (`dispatch/microvm.rs:353`) stops the
    state units, captures time, calls `save`, and then encodes the result into
    a `ProtobufMessage`. The plan is a behavior-preserving split: a new

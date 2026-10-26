@@ -33,6 +33,8 @@ use openvmm_defs::rpc::VmRpc;
 use openvmm_defs::worker::VmWorkerParameters;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use virtio::VirtioMmioDevice;
 use virtio::VirtioMmioInterruptMode;
 use virtio::resolve::ResolvedVirtioDevice;
@@ -315,6 +317,71 @@ impl LoadedVm {
     {
         use mesh::payload::message::ProtobufMessage;
 
+        let (saved_state, time) = self.quiesce_and_save(timeout).await?;
+        let mapped_memory_flush = openvmm_defs::profile::ProfileSpan::start();
+        self.inner
+            .memory_manager
+            .flush_shared_file_backing()
+            .context("failed to flush mapped guest RAM")
+            .map_err(|error| {
+                openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(RemoteError::new(error))
+            })?;
+        mapped_memory_flush.complete("capture", "mapped_memory_flush", Default::default());
+        let effective_command_line = match &self.inner.load_mode {
+            openvmm_defs::config::LoadMode::Linux {
+                cmdline,
+                boot_mode: openvmm_defs::config::LinuxDirectBootMode::MpTable,
+                ..
+            } => cmdline.clone(),
+            _ => {
+                return Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
+                    RemoteError::new(anyhow::anyhow!(
+                        "microVM snapshot has no effective command line"
+                    )),
+                ));
+            }
+        };
+        Ok(openvmm_defs::rpc::SnapshotSaveResponse {
+            state_unit_names: saved_state.inventory.clone(),
+            saved_state: ProtobufMessage::new(saved_state),
+            effective_command_line,
+            time,
+        })
+    }
+
+    /// Quiesces the VM and saves its state: stops the state units, takes the
+    /// time ABI capture, saves, and records the VM-time cut. Returns the
+    /// decoded saved state and the time capture; `quiesce_for_snapshot` then
+    /// flushes guest RAM and encodes the saved state.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            // On success the VM is stopped, and the saved state is its
+            // snapshot state.
+            result matches Ok((saved, _time)) ==> {
+                &&& !final(self)@.runtime.running
+                &&& final(self)@.recorded
+                &&& saved.wf()
+                &&& saved@ == final(self)@.snapshot
+            },
+            // A rejected request changes nothing.
+            result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_))
+                ==> final(self)@ == old(self)@,
+    ))]
+    pub(super) async fn quiesce_and_save(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<
+        (
+            openvmm_defs::worker::SavedState,
+            openvmm_defs::time_abi::TimeCapture,
+        ),
+        openvmm_defs::rpc::SnapshotQuiesceError,
+    > {
         if self.inner.machine_profile != MachineProfile::Microvm {
             return Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(
                 RemoteError::new(anyhow::anyhow!(
@@ -353,41 +420,23 @@ impl LoadedVm {
         #[cfg(guest_arch = "x86_64")]
         super::time_abi::record_vm_time_cut(&mut time.time, &saved_state);
         save_state.complete("capture", "save_state", Default::default());
-        let mapped_memory_flush = openvmm_defs::profile::ProfileSpan::start();
-        self.inner
-            .memory_manager
-            .flush_shared_file_backing()
-            .context("failed to flush mapped guest RAM")
-            .map_err(|error| {
-                openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(RemoteError::new(error))
-            })?;
-        mapped_memory_flush.complete("capture", "mapped_memory_flush", Default::default());
-        let effective_command_line = match &self.inner.load_mode {
-            openvmm_defs::config::LoadMode::Linux {
-                cmdline,
-                boot_mode: openvmm_defs::config::LinuxDirectBootMode::MpTable,
-                ..
-            } => cmdline.clone(),
-            _ => {
-                return Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(
-                    RemoteError::new(anyhow::anyhow!(
-                        "microVM snapshot has no effective command line"
-                    )),
-                ));
-            }
-        };
-        Ok(openvmm_defs::rpc::SnapshotSaveResponse {
-            state_unit_names: saved_state.inventory.clone(),
-            saved_state: ProtobufMessage::new(saved_state),
-            effective_command_line,
-            time,
-        })
+        Ok((saved_state, time))
     }
 
     /// Takes the time ABI records of a capture: checks the LAPIC timers, then
     /// takes the capture anchor and records (capture steps 1 to 3 of the
     /// specification).
     #[cfg(guest_arch = "x86_64")]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            // Checking the LAPIC timers and reading the time records do not
+            // change the VM's view.
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     async fn capture_time_abi(&mut self) -> anyhow::Result<openvmm_defs::time_abi::TimeCapture> {
         let state = self
             .inner
@@ -399,6 +448,14 @@ impl LoadedVm {
     }
 
     #[cfg(not(guest_arch = "x86_64"))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     async fn capture_time_abi(&mut self) -> anyhow::Result<openvmm_defs::time_abi::TimeCapture> {
         anyhow::bail!("microVM snapshots require an x86-64 guest")
     }

@@ -192,6 +192,16 @@ Baseline: upstream `nanvix/openvmm` commit
     `spec`): the verified `ExampleDevice`. (Declaring the trait in `verus!`
     in place was tried and dropped: a Verus build then requires every
     implementation in every crate to define `saved_state`.)
+23. **Split `LoadedVm::quiesce_for_snapshot`** (`dispatch/microvm.rs`),
+    behavior-preserving: new `quiesce_and_save` (the steps up to and
+    including `save` and the VM-time cut, returning the decoded
+    `SavedState` and the `TimeCapture`), called by `quiesce_for_snapshot`,
+    which keeps the RAM flush, the command line, and the encoding, in the
+    same order. Contracts (`external_body`) on `quiesce_and_save`, both
+    `capture_time_abi` variants, and `StateUnits::quiesce_for_save`
+    (`vmm_core/state_unit/src/quiesce.rs`); Verus-only `vstd` imports in
+    both files; declarations of `QuiesceForSaveError` (`state_unit`),
+    `SnapshotQuiesceError`, and `TimeCapture` (`openvmm_defs`).
 
 ### Planned: mesh RPC trusted spec
 

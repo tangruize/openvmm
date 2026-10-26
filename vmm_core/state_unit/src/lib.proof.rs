@@ -53,6 +53,10 @@ pub struct ExStateTransitionError(crate::StateTransitionError);
 pub struct ExAnyhowError(anyhow::Error);
 
 #[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExQuiesceForSaveError(crate::quiesce::QuiesceForSaveError);
+
+#[verifier::external_type_specification]
 pub struct ExSavedStateUnit(crate::SavedStateUnit);
 
 #[verifier::external_type_specification]
