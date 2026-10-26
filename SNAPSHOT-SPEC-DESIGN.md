@@ -346,6 +346,73 @@ Concerns and TODOs:
   (`dispatch.rs:1824`) builds the `LoadedVm` (and collects the halves in
   `make_ids`), then calls `restore_from_snapshot`. TODO: its contract.
 
+### Design change: the FracGhost lives with the device
+
+Decided 2026-10-26; not yet implemented.
+
+**Problem with the current placement.** The unit's half and its invariant
+("while stopped, my half records my current snapshot") live in the unit's
+task. But vCPUs change a chipset device through its I/O handlers, which run
+on vCPU threads, not in the unit's task, and never see the half. So "a
+stopped device does not change" cannot even be stated as an obligation for
+those handlers; it was a trusted assumption.
+
+**What keeps vCPUs away today** (correcting the earlier account): not the
+`CloseableMutex`. A chipset unit closes its device's mutex only for the
+duration of each operation (`self.device.clone().close().save()` closes it,
+and dropping the guard reopens it). Between `Stop` and `Save` it is open.
+What keeps vCPUs away is that they are stopped: the partition unit depends
+on the chipset devices, and `stop` / `quiesce_for_save` stop dependants
+first, so the vCPUs stop before any device does and stay stopped until
+`start`. (`CloseableMutex::lock` panics if the mutex is closed, so a vCPU
+access during a unit operation would crash; the design relies on this
+order.)
+
+**Every change to a chipset device goes through its `CloseableMutex`**
+(checked): the device object is stored only inside
+`Arc<CloseableMutex<T>>` (`vmm_core/vmotherboard/src/chipset/backing/arc_mutex/device.rs:240`),
+in an `UnsafeCell` reachable only through the mutex's guards; vCPU MMIO and
+port I/O dispatch locks it (`chipset/mod.rs`, `lookup.dev.lock()`); a
+line-set target locks it before `set_irq` (`chipset/line_sets.rs`); the
+unit's operations `close()` or `lock()` it (`backing/arc_mutex/state_unit.rs`).
+
+**The change.** The device's FracGhost (the receiver's half) is kept in the
+device object, inside the `CloseableMutex`, next to the state it describes,
+instead of in the unit's task. Then every mutation path (the unit's
+`save` / `restore` and the vCPUs' I/O handlers) can be verified against the
+device's `wf()`:
+
+- While running, the device holds the whole FracGhost; its handlers may
+  change the state freely, with no ghost updates (nobody else holds a half,
+  so nobody relies on the value).
+- At `Stop`, the device sets the ghost to its current snapshot, splits it,
+  and gives a half to `StateUnits` (as now).
+- While stopped, it holds one half, and `wf()` says "state equals the
+  ghost". A handler that changed the state would break `wf()` and fail to
+  verify, so a handler must either check a real "stopped" flag or require
+  "running" as a precondition. In the latter case the remaining trusted
+  fact is one explicit precondition on the unverified caller (the vCPU
+  dispatch calls handlers only while the device runs), stated where it is
+  used.
+- Updating the ghost on every write is not needed (and would put ghost code
+  in every handler); setting it once at `Stop` gives the same guarantee.
+  Per-write updates can be added later if something must be tracked while
+  running.
+
+**Scope: what the device owns.** A device's fields may refer to shared
+state outside its mutex: the PIT's `VmTimeAccess` (its timer deadlines are
+in vmtime's shared timer state), and interrupt line levels (in the line
+sets). Changes there do not go through the device's mutex; they are the
+cross-unit effects already listed (per-pin resources; vmtime as its own
+unit). So a device's `saved_state()` should be defined over what it owns.
+
+**What it changes:** the receiver's half goes into the device object (for
+chipset devices, inside the `CloseableMutex`; other units need their own
+place); the unit-side contract moves down to the device: `SaveRestore`'s
+contract and the device's `wf()` include the ghost, and the device's I/O
+handlers get contracts; verifying a device means verifying all its mutation
+paths, including its I/O handlers.
+
 ### Unit-side contract
 
 What a state unit must do for the request protocol to hold, layer by layer,
@@ -418,7 +485,9 @@ Concerns:
   requests); the contract says `saved_state()` is unchanged.
 - **Devices behind `CloseableMutex`**: while running, vCPUs change them
   outside the unit's task (the ghost goes stale, which is fine); while
-  stopped, the closed mutex keeps them unchanged (assumption, gap 7).
+  stopped, they are kept unchanged by the stop order (vCPUs stop first),
+  not by the mutex (see "Design change: the FracGhost lives with the
+  device", which makes this provable).
 - **`reset` and `advance_time`** change unit state; the protocol only
   returns the half. `advance_time` runs after restore
   (`restore_from_snapshot`), so that layer must account for it.
@@ -894,8 +963,9 @@ What Stage 2 still needs, found by comparing the prototype with
    the unit holds the whole permission and updates the ghost in step" does not
    hold. Likely fix: let the ghost be stale while running; at `Stop`, the
    unit, holding the whole permission, sets the ghost to the device's current
-   state. "Frozen" then relies on the closed mutex keeping vCPUs out while
-   stopped, a trusted assumption.
+   state. "Frozen" then relies on vCPUs being stopped (stop order), a
+   trusted assumption; see "Design change: the FracGhost lives with the
+   device" for how to prove it.
 8. **Task spawning.** Units are spawned on `pal_async` executors, not with
    `vstd::thread::spawn`; spawning needs a small trusted spec.
 
@@ -1012,11 +1082,13 @@ concurrent per-pin writes into the PIC and IOAPIC.
    lock invariant, at the cost of changing the registration API and its
    callers (the chipset builder, `vmbus_unit`, `partition_unit`, vmtime,
    time-abi).
-5. **Validate on one unit first: the PIT, end to end**: tie its
-   `saved_state()` to its real fields, verify its `SaveRestore` `save` /
-   `restore` against the contract, and its request loop against the request
-   protocol. This tests whether the unit-side obligations are tractable
-   before more layers are added.
+5. **Validate on one unit first: the PIT, end to end**, with the FracGhost
+   living with the device ("Design change: the FracGhost lives with the
+   device"): tie its `saved_state()` to its real fields, keep its half in
+   the device object inside its `CloseableMutex`, verify its `SaveRestore`
+   `save` / `restore` and its I/O handlers against its `wf()`, and its
+   request loop against the request protocol. This tests whether the
+   unit-side obligations are tractable before more layers are added.
 
 ### Other open items
 

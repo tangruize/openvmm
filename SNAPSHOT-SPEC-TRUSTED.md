@@ -106,7 +106,7 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`.
 
 | Item | What is assumed |
 |---|---|
-| Stopped devices do not change | While the state units are stopped, a chipset device's `CloseableMutex` keeps vCPUs out, so its state changes only through its unit (design doc, gap 7). |
+| Stopped devices do not change | While the state units are stopped, no vCPU accesses a device: the partition unit (VPs) is stopped before the devices (stop order: dependants first) and stays stopped until `start`, and stopping it stops the vCPUs. (Not the `CloseableMutex`: a unit closes its device's mutex only during each operation.) Also, a stopped device has no activity of its own (its `stop` stops its timers and async work). To be replaced by a proof: see the design doc, "Design change: the FracGhost lives with the device". |
 
 ## Prototype only (`verus-patches/verus-rpc-prototype`, not part of OpenVMM)
 
