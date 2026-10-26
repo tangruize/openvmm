@@ -8,6 +8,8 @@
 #![cfg(guest_arch = "x86_64")]
 
 use super::LoadedVm;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use crate::partition::HvlitePartition;
 use anyhow::Context as _;
 use chipset_resources::microvm_time::RestoreTimeRecord;
@@ -961,6 +963,21 @@ impl LoadedVm {
     /// packet. The LAPIC advance rejects a periodic or TSC-deadline timer, so
     /// restore needs no separate timer check, and the PIT checks itself when
     /// restored.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.runtime.running,
+        ensures
+            final(self).wf(),
+            final(self)@.runtime == old(self)@.runtime,
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.clock_units == old(self)@.clock_units,
+            // Only the partition (TSCs, LAPIC timers) and the units that
+            // advance time (`AdvanceTime`) may change.
+            final(self)@.snapshot.units.remove_keys(old(self).state_units@.advances_time.insert("partition"@))
+                == old(self)@.snapshot.units.remove_keys(old(self).state_units@.advances_time.insert("partition"@)),
+    ))]
     pub(super) async fn time_abi_restore(&mut self, input: RestoreTimeInput) -> anyhow::Result<()> {
         let state = self
             .inner

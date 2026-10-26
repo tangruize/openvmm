@@ -31,6 +31,10 @@ only where a trusted item gives them meaning.
 | `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
 | `LoadedVm::quiesce_and_save`, `LoadedVm::capture_time_abi` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). `capture_time_abi`'s contract (the view is unchanged) is a claim about the VPs' timer check and the partition's time records. |
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
+| `LoadedVm::restore_from_snapshot`, `begin_snapshot_restore`, `finish_snapshot_restore` | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same (design doc, "Restore from snapshot"). |
+| `LoadedVm::time_abi_restore` | `openvmm/openvmm_core/src/worker/dispatch/time_abi.rs` | Same. Claims the clock restore changes only the partition and the units that advance time. |
+| `StateUnits::advance_time` | `vmm_core/state_unit/src/advance_time.rs` | Same. |
+| `View for SnapshotRestore` (uninterpreted) | `openvmm/openvmm_core/src/worker/dispatch.spec.rs` | `clock_restore_pending` is `time_abi.is_some()` (`SnapshotRestore` has private fields, so Verus cannot see it). |
 
 ## Proofs pending
 
@@ -83,8 +87,8 @@ contracts are assumptions about mesh. See the file header.
 
 | Item | Where | What is assumed |
 |---|---|---|
-| **AXIOM: registry unchanged since collection** | `registry_t.rs`, `StateUnits::lock_registry` | Each time `StateUnits` locks its registry (`lock_registry`, used instead of `Mutex::acquire` by verified code), the value taken out agrees with the units collected so far (`StateUnits::agrees_with`): since the last collection, no collected unit was removed or changed its name or channel, and every unit added since still has its half attached to its sender. Needed because units are added through `&StateUnits` and removed through `Weak` handles, both unverified, so no lock invariant can tie the registry to `StateUnits`' ghost fields. Stated only about `StateUnits`' own registry, so it cannot be applied to another `Inner`. |
-| **AXIOM: registry exact inside a `&mut` operation** | `registry_t.rs`, `StateUnits::lock_registry_exact` | Inside an operation that holds `&mut StateUnits` and has collected the halves since it began, the registry holds exactly the collected units. Registration needs `&StateUnits`, which cannot exist while `&mut StateUnits` is held; removal is excluded by the axiom above. For use by such operations only, after `collect_halves`. |
+| **AXIOM: registry unchanged since collection** | `registry_t.rs`, `StateUnits::lock_registry` | Each time `StateUnits` locks its registry (`lock_registry`, used instead of `Mutex::acquire` by verified code), the value taken out agrees with the units collected so far (`StateUnits::agrees_with`): since the last collection, no collected unit was removed or changed its name, channel, or `advances_time` flag, and every unit added since still has its half attached to its sender. Needed because units are added through `&StateUnits` and removed through `Weak` handles, both unverified, so no lock invariant can tie the registry to `StateUnits`' ghost fields. Stated only about `StateUnits`' own registry, so it cannot be applied to another `Inner`. |
+| **AXIOM: registry exact inside a `&mut` operation** | `registry_t.rs`, `StateUnits::lock_registry_exact` | Inside an operation that holds `&mut StateUnits` and has collected the halves since it began, the registry holds exactly the collected units (with the same names, channels, and `advances_time` flags). Registration needs `&StateUnits`, which cannot exist while `&mut StateUnits` is held; removal is excluded by the axiom above. For use by such operations only, after `collect_halves`. |
 | `assume_specification` for `<State as PartialEq>::eq` | `registry_t.rs` | `State`'s derived equality is structural. |
 | `assume_specification` for `<ReadySet as Clone>::clone` | `registry_t.rs` | A clone holds the same units (same view). |
 | `assume_specification` for `Inner::ready_set` | `registry_t.rs` | With `unit_ids` `None`, the ready set holds every registered unit. |

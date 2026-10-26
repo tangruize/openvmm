@@ -279,6 +279,73 @@ Concerns:
 - **After `quiesce_and_save` the VM stays stopped**; resuming or ending it
   is the caller's (controller's) business.
 
+### Restore from snapshot
+
+`LoadedVm::restore_from_snapshot` (`dispatch/restore.rs`) is
+`begin_snapshot_restore`, then `restore`, then `finish_snapshot_restore`.
+For a time ABI restore, `begin` has the partition drop the VPs' saved TSCs
+(`omit_saved_tsc`), and `finish` runs the clock restore (`time_abi_restore`:
+synchronized TSC set, LAPIC timer advance, `StateUnits::advance_time` for VM
+time and the RTC) and holds the VPs stopped until the VM first starts.
+
+So after a time ABI restore, some units do not hold exactly their saved
+state: the partition and the units that advance time. The view names them:
+`LoadedVmView::clock_units` is `state_units@.advances_time` plus
+`"partition"` while a time ABI clock restore is pending
+(`SnapshotRestore`'s view, `clock_restore_pending`), and empty otherwise.
+`StateUnitsView::advances_time` is new (the units registered with
+`advances_time()`; the ghost registry records the flag at collection).
+
+Contracts (bodies `external_body`):
+
+| Function | Requires | Ensures |
+|---|---|---|
+| `restore_from_snapshot(saved)` | `wf`, stopped | `wf`; runtime and inventory unchanged; on `Ok`: `clock_units` empty, units outside the old `clock_units` are as `restore` leaves them (`old.units.union_prefer_right(saved@.units)`), and the saved inventory is empty or the VM's |
+| `begin_snapshot_restore` | `wf` | `wf`; view unchanged |
+| `finish_snapshot_restore` | `wf`, stopped | `wf`; runtime and inventory unchanged; `clock_units` empty; units outside the old `clock_units` unchanged |
+| `time_abi_restore` (`dispatch/time_abi.rs`) | `wf`, stopped | `wf`; runtime, inventory, `clock_units` unchanged; units outside `advances_time` + `"partition"` unchanged |
+| `StateUnits::advance_time` (`vmm_core/state_unit/src/advance_time.rs`) | `wf`, stopped | `wf`; same units, inventory, `advances_time`; units outside `advances_time` unchanged |
+| `LoadedVm::restore` (added) | | `clock_units` unchanged |
+
+They compose: `begin` changes nothing, `restore` gives the union and keeps
+`clock_units`, and `finish` changes only `clock_units` and empties it. All
+`StateUnits` operations now also keep `advances_time`.
+
+Concerns and TODOs:
+
+- **The clock units' restored state is unconstrained.** It is the saved
+  state advanced by the downtime (TSC target, LAPIC timers, VM time, RTC).
+  TODO: specify the clock restore; this needs typed views of those units'
+  saved states (`SavedStateBlobView` is opaque) and a spec of the time
+  contract (`RestoreTimeInput`, validated by the controller, is not
+  specified).
+- **The partition's view can go stale.** The TSC set and the LAPIC advance
+  write the partition's VPs directly through `partition_unit`, outside the
+  request protocol, so the partition's FracGhost half is not updated: after
+  `finish`, the view still says the partition holds its saved blob, while
+  its TSCs and timers differ. Likewise `omit_saved_tsc` means the partition's
+  `restore` does not fully apply its blob, against the unit-side restore
+  contract. The `restore_from_snapshot` contract is not affected (it says
+  nothing about clock units), but the view after it is wrong for the
+  partition. TODO: route these writes through a ghost-updating path, or mark
+  the partition's recorded state as changed (e.g. `Unknown`) after the
+  clock restore.
+- **`SnapshotRestore`'s view is uninterpreted** (trusted to mean
+  `time_abi.is_some()`), because `SnapshotRestore` has private fields.
+- **`"partition"` is hard-coded** in `LoadedVm`'s view (the unit is added as
+  `"partition"` in `dispatch.rs`). TODO: share a constant, or derive the
+  set from the units the clock restore touches.
+- **Error paths**: on `Err`, only `wf`, runtime, and inventory are
+  promised. A failed `begin` (a time ABI restore without partition state)
+  or `restore` leaves the clock restore pending; a failed `finish` may have
+  partly advanced the clocks.
+- **Not modelled**: the start guard (VPs held stopped until the first
+  start), `restored_from_snapshot`, the restore packet's time fields, and
+  profiling.
+- **Next layer up**: `InitializedVm::load(Some(saved_state))`
+  (`dispatch.rs:1824`) builds the `LoadedVm` (and collects the halves in
+  `make_ids`), then calls `restore_from_snapshot`. TODO: its contract.
+
 ### Unit-side contract
 
 What a state unit must do for the request protocol to hold, layer by layer,
@@ -496,7 +563,8 @@ fails; runtime tests cover `acquire`/`release` and the unverified `lock`.
 want to verify the save side up to the controller, layer by layer.
 
 1. **`LoadedVm::save` and `LoadedVm::restore`** (current target).
-2. **Quiesce** (contracts written; see "Quiesce and save").
+2. **Quiesce** (contracts written; see "Quiesce and save"), and on the
+   restore side `restore_from_snapshot` (see "Restore from snapshot").
    `LoadedVm::quiesce_for_snapshot` (`dispatch/microvm.rs:353`) stops the
    state units, captures time, calls `save`, and then encodes the result into
    a `ProtobufMessage`. The plan is a behavior-preserving split: a new
@@ -910,3 +978,34 @@ concurrent per-pin writes into the PIC and IOAPIC.
 - How concurrent LINT0 pulses and IOAPIC routing updates interact inside KVM.
 - That every microVM device reports PIO/MMIO at runtime (which places it
   before `partition`); checked from resolvers and constructors only.
+
+## Open TODOs
+
+A summary of the open items recorded in the sections above, most important
+first.
+
+1. **Prove the contracts.** Every contract above has an unverified body
+   (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as
+   assumed until verified. The `run_op` proof attempt is on branch
+   `system-proof/run-op-proof-attempt`.
+2. **Next layers**: `InitializedVm::load(Some(_))` (restore side), and the
+   controller (`VmController::handle_guest_snapshot_request`), which needs a
+   decision on the encoded `ProtobufMessage` (roadmap item 3).
+3. **Clock restore**: specify the clock units' restored state, and fix the
+   partition's stale view after the TSC set and LAPIC advance ("Restore from
+   snapshot").
+4. **Unit side**: attach the blob, `StateUnit`, and request-loop contracts
+   (blocked on the `SavedStateRoot` trait chain, async trait functions, and
+   async closures); the units not built on `SaveRestore`; cross-unit
+   interrupt effects ("Unit-side contract").
+5. **`SavedStateBlob` `new`/`parse`**: attach their contract with the unit
+   side (local `encode`/`decode` trait).
+6. **Quiesce path**: the time capture, and `quiesce_for_save`'s error cases
+   ("Quiesce and save").
+7. **Pending proof**: `StateUnits::lemma_view_inv`.
+8. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
+   trusted wrapper types' spec functions ("Convention TODOs").
+9. **Soundness review** of `mesh_rpc_t.rs` (the reply-ghost type argument)
+   and of the registry axioms (`registry_t.rs`).
+10. **Hard-coded `"partition"`** in `LoadedVm`'s view.
+

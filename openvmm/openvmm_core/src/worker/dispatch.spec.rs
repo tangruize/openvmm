@@ -4,6 +4,7 @@
 // High-level spec of a loaded VM, for human review.
 
 use super::LoadedVm;
+use super::restore::SnapshotRestore;
 use openvmm_defs::worker::spec::SavedStateView;
 use vstd::prelude::*;
 
@@ -18,6 +19,12 @@ pub struct LoadedVmView {
     /// stopped or restored since it was created); `snapshot` is complete
     /// only then.
     pub recorded: bool,
+    /// The units whose state a pending time ABI clock restore will change:
+    /// the partition (its TSCs and LAPIC timers are set) and the units that
+    /// advance time (they receive `AdvanceTime`). Empty unless the VM was
+    /// loaded for a time ABI restore that has not yet run
+    /// (`finish_snapshot_restore`).
+    pub clock_units: Set<Seq<char>>,
     /// The rest, which a snapshot does not capture.
     pub runtime: VmRuntime,
 }
@@ -36,6 +43,22 @@ pub struct VmRuntime {
     /// Whether the state units are running (`StateUnits::save` and
     /// `StateUnits::restore` require them stopped).
     pub running: bool,
+}
+
+/// The view of a `SnapshotRestore`.
+pub struct SnapshotRestoreView {
+    /// Whether a time ABI clock restore is pending (`time_abi` is set; it is
+    /// taken by `finish_snapshot_restore`).
+    pub clock_restore_pending: bool,
+}
+
+impl View for SnapshotRestore {
+    type V = SnapshotRestoreView;
+
+    /// Trusted: `clock_restore_pending` is `self.time_abi.is_some()`.
+    /// (Uninterpreted: `SnapshotRestore` has private fields, so Verus cannot
+    /// see `time_abi`.)
+    uninterp spec fn view(&self) -> SnapshotRestoreView;
 }
 
 impl LoadedVm {
@@ -57,6 +80,11 @@ impl View for LoadedVm {
         LoadedVmView {
             snapshot: SavedStateView { units: units.saved_units(), inventory: units.inventory },
             recorded: units.all_recorded(),
+            clock_units: if self.snapshot_restore@.clock_restore_pending {
+                units.advances_time.insert("partition"@)
+            } else {
+                Set::empty()
+            },
             runtime: VmRuntime { running: units.running },
         }
     }

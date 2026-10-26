@@ -33,15 +33,20 @@ pub struct StateUnitsView {
     pub units: Map<Seq<char>, UnitSnapshot>,
     /// The names of the units, in registration order.
     pub inventory: Seq<Seq<char>>,
+    /// The names of the units that advance guest-visible time
+    /// (`UnitBuilder::advances_time`; they receive `AdvanceTime`).
+    pub advances_time: Set<Seq<char>>,
     /// Whether the units are running.
     pub running: bool,
 }
 
 impl StateUnitsView {
-    /// The inventory lists each unit once.
+    /// The inventory lists each unit once, and the units that advance time
+    /// are among them.
     pub open spec fn inv(self) -> bool {
         &&& self.inventory.no_duplicates()
         &&& self.inventory.to_set() == self.units.dom()
+        &&& self.advances_time <= self.units.dom()
     }
 
     /// No unit records `Unknown`: each has been stopped or restored since it
@@ -103,7 +108,9 @@ impl View for StateUnits {
     closed spec fn view(&self) -> StateUnitsView {
         StateUnitsView {
             units: Map::new(
-                self.units_ghost@.registry.values().map(|entry: (Seq<char>, vstd::resource::Loc)| entry.0),
+                self.units_ghost@.registry.values().map(
+                    |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0,
+                ),
                 |name: Seq<char>|
                     self.units_ghost@.halves[choose|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
                         && self.units_ghost@.registry[id].0 == name]@,
@@ -113,6 +120,9 @@ impl View for StateUnits {
             inventory: self.units_ghost@.registry.dom().to_sorted_seq(|a: u64, b: u64| a <= b).map_values(
                 |id: u64| self.units_ghost@.registry[id].0,
             ),
+            advances_time: self.units_ghost@.registry.values().filter(
+                |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.2,
+            ).map(|entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0),
             running: self.running,
         }
     }

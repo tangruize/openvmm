@@ -205,16 +205,17 @@ impl MutexPredicate<Inner> for InnerPred {
 pub tracked struct UnitHalves {
     /// The half held for each collected unit, by unit id.
     pub tracked halves: Map<u64, FracGhost<UnitSnapshot>>,
-    /// The collected units, by id: name and the id of the unit's FracGhost
-    /// (its channel's constant).
-    pub ghost registry: Map<u64, (Seq<char>, Loc)>,
+    /// The collected units, by id: name, the id of the unit's FracGhost (its
+    /// channel's constant), and whether it advances time
+    /// (`UnitBuilder::advances_time`).
+    pub ghost registry: Map<u64, (Seq<char>, Loc, bool)>,
 }
 
 /// The ghost state of a new `StateUnits`: no unit collected.
 pub(crate) fn no_halves() -> (result: Tracked<UnitHalves>)
     ensures
         result@.halves == Map::<u64, FracGhost<UnitSnapshot>>::empty(),
-        result@.registry == Map::<u64, (Seq<char>, Loc)>::empty(),
+        result@.registry == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
 {
     Tracked(UnitHalves { halves: Map::tracked_empty(), registry: Map::empty() })
 }
@@ -241,18 +242,19 @@ impl StateUnits {
 
     /// The collected units, by id: name and the id of the unit's FracGhost.
     /// (Proof plumbing for the registry axioms.)
-    pub(crate) closed spec fn collected(&self) -> Map<u64, (Seq<char>, Loc)> {
+    pub(crate) closed spec fn collected(&self) -> Map<u64, (Seq<char>, Loc, bool)> {
         self.units_ghost@.registry
     }
 
     /// The registry as seen under the lock agrees with the collected units:
     /// each collected unit is registered with the same name and channel, and
     /// each registered unit not yet collected still has its half attached.
-    pub(crate) open spec fn agrees_with(collected: Map<u64, (Seq<char>, Loc)>, inner: Inner) -> bool {
+    pub(crate) open spec fn agrees_with(collected: Map<u64, (Seq<char>, Loc, bool)>, inner: Inner) -> bool {
         &&& forall|id: u64| #[trigger] collected.contains_key(id) ==> {
             &&& inner.units@.contains_key(id)
             &&& inner.units@[id].name.view_str() == collected[id].0
             &&& inner.units@[id].send.constant() == collected[id].1
+            &&& inner.units@[id].advances_time == collected[id].2
         }
         &&& forall|id: u64|
             #[trigger] inner.units@.contains_key(id) && !collected.contains_key(id)
@@ -261,11 +263,12 @@ impl StateUnits {
 
     /// The registry as seen under the lock holds exactly the collected units,
     /// with the same names and channels.
-    pub(crate) open spec fn agrees_exactly(collected: Map<u64, (Seq<char>, Loc)>, inner: Inner) -> bool {
+    pub(crate) open spec fn agrees_exactly(collected: Map<u64, (Seq<char>, Loc, bool)>, inner: Inner) -> bool {
         &&& inner.units@.dom() == collected.dom()
         &&& forall|id: u64| #[trigger] collected.contains_key(id) ==> {
             &&& inner.units@[id].name.view_str() == collected[id].0
             &&& inner.units@[id].send.constant() == collected[id].1
+            &&& inner.units@[id].advances_time == collected[id].2
         }
     }
 
@@ -310,7 +313,11 @@ impl StateUnits {
                     if !registry.contains_key(id) {
                         // Not yet collected: the half is still attached.
                         let tracked half = half.tracked_unwrap();
-                        let entry = (before.name.view_str(), before.send.constant());
+                        let entry = (
+                            before.name.view_str(),
+                            before.send.constant(),
+                            before.advances_time,
+                        );
                         assert forall|other: u64| #[trigger] registry.contains_key(other)
                             implies registry[other].0 != entry.0 by {
                             assert(inner.units@.contains_key(other));

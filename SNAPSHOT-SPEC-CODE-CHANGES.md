@@ -202,6 +202,19 @@ Baseline: upstream `nanvix/openvmm` commit
     (`vmm_core/state_unit/src/quiesce.rs`); Verus-only `vstd` imports in
     both files; declarations of `QuiesceForSaveError` (`state_unit`),
     `SnapshotQuiesceError`, and `TimeCapture` (`openvmm_defs`).
+24. **Restore-from-snapshot contracts** (Verus only, no runtime change):
+    contracts (`external_body`) on `LoadedVm::restore_from_snapshot`,
+    `begin_snapshot_restore`, `finish_snapshot_restore`
+    (`dispatch/restore.rs`), `time_abi_restore` (`dispatch/time_abi.rs`, with
+    a Verus-only `vstd` import), and `StateUnits::advance_time`
+    (`vmm_core/state_unit/src/advance_time.rs`, likewise); `LoadedVm::restore`
+    also keeps `clock_units`; `StateUnits`' `stop`, `reset`, `restore`, and
+    `quiesce_for_save` also keep `advances_time`. `dispatch.spec.rs`:
+    `SnapshotRestoreView` and `View for SnapshotRestore` (uninterpreted),
+    `LoadedVmView::clock_units`. `state_unit`: the ghost registry records each
+    unit's `advances_time` flag (the registry axioms cover it), and
+    `StateUnitsView::advances_time` is new. Declarations of
+    `RestoreTimeInput` and `ProfileSpan` (`openvmm_defs`).
 
 ### Planned: mesh RPC trusted spec
 

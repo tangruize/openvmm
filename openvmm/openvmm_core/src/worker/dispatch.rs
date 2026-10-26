@@ -4680,6 +4680,7 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
+            final(self)@.clock_units == old(self)@.clock_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {
                 // Units with saved state take it; the others keep theirs.

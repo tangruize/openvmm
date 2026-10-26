@@ -24,4 +24,12 @@ pub struct ExSnapshotQuiesceError(crate::rpc::SnapshotQuiesceError);
 #[verifier::external_body]
 pub struct ExTimeCapture(crate::time_abi::TimeCapture);
 
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRestoreTimeInput(crate::time_abi::RestoreTimeInput);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExProfileSpan(crate::profile::ProfileSpan);
+
 } // verus!

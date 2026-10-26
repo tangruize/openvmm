@@ -104,6 +104,7 @@ impl StateUnits {
         ensures
             final(self).wf(),
             final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
             final(self)@.units.dom() == old(self)@.units.dom(),
             // On success the units are stopped and each has recorded its
             // state (each received `Stop`); on failure they are still

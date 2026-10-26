@@ -279,6 +279,30 @@ pub(super) fn validate_inventory(
 impl LoadedVm {
     /// Applies saved state and restore-time adjustments, then keeps the VPs
     /// stopped through the snapshot-load return boundary.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.runtime.running,
+        ensures
+            final(self).wf(),
+            final(self)@.runtime == old(self)@.runtime,
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            result is Ok ==> {
+                // The clock restore, if any, has run. (On an earlier error it
+                // has not.)
+                &&& final(self)@.clock_units.is_empty()
+                // Outside the units the clock restore changes, as `restore`:
+                // units with saved state take it; the others keep theirs.
+                &&& final(self)@.snapshot.units.remove_keys(old(self)@.clock_units)
+                    == old(self)@.snapshot.units.union_prefer_right(saved_state@.units).remove_keys(
+                    old(self)@.clock_units,
+                )
+                // The saved inventory, if any, matches the VM's.
+                &&& saved_state@.inventory.len() == 0
+                    || saved_state@.inventory == old(self)@.snapshot.inventory
+            },
+    ))]
     pub(super) async fn restore_from_snapshot(
         &mut self,
         saved_state: SavedState,
@@ -294,6 +318,17 @@ impl LoadedVm {
     /// time ABI restore has partition state, and starts the profile span of
     /// the restore. A time ABI restore drops the VPs' saved TSC values, which
     /// its synchronized TSC set supersedes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            // Marks the VM restored and, for a time ABI restore, has the
+            // partition drop the VPs' saved TSCs on restore; the view is
+            // unchanged.
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     pub(super) async fn begin_snapshot_restore(
         &mut self,
         #[cfg_attr(not(guest_arch = "x86_64"), expect(unused_variables))] saved_state: &SavedState,
@@ -313,6 +348,20 @@ impl LoadedVm {
     /// Completes a restore after the saved state is applied: sets and
     /// advances the guest clocks of a time ABI restore, and holds the VPs
     /// stopped until the VM first starts.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.runtime.running,
+        ensures
+            final(self).wf(),
+            final(self)@.runtime == old(self)@.runtime,
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.clock_units.is_empty(),
+            // Only the units the clock restore changes may change.
+            final(self)@.snapshot.units.remove_keys(old(self)@.clock_units)
+                == old(self)@.snapshot.units.remove_keys(old(self)@.clock_units),
+    ))]
     pub(super) async fn finish_snapshot_restore(
         &mut self,
         saved_state_restore: ProfileSpan,

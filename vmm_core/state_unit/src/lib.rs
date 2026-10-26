@@ -581,6 +581,7 @@ impl StateUnits {
             final(self).wf(),
             !final(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
             final(self)@.units.dom() == old(self)@.units.dom(),
             // Each unit has recorded its state.
             final(self)@.all_recorded(),
@@ -615,6 +616,7 @@ impl StateUnits {
             final(self).wf(),
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
             // The units' states may have changed (they are reset).
             final(self)@.units.dom() == old(self)@.units.dom(),
     ))]
@@ -696,6 +698,7 @@ impl StateUnits {
             final(self).wf(),
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
             final(self)@.units.dom() == old(self)@.units.dom(),
             // Each unit in `states` (by name, once each, and registered)
             // records its saved state; the others keep theirs.
