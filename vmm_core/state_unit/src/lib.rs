@@ -654,8 +654,10 @@ impl StateUnits {
         {
             let inner = self.inner.lock();
             for state in states {
-                match inner.names.get_key_value(state.name.as_str()) {
-                    Some((name, &id)) => {
+                match inner.names.get(state.name.as_str()) {
+                    Some(&id) => {
+                        // The same `Arc` as the key in `names` (see `build`).
+                        let name = &inner.units[&id].name;
                         if states_by_id
                             .insert(id, (name.clone(), state.state))
                             .is_some()
@@ -736,11 +738,12 @@ impl StateUnits {
         {
             let mut inner = self.inner.lock();
             ready_set = inner.ready_set(unit_ids);
-            for (&id, unit) in inner
-                .units
-                .iter_mut()
-                .filter(|(id, _)| ready_set.0.contains_key(id))
-            {
+            let ids: Vec<u64> = inner.units.keys().copied().collect();
+            for id in ids {
+                if !ready_set.0.contains_key(&id) {
+                    continue;
+                }
+                let unit = inner.units.get_mut(&id).unwrap();
                 if unit.state != old_state {
                     assert_eq!(
                         unit.state, new_state,
@@ -751,55 +754,42 @@ impl StateUnits {
                 } else {
                     let name = unit.name.clone();
                     let input = (input)(id, unit);
-                    let ready_set = ready_set.clone();
                     let deps = deps(unit).to_vec();
-                    let fut = state_change(name.clone(), unit, request, input);
-                    let recv = async move {
-                        ready_set.wait(op, id, &deps).await;
-                        let r = fut.await;
-                        ready_set.done(id, true);
-                        (name, id, r)
-                    };
+                    let fut = state_change(name.clone(), unit.send.clone(), request, input);
+                    let recv = wait_then_change(ready_set.clone(), op, id, deps, name, fut);
                     done.push(recv);
                     unit.state = interim_state;
                 }
             }
         }
 
-        let results = async {
-            let start = Instant::now();
-            let results = join_all(done).await;
-            tracing::info!(duration = ?Instant::now() - start, "state change complete");
-            results
-        }
-        .instrument(tracing::info_span!("state_change", operation = op))
-        .await;
+        let results = join_all_timed(done)
+            .instrument(tracing::info_span!("state_change", operation = op))
+            .await;
 
         let mut inner = self.inner.lock();
-        let r = results
-            .into_iter()
-            .filter_map(|(name, id, r)| {
-                match r {
-                    Ok(Some(r)) => Some((name, r)),
-                    Ok(None) => None,
-                    Err(err) => {
-                        // If the unit was removed during the operation, then
-                        // ignore the failure. Otherwise, panic because unit
-                        // failure is not recoverable. FUTURE: reconsider this
-                        // position.
-                        if inner.units.contains_key(&id) {
-                            panic!("{:?}", err);
-                        }
-                        None
+        let mut r = Vec::new();
+        for (name, id, result) in results {
+            match result {
+                Ok(Some(result)) => r.push((name, result)),
+                Ok(None) => {}
+                Err(err) => {
+                    // If the unit was removed during the operation, then
+                    // ignore the failure. Otherwise, panic because unit
+                    // failure is not recoverable. FUTURE: reconsider this
+                    // position.
+                    if inner.units.contains_key(&id) {
+                        panic!("{:?}", err);
                     }
                 }
-            })
-            .collect();
-        for (_, unit) in inner
-            .units
-            .iter_mut()
-            .filter(|(id, _)| ready_set.0.contains_key(id))
-        {
+            }
+        }
+        let ids: Vec<u64> = inner.units.keys().copied().collect();
+        for id in ids {
+            if !ready_set.0.contains_key(&id) {
+                continue;
+            }
+            let unit = inner.units.get_mut(&id).unwrap();
             if unit.state == interim_state {
                 unit.state = new_state;
             } else {
@@ -871,33 +861,64 @@ impl ReadySet {
     }
 }
 
-/// Sends state change `request` to `unit` with `input`, wrapping the result
-/// future with a span, and wrapping its error with something more informative.
-///
-/// `operation` and `name` are used in tracing and error construction.
-fn state_change<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> StateRequest>(
+/// Waits for the dependencies `deps` of unit `id` to finish, runs `fut` (the
+/// unit's state change), and marks unit `id` done.
+async fn wait_then_change<F: Future>(
+    ready_set: ReadySet,
+    op: &str,
+    id: u64,
+    deps: Vec<u64>,
     name: Arc<str>,
-    unit: &Unit,
+    fut: F,
+) -> (Arc<str>, u64, F::Output) {
+    ready_set.wait(op, id, &deps).await;
+    let r = fut.await;
+    ready_set.done(id, true);
+    (name, id, r)
+}
+
+/// Awaits all of `futs`, logging how long it took.
+async fn join_all_timed<F: Future>(futs: Vec<F>) -> Vec<F::Output> {
+    let start = Instant::now();
+    let results = join_all(futs).await;
+    tracing::info!(duration = ?Instant::now() - start, "state change complete");
+    results
+}
+
+/// Sends state change `request` to the unit at `send` with `input`, wrapping
+/// the call with a span, and wrapping its error with something more
+/// informative.
+///
+/// `name` is used in tracing and error construction.
+async fn state_change<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> StateRequest>(
+    name: Arc<str>,
+    send: Sender<StateRequest>,
     request: Req,
     input: Option<I>,
-) -> impl Future<Output = Result<Option<R>, UnitRecvError>> + use<I, R, Req> {
-    let send = unit.send.clone();
-
-    async move {
-        let Some(input) = input else { return Ok(None) };
-        let span = tracing::info_span!("device_state_change", device = name.as_ref());
-        async move {
-            let start = Instant::now();
-            let r = send
-                .call(request, input)
-                .await
-                .map_err(|err| UnitRecvError { name, source: err });
-            tracing::debug!(duration = ?Instant::now() - start, "device state change complete");
-            r.map(Some)
-        }
+) -> Result<Option<R>, UnitRecvError> {
+    let Some(input) = input else { return Ok(None) };
+    let span = tracing::info_span!("device_state_change", device = name.as_ref());
+    call_unit(name, send, request, input)
         .instrument(span)
         .await
-    }
+        .map(Some)
+}
+
+/// Sends `request` with `input` to the unit at `send` and waits for the
+/// reply, logging how long it took.
+async fn call_unit<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> StateRequest>(
+    name: Arc<str>,
+    send: Sender<StateRequest>,
+    request: Req,
+    input: I,
+) -> Result<R, UnitRecvError> {
+    let start = Instant::now();
+    let r = send
+        .call(request, input)
+        .await
+        .map_err(|err| UnitRecvError { name, source: err });
+    tracing::debug!(duration = ?Instant::now() - start, "device state change complete");
+    r
 }
 
 /// A builder returned by [`StateUnits::add`].

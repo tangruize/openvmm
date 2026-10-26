@@ -100,6 +100,27 @@ Baseline: upstream `nanvix/openvmm` commit
     (`example_save_call`, `ExampleUnit`). `vm/vmcore/src/save_restore.spec.rs`
     gains a trusted `assume_specification` for `SavedStateBlob::clone`. No
     runtime change.
+16. **Behavior-preserving restructuring of `run_op` and its helpers**
+    (`vmm_core/state_unit/src/lib.rs`), so that Verus can verify them
+    (Verus does not support `async` blocks, or `BTreeMap::iter_mut` and
+    `HashMap::get_key_value`):
+    - `state_change` is an `async fn` taking the unit's `Sender` (callers pass
+      `unit.send.clone()`, cloned when the call is made, as before) instead of
+      a plain `fn` returning an `async move` block; its inner instrumented
+      block is the new `async fn call_unit`. Callers updated in `run_op`,
+      `quiesce.rs` (3), and `start.rs` (1).
+    - In `run_op`, the per-unit `async move` block is the new `async fn
+      wait_then_change` (wait for dependencies, run the state change, mark
+      done), and the block around `join_all` is the new `async fn
+      join_all_timed`; both keep their tracing.
+    - In `run_op`, the two loops over `inner.units.iter_mut().filter(...)`
+      iterate the keys and use `get_mut` (same order), and the result
+      `filter_map(...).collect()` is a `for` loop with `push`.
+    - In `restore`, `names.get_key_value(...)` is `names.get(...)` with the
+      name read from the unit, the same `Arc` (`build` stores one `Arc` in
+      both).
+    Checks: `cargo test -p state_unit` (10 passed), `cargo check -p
+    openvmm_entry`.
 
 ### Planned: mesh RPC trusted spec
 

@@ -57,7 +57,12 @@ impl StateUnits {
                 let name = unit.name.clone();
                 let dependencies = unit.dependencies.clone();
                 let ready_set = ready_set.clone();
-                let start = state_change(name.clone(), unit, StateRequest::Start, Some(()));
+                let start = state_change(
+                    name.clone(),
+                    unit.send.clone(),
+                    StateRequest::Start,
+                    Some(()),
+                );
                 operations.push(async move {
                     if !ready_set.wait("start", id, &dependencies).await {
                         ready_set.done(id, false);

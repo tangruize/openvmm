@@ -343,8 +343,11 @@ mod tests {
 
     #[async_test]
     async fn call_round_trip(driver: DefaultDriver) {
-        let (mut send, mut recv) =
-            channel::<TestMsg>(Ghost::assume_new(), Tracked::assume_new(), Tracked::assume_new());
+        let (mut send, mut recv) = channel::<TestMsg>(
+            Ghost::assume_new(),
+            Tracked::assume_new(),
+            Tracked::assume_new(),
+        );
         let _ = take_sender_ghost(&mut send);
         let send2 = clone_sender(&send);
         let server = driver.spawn("server", async move {

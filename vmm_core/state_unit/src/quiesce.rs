@@ -60,7 +60,8 @@ impl StateUnits {
                 .values()
                 .map(|unit| {
                     let name = unit.name.clone();
-                    let operation = state_change(name.clone(), unit, request, Some(()));
+                    let operation =
+                        state_change(name.clone(), unit.send.clone(), request, Some(()));
                     async move { (name, operation.await) }
                 })
                 .collect::<Vec<_>>()
@@ -119,7 +120,12 @@ impl StateUnits {
                 let dependencies = unit.dependents.clone();
                 let ready_set = ready_set.clone();
                 let mut context = context.clone();
-                let stop = state_change(name.clone(), unit, StateRequest::Stop, Some(()));
+                let stop = state_change(
+                    name.clone(),
+                    unit.send.clone(),
+                    StateRequest::Stop,
+                    Some(()),
+                );
                 operations.push(async move {
                     if !ready_set.wait("quiesce_for_save", id, &dependencies).await {
                         ready_set.done(id, false);
@@ -212,7 +218,12 @@ impl StateUnits {
                 let dependencies = unit.dependencies.clone();
                 let ready_set = ready_set.clone();
                 let mut context = context.clone();
-                let start = state_change(name.clone(), unit, StateRequest::Start, Some(()));
+                let start = state_change(
+                    name.clone(),
+                    unit.send.clone(),
+                    StateRequest::Start,
+                    Some(()),
+                );
                 operations.push(async move {
                     if !ready_set.wait("snapshot_rollback", id, &dependencies).await {
                         ready_set.done(id, false);
