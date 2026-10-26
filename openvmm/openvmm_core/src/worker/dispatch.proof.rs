@@ -27,9 +27,7 @@ pub(super) struct ExSnapshotRestore(SnapshotRestore);
 #[verifier::external_body]
 pub(super) struct ExSnapshotBoundary(SnapshotBoundary);
 
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExAnyhowError(anyhow::Error);
+// (`anyhow::Error` is declared in `state_unit`.)
 
 /// Restoring a saved state into a VM with the same stateful units and the
 /// same inventory gives back the snapshot state the saved state holds. With

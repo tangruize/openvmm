@@ -148,6 +148,20 @@ Baseline: upstream `nanvix/openvmm` commit
     `verus!`-style `ops.rs` with trusted helpers, is saved on branch
     `system-proof/run-op-proof-attempt`, commit `b5c333c5a`; it is not
     merged.)
+19. **State-unit contracts** (no runtime change): `verus_spec` contracts
+    with `verus_verify(external_body)` on `StateUnits::stop`, `reset`,
+    `save`, `restore` (`vmm_core/state_unit/src/lib.rs`), `inventory` and
+    `validate_inventory` (`inventory.rs`), and on `validate_inventory` in
+    `openvmm/openvmm_core/src/worker/dispatch/restore.rs`. `lib.spec.rs`
+    defines the view's `inventory` (collected units' names in id order) and
+    adds `StateUnitsView::all_recorded`, `saved_units`, and
+    `SavedStateUnit::map_of`, `distinct_names`; `SavedState`'s view
+    (`openvmm_defs/src/worker.spec.rs`) uses `map_of`. `LoadedVm`'s view uses
+    `saved_units`; `LoadedVm::units_consistent` is new, and `restore`
+    requires it. `make_ids` (`dispatch.rs`) calls
+    `state_units.collect_halves()` under `#[cfg(verus_keep_ghost)]` before
+    building `LoadedVm`. `anyhow::Error`'s declaration moves from
+    `openvmm_core` to `state_unit`. `collect_halves` is `pub`.
 
 ### Planned: mesh RPC trusted spec
 

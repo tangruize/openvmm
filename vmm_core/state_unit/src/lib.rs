@@ -61,6 +61,10 @@ mod proof {
 }
 
 #[cfg(verus_keep_ghost)]
+use spec::UnitSnapshot;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::SavedStateBlobView;
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 use futures::FutureExt;
@@ -566,6 +570,19 @@ impl StateUnits {
     }
 
     /// Stops all the state units.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self)@.running,
+        ensures
+            final(self).wf(),
+            !final(self)@.running,
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.units.dom() == old(self)@.units.dom(),
+            // Each unit has recorded its state.
+            final(self)@.all_recorded(),
+    ))]
     pub async fn stop(&mut self) {
         assert!(self.running);
         // Stop units in reverse dependency order so that a dependency is not
@@ -587,6 +604,18 @@ impl StateUnits {
     /// Resets all the state units.
     ///
     /// Panics if running.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.running,
+        ensures
+            final(self).wf(),
+            final(self)@.running == old(self)@.running,
+            final(self)@.inventory == old(self)@.inventory,
+            // The units' states may have changed (they are reset).
+            final(self)@.units.dom() == old(self)@.units.dom(),
+    ))]
     pub async fn reset(&mut self) -> Result<(), StateTransitionError> {
         assert!(!self.running);
         // Reset in dependency order so that dependants observe their
@@ -611,6 +640,21 @@ impl StateUnits {
     /// Saves all the state units.
     ///
     /// Panics if running.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.running,
+            old(self)@.all_recorded(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+            // One entry per unit with saved state, holding that state.
+            result matches Ok(states) ==> {
+                &&& SavedStateUnit::distinct_names(states@)
+                &&& SavedStateUnit::map_of(states@) == old(self)@.saved_units()
+            },
+    ))]
     pub async fn save(&mut self) -> Result<Vec<SavedStateUnit>, StateTransitionError> {
         assert!(!self.running);
         // Save can occur in any order since it will not observably mutate
@@ -641,6 +685,28 @@ impl StateUnits {
     /// Restores all the state units.
     ///
     /// Panics if running.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.running,
+        ensures
+            final(self).wf(),
+            final(self)@.running == old(self)@.running,
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.units.dom() == old(self)@.units.dom(),
+            // Each unit in `states` (by name, once each, and registered)
+            // records its saved state; the others keep theirs.
+            result is Ok ==> {
+                &&& SavedStateUnit::distinct_names(states@)
+                &&& SavedStateUnit::map_of(states@).dom() <= old(self)@.units.dom()
+                &&& final(self)@.units == old(self)@.units.union_prefer_right(
+                    SavedStateUnit::map_of(states@).map_values(
+                        |blob: SavedStateBlobView| UnitSnapshot::Saved(blob),
+                    ),
+                )
+            },
+    ))]
     pub async fn restore(
         &mut self,
         states: Vec<SavedStateUnit>,

@@ -5,9 +5,18 @@
 //! records and restore requires to match exactly.
 
 use super::StateUnits;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 impl StateUnits {
     /// Returns every registered state-unit name in stable registration order.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result@.map_values(|name: String| name@) == self@.inventory,
+    ))]
     pub fn inventory(&self) -> Vec<String> {
         self.inner
             .lock()
@@ -18,6 +27,13 @@ impl StateUnits {
     }
 
     /// Verifies that a saved inventory exactly matches the registered units.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result is Ok ==> saved_inventory@.map_values(|name: String| name@) == self@.inventory,
+    ))]
     pub fn validate_inventory(&self, saved_inventory: &[String]) -> anyhow::Result<()> {
         let current_inventory = self.inventory();
         anyhow::ensure!(

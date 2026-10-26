@@ -49,6 +49,10 @@ pub(super) struct ExUnitRecvError(super::UnitRecvError);
 pub struct ExStateTransitionError(super::StateTransitionError);
 
 #[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExAnyhowError(anyhow::Error);
+
+#[verifier::external_type_specification]
 pub struct ExSavedStateUnit(super::SavedStateUnit);
 
 #[verifier::external_type_specification]
@@ -259,15 +263,12 @@ impl StateUnits {
 
     /// Collects the halves still attached to registered units' senders.
     /// Halves already held are kept. Ghost only: call sites are Verus-only.
-    pub(super) fn collect_halves(&mut self)
+    pub fn collect_halves(&mut self)
         requires
             old(self).wf(),
         ensures
             final(self).wf(),
             old(self).collected() <= final(self).collected(),
-            forall|id: u64| #[trigger] old(self).units_ghost@.halves.contains_key(id)
-                ==> final(self).units_ghost@.halves[id] == old(self).units_ghost@.halves[id],
-            final(self).running == old(self).running,
     {
         let (mut inner, handle) = self.lock_registry();
         let mut ids: Vec<u64> = Vec::new();

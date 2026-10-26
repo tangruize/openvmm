@@ -168,6 +168,33 @@ ensures
   holds a half for each unit in the inventory, and none records `Unknown`.
 - `VmRuntime` has only `running`; more fields will come.
 
+### State-unit contracts
+
+On `StateUnits`' view (`vmm_core/state_unit/src/lib.spec.rs`): `units`
+(each collected unit's recorded `UnitSnapshot`, by name), `inventory` (their
+names, in id order, which is registration order), `running`. Collection
+happens in `make_ids` before `LoadedVm` exists, so the view covers all
+units (later registrations: see `SNAPSHOT-SPEC-TRUSTED.md`). Bodies are
+`external_body`; every operation keeps `wf()`, and all but `stop` keep
+`running`.
+
+| Function | Requires | Ensures |
+|---|---|---|
+| `stop` | `wf`, running | stopped; same units and inventory; every unit recorded (`all_recorded`) |
+| `reset` | `wf`, stopped | same units and inventory (states may change) |
+| `save` | `wf`, stopped, `all_recorded` | `final@ == old@`; on `Ok(states)`: distinct names, and `SavedStateUnit::map_of(states) == old@.saved_units()` |
+| `restore(states)` | `wf`, stopped | same units and inventory; on `Ok`: distinct, registered names, and `units == old.units.union_prefer_right(map_of(states) as Saved)` |
+| `inventory()` | `wf` | the names, as strings, are `self@.inventory` |
+| `validate_inventory(saved)` | `wf` | on `Ok`, `saved` is `self@.inventory` |
+
+These compose into the `LoadedVm` contracts: `LoadedVm::save` builds its
+`SavedState` from `StateUnits::save` (units) and `inventory()` (inventory);
+`LoadedVm::restore` calls `validate_inventory` (in `dispatch/restore.rs`:
+empty, or equal to the units' inventory) and `StateUnits::restore`. The
+`LoadedVm` view's `snapshot.units` is `state_units@.saved_units()`;
+`snapshot_recorded` is `units_consistent()` (`state_units.wf()`) and
+`all_recorded`; `restore` also requires `units_consistent()`.
+
 ### Where the halves come from
 
 Facts from the code:

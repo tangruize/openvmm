@@ -30,12 +30,7 @@ impl View for SavedState {
     /// (Restore rejects such a saved state.)
     open spec fn view(&self) -> SavedStateView {
         SavedStateView {
-            units: Map::new(
-                self.units@.map_values(|unit: SavedStateUnit| unit.name@).to_set(),
-                |name: Seq<char>|
-                    self.units@[choose|i: int|
-                        0 <= i < self.units@.len() && #[trigger] self.units@[i].name@ == name].state@,
-            ),
+            units: SavedStateUnit::map_of(self.units@),
             inventory: self.inventory@.map_values(|name: String| name@),
         }
     }

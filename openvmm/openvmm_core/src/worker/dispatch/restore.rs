@@ -7,6 +7,8 @@
 //! steps around applying the saved state, and the post-restore start sequence
 //! (input gate, readiness event, and VP release).
 
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use super::LoadedVm;
 use anyhow::Context;
 use futures::FutureExt;
@@ -257,6 +259,13 @@ fn validate_snapshot_restore_partition_presence(
 
 /// Validates the state-unit inventory of a saved-state envelope. Saved state
 /// without an inventory is restored without the check.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    requires
+        state_units.wf(),
+    ensures
+        result is Ok ==> state@.inventory.len() == 0 || state@.inventory == state_units@.inventory,
+))]
 pub(super) fn validate_inventory(
     state_units: &StateUnits,
     state: &SavedState,

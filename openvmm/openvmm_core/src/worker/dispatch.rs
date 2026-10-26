@@ -3452,6 +3452,15 @@ impl InitializedVm {
         .await?;
         vp_thread_bind.complete("startup", "vp_thread_bind", Default::default());
 
+        // Verus only, no runtime effect: take the FracGhost halves of all
+        // the units registered so far.
+        #[cfg(verus_keep_ghost)]
+        let state_units = {
+            let mut state_units = state_units;
+            state_units.collect_halves();
+            state_units
+        };
+
         let mut this = LoadedVm {
             state_units,
             running: false,
@@ -4664,6 +4673,7 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             !old(self)@.runtime.running,
+            old(self).units_consistent(),
         ensures
             final(self)@.runtime == old(self)@.runtime,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,

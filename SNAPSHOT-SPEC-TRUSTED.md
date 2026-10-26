@@ -26,6 +26,9 @@ only where a trusted item gives them meaning.
 |---|---|---|
 | `LoadedVm::save` | `openvmm/openvmm_core/src/worker/dispatch.rs` | Body is `external_body`: its contract (see design doc, "Contracts") is assumed, not proved. |
 | `LoadedVm::restore` | same | Same. |
+| `StateUnits::stop`, `reset`, `save`, `restore` | `vmm_core/state_unit/src/lib.rs` | Same (`external_body`; contracts in the design doc, "State-unit contracts"). |
+| `StateUnits::inventory`, `StateUnits::validate_inventory` | `vmm_core/state_unit/src/inventory.rs` | Same. |
+| `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
 
 ## Saved-state blobs (`vm/vmcore/src/save_restore.spec.rs`)
 
@@ -69,6 +72,7 @@ contracts are assumptions about mesh. See the file header.
 | `assume_specification` for `<State as PartialEq>::eq` | `registry_t.rs` | `State`'s derived equality is structural. |
 | `assume_specification` for `<ReadySet as Clone>::clone` | `registry_t.rs` | A clone holds the same units (`ids()`). |
 | `assume_specification` for `Inner::ready_set` | `registry_t.rs` | With `unit_ids` `None`, the ready set holds every registered unit. |
+| Units collected before use | `make_ids` (`dispatch.rs`); `StateUnitsView` | `make_ids` collects the halves of all units registered while loading (Verus-only call). ASSUMPTION: a unit registered later (hot-add) is collected before the next `stop`, `reset`, `save`, or `restore`, so `StateUnits`' view covers every registered unit. |
 | Registry lock invariant kept by unverified code | `lib.proof.rs`, `InnerPred` | `UnitBuilder::build` and `UnitHandle` removal are unverified and change the registry; they are trusted to keep the invariant: each registered sender's attached half (while there) belongs to its channel and records `Unknown`, and registered units have distinct names (`build` checks `names`). In particular, `build`'s callers pass a sender from `unit_channel`. |
 | `Inspect` requests | `lib.proof.rs`, request protocol | An inspect request does not change a unit's saved state (it reaches the unit through `InspectMut`, with no ghost). |
 | No channel failure for a registered unit | request protocol | A registered unit's task does not exit: OpenVMM's `run_op` panics on such a failure, and the unit's half would be lost. |
