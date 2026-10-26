@@ -28,7 +28,10 @@
 //! This model allows for asynchronous, highly concurrent state changes, and it
 //! works across process boundaries thanks to `mesh`.
 
-#![forbid(unsafe_code)]
+#![cfg_attr(not(verus_keep_ghost), forbid(unsafe_code))]
+// Under Verus, `assume_specification` (in `ops_t`) expands to `unsafe`
+// declarations; everything else still may not use `unsafe`.
+#![cfg_attr(verus_keep_ghost, deny(unsafe_code))]
 
 mod advance_time;
 mod inventory;
@@ -36,13 +39,17 @@ mod inventory;
 mod mesh_rpc_t;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
+mod ops;
+#[cfg_attr(verus_keep_ghost, allow(unsafe_code))]
+mod ops_t;
 pub mod quiesce;
-#[cfg(verus_keep_ghost)]
 mod registry_t;
 mod start;
 mod unit_channel;
 
 pub use unit_channel::unit_channel;
+
+use ops::state_change;
 
 /// Verus specification of state units.
 #[cfg(verus_keep_ghost)]
@@ -61,7 +68,6 @@ use vstd::prelude::*;
 
 use futures::FutureExt;
 use futures::StreamExt;
-use futures::future::join_all;
 use futures_concurrency::stream::Merge;
 use inspect::Inspect;
 use inspect::InspectMut;
@@ -72,7 +78,6 @@ use mesh::payload::Protobuf;
 use mesh::rpc::FailableRpc;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcError;
-use mesh::rpc::RpcSend;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
 use std::collections::BTreeMap;
@@ -86,9 +91,7 @@ use std::sync::Arc;
 use std::sync::Weak;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use std::time::Instant;
 use thiserror::Error;
-use tracing::Instrument;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
@@ -560,250 +563,6 @@ impl StateUnits {
     pub async fn start(&mut self) -> anyhow::Result<()> {
         self.start_with_rollback().await
     }
-
-    /// Stops all the state units.
-    pub async fn stop(&mut self) {
-        assert!(self.running);
-        // Stop units in reverse dependency order so that a dependency is not
-        // stopped before its dependant.
-        self.run_op(
-            "stop",
-            None,
-            State::Running,
-            State::Stopping,
-            State::Stopped,
-            StateRequest::Stop,
-            |_, _| Some(()),
-            |unit| &unit.dependents,
-        )
-        .await;
-        self.running = false;
-    }
-
-    /// Resets all the state units.
-    ///
-    /// Panics if running.
-    pub async fn reset(&mut self) -> Result<(), StateTransitionError> {
-        assert!(!self.running);
-        // Reset in dependency order so that dependants observe their
-        // dependencies' reset state.
-        let r = self
-            .run_op(
-                "reset",
-                None,
-                State::Stopped,
-                State::Resetting,
-                State::Stopped,
-                StateRequest::Reset,
-                |_, _| Some(()),
-                |unit| &unit.dependencies,
-            )
-            .await;
-
-        check("reset", r)?;
-        Ok(())
-    }
-
-    /// Saves all the state units.
-    ///
-    /// Panics if running.
-    pub async fn save(&mut self) -> Result<Vec<SavedStateUnit>, StateTransitionError> {
-        assert!(!self.running);
-        // Save can occur in any order since it will not observably mutate
-        // state.
-        let r = self
-            .run_op(
-                "save",
-                None,
-                State::Stopped,
-                State::Saving,
-                State::Stopped,
-                StateRequest::Save,
-                |_, _| Some(()),
-                |_| &[],
-            )
-            .await;
-
-        let states = extract("save", r, |name, state| {
-            state.map(|state| SavedStateUnit {
-                name: name.to_string(),
-                state,
-            })
-        })?;
-
-        Ok(states)
-    }
-
-    /// Restores all the state units.
-    ///
-    /// Panics if running.
-    pub async fn restore(
-        &mut self,
-        states: Vec<SavedStateUnit>,
-    ) -> Result<(), StateTransitionError> {
-        assert!(!self.running);
-
-        #[derive(Debug, Error)]
-        enum RestoreUnitError {
-            #[error("unknown unit name")]
-            Unknown,
-            #[error("duplicate unit name")]
-            Duplicate,
-        }
-
-        let mut states_by_id = HashMap::new();
-        let mut r = Vec::new();
-        {
-            let inner = self.inner.lock();
-            for state in states {
-                match inner.names.get(state.name.as_str()) {
-                    Some(&id) => {
-                        // The same `Arc` as the key in `names` (see `build`).
-                        let name = &inner.units[&id].name;
-                        if states_by_id
-                            .insert(id, (name.clone(), state.state))
-                            .is_some()
-                        {
-                            r.push((name.clone(), Err(RestoreUnitError::Duplicate)));
-                        }
-                    }
-                    None => {
-                        r.push((state.name.into(), Err(RestoreUnitError::Unknown)));
-                    }
-                }
-            }
-        }
-
-        check("restore", r)?;
-
-        let r = self
-            .run_op(
-                "restore",
-                None,
-                State::Stopped,
-                State::Restoring,
-                State::Stopped,
-                StateRequest::Restore,
-                |id, _| states_by_id.remove(&id).map(|(_, blob)| blob),
-                |unit| &unit.dependencies,
-            )
-            .await;
-
-        // Make sure all the saved state was consumed. This could hit if a unit
-        // was removed concurrently with the restore.
-        check(
-            "restore",
-            states_by_id
-                .into_iter()
-                .map(|(_, (name, _))| (name, Err(RestoreUnitError::Unknown))),
-        )?;
-
-        check("restore", r)?;
-
-        Ok(())
-    }
-
-    /// Runs a state change operation on a set of units.
-    ///
-    /// `op` gives the name of the operation for tracing and error reporting
-    /// purposes.
-    ///
-    /// `unit_ids` is the set of the units whose state should be changed. If
-    /// `unit_ids` is `None`, all units change states.
-    ///
-    /// The old state for each unit must be `old_state`. During the operation,
-    /// the unit is temporarily places in `interim_state`. When complete, the
-    /// unit is placed in `new_state`.
-    ///
-    /// Each unit waits for its dependencies to complete their state change
-    /// operation before proceeding with their own state change. The
-    /// dependencies list is computed for a unit by calling `deps`.
-    ///
-    /// To perform the state change, the unit is sent a request generated using
-    /// `request`, with input generated by `input`. If `input` returns `None`,
-    /// then communication with the unit is skipped, but the unit still
-    /// transitions through the interim and into the new state, and its
-    /// dependencies are still waited on by its dependents.
-    async fn run_op<I: 'static, R: 'static + Send>(
-        &self,
-        op: &str,
-        unit_ids: Option<&[u64]>,
-        old_state: State,
-        interim_state: State,
-        new_state: State,
-        request: impl Copy + FnOnce(Rpc<I, R>) -> StateRequest,
-        mut input: impl FnMut(u64, &Unit) -> Option<I>,
-        mut deps: impl FnMut(&Unit) -> &[u64],
-    ) -> Vec<(Arc<str>, R)> {
-        let mut done = Vec::new();
-        let ready_set;
-        {
-            let mut inner = self.inner.lock();
-            ready_set = inner.ready_set(unit_ids);
-            let ids: Vec<u64> = inner.units.keys().copied().collect();
-            for id in ids {
-                if !ready_set.0.contains_key(&id) {
-                    continue;
-                }
-                let unit = inner.units.get_mut(&id).unwrap();
-                if unit.state != old_state {
-                    assert_eq!(
-                        unit.state, new_state,
-                        "unit {} in {:?} state, should be {:?} or {:?}",
-                        unit.name, unit.state, old_state, new_state
-                    );
-                    ready_set.done(id, true);
-                } else {
-                    let name = unit.name.clone();
-                    let input = (input)(id, unit);
-                    let deps = deps(unit).to_vec();
-                    let fut = state_change(name.clone(), unit.send.clone(), request, input);
-                    let recv = wait_then_change(ready_set.clone(), op, id, deps, name, fut);
-                    done.push(recv);
-                    unit.state = interim_state;
-                }
-            }
-        }
-
-        let results = join_all_timed(done)
-            .instrument(tracing::info_span!("state_change", operation = op))
-            .await;
-
-        let mut inner = self.inner.lock();
-        let mut r = Vec::new();
-        for (name, id, result) in results {
-            match result {
-                Ok(Some(result)) => r.push((name, result)),
-                Ok(None) => {}
-                Err(err) => {
-                    // If the unit was removed during the operation, then
-                    // ignore the failure. Otherwise, panic because unit
-                    // failure is not recoverable. FUTURE: reconsider this
-                    // position.
-                    if inner.units.contains_key(&id) {
-                        panic!("{:?}", err);
-                    }
-                }
-            }
-        }
-        let ids: Vec<u64> = inner.units.keys().copied().collect();
-        for id in ids {
-            if !ready_set.0.contains_key(&id) {
-                continue;
-            }
-            let unit = inner.units.get_mut(&id).unwrap();
-            if unit.state == interim_state {
-                unit.state = new_state;
-            } else {
-                assert_eq!(
-                    unit.state, new_state,
-                    "unit {} in {:?} state, should be {:?} or {:?}",
-                    unit.name, unit.state, interim_state, new_state
-                );
-            }
-        }
-        r
-    }
 }
 
 impl Inner {
@@ -839,6 +598,20 @@ struct ReadyState {
 }
 
 impl ReadySet {
+    /// Whether unit `id` is in the set.
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result == self.ids().contains(id),
+    ))]
+    fn contains(&self, id: u64) -> bool {
+        proof! {
+            broadcast use vstd::laws_cmp::group_laws_cmp;
+        }
+        self.0.contains_key(&id)
+    }
+
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     async fn wait(&self, op: &str, id: u64, deps: &[u64]) -> bool {
         for dep in deps {
             if let Some(dep) = self.0.get(dep) {
@@ -858,69 +631,10 @@ impl ReadySet {
         true
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn done(&self, id: u64, success: bool) {
         self.0[&id].ready.signal(success);
     }
-}
-
-/// Waits for the dependencies `deps` of unit `id` to finish, runs `fut` (the
-/// unit's state change), and marks unit `id` done.
-async fn wait_then_change<F: Future>(
-    ready_set: ReadySet,
-    op: &str,
-    id: u64,
-    deps: Vec<u64>,
-    name: Arc<str>,
-    fut: F,
-) -> (Arc<str>, u64, F::Output) {
-    ready_set.wait(op, id, &deps).await;
-    let r = fut.await;
-    ready_set.done(id, true);
-    (name, id, r)
-}
-
-/// Awaits all of `futs`, logging how long it took.
-async fn join_all_timed<F: Future>(futs: Vec<F>) -> Vec<F::Output> {
-    let start = Instant::now();
-    let results = join_all(futs).await;
-    tracing::info!(duration = ?Instant::now() - start, "state change complete");
-    results
-}
-
-/// Sends state change `request` to the unit at `send` with `input`, wrapping
-/// the call with a span, and wrapping its error with something more
-/// informative.
-///
-/// `name` is used in tracing and error construction.
-async fn state_change<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> StateRequest>(
-    name: Arc<str>,
-    send: Sender<StateRequest>,
-    request: Req,
-    input: Option<I>,
-) -> Result<Option<R>, UnitRecvError> {
-    let Some(input) = input else { return Ok(None) };
-    let span = tracing::info_span!("device_state_change", device = name.as_ref());
-    call_unit(name, send, request, input)
-        .instrument(span)
-        .await
-        .map(Some)
-}
-
-/// Sends `request` with `input` to the unit at `send` and waits for the
-/// reply, logging how long it took.
-async fn call_unit<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> StateRequest>(
-    name: Arc<str>,
-    send: Sender<StateRequest>,
-    request: Req,
-    input: I,
-) -> Result<R, UnitRecvError> {
-    let start = Instant::now();
-    let r = send
-        .call(request, input)
-        .await
-        .map_err(|err| UnitRecvError { name, source: err });
-    tracing::debug!(duration = ?Instant::now() - start, "device state change complete");
-    r
 }
 
 /// A builder returned by [`StateUnits::add`].

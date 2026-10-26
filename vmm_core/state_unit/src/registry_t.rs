@@ -16,11 +16,16 @@
 //! collected halves, no collected unit was removed or changed its name or
 //! channel; and every unit added since still has its half attached to its
 //! sender (its sender came from `unit_channel`).
+//!
+//! AXIOM (exact, `lock_registry_exact`): inside an operation that holds
+//! `&mut StateUnits` and has collected since it began, the registry holds
+//! exactly the collected units.
 
 use crate::Inner;
 use crate::InnerPred;
 use crate::StateUnits;
 use crate::mutex_t::MutexHandle;
+#[cfg(verus_keep_ghost)]
 use crate::mutex_t::MutexPredicate;
 use vstd::prelude::*;
 
@@ -28,12 +33,28 @@ verus! {
 
 impl StateUnits {
     /// Locks the registry and takes it out, like `Mutex::acquire`, with the
-    /// registry axiom.
+    /// registry axiom. (Used only by the Verus-only `collect_halves`.)
+    #[cfg(verus_keep_ghost)]
     #[verifier::external_body]
     pub(crate) fn lock_registry(&self) -> (ret: (Inner, MutexHandle<'_, Inner, InnerPred>))
         ensures
             InnerPred::inv(ret.0),
             StateUnits::agrees_with(self.collected(), ret.0),
+    {
+        self.inner.acquire()
+    }
+
+    /// Locks the registry, like `lock_registry`, inside an operation that
+    /// holds `&mut StateUnits` and has collected the halves since it began.
+    /// AXIOM (exact): the registry holds exactly the collected units.
+    /// Registration needs `&StateUnits`, which cannot exist while the
+    /// operation holds `&mut StateUnits`; removal is excluded by the axiom
+    /// above. Callers: `run_op` (`ops.rs`), called only from such operations.
+    #[verifier::external_body]
+    pub(crate) fn lock_registry_exact(&self) -> (ret: (Inner, MutexHandle<'_, Inner, InnerPred>))
+        ensures
+            InnerPred::inv(ret.0),
+            StateUnits::agrees_exactly(self.collected(), ret.0),
     {
         self.inner.acquire()
     }

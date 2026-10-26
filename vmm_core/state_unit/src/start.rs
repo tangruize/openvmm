@@ -10,6 +10,8 @@ use super::StateUnits;
 use super::state_change;
 use futures::future::join_all;
 use std::time::Instant;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 impl StateUnits {
     /// Starts all stopped units in dependency order.
@@ -131,6 +133,10 @@ impl StateUnits {
                     StateRequest::Stop,
                     |_, _| Some(()),
                     |unit| &unit.dependents,
+                    // No ghost: this operation is not verified.
+                    Ghost::assume_new(),
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
                 )
                 .await;
             }

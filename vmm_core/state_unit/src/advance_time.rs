@@ -9,6 +9,8 @@ use super::StateTransitionError;
 use super::StateUnits;
 use super::check;
 use std::time::Duration;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 impl StateUnits {
     /// Advances guest-visible time on all stopped units in dependency order.
@@ -17,7 +19,7 @@ impl StateUnits {
     /// round trip.
     pub async fn advance_time(&mut self, duration: Duration) -> Result<(), StateTransitionError> {
         assert!(!self.running);
-        let results = self
+        let (results, _, _) = self
             .run_op(
                 "advance_time",
                 None,
@@ -27,6 +29,10 @@ impl StateUnits {
                 StateRequest::AdvanceTime,
                 |_, unit| unit.advances_time.then_some(duration),
                 |unit| &unit.dependencies,
+                // No ghost: this operation is not verified.
+                Ghost::assume_new(),
+                Tracked::assume_new(),
+                Ghost::assume_new(),
             )
             .await;
         check(
