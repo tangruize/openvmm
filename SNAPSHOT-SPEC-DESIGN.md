@@ -984,8 +984,41 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 ## Open TODOs
 
-A summary of the open items recorded in the sections above, most important
-first.
+### Next steps (agreed)
+
+1. **`SavedStateBlob::new` / `parse`**: attach their contract
+   (`vm/vmcore/src/save_restore_t.rs`). First probe whether Verus accepts the
+   protobuf trait chain (`SavedStateRoot`, `DescribedProtobuf`, `Protobuf`,
+   and `Protobuf`'s codec traits with `for<'a>` bounds), so the contract can
+   go on the real functions; otherwise use per-type trusted wrappers next to
+   each verified device.
+2. **`InitializedVm::load(Some(_))`** (`dispatch.rs:1824`): its contract. It
+   builds the `LoadedVm` (collecting the halves in `make_ids`) and calls
+   `restore_from_snapshot`.
+3. **Replace the RPC calls with the mesh RPC wrapper**
+   (`SNAPSHOT-SPEC-MESH-RPC.md`): `state_change` / `run_op` on the caller
+   side (in `verus!` style, as on branch `system-proof/run-op-proof-attempt`)
+   and `StateRequest::apply` on the unit side (without async closures).
+   Needed for the proofs; the current direct mesh calls are correct but give
+   Verus no contract and carry no ghosts.
+4. **Consider a small source change to unit registration**: have
+   registration hand each unit's `StateUnits` half back explicitly (through
+   `&mut StateUnits`, or returned by the unit builder) instead of attaching
+   it to the `Sender` and registering through `&StateUnits`. This would
+   remove the registry axioms (`registry_t.rs`) and most of the registry's
+   lock invariant, at the cost of changing the registration API and its
+   callers (the chipset builder, `vmbus_unit`, `partition_unit`, vmtime,
+   time-abi).
+5. **Validate on one unit first: the PIT, end to end**: tie its
+   `saved_state()` to its real fields, verify its `SaveRestore` `save` /
+   `restore` against the contract, and its request loop against the request
+   protocol. This tests whether the unit-side obligations are tractable
+   before more layers are added.
+
+### Other open items
+
+A summary of the other open items recorded in the sections above, most
+important first.
 
 1. **Prove the contracts.** Every contract above has an unverified body
    (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as
