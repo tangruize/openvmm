@@ -177,6 +177,12 @@ Baseline: upstream `nanvix/openvmm` commit
     `LoadedVmView::lemma_restore_gives_saved_state`. New pending lemma
     `StateUnits::lemma_view_inv`. Each crate's `.proof.rs` is now included as
     `mod proof` inside `mod spec` (`vm/vmcore` has no `.proof.rs`).
+21. **`SavedStateBlob` contract** (Verus only, no runtime change):
+    `vm/vmcore/src/save_restore.spec.rs` adds `SavedStateBlobView::of::<T>`;
+    new trusted file `vm/vmcore/src/save_restore_t.rs` (included as `mod
+    trusted` in `save_restore.rs`) holds the injectivity axiom, the `clone`
+    spec (moved from the spec file), and the stated `new`/`parse` contract,
+    not yet attached.
 
 ### Planned: mesh RPC trusted spec
 

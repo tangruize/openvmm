@@ -181,9 +181,12 @@ ensures
 
 - `SavedStateView { units: Map<Seq<char>, SavedStateBlobView>, inventory: Seq<Seq<char>> }`
   is the view of `SavedState`, and also `LoadedVmView::snapshot`.
-- `SavedStateBlobView` is the abstract value a unit's blob encodes. It is
-  opaque until the trusted `SavedStateBlob` encode/decode contract (gap 4)
-  is written.
+- `SavedStateBlobView` is the abstract value a unit's blob encodes:
+  `SavedStateBlobView::of(value)` for a blob encoding `value`. The trusted
+  encode/decode contract (gap 4) is in `vm/vmcore/src/save_restore_t.rs`:
+  `of::<T>` is injective; `new`/`parse` are stated there but attached only
+  with the unit side (their `SavedStateRoot` bound needs the protobuf trait
+  chain declared to Verus).
 - `restore`'s `union_prefer_right` reflects the code: units absent from the
   saved state get no `Restore` and keep their state; `validate_inventory`
   skips the check when the saved inventory is empty.

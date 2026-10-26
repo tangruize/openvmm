@@ -14,30 +14,28 @@ verus! {
 pub struct ExSavedStateBlob(SavedStateBlob);
 
 /// The abstract value of a saved-state blob: the typed saved state it
-/// encodes, independent of its protobuf encoding.
+/// encodes, independent of its protobuf encoding. A blob that encodes
+/// `value: T` has view `SavedStateBlobView::of(value)`.
 ///
-/// Opaque for now. The trusted contract that relates it to
-/// `SavedStateBlob::new` and `SavedStateBlob::parse` (decoding returns the
-/// value that was encoded) is still to be written; see gap 4 in
-/// `SNAPSHOT-SPEC-DESIGN.md`.
+/// The trusted contract (`save_restore_t.rs`): `SavedStateBlob::new(value)`
+/// has view `of(value)`; a successful `parse::<T>()` returns a `value` with
+/// `of(value)` equal to the blob's view; and `of::<T>` is injective, so
+/// decoding returns exactly the value that was encoded.
 #[verifier::external_body]
 pub struct SavedStateBlobView {
     _private: (),
 }
 
+impl SavedStateBlobView {
+    /// The view of a blob that encodes `value`, of saved-state type `T`.
+    pub uninterp spec fn of<T>(value: T) -> SavedStateBlobView;
+}
+
 impl View for SavedStateBlob {
     type V = SavedStateBlobView;
 
-    /// Trusted: the value this blob encodes.
+    /// Trusted: the value this blob encodes (see `save_restore_t.rs`).
     uninterp spec fn view(&self) -> SavedStateBlobView;
 }
-
-/// Trusted: a clone encodes the same value.
-pub assume_specification[ <SavedStateBlob as Clone>::clone ](
-    blob: &SavedStateBlob,
-) -> (result: SavedStateBlob)
-    ensures
-        result@ == blob@,
-;
 
 } // verus!

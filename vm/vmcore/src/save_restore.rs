@@ -256,6 +256,12 @@ pub mod spec {
     include!("save_restore.spec.rs");
 }
 
+/// Trusted encode/decode contract of saved-state blobs.
+#[cfg(verus_keep_ghost)]
+mod trusted {
+    include!("save_restore_t.rs");
+}
+
 #[cfg(test)]
 mod tests {
     use super::NoSavedState;

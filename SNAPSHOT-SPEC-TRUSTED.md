@@ -39,12 +39,17 @@ obligations, not intended assumptions.
 |---|---|---|
 | `StateUnits::lemma_view_inv` | `vmm_core/state_unit/src/lib.proof.rs` | If `StateUnits` holds a half for exactly the collected units and those have distinct names, `self@.inv()` holds (the inventory, built from the collected ids by `to_sorted_seq`, lists each unit once). |
 
-## Saved-state blobs (`vm/vmcore/src/save_restore.spec.rs`)
+## Saved-state blobs (`vm/vmcore/src/save_restore.spec.rs`, `save_restore_t.rs`)
+
+A blob that encodes `value: T` has view `SavedStateBlobView::of(value)`.
+Protobuf encoding and decoding are not verified.
 
 | Item | What is trusted |
 |---|---|
-| `View for SavedStateBlob` (uninterpreted) | A blob's view is the typed value it encodes. The encode/decode contract (`new`, `parse`) is still to be written (design doc, gap 4). |
+| `View for SavedStateBlob` (uninterpreted) | A blob's view is the typed value it encodes. |
+| **AXIOM** `SavedStateBlobView::axiom_of_injective` | `of::<T>` is injective: each saved-state type's protobuf encoding loses nothing, so decoding returns exactly the value encoded. Nothing is assumed across types. |
 | `assume_specification` for `SavedStateBlob::clone` | A clone encodes the same value: `result@ == blob@`. |
+| Contract of `SavedStateBlob::new` / `parse` (stated, **not yet attached**) | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Not attachable yet: the `T: SavedStateRoot` bound needs the protobuf trait chain declared to Verus. To be attached with the unit side, through a local `encode`/`decode` trait. |
 
 ## Mesh RPC (`vmm_core/state_unit/src/mesh_rpc_t.rs`)
 
