@@ -69,6 +69,23 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
     assumptions they state), as in verified-storage. Each such file begins
     with what it assumes.
 
+### Convention TODOs
+
+Places that do not yet follow the conventions above:
+
+- **`SavedStateUnit::map_of` and `SavedStateUnit::distinct_names`**
+  (`vmm_core/state_unit/src/lib.spec.rs`) are spec functions on
+  `SavedStateUnit` that take a sequence of units rather than `self`. They
+  could become the view and `wf()` of a type for the list of units (used by
+  `StateUnits::save`, `StateUnits::restore`, and `SavedState`'s view).
+- **Trusted wrapper types** have spec functions besides a view: mesh
+  `Sender`/`Receiver` (`constant()`, `attached()`), `Rpc` (`spec_input()`,
+  `reply_ok()`), `PendingCall` (`reply_ok()`) in
+  `vmm_core/state_unit/src/mesh_rpc_t.rs`, and the mutex wrapper
+  (`vmm_core/state_unit/src/mutex_t.rs`). They describe what the trusted
+  layer guarantees rather than an abstraction of the data; decide whether
+  to keep them or recast them as views.
+
 ### Naming
 
 Following verified-storage:
