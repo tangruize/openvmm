@@ -38,6 +38,12 @@ pub struct StateUnitsView {
 }
 
 impl StateUnitsView {
+    /// The inventory lists each unit once.
+    pub open spec fn inv(self) -> bool {
+        &&& self.inventory.no_duplicates()
+        &&& self.inventory.to_set() == self.units.dom()
+    }
+
     /// No unit records `Unknown`: each has been stopped or restored since it
     /// was created.
     pub open spec fn all_recorded(self) -> bool {
@@ -70,6 +76,22 @@ impl SavedStateUnit {
         forall|i: int, j: int|
             0 <= i < units.len() && 0 <= j < units.len() && i != j ==> #[trigger] units[i].name@
                 != #[trigger] units[j].name@
+    }
+}
+
+impl StateUnits {
+    /// Well formed: the view's invariant holds, and `StateUnits` holds a
+    /// half of each collected unit's FracGhost, each belonging to that unit's
+    /// channel; collected units have distinct names.
+    pub closed spec fn wf(&self) -> bool {
+        &&& self@.inv()
+        &&& self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
+        &&& forall|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
+            ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
+        &&& forall|a: u64, b: u64|
+            #[trigger] self.units_ghost@.registry.contains_key(a)
+                && #[trigger] self.units_ghost@.registry.contains_key(b) && a != b
+                ==> self.units_ghost@.registry[a].0 != self.units_ghost@.registry[b].0
     }
 }
 

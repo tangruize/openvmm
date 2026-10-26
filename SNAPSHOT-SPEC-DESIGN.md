@@ -37,8 +37,20 @@ describe its targets, not the current plan.
 Style reference: [microsoft/verified-storage](https://github.com/microsoft/verified-storage)
 (capybaraKV), with the differences noted below.
 
-- **No free spec functions.** Abstractions of concrete types belong on the
-  type (a `View` impl, written `x@`); free lemmas are acceptable.
+- **No free spec functions or free lemmas**, unless there is no
+  alternative. Spec functions and lemmas belong to the type they are about
+  (an `impl` of that type).
+- **A concrete type has two spec functions: `view` and `wf()`.** Its view
+  type has an `inv()`; `wf()` includes `self@.inv()` plus the consistency of
+  concrete fields the view does not represent. Preconditions rely on
+  `wf()` of their parameters. State-dependent conditions that are not
+  well-formedness are fields of the view (e.g. `LoadedVmView::recorded`) or
+  spec functions of the view type (e.g. `StateUnitsView::all_recorded`).
+  Spec functions used only by trusted axioms or lemmas are crate-private
+  plumbing, not part of a type's spec.
+- **Views are closed** unless they are a plain mapping of fields, so that
+  their definitions do not flood every proof; lemmas unfold them where
+  needed.
 - **Annotation style.** Contracts are written as `verus_spec` / `verus_verify`
   attributes on the production functions. `verus! { ... }` blocks may be used
   where they are easier; mixing the two is fine. (verified-storage uses
@@ -49,7 +61,10 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   - `<file>.proof.rs`: spec that need not be checked by a human, such as the
     contracts of functions called by `LoadedVm::save` or by a unit's save,
     and declarations of types to Verus; and lemmas.
-  - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`.
+  - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`:
+    `<file>.spec.rs` as `mod spec`, and `<file>.proof.rs` as `mod proof`
+    *inside* `spec`, so that lemmas can unfold the spec's closed views (a
+    closed body is visible in its module and the modules within it).
   - `<name>_t.rs`: trusted code (`external_body` wrappers and the
     assumptions they state), as in verified-storage. Each such file begins
     with what it assumes.
@@ -122,15 +137,20 @@ and `openvmm/openvmm_core/src/worker/dispatch.spec.rs`.
 ```rust
 // save
 requires
+    old(self).wf(),
     !old(self)@.runtime.running,
-    old(self).snapshot_recorded(),   // every unit's state is recorded (no `Unknown`)
+    old(self)@.recorded,               // every unit's state is recorded (no `Unknown`)
 ensures
-    final(self)@ == old(self)@,                                  // changes nothing
-    result matches Ok(saved) ==> saved@ == old(self)@.snapshot,  // captures the VM's state
+    final(self).wf(),
+    final(self)@ == old(self)@,        // changes nothing
+    result matches Ok(saved) ==> saved.wf() && saved@ == old(self)@.snapshot,  // captures the VM's state
 
 // restore
-requires !old(self)@.runtime.running,
+requires
+    old(self).wf(),
+    !old(self)@.runtime.running,
 ensures
+    final(self).wf(),
     final(self)@.runtime == old(self)@.runtime,
     final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
     result is Ok ==> {
@@ -150,22 +170,23 @@ ensures
 - `restore`'s `union_prefer_right` reflects the code: units absent from the
   saved state get no `Restore` and keep their state; `validate_inventory`
   skips the check when the saved inventory is empty.
-- `lemma_restore_gives_saved_state` (`dispatch.proof.rs`) states the round
-  trip: restoring a saved state into a VM with the same stateful units and
-  inventory gives back that state.
+- `LoadedVmView::lemma_restore_gives_saved_state` (`dispatch.proof.rs`)
+  states the round trip: restoring a saved state into a VM with the same
+  stateful units and inventory gives back that state.
+- `SavedState::wf()`: `self@.inv()` (the inventory lists each unit once and
+  contains every unit with saved state) and distinct unit names.
 
 `LoadedVm`'s view (`dispatch.spec.rs`) is computed from `StateUnits`' view
 (`vmm_core/state_unit/src/lib.spec.rs`):
 
-- `StateUnitsView { units: Map<Seq<char>, UnitSnapshot>, inventory, running }`:
-  `units` holds the value of each FracGhost half `StateUnits` holds (a
-  Verus-only field `StateUnits::halves`); `inventory` is uninterpreted for
-  now (the names are behind the registry's mutex); `running` is the field.
-- `LoadedVmView.snapshot.units` holds the units recorded `Saved(v)`, with
-  value `v`; `snapshot.inventory` and `runtime.running` come from the
-  `StateUnits` view.
-- `LoadedVm::snapshot_recorded()`, a precondition of `save`: `StateUnits`
-  holds a half for each unit in the inventory, and none records `Unknown`.
+- `StateUnitsView { units: Map<Seq<char>, UnitSnapshot>, inventory, running }`
+  (see "State-unit contracts").
+- `LoadedVmView.snapshot.units` is `state_units@.saved_units()` (the units
+  recorded `Saved(v)`, with value `v`); `snapshot.inventory` and
+  `runtime.running` come from the `StateUnits` view; `recorded` is
+  `state_units@.all_recorded()`.
+- `LoadedVm::wf()`: `self@.inv()` (the snapshot's invariant) and
+  `state_units.wf()`.
 - `VmRuntime` has only `running`; more fields will come.
 
 ### State-unit contracts
@@ -191,9 +212,13 @@ These compose into the `LoadedVm` contracts: `LoadedVm::save` builds its
 `SavedState` from `StateUnits::save` (units) and `inventory()` (inventory);
 `LoadedVm::restore` calls `validate_inventory` (in `dispatch/restore.rs`:
 empty, or equal to the units' inventory) and `StateUnits::restore`. The
-`LoadedVm` view's `snapshot.units` is `state_units@.saved_units()`;
-`snapshot_recorded` is `units_consistent()` (`state_units.wf()`) and
-`all_recorded`; `restore` also requires `units_consistent()`.
+`LoadedVm` view's `snapshot.units` is `state_units@.saved_units()`, and
+`LoadedVm::wf()` includes `state_units.wf()`.
+
+`StateUnitsView::inv()`: the inventory has no duplicates and lists exactly
+the recorded units. `StateUnits::wf()`: `self@.inv()`, and `StateUnits`
+holds a half of each collected unit's FracGhost, belonging to its channel;
+collected units have distinct names.
 
 ### Where the halves come from
 

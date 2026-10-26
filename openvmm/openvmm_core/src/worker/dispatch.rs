@@ -17,11 +17,12 @@ mod time_abi;
 #[cfg(verus_keep_ghost)]
 mod spec {
     include!("dispatch.spec.rs");
-}
 
-#[cfg(verus_keep_ghost)]
-mod proof {
-    include!("dispatch.proof.rs");
+    /// Declarations and lemmas supporting the spec. Inside `spec`, so that
+    /// lemmas can unfold its closed views.
+    mod proof {
+        include!("dispatch.proof.rs");
+    }
 }
 
 #[cfg(verus_keep_ghost)]
@@ -4655,11 +4656,13 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
+            old(self).wf(),
             !old(self)@.runtime.running,
-            old(self).snapshot_recorded(),
+            old(self)@.recorded,
         ensures
+            final(self).wf(),
             final(self)@ == old(self)@,
-            result matches Ok(saved) ==> saved@ == old(self)@.snapshot,
+            result matches Ok(saved) ==> saved.wf() && saved@ == old(self)@.snapshot,
     ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
@@ -4672,9 +4675,10 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
+            old(self).wf(),
             !old(self)@.runtime.running,
-            old(self).units_consistent(),
         ensures
+            final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {

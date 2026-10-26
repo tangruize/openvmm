@@ -30,6 +30,15 @@ only where a trusted item gives them meaning.
 | `StateUnits::inventory`, `StateUnits::validate_inventory` | `vmm_core/state_unit/src/inventory.rs` | Same. |
 | `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
 
+## Proofs pending
+
+Lemmas stated but not yet proved (`external_body`). They are proof
+obligations, not intended assumptions.
+
+| Lemma | Where | Statement |
+|---|---|---|
+| `StateUnits::lemma_view_inv` | `vmm_core/state_unit/src/lib.proof.rs` | If `StateUnits` holds a half for exactly the collected units and those have distinct names, `self@.inv()` holds (the inventory, built from the collected ids by `to_sorted_seq`, lists each unit once). |
+
 ## Saved-state blobs (`vm/vmcore/src/save_restore.spec.rs`)
 
 | Item | What is trusted |
@@ -70,7 +79,7 @@ contracts are assumptions about mesh. See the file header.
 | **AXIOM: registry unchanged since collection** | `registry_t.rs`, `StateUnits::lock_registry` | Each time `StateUnits` locks its registry (`lock_registry`, used instead of `Mutex::acquire` by verified code), the value taken out agrees with the units collected so far (`StateUnits::agrees_with`): since the last collection, no collected unit was removed or changed its name or channel, and every unit added since still has its half attached to its sender. Needed because units are added through `&StateUnits` and removed through `Weak` handles, both unverified, so no lock invariant can tie the registry to `StateUnits`' ghost fields. Stated only about `StateUnits`' own registry, so it cannot be applied to another `Inner`. |
 | **AXIOM: registry exact inside a `&mut` operation** | `registry_t.rs`, `StateUnits::lock_registry_exact` | Inside an operation that holds `&mut StateUnits` and has collected the halves since it began, the registry holds exactly the collected units. Registration needs `&StateUnits`, which cannot exist while `&mut StateUnits` is held; removal is excluded by the axiom above. For use by such operations only, after `collect_halves`. |
 | `assume_specification` for `<State as PartialEq>::eq` | `registry_t.rs` | `State`'s derived equality is structural. |
-| `assume_specification` for `<ReadySet as Clone>::clone` | `registry_t.rs` | A clone holds the same units (`ids()`). |
+| `assume_specification` for `<ReadySet as Clone>::clone` | `registry_t.rs` | A clone holds the same units (same view). |
 | `assume_specification` for `Inner::ready_set` | `registry_t.rs` | With `unit_ids` `None`, the ready set holds every registered unit. |
 | Units collected before use | `make_ids` (`dispatch.rs`); `StateUnitsView` | `make_ids` collects the halves of all units registered while loading (Verus-only call). ASSUMPTION: a unit registered later (hot-add) is collected before the next `stop`, `reset`, `save`, or `restore`, so `StateUnits`' view covers every registered unit. |
 | Registry lock invariant kept by unverified code | `lib.proof.rs`, `InnerPred` | `UnitBuilder::build` and `UnitHandle` removal are unverified and change the registry; they are trusted to keep the invariant: each registered sender's attached half (while there) belongs to its channel and records `Unknown`, and registered units have distinct names (`build` checks `names`). In particular, `build`'s callers pass a sender from `unit_channel`. |

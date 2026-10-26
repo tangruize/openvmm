@@ -72,15 +72,15 @@ pub assume_specification[ <State as PartialEq>::eq ](a: &State, b: &State) -> (r
 /// Trusted: a clone of a `ReadySet` holds the same units.
 pub assume_specification[ <ReadySet as Clone>::clone ](set: &ReadySet) -> (result: ReadySet)
     ensures
-        result.ids() == set.ids(),
+        result@ == set@,
 ;
 
 /// Trusted: with `unit_ids` `None`, the ready set holds every registered
 /// unit. (`Inner::ready_set` builds it with an iterator chain.)
-pub assume_specification[ Inner::ready_set ](inner: &Inner, unit_ids: Option<&[u64]>) -> (result:
+pub(crate) assume_specification[ Inner::ready_set ](inner: &Inner, unit_ids: Option<&[u64]>) -> (result:
     ReadySet)
     ensures
-        unit_ids is None ==> inner.unit_ids() <= result.ids(),
+        unit_ids is None ==> inner.unit_ids() <= result@,
 ;
 
 } // verus!

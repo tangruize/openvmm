@@ -3,7 +3,7 @@
 
 // Declarations supporting `worker.spec.rs`; no human review needed.
 
-use super::SavedState;
+use crate::worker::SavedState;
 use vstd::prelude::*;
 
 verus! {

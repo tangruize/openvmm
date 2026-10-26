@@ -3,15 +3,15 @@
 
 // Declarations and the registry's lock invariant; no human review needed.
 
-use super::Inner;
-use super::InnerPred;
-use super::State;
-use super::StateRequest;
-use super::StateUnits;
-use super::Unit;
-use super::mesh_rpc_t::*;
-use super::mutex_t::MutexPredicate;
-use super::spec::UnitSnapshot;
+use crate::Inner;
+use crate::InnerPred;
+use crate::State;
+use crate::StateRequest;
+use crate::StateUnits;
+use crate::Unit;
+use crate::mesh_rpc_t::*;
+use crate::mutex_t::MutexPredicate;
+use crate::UnitSnapshot;
 use mesh::error::RemoteError;
 use mesh::rpc::Rpc;
 use std::sync::Arc;
@@ -26,34 +26,34 @@ verus! {
 // the real definitions.
 
 #[verifier::external_type_specification]
-pub(super) struct ExInner(Inner);
+pub(crate) struct ExInner(Inner);
 
 #[verifier::external_type_specification]
-pub(super) struct ExUnit(Unit);
+pub(crate) struct ExUnit(Unit);
 
 #[verifier::external_type_specification]
-pub(super) struct ExState(State);
+pub(crate) struct ExState(State);
 
 #[verifier::external_type_specification]
-pub(super) struct ExReadySet(super::ReadySet);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub(super) struct ExReadyState(super::ReadyState);
-
-#[verifier::external_type_specification]
-pub(super) struct ExUnitRecvError(super::UnitRecvError);
+pub(crate) struct ExReadySet(crate::ReadySet);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub struct ExStateTransitionError(super::StateTransitionError);
+pub(crate) struct ExReadyState(crate::ReadyState);
+
+#[verifier::external_type_specification]
+pub(crate) struct ExUnitRecvError(crate::UnitRecvError);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExStateTransitionError(crate::StateTransitionError);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExAnyhowError(anyhow::Error);
 
 #[verifier::external_type_specification]
-pub struct ExSavedStateUnit(super::SavedStateUnit);
+pub struct ExSavedStateUnit(crate::SavedStateUnit);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -70,7 +70,7 @@ impl ArcStrView for Arc<str> {
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub(super) struct ExInnerPred(InnerPred);
+pub(crate) struct ExInnerPred(InnerPred);
 
 #[verifier::external_type_specification]
 pub struct ExStateRequest(StateRequest);
@@ -113,18 +113,22 @@ impl MeshProtocol for StateRequest {
     /// on `Err`, so the caller keeps it.
     open spec fn request_ok(k: Loc, msg: StateRequest, gin: Self::GhostIn) -> bool {
         match msg {
-            StateRequest::Start(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
-            StateRequest::QuiesceInput(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
-            StateRequest::ResumeInput(rpc) => gin is None && StateRequest::no_ghost_reply(rpc),
+            // No ghost either way.
+            StateRequest::Start(rpc) => gin is None && forall|r: Result<(), RemoteError>|
+                #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
+            StateRequest::QuiesceInput(rpc) => gin is None && forall|r: Result<(), RemoteError>|
+                #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
+            StateRequest::ResumeInput(rpc) => gin is None && forall|r: Result<(), RemoteError>|
+                #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
             StateRequest::Inspect(_) => gin is None,
             StateRequest::Stop(rpc) => {
-                &&& StateRequest::lends_half(k, gin)
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
                 &&& forall|r: (), gout: Self::GhostOut|
                     gout matches Some(h) && h.valid(k, 0.5real) && !(h@ is Unknown)
                         ==> #[trigger] rpc.reply_ok(r, gout)
             },
             StateRequest::Save(rpc) => {
-                &&& StateRequest::lends_half(k, gin)
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
                 &&& !(gin->Some_0@ is Unknown)
                 &&& forall|r: Result<Option<SavedStateBlob>, RemoteError>, gout: Self::GhostOut|
                     gout == gin && match r {
@@ -134,47 +138,39 @@ impl MeshProtocol for StateRequest {
                     } ==> #[trigger] rpc.reply_ok(r, gout)
             },
             StateRequest::Restore(rpc) => {
-                &&& StateRequest::lends_half(k, gin)
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
                 &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
                     gout matches Some(h) && h.valid(k, 0.5real) && (r is Ok ==> h@
                         == UnitSnapshot::Saved(rpc.spec_input()@)) ==> #[trigger] rpc.reply_ok(r, gout)
             },
-            StateRequest::Reset(rpc) => StateRequest::lends_half(k, gin)
-                && StateRequest::half_reply(k, rpc),
-            StateRequest::AdvanceTime(rpc) => StateRequest::lends_half(k, gin)
-                && StateRequest::half_reply(k, rpc),
+            // A half back, with any value.
+            StateRequest::Reset(rpc) => {
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
+                &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
+                    gout matches Some(h) && h.valid(k, 0.5real) ==> #[trigger] rpc.reply_ok(r, gout)
+            },
+            StateRequest::AdvanceTime(rpc) => {
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
+                &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
+                    gout matches Some(h) && h.valid(k, 0.5real) ==> #[trigger] rpc.reply_ok(r, gout)
+            },
         }
     }
 }
 
-impl StateRequest {
-    /// `gin` is the caller's half of the unit's FracGhost.
-    pub open spec fn lends_half(k: Loc, gin: Option<FracGhost<UnitSnapshot>>) -> bool {
-        gin matches Some(h) && h.valid(k, 0.5real)
-    }
-
-    /// The reply to `rpc` carries no ghost.
-    pub open spec fn no_ghost_reply<I, R>(rpc: Rpc<I, R>) -> bool {
-        forall|r: R| #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>)
-    }
-
-    /// The reply to `rpc` returns a half of the unit's FracGhost, with any value.
-    pub open spec fn half_reply<I, R>(k: Loc, rpc: Rpc<I, R>) -> bool {
-        forall|r: R, gout: Option<FracGhost<UnitSnapshot>>|
-            gout matches Some(h) && h.valid(k, 0.5real) ==> #[trigger] rpc.reply_ok(r, gout)
-    }
-}
-
-impl super::ReadySet {
+impl View for crate::ReadySet {
     /// The units in the set.
-    pub closed spec fn ids(&self) -> Set<u64> {
+    type V = Set<u64>;
+
+    closed spec fn view(&self) -> Set<u64> {
         self.0@.dom()
     }
 }
 
 impl Inner {
-    /// The registered units.
-    pub closed spec fn unit_ids(&self) -> Set<u64> {
+    /// The registered units. (Proof plumbing for `Inner::ready_set`'s
+    /// assumed specification.)
+    pub(crate) closed spec fn unit_ids(&self) -> Set<u64> {
         self.units@.dom()
     }
 }
@@ -211,7 +207,7 @@ pub tracked struct UnitHalves {
 }
 
 /// The ghost state of a new `StateUnits`: no unit collected.
-pub(super) fn no_halves() -> (result: Tracked<UnitHalves>)
+pub(crate) fn no_halves() -> (result: Tracked<UnitHalves>)
     ensures
         result@.halves == Map::<u64, FracGhost<UnitSnapshot>>::empty(),
         result@.registry == Map::<u64, (Seq<char>, Loc)>::empty(),
@@ -220,20 +216,28 @@ pub(super) fn no_halves() -> (result: Tracked<UnitHalves>)
 }
 
 impl StateUnits {
-    /// `StateUnits`' ghost state is consistent: it holds a half for exactly
-    /// the collected units, each belonging to that unit's channel, and the
-    /// collected units have distinct names.
-    pub closed spec fn wf(&self) -> bool {
-        &&& self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
-        &&& forall|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
-            ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
-        &&& forall|a: u64, b: u64|
-            #[trigger] self.units_ghost@.registry.contains_key(a) && #[trigger] self.units_ghost@.registry.contains_key(b)
-                && a != b ==> self.units_ghost@.registry[a].0 != self.units_ghost@.registry[b].0
+    /// If `StateUnits` holds a half for exactly the collected units, and the
+    /// collected units have distinct names, the view's invariant holds (the
+    /// inventory, built from the collected ids, lists each unit once).
+    ///
+    /// PROOF PENDING (`external_body`): to be proved from vstd's
+    /// `to_sorted_seq` lemmas. Listed in `SNAPSHOT-SPEC-TRUSTED.md`.
+    #[verifier::external_body]
+    pub(crate) proof fn lemma_view_inv(&self)
+        requires
+            self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom(),
+            forall|a: u64, b: u64|
+                #[trigger] self.units_ghost@.registry.contains_key(a)
+                    && #[trigger] self.units_ghost@.registry.contains_key(b) && a != b
+                    ==> self.units_ghost@.registry[a].0 != self.units_ghost@.registry[b].0,
+        ensures
+            self@.inv(),
+    {
     }
 
     /// The collected units, by id: name and the id of the unit's FracGhost.
-    pub closed spec fn collected(&self) -> Map<u64, (Seq<char>, Loc)> {
+    /// (Proof plumbing for the registry axioms.)
+    pub(crate) closed spec fn collected(&self) -> Map<u64, (Seq<char>, Loc)> {
         self.units_ghost@.registry
     }
 
@@ -268,7 +272,6 @@ impl StateUnits {
             old(self).wf(),
         ensures
             final(self).wf(),
-            old(self).collected() <= final(self).collected(),
     {
         let (mut inner, handle) = self.lock_registry();
         let mut ids: Vec<u64> = Vec::new();
@@ -344,6 +347,7 @@ impl StateUnits {
                 implies halves[id] == old_halves[id] by {
                 assert(!new_halves.contains_key(id));
             }
+            self.lemma_view_inv();
         }
     }
 }
@@ -353,7 +357,7 @@ impl StateUnits {
 
 /// A caller lends its half for `Save` and learns that the reply's blob
 /// matches what the half records.
-pub(super) async fn example_save_call(
+pub(crate) async fn example_save_call(
     send: &mesh::Sender<StateRequest>,
     half: Tracked<FracGhost<UnitSnapshot>>,
 ) -> (result: Option<(Option<SavedStateBlob>, Tracked<FracGhost<UnitSnapshot>>)>)
@@ -396,36 +400,41 @@ pub(super) async fn example_save_call(
 }
 
 /// A stopped unit whose save returns `saved`, holding its half.
-pub(super) struct ExampleUnit {
-    saved: Option<SavedStateBlob>,
-    half: Tracked<FracGhost<UnitSnapshot>>,
+pub(crate) struct ExampleUnit {
+    pub(crate) saved: Option<SavedStateBlob>,
+    pub(crate) half: Tracked<FracGhost<UnitSnapshot>>,
+    /// The id of the unit's FracGhost (its channel's constant).
+    pub(crate) id: Ghost<Loc>,
 }
 
-impl ExampleUnit {
-    /// What the unit's save returns, as a `UnitSnapshot`.
-    pub(super) closed spec fn snapshot(&self) -> UnitSnapshot {
+impl View for ExampleUnit {
+    /// What the unit's save returns.
+    type V = UnitSnapshot;
+
+    closed spec fn view(&self) -> UnitSnapshot {
         match self.saved {
             Some(blob) => UnitSnapshot::Saved(blob@),
             None => UnitSnapshot::NoSavedState,
         }
     }
+}
 
+impl ExampleUnit {
     /// The half belongs to the unit's channel; unless it is still
     /// `Unknown`, it records what the unit's save returns.
-    pub(super) closed spec fn inv(&self, k: Loc) -> bool {
-        &&& self.half@.valid(k, 0.5real)
-        &&& !(self.half@@ is Unknown) ==> self.half@@ == self.snapshot()
+    pub(crate) closed spec fn wf(&self) -> bool {
+        &&& self.half@.valid(self.id@, 0.5real)
+        &&& !(self.half@@ is Unknown) ==> self.half@@ == self@
     }
 
     /// Answers `Stop`, `Save`, and `Restore` by the protocol.
-    pub(super) fn handle(&mut self, k: Ghost<Loc>, msg: StateRequest, gin: Tracked<
-        Option<FracGhost<UnitSnapshot>>,
-    >)
+    pub(crate) fn handle(&mut self, msg: StateRequest, gin: Tracked<Option<FracGhost<UnitSnapshot>>>)
         requires
-            old(self).inv(k@),
-            StateRequest::request_ok(k@, msg, gin@),
+            old(self).wf(),
+            StateRequest::request_ok(old(self).id@, msg, gin@),
         ensures
-            final(self).inv(k@),
+            final(self).wf(),
+            final(self).id == old(self).id,
     {
         let Tracked(gin) = gin;
         match msg {
@@ -434,7 +443,7 @@ impl ExampleUnit {
                 proof {
                     // Both halves: record the current state, then split again.
                     self.half.borrow_mut().combine(lent);
-                    let ghost now = self.snapshot();
+                    let ghost now = self@;
                     self.half.borrow_mut().update(now);
                     lent = self.half.borrow_mut().split();
                 }
@@ -458,7 +467,7 @@ impl ExampleUnit {
                 self.saved = Some(blob);
                 proof {
                     self.half.borrow_mut().combine(lent);
-                    let ghost now = self.snapshot();
+                    let ghost now = self@;
                     self.half.borrow_mut().update(now);
                     lent = self.half.borrow_mut().split();
                 }

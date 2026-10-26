@@ -93,9 +93,10 @@ pub struct VmWorkerParameters {
 #[cfg(verus_keep_ghost)]
 pub mod spec {
     include!("worker.spec.rs");
-}
 
-#[cfg(verus_keep_ghost)]
-mod proof {
-    include!("worker.proof.rs");
+    /// Declarations supporting the spec. Inside `spec`, so that lemmas can
+    /// unfold its closed views.
+    mod proof {
+        include!("worker.proof.rs");
+    }
 }

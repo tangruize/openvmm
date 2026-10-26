@@ -53,12 +53,14 @@ pub use unit_channel::unit_channel;
 #[allow(missing_docs)] // methods that Verus generates for spec enums
 pub mod spec {
     include!("lib.spec.rs");
+
+    /// Lemmas and declarations supporting the spec. Inside `spec`, so that
+    /// lemmas can unfold its closed views.
+    pub(crate) mod proof {
+        include!("lib.proof.rs");
+    }
 }
 
-#[cfg(verus_keep_ghost)]
-mod proof {
-    include!("lib.proof.rs");
-}
 
 #[cfg(verus_keep_ghost)]
 use spec::UnitSnapshot;
@@ -288,7 +290,7 @@ pub struct StateUnits {
     /// Verus only (zero-sized): the units collected so far and the FracGhost
     /// half held for each.
     #[cfg(verus_keep_ghost)]
-    units_ghost: Tracked<proof::UnitHalves>,
+    units_ghost: Tracked<spec::proof::UnitHalves>,
 }
 
 /// The mutex holding a [`StateUnits`]'s registry, with its invariant
@@ -519,7 +521,7 @@ impl StateUnits {
             })),
             running: false,
             #[cfg(verus_keep_ghost)]
-            units_ghost: proof::no_halves(),
+            units_ghost: spec::proof::no_halves(),
         }
     }
 

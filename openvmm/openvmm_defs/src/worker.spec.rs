@@ -23,12 +23,32 @@ pub struct SavedStateView {
     pub inventory: Seq<Seq<char>>,
 }
 
+impl SavedStateView {
+    /// The inventory lists each unit once, and every unit with saved state is
+    /// in it.
+    pub open spec fn inv(self) -> bool {
+        &&& self.inventory.no_duplicates()
+        &&& self.units.dom() <= self.inventory.to_set()
+    }
+}
+
+impl SavedState {
+    /// Well formed: the view's invariant holds, and the entries have
+    /// distinct unit names (so the view loses none of them). `save` produces
+    /// well-formed saved states; `restore` accepts any and rejects
+    /// duplicates itself.
+    pub closed spec fn wf(&self) -> bool {
+        &&& self@.inv()
+        &&& SavedStateUnit::distinct_names(self.units@)
+    }
+}
+
 impl View for SavedState {
     type V = SavedStateView;
 
     /// If two entries have the same unit name, the map holds one of them.
     /// (Restore rejects such a saved state.)
-    open spec fn view(&self) -> SavedStateView {
+    closed spec fn view(&self) -> SavedStateView {
         SavedStateView {
             units: SavedStateUnit::map_of(self.units@),
             inventory: self.inventory@.map_values(|name: String| name@),

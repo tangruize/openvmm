@@ -162,6 +162,21 @@ Baseline: upstream `nanvix/openvmm` commit
     `state_units.collect_halves()` under `#[cfg(verus_keep_ghost)]` before
     building `LoadedVm`. `anyhow::Error`'s declaration moves from
     `openvmm_core` to `state_unit`. `collect_halves` is `pub`.
+20. **Spec convention: `view` and `wf()` per concrete type** (no runtime
+    change). `StateUnitsView::inv()`, `SavedStateView::inv()`, and
+    `LoadedVmView::inv()` are new; `StateUnits::wf()` (now in `lib.spec.rs`),
+    `SavedState::wf()` (new), and `LoadedVm::wf()` (new, replacing
+    `units_consistent` and `snapshot_recorded`) include them.
+    `LoadedVmView` gains `recorded`; `LoadedVm::save` requires `wf()` and
+    `@.recorded`, and ensures `saved.wf()`; `restore` requires `wf()`. The
+    views of `LoadedVm` and `SavedState` are now closed. `ReadySet`'s `ids()`
+    becomes `impl View for ReadySet`; `collected` and `Inner::unit_ids` are
+    crate-private; `StateRequest`'s helper predicates are inlined into
+    `request_ok`; `ExampleUnit` has a view and `wf()`; the free lemma
+    `lemma_restore_gives_saved_state` is now
+    `LoadedVmView::lemma_restore_gives_saved_state`. New pending lemma
+    `StateUnits::lemma_view_inv`. Each crate's `.proof.rs` is now included as
+    `mod proof` inside `mod spec` (`vm/vmcore` has no `.proof.rs`).
 
 ### Planned: mesh RPC trusted spec
 

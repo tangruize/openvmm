@@ -14,8 +14,19 @@ pub struct LoadedVmView {
     /// The snapshotable state: what `save` captures and `restore` sets.
     /// Meaningful while the state units are stopped.
     pub snapshot: SavedStateView,
+    /// Whether every state unit's snapshotable state is known (each has been
+    /// stopped or restored since it was created); `snapshot` is complete
+    /// only then.
+    pub recorded: bool,
     /// The rest, which a snapshot does not capture.
     pub runtime: VmRuntime,
+}
+
+impl LoadedVmView {
+    /// The snapshot's invariant holds.
+    pub open spec fn inv(self) -> bool {
+        self.snapshot.inv()
+    }
 }
 
 /// The part of a loaded VM's state that a snapshot does not capture.
@@ -27,33 +38,27 @@ pub struct VmRuntime {
     pub running: bool,
 }
 
+impl LoadedVm {
+    /// Well formed: the view's invariant holds, and the state units are well
+    /// formed.
+    pub closed spec fn wf(&self) -> bool {
+        &&& self@.inv()
+        &&& self.state_units.wf()
+    }
+}
+
 impl View for LoadedVm {
     type V = LoadedVmView;
 
     /// From the state units' view: the snapshot holds the units whose
     /// FracGhost records a saved state.
-    open(super) spec fn view(&self) -> LoadedVmView {
+    closed spec fn view(&self) -> LoadedVmView {
         let units = self.state_units@;
         LoadedVmView {
             snapshot: SavedStateView { units: units.saved_units(), inventory: units.inventory },
+            recorded: units.all_recorded(),
             runtime: VmRuntime { running: units.running },
         }
-    }
-}
-
-impl LoadedVm {
-    /// `StateUnits`' ghost state is consistent (it holds a half of each
-    /// collected unit's FracGhost).
-    pub open(super) spec fn units_consistent(&self) -> bool {
-        self.state_units.wf()
-    }
-
-    /// Every state unit's state is recorded: the ghost state is consistent,
-    /// and no unit records `Unknown` (each has been stopped or restored since
-    /// it was created).
-    pub open(super) spec fn snapshot_recorded(&self) -> bool {
-        &&& self.units_consistent()
-        &&& self.state_units@.all_recorded()
     }
 }
 
