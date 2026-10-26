@@ -60,7 +60,8 @@ Protobuf encoding and decoding are not verified.
 ## Mesh RPC (`vmm_core/state_unit/src/mesh_rpc_t.rs`)
 
 All functions are `external_body` wrappers around the real `mesh` API; their
-contracts are assumptions about mesh. See the file header.
+contracts are assumptions about mesh. See the file header, and
+`SNAPSHOT-SPEC-MESH-RPC.md` for an explanation of the wrapper.
 
 | Item | What is assumed |
 |---|---|

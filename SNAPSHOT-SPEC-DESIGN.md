@@ -723,6 +723,9 @@ Also expected on the Verus side:
 
 ### Mesh RPC trusted spec
 
+A standalone explanation, starting from the mental model (`thread::spawn`
+for RPC) and how to use it, is in `SNAPSHOT-SPEC-MESH-RPC.md`.
+
 Now in `vmm_core/state_unit/src/mesh_rpc_t.rs` (first drafted in
 `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`, written against the
 real `mesh` crate; the prototype copy is kept for its example and lacks the
