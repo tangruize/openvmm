@@ -950,12 +950,6 @@ pub(crate) struct LoadedVm {
     running: bool,
     snapshot_restore: restore::SnapshotRestore,
     snapshot_boundary: microvm::SnapshotBoundary,
-    /// Verus only (zero-sized): the FracGhost half held for each stateful
-    /// state unit, by unit name.
-    #[cfg(verus_keep_ghost)]
-    halves: Tracked<
-        Map<Seq<char>, vstd::resource::frac::FracGhost<vmcore::save_restore::spec::SavedStateBlobView>>,
-    >,
 }
 
 struct DynamicVpciDeviceEntry {
@@ -3463,8 +3457,6 @@ impl InitializedVm {
             running: false,
             snapshot_restore,
             snapshot_boundary: Default::default(),
-            #[cfg(verus_keep_ghost)]
-            halves: proof::no_halves(),
             inner: LoadedVmInner {
                 driver_source,
                 resolver,
@@ -4655,6 +4647,7 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             !old(self)@.runtime.running,
+            old(self).snapshot_recorded(),
         ensures
             final(self)@ == old(self)@,
             result matches Ok(saved) ==> saved@ == old(self)@.snapshot,

@@ -52,12 +52,10 @@ Baseline: upstream `nanvix/openvmm` commit
    (`dispatch.rs`): `verus_spec` attributes under
    `cfg_attr(verus_keep_ghost, ...)`, with `verus_verify(external_body)` for
    now. No code change.
-7. **Ghost field `LoadedVm::halves`** (`dispatch.rs`): the FracGhost halves
-   `LoadedVm` holds, by unit name. Declared and initialized (in `make_ids`,
-   via `proof::no_halves()`) only under `#[cfg(verus_keep_ghost)]`, so a
-   normal build is unchanged. `LoadedVm` also gets
-   `#[cfg_attr(verus_keep_ghost, verus_verify)]`, so that Verus sees its
-   fields.
+7. **`LoadedVm` known to Verus** (`dispatch.rs`):
+   `#[cfg_attr(verus_keep_ghost, verus_verify)]` on the struct, so that its
+   view can read `state_units`. (An interim ghost field `LoadedVm::halves`
+   was added and later removed; the halves are in `StateUnits`, item 13.)
 8. **Verus wiring for `state_unit`** (`vmm_core/state_unit`), as for the
    crates above (`Cargo.toml`, new `build.rs`, Verus-only crate-root import),
    plus `mod proof` including `lib.proof.rs`.
@@ -86,6 +84,15 @@ Baseline: upstream `nanvix/openvmm` commit
     (`UnitSnapshot`, included as `pub mod spec`) and, in `lib.proof.rs`, the
     `MeshProtocol` impl for `StateRequest` (ghost types; request rules still
     to come).
+13. **`StateUnits` holds the halves** (`vmm_core/state_unit/src/lib.rs`):
+    `#[cfg_attr(verus_keep_ghost, verus_verify)]` on `StateUnits` and a
+    Verus-only field `halves` (initialized in `new` by `proof::no_halves()`).
+    `lib.proof.rs` gains the lock invariant on registered senders, the
+    Verus-only `StateUnits::collect_halves`, and declarations of `Inner`,
+    `Unit`, `State`, and `inspect::SensitivityLevel`; `lib.spec.rs` gains
+    `StateUnitsView` and `View for StateUnits`. No runtime change.
+14. **`LoadedVm::save` precondition** `snapshot_recorded()`
+    (`dispatch.rs`, defined in `dispatch.spec.rs`).
 
 ### Planned: mesh RPC trusted spec
 
@@ -94,8 +101,7 @@ From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
 
 All in `vmm_core/state_unit`:
 
-1. *(Done: `src/mesh_rpc_t.rs`, item 10 above.)* `LoadedVm::halves`
-   (made, item 7) is to be removed once `StateUnits` holds the halves.
+1. *(Done: `src/mesh_rpc_t.rs`, item 10 above.)*
 2. *(Done: Verus wiring and the mutex wrapper, items 8 and 9 above.)*
 3. **`UnitBuilder::spawn`** (`src/lib.rs:989`): `mesh::channel()` →
    `channel(Ghost(k))`.

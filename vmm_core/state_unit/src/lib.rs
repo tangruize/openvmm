@@ -54,9 +54,7 @@ mod proof {
     include!("lib.proof.rs");
 }
 
-// Verus requires every verified crate to import vstd.
 #[cfg(verus_keep_ghost)]
-#[expect(unused_imports)]
 use vstd::prelude::*;
 
 use futures::FutureExt;
@@ -273,9 +271,14 @@ impl StateRequest {
 
 /// A set of state units.
 #[derive(Debug)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct StateUnits {
     inner: Arc<InnerMutex>,
     running: bool,
+    /// Verus only (zero-sized): the FracGhost half held for each state unit,
+    /// by unit name, once collected from the unit's sender.
+    #[cfg(verus_keep_ghost)]
+    halves: Tracked<Map<Seq<char>, vstd::resource::frac::FracGhost<spec::UnitSnapshot>>>,
 }
 
 /// The mutex holding a [`StateUnits`]'s registry, with its invariant
@@ -505,6 +508,8 @@ impl StateUnits {
                 names: HashMap::new(),
             })),
             running: false,
+            #[cfg(verus_keep_ghost)]
+            halves: proof::no_halves(),
         }
     }
 

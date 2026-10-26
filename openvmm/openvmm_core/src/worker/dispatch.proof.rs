@@ -9,10 +9,7 @@ use super::microvm::SnapshotBoundary;
 use super::restore::SnapshotRestore;
 use super::spec::LoadedVmView;
 use openvmm_defs::worker::spec::SavedStateView;
-use state_unit::StateUnits;
-use vmcore::save_restore::spec::SavedStateBlobView;
 use vstd::prelude::*;
-use vstd::resource::frac::FracGhost;
 
 verus! {
 
@@ -32,19 +29,7 @@ pub(super) struct ExSnapshotBoundary(SnapshotBoundary);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub struct ExStateUnits(StateUnits);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
 pub struct ExAnyhowError(anyhow::Error);
-
-/// The halves of a newly loaded VM: none.
-pub(super) fn no_halves() -> (halves: Tracked<Map<Seq<char>, FracGhost<SavedStateBlobView>>>)
-    ensures
-        halves@ == Map::<Seq<char>, FracGhost<SavedStateBlobView>>::empty(),
-{
-    Tracked(Map::tracked_empty())
-}
 
 /// Restoring a saved state into a VM with the same stateful units and the
 /// same inventory gives back the snapshot state the saved state holds. With

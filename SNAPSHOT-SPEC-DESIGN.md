@@ -119,7 +119,9 @@ and `openvmm/openvmm_core/src/worker/dispatch.spec.rs`.
 
 ```rust
 // save
-requires !old(self)@.runtime.running,
+requires
+    !old(self)@.runtime.running,
+    old(self).snapshot_recorded(),   // every unit's state is recorded (no `Unknown`)
 ensures
     final(self)@ == old(self)@,                                  // changes nothing
     result matches Ok(saved) ==> saved@ == old(self)@.snapshot,  // captures the VM's state
@@ -150,21 +152,19 @@ ensures
   trip: restoring a saved state into a VM with the same stateful units and
   inventory gives back that state.
 
-`LoadedVm`'s view (`dispatch.spec.rs`):
+`LoadedVm`'s view (`dispatch.spec.rs`) is computed from `StateUnits`' view
+(`vmm_core/state_unit/src/lib.spec.rs`):
 
-- `snapshot.units` is defined from a ghost field,
-  `halves: Tracked<Map<Seq<char>, FracGhost<SavedStateBlobView>>>` (unit
-  name to the half `LoadedVm` holds), as `halves@.map_values(|h| h@)`. The
-  field exists only under `verus_keep_ghost`; the constructor (`make_ids`)
-  sets it to the empty map.
-- `snapshot.inventory` and `runtime.running` are uninterpreted
-  (`LoadedVm::inventory`, `LoadedVm::units_running`) until `StateUnits` has
-  a view; `state_unit` is not yet wired for Verus.
+- `StateUnitsView { units: Map<Seq<char>, UnitSnapshot>, inventory, running }`:
+  `units` holds the value of each FracGhost half `StateUnits` holds (a
+  Verus-only field `StateUnits::halves`); `inventory` is uninterpreted for
+  now (the names are behind the registry's mutex); `running` is the field.
+- `LoadedVmView.snapshot.units` holds the units recorded `Saved(v)`, with
+  value `v`; `snapshot.inventory` and `runtime.running` come from the
+  `StateUnits` view.
+- `LoadedVm::snapshot_recorded()`, a precondition of `save`: `StateUnits`
+  holds a half for each unit in the inventory, and none records `Unknown`.
 - `VmRuntime` has only `running`; more fields will come.
-
-Not yet connected: the halves are not tied to the units, and nothing gives
-`LoadedVm` its halves (it starts with none). The agreed fix follows; the
-`halves` field above is interim and moves into `StateUnits`.
 
 ### Where the halves come from
 
@@ -189,10 +189,9 @@ Design:
    `vmm_core/state_unit/src/unit_channel.rs`) creates the unit's FracGhost
    and, through the trusted `channel(k, gs, gr)`, attaches one half to each
    end; the channel's constant is the ghost's id. `UnitBuilder::spawn` and
-   the chipset builder (the one unit that makes its own channel) call it. `build(send)` takes
-   the sender's half into `StateUnits`; the unit's run loop takes the
-   receiver's half when it starts. A cloned sender carries none. Crates in
-   between need no signature changes.
+   the chipset builder (the one unit that makes its own channel) call it.
+   The unit's run loop takes the receiver's half when it starts. A cloned
+   sender carries none. Crates in between need no signature changes.
 2. **Initial value "not yet known".** The ghost value is a `UnitSnapshot`
    (`vmm_core/state_unit/src/lib.spec.rs`): `Unknown`, `NoSavedState`, or
    `Saved(SavedStateBlobView)`, starting `Unknown`. (`NoSavedState` is
@@ -203,30 +202,37 @@ Design:
    no half to be `Unknown`. The unit's run loop keeps a ghost-only
    running/stopped flag; its invariant is "while stopped, my half records
    what my save returns".
-3. **Stored in `StateUnits`.** Registration is through `&self`, so new
-   halves go into `Inner`, behind the mutex, with a lock invariant
-   (trusted wrapper `mutex_t.rs`, below). Each `&mut` operation (`stop`,
-   `save`, `restore`) first moves them into an ordinary ghost field of
-   `StateUnits`, which its view reads. Trusted assumption, as a
-   precondition on registration and removal (whose callers are unverified):
-   no unit is added or removed between that collection and the end of
-   `save`/`restore`.
-4. `LoadedVm::halves` goes away; `LoadedVm`'s view reads `state_units@`.
+3. **Stored in `StateUnits`.** Registration is through `&self`, so the
+   sender's half stays attached to the `Sender` that `build` (unverified)
+   stores in the registry, behind the mutex. The lock invariant
+   (`InnerPred`, `lib.proof.rs`): each registered sender's attached half,
+   if still there, belongs to its channel and records `Unknown`.
+   `StateUnits::collect_halves(&mut self)` (verified, Verus-only) takes the
+   attached halves into the Verus-only field `StateUnits::halves`, which
+   the view reads. Each `&mut` operation (`stop`, `save`, `restore`) will
+   call it first, under `#[cfg(verus_keep_ghost)]`; it has no runtime
+   effect. Trusted assumptions: callers of `build` pass a sender from
+   `unit_channel`; no unit is added or removed between a collection and the
+   end of the operation that made it.
+4. Done: `LoadedVm::halves` is removed; `LoadedVm`'s view reads
+   `state_units@`.
 
 No atomic invariant is needed: exact knowledge comes from holding halves;
-the lock invariant only ties the uncollected halves to the registered units.
+the lock invariant only ties the uncollected halves to the registered
+senders.
 
 ### Mutex wrapper
 
 `StateUnits` uses `parking_lot::Mutex`. vstd has `RwLock` but not `Mutex`;
 vstd's `RwLock` is a spinlock that is not released on drop, so switching
-would change runtime behavior. Instead, a trusted wrapper
-(`verus-patches/verus-rpc-prototype/src/mutex_t.rs`, to move to
-`vmm_core/state_unit`):
+would change runtime behavior. Instead, a trusted wrapper,
+`vmm_core/state_unit/src/mutex_t.rs` (first drafted in the prototype; the
+`state_unit` version names the invariant by a static `MutexPredicate`
+instead of a ghost value):
 
 - Runtime: `parking_lot::Mutex<Option<V>>`; the real lock is unchanged.
 - Verified code: `acquire(&self) -> (V, MutexHandle)` gives the value, which
-  satisfies the invariant (a `vstd::rwlock::RwLockPredicate`);
+  satisfies the invariant;
   `MutexHandle::release(v)` requires the invariant. A handle dropped
   without `release` leaves `None`, so the next lock panics: safe, not
   unsound.
