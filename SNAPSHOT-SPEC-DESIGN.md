@@ -240,6 +240,43 @@ the recorded units. `StateUnits::wf()`: `self@.inv()`, and `StateUnits`
 holds a half of each collected unit's FracGhost, belonging to its channel;
 collected units have distinct names.
 
+### `StateUnits`' unit states are the units' real states
+
+Agreed 2026-10-26. **Property:** for each registered unit, the state that
+`StateUnits`' registry records for it (`Unit.state`: `Running`, `Stopped`)
+is the unit's real state. Units are registered `Stopped`, and `run_op`
+sends `Stop` only to units recorded `Running` and `Start` only to units
+recorded `Stopped`.
+
+This is a correctness property of `StateUnits` in its own right: without
+it, `StateUnits`' contracts speak only of what `StateUnits` believes, not of
+the devices.
+
+| Where | The spec says | It should mean |
+|---|---|---|
+| `StateUnits::stop` | ensures `!running` | every device has really stopped |
+| `LoadedVm::save` | requires `!running` | no device changes while the units are saved one by one, so the snapshot is consistent |
+| `LoadedVm::restore` | requires `!running` | no device runs while its state is replaced |
+| the stop order | the partition stops first | the real devices stop in that order, so vCPUs cannot reach a stopped device |
+
+The device-state FracGhost ("Design change: the FracGhost lives with the
+device") relies on it too, at one point only: a unit answering `Stop` must
+hold the whole FracGhost, that is, be running. Every other request that
+reaches a unit either carries `StateUnits`' half (`Save`, `Restore`,
+`Reset`, `AdvanceTime`), from which the unit proves it is stopped (holding
+the whole as well would add up to more than 1), or gives it one (`Start`),
+from which it proves it was stopped.
+
+**How it is established: open.** Two options:
+
+- **Assume it** (current choice): one trusted fact, stated where it is
+  used, as a precondition of the unit's handling of `Stop` ("a unit
+  receives `Stop` only while running"). `StateUnits`' side (the registry
+  updates in `run_op`) can be verified.
+- **Prove it** with a ghost tying each registry entry to its unit (for
+  example a second FracGhost of the unit's running state, split between
+  the registry and the unit). A later refinement.
+
 ### Quiesce and save
 
 `LoadedVm::quiesce_for_snapshot` (`dispatch/microvm.rs`) is split,
@@ -348,7 +385,9 @@ Concerns and TODOs:
 
 ### Design change: the FracGhost lives with the device
 
-Decided 2026-10-26; not yet implemented.
+Decided 2026-10-26. Done so far: the request protocol and `StateUnits`'
+view follow the rule (refactoring piece 1, below); the device side is not
+yet implemented.
 
 **Problem with the current placement.** The unit's half and its invariant
 ("while stopped, my half records my current snapshot") live in the unit's
@@ -440,6 +479,25 @@ place); the unit-side contract moves down to the device: `SaveRestore`'s
 contract and the device's `wf()` include the ghost, and the device's I/O
 handlers get contracts; verifying a device means verifying all its mutation
 paths, including its I/O handlers.
+
+**Refactoring steps:**
+
+1. *Done.* The request protocol follows the rule (`Start` gives
+   `StateUnits`' half; `Stop` returns one), and so do `StateUnits::wf()`,
+   its view, and `ExampleUnit` (see "Request protocol").
+2. *Decided.* `unit_channel()` keeps creating the FracGhost with `Unknown`,
+   so a device's `wf()` allows `Unknown` ("state equals ghost, unless the
+   ghost is `Unknown`").
+3. A trusted spec of `CloseableMutex` (`vmm_core/vmotherboard`), so that
+   the device, with its ghost, is reached only through it.
+4. The PIT: its ghost field, `saved_state()`, `wf()`, and contracts on its
+   I/O handlers.
+5. The unit loop: `ArcMutexChipsetDeviceUnit::run`, and
+   `StateRequest::apply` without async closures.
+
+Alongside: a survey of cross-device changes (lines re-driven into the
+PIC/IOAPIC at restore, vmtime, `Halt`, the time-ABI writes to the
+partition), which need modelling.
 
 ### Unit-side contract
 
@@ -558,8 +616,8 @@ Design:
    (`vmm_core/state_unit/src/lib.spec.rs`): `Unknown`, `NoSavedState`, or
    `Saved(SavedStateBlobView)`, starting `Unknown`. (`NoSavedState` is
    needed because a unit whose save returns `None` has a known state that
-   is not a blob.) On `Stop`, `StateUnits` lends its half and the unit
-   records what its save would return; `Restore` records `Saved(blob@)`
+   is not a blob.) On `Stop`, the running unit, holding the whole, records
+   what its save would return and sends a half back; `Restore` records `Saved(blob@)`
    (this covers restore on a fresh VM); `Save` only lends. `save` requires
    no half to be `Unknown`. The unit's run loop keeps a ghost-only
    running/stopped flag; its invariant is "while stopped, my half records
@@ -594,26 +652,42 @@ senders.
 ### Request protocol
 
 `MeshProtocol::request_ok` for `StateRequest` (`vmm_core/state_unit/src/lib.proof.rs`).
-`k` is the unit's ghost id; the caller (`StateUnits`) holds one half, the
-unit the other.
+`k` is the unit's ghost id. Following the rule ("Design change: the
+FracGhost lives with the device"), a running unit holds the whole
+FracGhost; while it is stopped, the caller (`StateUnits`) holds one half
+and the unit the other.
 
 | Request | Ghost sent | Reply must satisfy |
 |---|---|---|
-| `Stop` | caller's half (lent) | a half back recording a known state (not `Unknown`) |
+| `Start` | caller's half (given) | no ghost, also on `Err` (a unit that fails to start ends in a terminal state, `QuiesceUncertain`) |
+| `Stop` | none | a half back recording a known state (not `Unknown`) |
 | `Save` | caller's half (lent), not `Unknown` | the same half back; `Ok(Some(blob))` iff it records `Saved(blob@)`, `Ok(None)` iff `NoSavedState` |
 | `Restore(blob)` | caller's half | a half back; on `Ok` it records `Saved(blob@)` |
 | `Reset`, `AdvanceTime` | caller's half | a half back, any value |
-| `Start`, `QuiesceInput`, `ResumeInput`, `Inspect` | none | no ghost |
+| `QuiesceInput`, `ResumeInput`, `Inspect` | none | no ghost |
 
-A reply to a request that carried the half returns a half also on `Err`,
-so the caller keeps it (`save` promises to change nothing).
+A reply to `Save`, `Restore`, `Reset`, or `AdvanceTime` returns a half also
+on `Err`, so the caller keeps it (`save` promises to change nothing).
+
+`StateUnits::wf()` follows: `StateUnits` holds halves only of collected
+units, and while stopped (`!running`) one for every collected unit. While
+running it may still hold some: those of units added while running, which
+stay stopped until `start_stopped_units`. Its view records `Unknown` for a
+unit whose half it does not hold.
 
 Verified examples (Verus-only, in `lib.proof.rs`): `example_save_call`, a
 caller that lends its half for `Save` and learns that the blob matches it;
-and `ExampleUnit::handle`, a stopped unit that answers `Stop`, `Save`, and
-`Restore` by the rules (its invariant: its half belongs to the channel and,
-unless `Unknown`, records what its save returns). Three injected bugs (`Save`
-always `None`; `Restore` ignoring the blob; `Stop` not recording) each fail.
+and `ExampleUnit`, a unit following the rule: `handle` answers `Start`,
+`Stop`, `Save`, and `Restore`, and `set` changes its state as an I/O
+handler would, only while running (its `wf()`: it holds the whole of its
+ghost while running and one half while stopped, and the ghost, unless
+`Unknown`, records what its save returns). `handle` requires that `Stop`
+arrives only while it runs: the trusted fact of "`StateUnits`' unit states
+are the units' real states". For `Start` and `Restore` it proves from the
+half it receives that it was stopped. Negative checks, each failing:
+`Save` always `None`; `Restore` ignoring the blob; `Stop` not recording
+(earlier version); dropping the `Stop`-while-running precondition; dropping
+the proof that a unit receiving `Start` was stopped.
 
 New trusted facts and assumptions:
 

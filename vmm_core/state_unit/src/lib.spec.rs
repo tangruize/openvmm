@@ -13,8 +13,8 @@ verus! {
 /// What a state unit's FracGhost records: the unit's snapshotable state,
 /// that is, what its save returns.
 pub enum UnitSnapshot {
-    /// Not yet recorded: the unit has been neither stopped nor restored since
-    /// it was created.
+    /// Not recorded: the unit has been neither stopped nor restored since it
+    /// was created. (In `StateUnits`' view, also a unit that is running.)
     Unknown,
     /// The unit has no saved state (its save returns `None`).
     NoSavedState,
@@ -85,13 +85,19 @@ impl SavedStateUnit {
 }
 
 impl StateUnits {
-    /// Well formed: the view's invariant holds, and `StateUnits` holds a
-    /// half of each collected unit's FracGhost, each belonging to that unit's
-    /// channel; collected units have distinct names.
+    /// Well formed: the view's invariant holds; `StateUnits` holds halves of
+    /// collected units' FracGhosts only, each belonging to that unit's
+    /// channel, and while stopped it holds one for every collected unit;
+    /// collected units have distinct names.
+    ///
+    /// (While running, a unit holds its whole FracGhost, so `StateUnits`
+    /// holds no half for it; it holds halves for units added while running,
+    /// which are stopped until `start_stopped_units`.)
     pub closed spec fn wf(&self) -> bool {
         &&& self@.inv()
-        &&& self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
-        &&& forall|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
+        &&& self.units_ghost@.halves.dom() <= self.units_ghost@.registry.dom()
+        &&& !self.running ==> self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
+        &&& forall|id: u64| #[trigger] self.units_ghost@.halves.contains_key(id)
             ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
         &&& forall|a: u64, b: u64|
             #[trigger] self.units_ghost@.registry.contains_key(a)
@@ -104,16 +110,23 @@ impl View for StateUnits {
     type V = StateUnitsView;
 
     /// `units`: for each collected unit, by name, what the half held for it
-    /// records. (Collected units have distinct names; see `wf`.)
+    /// records, or `Unknown` if none is held (the unit is running).
+    /// (Collected units have distinct names; see `wf`.)
     closed spec fn view(&self) -> StateUnitsView {
         StateUnitsView {
             units: Map::new(
                 self.units_ghost@.registry.values().map(
                     |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0,
                 ),
-                |name: Seq<char>|
-                    self.units_ghost@.halves[choose|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
-                        && self.units_ghost@.registry[id].0 == name]@,
+                |name: Seq<char>| {
+                    let id = choose|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
+                        && self.units_ghost@.registry[id].0 == name;
+                    if self.units_ghost@.halves.contains_key(id) {
+                        self.units_ghost@.halves[id]@
+                    } else {
+                        UnitSnapshot::Unknown
+                    }
+                },
             ),
             // Unit ids increase with registration, so id order is
             // registration order.

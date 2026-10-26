@@ -91,7 +91,7 @@ pub struct ExDeferred(inspect::Deferred);
 /// the id of the unit's FracGhost.
 impl MeshProtocol for StateRequest {
     type Const = Loc;
-    /// A half lent or returned by the caller.
+    /// A half given or lent by the caller.
     type GhostIn = Option<FracGhost<UnitSnapshot>>;
     /// A half returned to the caller.
     type GhostOut = Option<FracGhost<UnitSnapshot>>;
@@ -100,33 +100,42 @@ impl MeshProtocol for StateRequest {
     /// The unit's half, attached at creation.
     type ReceiverGhost = FracGhost<UnitSnapshot>;
 
-    /// The request protocol. `k` is the id of the unit's FracGhost; the
-    /// caller (`StateUnits`) holds one half and the unit the other.
+    /// The request protocol. `k` is the id of the unit's FracGhost. While a
+    /// unit is running it holds the whole FracGhost; while it is stopped, the
+    /// caller (`StateUnits`) and the unit each hold one half.
     ///
-    /// - `Stop`: the caller lends its half; the unit records its state and
-    ///   returns a half recording it (not `Unknown`).
+    /// - `Start`: the caller gives its half; the unit, now holding the whole,
+    ///   runs. No ghost comes back, also on `Err` (a unit that fails to
+    ///   start ends in a terminal state).
+    /// - `Stop`: no ghost is sent; the unit records its state and returns a
+    ///   half recording it (not `Unknown`).
     /// - `Save`: the caller lends its half, which must record a known state;
     ///   the unit returns the same half, with a blob that matches it.
     /// - `Restore(blob)`: the caller sends its half; on success the unit
     ///   returns a half recording `Saved(blob@)`.
     /// - `Reset`, `AdvanceTime`: the caller sends its half; the unit returns a
     ///   half (its state may have changed).
-    /// - `Start`, `QuiesceInput`, `ResumeInput`, `Inspect`: no ghost.
+    /// - `QuiesceInput`, `ResumeInput`, `Inspect`: no ghost.
     ///
-    /// Every reply to a request that carried the half returns a half, also
-    /// on `Err`, so the caller keeps it.
+    /// Every reply to `Save`, `Restore`, `Reset`, or `AdvanceTime` returns a
+    /// half, also on `Err`, so the caller keeps it.
     open spec fn request_ok(k: Loc, msg: StateRequest, gin: Self::GhostIn) -> bool {
         match msg {
+            // The caller's half goes to the unit; nothing comes back.
+            StateRequest::Start(rpc) => {
+                &&& gin matches Some(h) && h.valid(k, 0.5real)
+                &&& forall|r: Result<(), RemoteError>|
+                    #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>)
+            },
             // No ghost either way.
-            StateRequest::Start(rpc) => gin is None && forall|r: Result<(), RemoteError>|
-                #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
             StateRequest::QuiesceInput(rpc) => gin is None && forall|r: Result<(), RemoteError>|
                 #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
             StateRequest::ResumeInput(rpc) => gin is None && forall|r: Result<(), RemoteError>|
                 #[trigger] rpc.reply_ok(r, None::<FracGhost<UnitSnapshot>>),
             StateRequest::Inspect(_) => gin is None,
+            // The unit returns a half of the whole it held while running.
             StateRequest::Stop(rpc) => {
-                &&& gin matches Some(h) && h.valid(k, 0.5real)
+                &&& gin is None
                 &&& forall|r: (), gout: Self::GhostOut|
                     gout matches Some(h) && h.valid(k, 0.5real) && !(h@ is Unknown)
                         ==> #[trigger] rpc.reply_ok(r, gout)
@@ -221,16 +230,15 @@ pub(crate) fn no_halves() -> (result: Tracked<UnitHalves>)
 }
 
 impl StateUnits {
-    /// If `StateUnits` holds a half for exactly the collected units, and the
-    /// collected units have distinct names, the view's invariant holds (the
-    /// inventory, built from the collected ids, lists each unit once).
+    /// If the collected units have distinct names, the view's invariant
+    /// holds (the inventory, built from the collected ids, lists each unit
+    /// once).
     ///
     /// PROOF PENDING (`external_body`): to be proved from vstd's
     /// `to_sorted_seq` lemmas. Listed in `SNAPSHOT-SPEC-TRUSTED.md`.
     #[verifier::external_body]
     pub(crate) proof fn lemma_view_inv(&self)
         requires
-            self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom(),
             forall|a: u64, b: u64|
                 #[trigger] self.units_ghost@.registry.contains_key(a)
                     && #[trigger] self.units_ghost@.registry.contains_key(b) && a != b
@@ -344,14 +352,18 @@ impl StateUnits {
             self.units_ghost.borrow_mut().halves.tracked_union_prefer_right(new_halves);
             self.units_ghost.borrow_mut().registry = registry;
             let ghost halves = self.units_ghost@.halves;
-            assert(halves.dom() =~= registry.dom());
-            assert forall|id: u64| #[trigger] registry.contains_key(id)
+            assert(halves.dom() =~= old_halves.dom().union(new_halves.dom()));
+            assert(halves.dom() <= registry.dom());
+            if !self.running {
+                assert(halves.dom() =~= registry.dom());
+            }
+            assert forall|id: u64| #[trigger] halves.contains_key(id)
                 implies halves[id].valid(registry[id].1, 0.5real) by {
-                if old_registry.contains_key(id) {
-                    assert(!new_halves.contains_key(id));
-                    assert(halves[id] == old_halves[id]);
+                if new_halves.contains_key(id) {
                 } else {
-                    assert(new_halves.contains_key(id));
+                    assert(old_halves.contains_key(id));
+                    assert(old_registry.contains_key(id));
+                    assert(halves[id] == old_halves[id]);
                 }
             }
             assert forall|id: u64| #[trigger] old_halves.contains_key(id)
@@ -410,10 +422,14 @@ pub(crate) async fn example_save_call(
     }
 }
 
-/// A stopped unit whose save returns `saved`, holding its half.
+/// A unit whose save returns `saved`, following the rule: while running it
+/// holds its whole FracGhost, and while stopped one half.
 pub(crate) struct ExampleUnit {
     pub(crate) saved: Option<SavedStateBlob>,
-    pub(crate) half: Tracked<FracGhost<UnitSnapshot>>,
+    /// The unit's share of its FracGhost.
+    pub(crate) frac: Tracked<FracGhost<UnitSnapshot>>,
+    /// Whether the unit is running.
+    pub(crate) running: Ghost<bool>,
     /// The id of the unit's FracGhost (its channel's constant).
     pub(crate) id: Ghost<Loc>,
 }
@@ -431,40 +447,76 @@ impl View for ExampleUnit {
 }
 
 impl ExampleUnit {
-    /// The half belongs to the unit's channel; unless it is still
+    /// The ghost belongs to the unit's channel; the unit holds the whole of
+    /// it while running and one half while stopped; unless it is still
     /// `Unknown`, it records what the unit's save returns.
     pub(crate) closed spec fn wf(&self) -> bool {
-        &&& self.half@.valid(self.id@, 0.5real)
-        &&& !(self.half@@ is Unknown) ==> self.half@@ == self@
+        &&& self.frac@.valid(self.id@, if self.running@ { 1real } else { 0.5real })
+        &&& !(self.frac@@ is Unknown) ==> self.frac@@ == self@
     }
 
-    /// Answers `Stop`, `Save`, and `Restore` by the protocol.
+    /// Changes the unit's state, as an I/O handler would. Allowed only while
+    /// running, when the unit holds the whole ghost and can update it.
+    pub(crate) fn set(&mut self, saved: Option<SavedStateBlob>)
+        requires
+            old(self).wf(),
+            old(self).running@,
+        ensures
+            final(self).wf(),
+            final(self).running == old(self).running,
+            final(self).id == old(self).id,
+    {
+        self.saved = saved;
+        proof {
+            let ghost now = self@;
+            self.frac.borrow_mut().update(now);
+        }
+    }
+
+    /// Answers `Start`, `Stop`, `Save`, and `Restore` by the protocol.
+    ///
+    /// Requires that `Stop` arrives only while the unit runs. This is the
+    /// trusted fact that `StateUnits`' recorded unit states are the units'
+    /// real states (`SNAPSHOT-SPEC-DESIGN.md`); every other request proves
+    /// the unit's running state from the ghost it carries.
     pub(crate) fn handle(&mut self, msg: StateRequest, gin: Tracked<Option<FracGhost<UnitSnapshot>>>)
         requires
             old(self).wf(),
             StateRequest::request_ok(old(self).id@, msg, gin@),
+            msg is Stop ==> old(self).running@,
         ensures
             final(self).wf(),
             final(self).id == old(self).id,
     {
         let Tracked(gin) = gin;
         match msg {
-            StateRequest::Stop(rpc) => {
-                let tracked mut lent = gin.tracked_unwrap();
+            StateRequest::Start(rpc) => {
+                let tracked given = gin.tracked_unwrap();
                 proof {
-                    // Both halves: record the current state, then split again.
-                    self.half.borrow_mut().combine(lent);
-                    let ghost now = self@;
-                    self.half.borrow_mut().update(now);
-                    lent = self.half.borrow_mut().split();
+                    // With the caller's half the unit holds the whole: it was
+                    // stopped (running, it would now hold more than 1).
+                    self.frac.borrow_mut().combine(given);
+                    self.frac.borrow().bounded();
+                    self.running = Ghost(true);
                 }
-                complete(rpc, (), Tracked(Some(lent)));
+                complete(rpc, Ok(()), Tracked(None::<FracGhost<UnitSnapshot>>));
+            },
+            StateRequest::Stop(rpc) => {
+                let tracked mut half;
+                proof {
+                    // Running, so the whole: record the state, then split.
+                    let ghost now = self@;
+                    self.frac.borrow_mut().update(now);
+                    half = self.frac.borrow_mut().split();
+                    self.running = Ghost(false);
+                }
+                complete(rpc, (), Tracked(Some(half)));
             },
             StateRequest::Save(rpc) => {
                 let tracked lent = gin.tracked_unwrap();
                 proof {
                     // The lent half agrees with ours, which records the state.
-                    self.half.borrow().agree(&lent);
+                    self.frac.borrow().agree(&lent);
                 }
                 let saved = match &self.saved {
                     Some(blob) => Some(blob.clone()),
@@ -477,10 +529,13 @@ impl ExampleUnit {
                 let (blob, rpc) = split::<SavedStateBlob, Result<(), RemoteError>, Option<FracGhost<UnitSnapshot>>>(rpc);
                 self.saved = Some(blob);
                 proof {
-                    self.half.borrow_mut().combine(lent);
+                    // With the lent half the unit holds the whole: it is
+                    // stopped. Record the restored state, then split again.
+                    self.frac.borrow_mut().combine(lent);
+                    self.frac.borrow().bounded();
                     let ghost now = self@;
-                    self.half.borrow_mut().update(now);
-                    lent = self.half.borrow_mut().split();
+                    self.frac.borrow_mut().update(now);
+                    lent = self.frac.borrow_mut().split();
                 }
                 complete(rpc, Ok(()), Tracked(Some(lent)));
             },

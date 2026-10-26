@@ -215,6 +215,14 @@ Baseline: upstream `nanvix/openvmm` commit
     unit's `advances_time` flag (the registry axioms cover it), and
     `StateUnitsView::advances_time` is new. Declarations of
     `RestoreTimeInput` and `ProfileSpan` (`openvmm_defs`).
+25. **Request protocol follows the FracGhost rule** (Verus only, no runtime
+    change; `vmm_core/state_unit/src/lib.proof.rs`, `lib.spec.rs`): `Start`
+    gives `StateUnits`' half to the unit; `Stop` sends none and gets a half
+    back. `StateUnits::wf()` requires halves for every collected unit only
+    while stopped; its view records `Unknown` for a unit whose half it does
+    not hold; `lemma_view_inv` no longer needs a half per unit;
+    `collect_halves`' proof is updated. `ExampleUnit` follows the rule
+    (fields `frac` and `running`, new method `set`).
 
 ### Planned: mesh RPC trusted spec
 
