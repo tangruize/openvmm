@@ -6,6 +6,9 @@ name = "state_unit"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 vmcore.workspace = true
 
@@ -20,6 +23,7 @@ futures-concurrency.workspace = true
 parking_lot.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+vstd.workspace = true
 
 [dev-dependencies]
 test_with_tracing.workspace = true

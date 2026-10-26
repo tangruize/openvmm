@@ -58,6 +58,17 @@ Baseline: upstream `nanvix/openvmm` commit
    normal build is unchanged. `LoadedVm` also gets
    `#[cfg_attr(verus_keep_ghost, verus_verify)]`, so that Verus sees its
    fields.
+8. **Verus wiring for `state_unit`** (`vmm_core/state_unit`), as for the
+   crates above (`Cargo.toml`, new `build.rs`, Verus-only crate-root import),
+   plus `mod proof` including `lib.proof.rs`.
+9. **`StateUnits`' registry mutex** (`vmm_core/state_unit/src/lib.rs`):
+   `Arc<parking_lot::Mutex<Inner>>` becomes `Arc<InnerMutex>`, where
+   `InnerMutex = mutex_t::Mutex<Inner, InnerPred>`, the trusted wrapper in
+   the new file `src/mutex_t.rs` (moved from the prototype). It wraps
+   `parking_lot::Mutex<Option<Inner>>`, so the runtime lock is the same;
+   every `.lock()` call site is unchanged. `InnerPred` (an empty enum) names
+   the lock invariant, which `lib.proof.rs` defines (trivial for now). Same
+   change for `UnitHandle::inner` and `StateUnitsInspector::inner`.
 
 ### Planned: mesh RPC trusted spec
 
@@ -67,11 +78,8 @@ From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
 All in `vmm_core/state_unit`:
 
 1. **New file `src/mesh_rpc_t.rs`**: the trusted wrappers, moved from the
-   prototype. **New file `src/mutex_t.rs`**: the trusted `Mutex` wrapper,
-   moved from the prototype; `StateUnits::inner` and `UnitHandle::inner`
-   change from `parking_lot::Mutex<Inner>` to it (`lock()` call sites
-   unchanged). `LoadedVm::halves` (made, item 7) is then removed.
-2. **Verus wiring** for `state_unit`, as for the crates above.
+   prototype. `LoadedVm::halves` (made, item 7) is then removed.
+2. *(Done: Verus wiring and the mutex wrapper, items 8 and 9 above.)*
 3. **`UnitBuilder::spawn`** (`src/lib.rs:989`): `mesh::channel()` →
    `channel(Ghost(k))`.
 4. **`state_change`** (`src/lib.rs:843`): `unit.send.clone()` →

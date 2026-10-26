@@ -32,8 +32,20 @@
 
 mod advance_time;
 mod inventory;
+#[allow(dead_code)] // `acquire` and `release` are for verified code, still to come.
+mod mutex_t;
 pub mod quiesce;
 mod start;
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("lib.proof.rs");
+}
+
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
 
 use futures::FutureExt;
 use futures::StreamExt;
@@ -51,7 +63,6 @@ use mesh::rpc::RpcError;
 use mesh::rpc::RpcSend;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
-use parking_lot::Mutex;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::hash_map;
@@ -251,9 +262,16 @@ impl StateRequest {
 /// A set of state units.
 #[derive(Debug)]
 pub struct StateUnits {
-    inner: Arc<Mutex<Inner>>,
+    inner: Arc<InnerMutex>,
     running: bool,
 }
+
+/// The mutex holding a [`StateUnits`]'s registry, with its invariant
+/// [`InnerPred`] (Verus only; see `lib.proof.rs`).
+type InnerMutex = mutex_t::Mutex<Inner, InnerPred>;
+
+/// Names the invariant of [`InnerMutex`].
+enum InnerPred {}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Inspect)]
 enum State {
@@ -310,7 +328,7 @@ struct UnitId {
 #[derive(Debug)]
 pub struct UnitHandle {
     id: UnitId,
-    inner: Option<Weak<Mutex<Inner>>>,
+    inner: Option<Weak<InnerMutex>>,
 }
 
 impl Drop for UnitHandle {
@@ -342,7 +360,7 @@ impl UnitHandle {
 /// An object returned by [`StateUnits::inspector`] to inspect state units while
 /// state transitions may be in flight.
 pub struct StateUnitsInspector {
-    inner: Weak<Mutex<Inner>>,
+    inner: Weak<InnerMutex>,
 }
 
 impl Inspect for StateUnits {
@@ -469,7 +487,7 @@ impl StateUnits {
     /// Creates a new instance with no initial units.
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Inner {
+            inner: Arc::new(InnerMutex::new(Inner {
                 next_id: 0,
                 units: BTreeMap::new(),
                 names: HashMap::new(),
