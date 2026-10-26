@@ -1,7 +1,8 @@
 # Snapshot spec: code changes
 
 Code changes made for the snapshot save/restore verification, to OpenVMM and
-to Verus. Design rationale is in `SNAPSHOT-SPEC-DESIGN.md`.
+to Verus. Design rationale is in `SNAPSHOT-SPEC-DESIGN.md`; the trusted base
+is in `SNAPSHOT-SPEC-TRUSTED.md`.
 
 Every OpenVMM change must keep the code compiling and behaving the same in a
 normal (non-Verus) build. Ghost (`Ghost`/`Tracked`) arguments are zero-sized

@@ -10,7 +10,9 @@ and all `verus_spec` contracts. It remains available in git at commit
 It is not a design reference.
 
 Code changes to OpenVMM (relative to upstream `7f225e2`) and to Verus, made
-and planned, are listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`.
+and planned, are listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`. Everything the
+proof trusts (axioms, assumed specifications, trusted wrappers, assumptions)
+is listed in `SNAPSHOT-SPEC-TRUSTED.md`.
 
 Provenance (from the removed `SNAPSHOT-SPEC.md` reading guide):
 
