@@ -10808,6 +10808,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vm_resource",
+ "vstd",
  "zerocopy",
 ]
 

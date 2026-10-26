@@ -250,6 +250,12 @@ pub mod private {
     }
 }
 
+/// Verus specification of saved-state blobs.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("save_restore.spec.rs");
+}
+
 #[cfg(test)]
 mod tests {
     use super::NoSavedState;

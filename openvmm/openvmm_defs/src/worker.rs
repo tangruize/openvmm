@@ -88,3 +88,14 @@ pub struct VmWorkerParameters {
     /// The notification channel.
     pub notify: mesh::Sender<HaltReason>,
 }
+
+/// Verus specification of the VM worker's saved state.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("worker.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("worker.proof.rs");
+}

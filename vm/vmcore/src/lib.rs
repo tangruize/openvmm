@@ -9,6 +9,11 @@
 // Needed for `save_restore_derive`.
 extern crate self as vmcore;
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 pub mod device_state;
 pub mod interrupt;
 pub mod irqfd;

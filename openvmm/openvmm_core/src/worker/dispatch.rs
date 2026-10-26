@@ -14,6 +14,19 @@ mod smmu_wiring;
 mod snapshot_rpc;
 mod time_abi;
 
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("dispatch.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("dispatch.proof.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 use crate::emuplat;
 use crate::partition::BindHvliteVp;
 use crate::partition::HvlitePartition;
@@ -930,12 +943,19 @@ mod tests {
 /// A VM that has been loaded and can be run.
 ///
 /// Most new state should be added to [`LoadedVmInner`].
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct LoadedVm {
     state_units: StateUnits,
     inner: LoadedVmInner,
     running: bool,
     snapshot_restore: restore::SnapshotRestore,
     snapshot_boundary: microvm::SnapshotBoundary,
+    /// Verus only (zero-sized): the FracGhost half held for each stateful
+    /// state unit, by unit name.
+    #[cfg(verus_keep_ghost)]
+    halves: Tracked<
+        Map<Seq<char>, vstd::resource::frac::FracGhost<vmcore::save_restore::spec::SavedStateBlobView>>,
+    >,
 }
 
 struct DynamicVpciDeviceEntry {
@@ -3443,6 +3463,8 @@ impl InitializedVm {
             running: false,
             snapshot_restore,
             snapshot_boundary: Default::default(),
+            #[cfg(verus_keep_ghost)]
+            halves: proof::no_halves(),
             inner: LoadedVmInner {
                 driver_source,
                 resolver,
@@ -4629,6 +4651,14 @@ impl LoadedVm {
     /// Saves the VM's processor, partition, and device state.
     ///
     /// TODO: virtio & vmbus unsupported.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !old(self)@.runtime.running,
+        ensures
+            final(self)@ == old(self)@,
+            result matches Ok(saved) ==> saved@ == old(self)@.snapshot,
+    ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
             units: self.state_units.save().await?,
@@ -4637,6 +4667,22 @@ impl LoadedVm {
     }
 
     /// Restore state on the VM.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !old(self)@.runtime.running,
+        ensures
+            final(self)@.runtime == old(self)@.runtime,
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            result is Ok ==> {
+                // Units with saved state take it; the others keep theirs.
+                &&& final(self)@.snapshot.units
+                    == old(self)@.snapshot.units.union_prefer_right(state@.units)
+                // The saved inventory, if any, matches the VM's.
+                &&& state@.inventory.len() == 0
+                    || state@.inventory == old(self)@.snapshot.inventory
+            },
+    ))]
     async fn restore(&mut self, state: SavedState) -> anyhow::Result<()> {
         restore::validate_inventory(&self.state_units, &state)?;
         self.state_units.restore(state.units).await?;
