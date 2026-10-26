@@ -383,10 +383,8 @@ instead of in the unit's task. Then every mutation path (the unit's
 device's `wf()`:
 
 - While running, the device holds the whole FracGhost; its handlers may
-  change the state freely, with no ghost updates (nobody else holds a half,
-  so nobody relies on the value).
-- At `Stop`, the device sets the ghost to its current snapshot, splits it,
-  and gives a half to `StateUnits` (as now).
+  change the state, updating the ghost with each change (see "The rule").
+- At `Stop`, the device splits the ghost and gives a half to `StateUnits`.
 - While stopped, it holds one half, and `wf()` says "state equals the
   ghost". A handler that changed the state would break `wf()` and fail to
   verify, so a handler must either check a real "stopped" flag or require
@@ -394,10 +392,10 @@ device's `wf()`:
   fact is one explicit precondition on the unverified caller (the vCPU
   dispatch calls handlers only while the device runs), stated where it is
   used.
-- Updating the ghost on every write is not needed (and would put ghost code
-  in every handler); setting it once at `Stop` gives the same guarantee.
-  Per-write updates can be added later if something must be tracked while
-  running.
+- The ghost is updated with every change (one proof step per mutating
+  handler), so `wf()` is simply "state equals ghost", with no mention of
+  halves. (An alternative, setting it only at `Stop`, needs a `wf()` that
+  depends on which halves the device holds.)
 
 **Scope: what the device owns.** A device's fields may refer to shared
 state outside its mutex: the PIT's `VmTimeAccess` (its timer deadlines are
@@ -405,6 +403,36 @@ in vmtime's shared timer state), and interrupt line levels (in the line
 sets). Changes there do not go through the device's mutex; they are the
 cross-unit effects already listed (per-pin resources; vmtime as its own
 unit). So a device's `saved_state()` should be defined over what it owns.
+
+**The rule** (agreed 2026-10-26):
+
+> While a device is running, the device holds the whole FracGhost. While it
+> is stopped, the device and `LoadedVm` (through `StateUnits`) each hold one
+> half. A freshly created VM counts as stopped.
+
+| Moment | Device holds | `LoadedVm` holds |
+|---|---|---|
+| The VM is created (stopped) | one half | one half |
+| `Start` | the whole (`LoadedVm` sends its half) | nothing |
+| `Stop` | one half (records its state, sends one half back) | one half |
+| `Save` | one half (unchanged) | one half (lends it, gets it back) |
+| `Restore` | one half (`LoadedVm` lends its half; the device updates the ghost, sends a half back) | one half |
+
+Whenever `LoadedVm` asks a stopped device to save or restore, it holds a
+half, so save and restore work the same way on a fresh VM and on one
+stopped earlier. (Letting a fresh VM's devices hold the whole instead would
+give a device's `restore` two cases, "I hold the whole" and "I hold half
+and one arrived", that its code cannot tell apart at runtime.) The device's
+`wf()` is simply "my state's snapshot equals my ghost's value", kept by
+updating the ghost with every change, which needs the whole; while it holds
+half it cannot change its state.
+
+Consequence: at creation `LoadedVm` must already have its half, so the
+creation-time hand-off stays (the half attached to the `Sender`, collected
+by `StateUnits`), and so does the motivation for TODO 4 (registration
+through `&mut StateUnits`). Open: whether any code changes a device after
+it is registered and before its first `Start` (for example while loading
+firmware); under this rule that would fail the proof.
 
 **What it changes:** the receiver's half goes into the device object (for
 chipset devices, inside the `CloseableMutex`; other units need their own
