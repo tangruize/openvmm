@@ -79,10 +79,10 @@ the wrapper without changing any of its existing `.lock()` call sites.
 
 | Item | Contract |
 |---|---|
-| `trait MutexPredicate<V> { spec fn inv(v: V) -> bool; }` | the lock invariant, named by a type |
-| `Mutex::<V, Pred>::new(v)` | requires `Pred::inv(v)` |
-| `m.acquire() -> (V, MutexHandle)` | ensures `Pred::inv(value)`; holds the lock until `release` |
-| `handle.release(v)` | requires `Pred::inv(v)`; unlocks |
+| `trait MutexPredicate<V> { type Key; spec fn key(v: V) -> Key; spec fn inv(v: V) -> bool; }` | the lock invariant, named by a type, and the key |
+| `Mutex::<V, Pred>::new(v)` | requires `Pred::inv(v)`; ensures `m.key() == Pred::key(v)` |
+| `m.acquire() -> (V, MutexHandle)` | ensures `Pred::inv(value)` and `Pred::key(value) == m.key()`; holds the lock until `release` |
+| `handle.release(v)` | requires `Pred::inv(v)` and the key unchanged; unlocks |
 | `m.lock()` (unverified code only) | an ordinary guard; no contract |
 
 ## What is trusted
@@ -113,9 +113,11 @@ Everything in `mutex_t.rs` is trusted (also listed in
   mention per-instance constants (such as ghost ids). Here the rule is named
   by a type, so construction needs no ghost argument and the code compiles
   unchanged in a normal build; the cost is that the rule cannot mention
-  per-instance constants. (`StateUnits`' registry did not need them; its
-  ties to `StateUnits`' ghost state are the registry axioms instead, see
-  `registry_t.rs`.)
+  per-instance constants. A per-instance tie is made through a **key**
+  instead: `Pred::key(v)` is a constant of the value that every holder
+  keeps (`acquire` gives it, `release` requires it), and `m.key()` is the
+  mutex's. `StateUnits` uses it to tie its registry's ghost state to its
+  own (the key is the id of a ghost record shared by the two).
 - **Normal builds.** In a non-Verus build the trait has no items, and a
   blanket impl makes every type satisfy it, so `Mutex<V, Pred>` works for
   any `Pred`.

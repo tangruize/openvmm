@@ -77,7 +77,8 @@ impl StateUnits {
     /// Well formed: the view's invariant holds; `StateUnits` holds halves of
     /// collected units' FracGhosts only, each belonging to that unit's
     /// channel, and while stopped it holds one for every collected unit;
-    /// collected units have distinct names.
+    /// collected units have distinct names; and its half of the record of
+    /// the collected units, shared with its registry, records them.
     ///
     /// (While running, a unit holds its whole FracGhost, so `StateUnits`
     /// holds no half for it; it holds halves for units added while running,
@@ -88,6 +89,10 @@ impl StateUnits {
         &&& !self.running ==> self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
         &&& forall|id: u64| #[trigger] self.units_ghost@.halves.contains_key(id)
             ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
+        // `StateUnits`' half of the shared record of the collected units
+        // belongs to its registry, and records the collected units.
+        &&& self.units_ghost@.collected.valid((*self.inner).key(), 0.5real)
+        &&& self.units_ghost@.collected@ == self.units_ghost@.registry
         &&& forall|a: u64, b: u64|
             #[trigger] self.units_ghost@.registry.contains_key(a)
                 && #[trigger] self.units_ghost@.registry.contains_key(b) && a != b

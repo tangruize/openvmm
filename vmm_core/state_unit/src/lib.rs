@@ -40,6 +40,7 @@ mod inventory;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
 pub mod quiesce;
+mod registry;
 #[cfg(verus_keep_ghost)]
 #[allow(unsafe_code)]
 mod registry_t;
@@ -353,6 +354,10 @@ struct Inner {
     next_id: u64,
     units: BTreeMap<u64, Unit>,
     names: HashMap<Arc<str>, u64>,
+    /// Verus only (zero-sized): the registry's ghost state (`RegistryGhost`,
+    /// `lib.proof.rs`).
+    #[cfg(verus_keep_ghost)]
+    registry_ghost: Tracked<spec::proof::RegistryGhost>,
 }
 
 #[derive(Debug)]
@@ -413,7 +418,7 @@ impl UnitHandle {
     fn remove_if(&mut self) {
         if let Some(inner) = self.inner.take().and_then(|inner| inner.upgrade()) {
             let mut inner = inner.lock();
-            inner.units.remove(&self.id.id).expect("unit exists");
+            assert!(inner.remove_unit(self.id.id), "unit exists");
             inner.names.remove(&self.id.name).expect("unit exists");
         }
     }
@@ -548,15 +553,19 @@ impl std::error::Error for UnitErrorSet {}
 impl StateUnits {
     /// Creates a new instance with no initial units.
     pub fn new() -> Self {
+        #[cfg(verus_keep_ghost)]
+        let (registry_ghost, units_ghost) = spec::proof::new_ghosts();
         Self {
             inner: Arc::new(InnerMutex::new(Inner {
                 next_id: 0,
                 units: BTreeMap::new(),
                 names: HashMap::new(),
+                #[cfg(verus_keep_ghost)]
+                registry_ghost,
             })),
             running: false,
             #[cfg(verus_keep_ghost)]
-            units_ghost: spec::proof::no_halves(),
+            units_ghost,
         }
     }
 
@@ -1122,7 +1131,7 @@ impl UnitBuilder<'_> {
             for &dep in &self.dependents {
                 inner.units.get_mut(&dep).unwrap().dependencies.push(id);
             }
-            inner.units.insert(
+            inner.insert_unit(
                 id,
                 Unit {
                     name: self.name.clone(),

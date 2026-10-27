@@ -189,24 +189,60 @@ impl Inner {
 }
 
 impl MutexPredicate<Inner> for InnerPred {
-    /// Each registered unit's sender, until `StateUnits` collects its half,
-    /// carries a half of that unit's FracGhost (the channel's constant is its
-    /// id), still recording `Unknown`; and registered units have distinct
-    /// names.
+    /// The id of the shared record of the collected units (`StateUnits`
+    /// holds the other half of it).
+    type Key = Loc;
+
+    open(crate) spec fn key(v: Inner) -> Loc {
+        v.registry_ghost@.collected.id()
+    }
+
+    /// The registry's ghost state matches its units: each registered unit
+    /// has an entry (name, FracGhost id, `advances_time`); registered units
+    /// have distinct names; the halves kept here belong to registered units;
+    /// and each registered unit is either collected by `StateUnits`, with
+    /// its entry unchanged since, or has its half kept here (registered
+    /// since the last collection).
     ///
-    /// `UnitBuilder::build` (unverified) keeps this, given that its caller
-    /// passes a sender from `unit_channel` (ASSUMPTION).
+    /// Registration and removal keep it (`Inner::insert_unit`,
+    /// `Inner::remove_unit`, verified). Other unverified code that locks the
+    /// registry is trusted to keep it (it changes only units' states and
+    /// dependency lists, which the invariant does not mention).
     open(crate) spec fn inv(v: Inner) -> bool {
-        &&& forall|id: u64| #[trigger] v.units@.contains_key(id) ==> {
-            let send = v.units@[id].send;
-            send.attached() matches Some(h) ==> h.valid(send.constant(), 0.5real) && h@
-                == UnitSnapshot::Unknown
-        }
+        let g = v.registry_ghost@;
+        &&& g.entries.dom() == v.units@.dom()
+        &&& forall|id: u64| #[trigger] v.units@.contains_key(id) ==> g.entries[id] == (
+            v.units@[id].name.view_str(),
+            v.units@[id].send.constant(),
+            v.units@[id].advances_time,
+        )
         // Registered units have distinct names (`build` checks `names`).
         &&& forall|a: u64, b: u64|
             #[trigger] v.units@.contains_key(a) && #[trigger] v.units@.contains_key(b) && a != b
                 ==> v.units@[a].name.view_str() != v.units@[b].name.view_str()
+        &&& g.collected.frac() == 0.5real
+        &&& g.halves.dom() <= g.entries.dom()
+        &&& forall|id: u64| #[trigger] g.halves.contains_key(id)
+            ==> g.halves[id].valid(g.entries[id].1, 0.5real)
+        &&& forall|id: u64| #[trigger] g.entries.contains_key(id) ==> {
+            ||| g.collected@.contains_key(id) && g.collected@[id] == g.entries[id]
+            ||| g.halves.contains_key(id)
+        }
     }
+}
+
+/// The registry's ghost state, kept with the units behind the registry's
+/// mutex (`Inner::registry_ghost`).
+pub tracked struct RegistryGhost {
+    /// Each registered unit's entry, by id: name, the id of the unit's
+    /// FracGhost (its channel's constant), and whether it advances time.
+    pub ghost entries: Map<u64, (Seq<char>, Loc, bool)>,
+    /// The halves of the units registered since `StateUnits` last collected.
+    pub tracked halves: Map<u64, FracGhost<UnitSnapshot>>,
+    /// The registry's half of the shared record of the units `StateUnits`
+    /// has collected, with their entries. Both halves change together, when
+    /// `StateUnits` collects (`collect_halves`).
+    pub tracked collected: FracGhost<Map<u64, (Seq<char>, Loc, bool)>>,
 }
 
 /// `StateUnits`' ghost state: the units collected so far and the half held
@@ -218,15 +254,34 @@ pub tracked struct UnitHalves {
     /// channel's constant), and whether it advances time
     /// (`UnitBuilder::advances_time`).
     pub ghost registry: Map<u64, (Seq<char>, Loc, bool)>,
+    /// `StateUnits`' half of the shared record of the collected units
+    /// (the registry holds the other).
+    pub tracked collected: FracGhost<Map<u64, (Seq<char>, Loc, bool)>>,
 }
 
-/// The ghost state of a new `StateUnits`: no unit collected.
-pub(crate) fn no_halves() -> (result: Tracked<UnitHalves>)
+/// The ghost state of a new `StateUnits` and of its registry: no unit
+/// registered or collected, and the two halves of the shared record.
+pub(crate) fn new_ghosts() -> (result: (Tracked<RegistryGhost>, Tracked<UnitHalves>))
     ensures
-        result@.halves == Map::<u64, FracGhost<UnitSnapshot>>::empty(),
-        result@.registry == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
+        result.0@.entries == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
+        result.0@.halves == Map::<u64, FracGhost<UnitSnapshot>>::empty(),
+        result.0@.collected.frac() == 0.5real,
+        result.0@.collected@ == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
+        result.1@.halves == Map::<u64, FracGhost<UnitSnapshot>>::empty(),
+        result.1@.registry == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
+        result.1@.collected.valid(result.0@.collected.id(), 0.5real),
+        result.1@.collected@ == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
 {
-    Tracked(UnitHalves { halves: Map::tracked_empty(), registry: Map::empty() })
+    let tracked mut mine;
+    let tracked theirs;
+    proof {
+        mine = FracGhost::new(Map::<u64, (Seq<char>, Loc, bool)>::empty());
+        theirs = mine.split();
+    }
+    (
+        Tracked(RegistryGhost { entries: Map::empty(), halves: Map::tracked_empty(), collected: theirs }),
+        Tracked(UnitHalves { halves: Map::tracked_empty(), registry: Map::empty(), collected: mine }),
+    )
 }
 
 impl StateUnits {
@@ -248,128 +303,70 @@ impl StateUnits {
     {
     }
 
-    /// The collected units, by id: name and the id of the unit's FracGhost.
-    /// (Proof plumbing for the registry axioms.)
-    pub(crate) closed spec fn collected(&self) -> Map<u64, (Seq<char>, Loc, bool)> {
-        self.units_ghost@.registry
-    }
-
-    /// The registry as seen under the lock agrees with the collected units:
-    /// each collected unit is registered with the same name and channel, and
-    /// each registered unit not yet collected still has its half attached.
-    pub(crate) open spec fn agrees_with(collected: Map<u64, (Seq<char>, Loc, bool)>, inner: Inner) -> bool {
-        &&& forall|id: u64| #[trigger] collected.contains_key(id) ==> {
-            &&& inner.units@.contains_key(id)
-            &&& inner.units@[id].name.view_str() == collected[id].0
-            &&& inner.units@[id].send.constant() == collected[id].1
-            &&& inner.units@[id].advances_time == collected[id].2
-        }
-        &&& forall|id: u64|
-            #[trigger] inner.units@.contains_key(id) && !collected.contains_key(id)
-                ==> inner.units@[id].send.attached() is Some
-    }
-
-    /// The registry as seen under the lock holds exactly the collected units,
-    /// with the same names and channels.
-    pub(crate) open spec fn agrees_exactly(collected: Map<u64, (Seq<char>, Loc, bool)>, inner: Inner) -> bool {
-        &&& inner.units@.dom() == collected.dom()
-        &&& forall|id: u64| #[trigger] collected.contains_key(id) ==> {
-            &&& inner.units@[id].name.view_str() == collected[id].0
-            &&& inner.units@[id].send.constant() == collected[id].1
-            &&& inner.units@[id].advances_time == collected[id].2
-        }
-    }
-
-    /// Collects the halves still attached to registered units' senders.
-    /// Halves already held are kept. Ghost only: call sites are Verus-only.
+    /// Collects the halves of the units registered since the last
+    /// collection, and forgets the units removed since: afterwards
+    /// `StateUnits`' ghost state covers exactly the registered units. Ghost
+    /// only (its call sites are Verus-only); it locks the registry.
     pub fn collect_halves(&mut self)
         requires
             old(self).wf(),
         ensures
             final(self).wf(),
+            final(self)@.running == old(self)@.running,
     {
-        let (mut inner, handle) = self.lock_registry();
-        let mut ids: Vec<u64> = Vec::new();
-        for id in inner.units.keys() {
-            ids.push(*id);
-        }
-        // The units collected now, and their halves; merged in after the
-        // registry is released (the lock borrows `self`).
-        let ghost old_registry = self.units_ghost@.registry;
-        let ghost mut registry = old_registry;
-        let tracked mut new_halves = Map::<u64, FracGhost<UnitSnapshot>>::tracked_empty();
-        let mut i: usize = 0;
-        while i < ids.len()
-            invariant
-                InnerPred::inv(inner),
-                StateUnits::agrees_with(registry, inner),
-                old_registry <= registry,
-                new_halves.dom() == registry.dom().difference(old_registry.dom()),
-                forall|id: u64| #[trigger] new_halves.contains_key(id)
-                    ==> new_halves[id].valid(registry[id].1, 0.5real),
-                forall|a: u64, b: u64|
-                    #[trigger] registry.contains_key(a) && #[trigger] registry.contains_key(b) && a != b
-                        ==> registry[a].0 != registry[b].0,
-                old_registry == self.units_ghost@.registry,
-            decreases ids.len() - i,
-        {
-            let id = ids[i];
-            if let Some(unit) = inner.units.get_mut(&id) {
-                let ghost before = *unit;
-                let Tracked(half) = take_sender_ghost(&mut unit.send);
-                proof {
-                    if !registry.contains_key(id) {
-                        // Not yet collected: the half is still attached.
-                        let tracked half = half.tracked_unwrap();
-                        let entry = (
-                            before.name.view_str(),
-                            before.send.constant(),
-                            before.advances_time,
-                        );
-                        assert forall|other: u64| #[trigger] registry.contains_key(other)
-                            implies registry[other].0 != entry.0 by {
-                            assert(inner.units@.contains_key(other));
-                            assert(other != id);
-                        }
-                        let ghost prev = registry;
-                        new_halves.tracked_insert(id, half);
-                        registry = registry.insert(id, entry);
-                        assert(old_registry <= registry) by {
-                            assert forall|k: u64| #[trigger] old_registry.contains_key(k)
-                                implies registry.contains_key(k) && registry[k] == old_registry[k] by {
-                                assert(prev.contains_key(k));
-                            }
-                        }
-                        assert(new_halves.dom() =~= registry.dom().difference(old_registry.dom()));
-                    }
+        let (mut inner, handle) = self.inner.acquire();
+        proof {
+            let tracked ug = self.units_ghost.borrow_mut();
+            let tracked rg = inner.registry_ghost.borrow_mut();
+            let ghost old_registry = ug.registry;
+            let ghost old_halves = ug.halves;
+            let ghost pending_dom = rg.halves.dom();
+            let ghost entries = rg.entries;
+            // The two halves of the shared record agree: the registry's
+            // record of the collected units is `StateUnits`' registry.
+            ug.collected.agree(&rg.collected);
+            // Keep the halves of the units still registered (those of
+            // removed units are dropped), and take those of the units
+            // registered since.
+            let tracked mut halves = ug.halves.tracked_remove_keys(
+                old_halves.dom().intersect(entries.dom()),
+            );
+            let tracked pending = rg.halves.tracked_remove_keys(pending_dom);
+            halves.tracked_union_prefer_right(pending);
+            vstd::modes::tracked_swap(&mut ug.halves, &mut halves);
+            // Record the registered units as collected, in both halves.
+            ug.collected.update_with(&mut rg.collected, entries);
+            ug.registry = entries;
+
+            assert(rg.halves.dom() =~= Set::<u64>::empty());
+            assert(ug.halves.dom() <= entries.dom());
+            assert forall|id: u64| #[trigger] ug.halves.contains_key(id)
+                implies ug.halves[id].valid(entries[id].1, 0.5real) by {
+                if !pending.contains_key(id) {
+                    // Held before, and collected with this entry.
+                    assert(old_halves.contains_key(id));
+                    assert(old_registry.contains_key(id));
+                    assert(old_registry[id] == entries[id]);
                 }
             }
-            i += 1;
+            if !self.running {
+                assert forall|id: u64| #[trigger] entries.contains_key(id)
+                    implies ug.halves.contains_key(id) by {
+                    if !pending.contains_key(id) {
+                        assert(old_registry.contains_key(id));
+                        assert(old_halves.contains_key(id));
+                    }
+                }
+                assert(ug.halves.dom() =~= entries.dom());
+            }
+            assert forall|a: u64, b: u64|
+                #[trigger] entries.contains_key(a) && #[trigger] entries.contains_key(b) && a != b
+                    implies entries[a].0 != entries[b].0 by {
+                assert(inner.units@.contains_key(a) && inner.units@.contains_key(b));
+            }
         }
         handle.release(inner);
         proof {
-            let ghost old_halves = self.units_ghost@.halves;
-            self.units_ghost.borrow_mut().halves.tracked_union_prefer_right(new_halves);
-            self.units_ghost.borrow_mut().registry = registry;
-            let ghost halves = self.units_ghost@.halves;
-            assert(halves.dom() =~= old_halves.dom().union(new_halves.dom()));
-            assert(halves.dom() <= registry.dom());
-            if !self.running {
-                assert(halves.dom() =~= registry.dom());
-            }
-            assert forall|id: u64| #[trigger] halves.contains_key(id)
-                implies halves[id].valid(registry[id].1, 0.5real) by {
-                if new_halves.contains_key(id) {
-                } else {
-                    assert(old_halves.contains_key(id));
-                    assert(old_registry.contains_key(id));
-                    assert(halves[id] == old_halves[id]);
-                }
-            }
-            assert forall|id: u64| #[trigger] old_halves.contains_key(id)
-                implies halves[id] == old_halves[id] by {
-                assert(!new_halves.contains_key(id));
-            }
             self.lemma_view_inv();
         }
     }

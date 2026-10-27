@@ -304,6 +304,19 @@ Baseline: upstream `nanvix/openvmm` commit
     enum root `ExampleEnumState`; `save_restore_t.rs` declares
     `OneofEncoder` and its traits. Patch 0003 gains the third fix (an
     undeclared type in a bound is an error).
+35. **Registry axioms removed** (Verus only, no runtime change;
+    `vmm_core/state_unit`): `Inner` gains a Verus-only `registry_ghost`
+    (`RegistryGhost`); new `registry.rs` (compiled in both builds) with the
+    verified `Inner::insert_unit` / `remove_unit`, called by
+    `UnitBuilder::build` and `UnitHandle::remove_if` instead of the map
+    insert / remove; `StateUnits::new` builds both ghost states with
+    `new_ghosts()`; `UnitHalves` gains `collected`; the lock invariant
+    (`InnerPred`) is rewritten; `collect_halves` is rewritten without the
+    axioms; `registry_t.rs` keeps only its assumed specifications
+    (`lock_registry`, `lock_registry_exact`, `agrees_with`,
+    `agrees_exactly`, `collected`, `no_halves` removed). `mutex_t.rs`:
+    `MutexPredicate` gains a key (`type Key`, `key`), `Mutex::key`,
+    `MutexHandle::key`.
 
 ### Planned: mesh RPC trusted spec
 

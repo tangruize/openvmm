@@ -498,7 +498,8 @@ updating the ghost with every change, which needs the whole; while it holds
 half it cannot change its state.
 
 Consequence: at creation `LoadedVm` must already have its half, so the
-creation-time hand-off stays (the half attached to the `Sender`, collected
+creation-time hand-off stays (the half attached to the `Sender`, kept by
+the registry at registration, collected
 by `StateUnits`), and so does the motivation for TODO 4 (registration
 through `&mut StateUnits`). Open: whether any code changes a device after
 it is registered and before its first `Start` (for example while loading
@@ -817,26 +818,35 @@ Design:
    no half to be `Unknown`. The unit's run loop keeps a ghost-only
    running/stopped flag; its invariant is "while stopped, my half records
    what my save returns".
-3. **Stored in `StateUnits`.** Registration is through `&self`, so the
-   sender's half stays attached to the `Sender` that `build` (unverified)
-   stores in the registry, behind the mutex. The lock invariant
-   (`InnerPred`, `lib.proof.rs`): each registered sender's attached half,
-   if still there, belongs to its channel and records `Unknown`; registered
-   units have distinct names. `StateUnits::collect_halves(&mut self)`
-   (verified, Verus-only) takes the attached halves into the Verus-only
-   field `StateUnits::units_ghost` (`UnitHalves`: halves by unit id, and
-   the collected units' names and ghost ids), which the view reads by name.
-   Each `&mut` operation (`stop`, `save`, `restore`) will call it first,
-   under `#[cfg(verus_keep_ghost)]`; it has no runtime effect.
-   `StateUnits::wf` ties the halves to the collected units.
-
-   Verified code locks the registry with `StateUnits::lock_registry`
-   (`registry_t.rs`), which carries the **registry axiom**: the value taken
-   out agrees with the collected units (none removed or changed; units
-   added since still have their halves attached). No lock invariant can say
-   this, because registration and removal are unverified and go through
-   `&StateUnits` and `Weak` handles. The axiom and the other trusted items
-   are listed in `SNAPSHOT-SPEC-TRUSTED.md`.
+3. **Kept with the registry, then collected by `StateUnits`** (since
+   2026-10-27, step 4 of "Next steps (agreed)"; before, the half stayed
+   attached to the `Sender` and two registry axioms tied the registry to
+   `StateUnits`). Registration is through `&StateUnits`
+   (`UnitBuilder::build`) and removal through `UnitHandle`'s `Drop`; both
+   now call small verified functions on the registry
+   (`vmm_core/state_unit/src/registry.rs`): `Inner::insert_unit` takes the
+   half attached to the unit's sender into the registry's ghost state, and
+   `Inner::remove_unit` drops the unit's entry (and its half, if still
+   there). The registry's ghost state (`RegistryGhost`, a Verus-only field
+   of `Inner`, behind the mutex) holds each unit's entry (name, FracGhost
+   id, `advances_time`), the halves of units registered since the last
+   collection, and one half of a shared ghost record of the units
+   `StateUnits` has collected; `StateUnits` holds the other half
+   (`UnitHalves::collected`). The lock invariant (`InnerPred`,
+   `lib.proof.rs`) says the entries match the units, names are distinct,
+   and each registered unit is either collected (with its entry unchanged)
+   or has its half in the registry. `StateUnits::collect_halves(&mut self)`
+   (verified, Verus-only) locks the registry, takes the new halves, drops
+   those of removed units, and updates both halves of the shared record:
+   afterwards `StateUnits`' ghost state (`units_ghost`) covers exactly the
+   registered units, which the view reads by name. The mutex wrapper's new
+   `key()` (the shared record's id) ties the registry's half to this
+   `StateUnits` (`StateUnits::wf`). No registry axiom remains. One trusted
+   fact remains for operations that lock the registry more than once (for
+   their proofs): no unit is registered while an operation holds
+   `&mut StateUnits` (registration needs `&StateUnits`). Removal during an
+   operation is possible; the specs of those operations will have to allow
+   it (today the code ignores a removed unit's failure).
 4. Done: `LoadedVm::halves` is removed; `LoadedVm`'s view reads
    `state_units@`.
 
@@ -1509,7 +1519,13 @@ concurrent per-pin writes into the PIC and IOAPIC.
    lock invariant, at the cost of changing the registration API and its
    callers (the chipset builder, `vmbus_unit`, `partition_unit`, vmtime,
    time-abi).
-   *Status:* not done.
+   *Status:* done (2026-10-27), differently: registration stays through
+   `&StateUnits` (no API change); instead the halves are kept with the
+   registry, behind its mutex, and registration and removal go through
+   verified functions, so a lock invariant ties the registry to
+   `StateUnits`' ghost state and both registry axioms are gone. Remaining
+   trusted fact: no registration during a `&mut StateUnits` operation. See
+   "Where the halves come from", item 3.
 5. **Validate on one unit first: the PIT, end to end**, with the FracGhost
    living with the device ("Design change: the FracGhost lives with the
    device"): tie its `saved_state()` to its real fields, keep its half in
@@ -1553,10 +1569,10 @@ important first.
 3. **Clock restore**: specify the clock units' restored state, and fix the
    partition's stale view after the TSC set and LAPIC advance ("Restore from
    snapshot").
-4. **Unit side**: for the production units, attach the blob, `StateUnit`,
-   and request-loop contracts (blocked on async trait functions;
-   `StateRequest::apply` no longer uses async closures, and the
-   `SavedStateRoot` trait chain is declared); the units not built on
+4. **Unit side**: for the production units, attach the `StateUnit` and
+   request-loop contracts (blocked on async trait functions;
+   `StateRequest::apply` no longer uses async closures; the blob layers,
+   `SavedStateBlob` and `ProtobufSaveRestore`, are attached); the units not built on
    `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
    the PIT, see "Next steps (agreed)", item 5.
 5. **Other `ProtobufSaveRestore` implementations**: `ChipsetDeviceProxy`,
@@ -1568,7 +1584,7 @@ important first.
 8. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
    trusted wrapper types' spec functions ("Convention TODOs").
 9. **Soundness review** of the mesh RPC wrapper (`mesh_rpc_verus`,
-   `src/mesh_rpc_t.rs`; the reply-ghost type argument)
-   and of the registry axioms (`registry_t.rs`).
+   `src/mesh_rpc_t.rs`; the reply-ghost type argument). (The registry
+   axioms are gone.)
 10. **Hard-coded `"partition"`** in `LoadedVm`'s view.
 
