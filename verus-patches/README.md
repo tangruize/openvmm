@@ -12,6 +12,7 @@ git apply /path/to/openvmm/verus-patches/0001-async-fn-unnamed-return-keeps-ensu
 git apply /path/to/openvmm/verus-patches/0002-async-fn-ghost-params.patch
 git apply /path/to/openvmm/verus-patches/0003-external-trait-own-assoc-bounds-and-hrtb.patch
 git apply /path/to/openvmm/verus-patches/0004-async-fn-in-trait.patch
+git apply /path/to/openvmm/verus-patches/0005-trait-method-ghost-params-and-async-defaults.patch
 cd source
 source ../tools/activate   # or put tools/vargo/target/release on PATH
 vargo build --release
@@ -236,3 +237,80 @@ on a verified impl (a probe, not committed).
 
 **Not covered.** Non-async `-> impl Trait` trait methods (still refused);
 `async fn` in a trait used through `dyn` (not object safe anyway).
+
+## 0005-trait-method-ghost-params-and-async-defaults.patch
+
+Lets a trait method take ghost inputs (`#[verus_spec(with Tracked(..))]`),
+including an `async fn` and a default method, so that `StateUnit`'s
+contract can pass the FracGhost halves of the request protocol through its
+methods (see "Production units: the contract on `StateUnit`" in
+`SNAPSHOT-SPEC-DESIGN.md`). Two fixes.
+
+**Bug 1.** `#[verus_spec(with ...)]` on a trait method declaration is
+refused: "`with` does not support trait" (`builtin_macros/src/attr_rewrite.rs`).
+
+**Cause 1.** For a function, `with` makes the macro emit two functions:
+the original, for unverified callers, with its body replaced by `requires
+false; unimplemented!()` in verification builds; and a verified copy,
+`_VERUS_VERIFIED_<name>`, with the ghost inputs and the specification,
+which `proof_with!` calls. A trait method needs both copies as trait
+methods, and each impl both as impl methods; the macro did neither for
+traits, and an impl's original copy got `requires false`, which a trait
+impl method cannot declare.
+
+**Fix 1.** A trait method declared with `with` becomes two trait methods:
+the original, unchanged and without specification, and the verified copy
+with the ghost inputs and the specification (`split_trait_method_with`;
+also in erase mode, since impls emit both copies there too). The methods of
+a trait impl under `#[verus_verify]` are marked as such
+(`verus_trait_impl_method_marker`), and their original copy gets no
+`requires false` (verified callers call the verified copy anyway). An impl
+must provide the verified copy, so an impl without `with` does not compile
+in verification builds: every impl is checked.
+
+**Bug 2.** An `async fn` with a default body in a trait (patch 0004 covered
+only methods without one): an internal error ("ill-typed AIR code: use of
+undeclared function TYPE%...opaque0"), and, with that fixed, generic callers
+did not get the method's `ensures`.
+
+**Cause 2.** A default method returns the projection onto its RPITIT type
+(0004); the default body's future is that type's default, an opaque type
+that Verus never declared. And inside the default method, rustc normalizes
+the projection to that opaque type, so the method's contract was stated on
+the opaque type, while a generic caller's future has the projection type.
+
+**Fix 2.** Declare the default body's opaque type (`check_fn_opaque_ty`);
+do not normalize an RPITIT projection to a trait default body's opaque type
+(`mid_ty_to_vir`), so the contract is stated on the projection; accept the
+projection as an async function's return type; and for an impl that does
+not override the method, define its RPITIT type as the default body's
+opaque type for the impl (`rust_to_vir_impl.rs`), as rustc does, so that
+callers on the impl's type, whose future rustc gives the opaque type, get
+the contract too.
+
+**Tests.** In `rust_verify_test/tests/syntax_attr.rs`:
+`test_trait_method_with_ghost_params` (a trait method with a tracked input,
+an impl, a generic caller, and an unverified caller of the original),
+`test_async_trait_method_with_ghost_params` (the same for `async fn`, and an
+async default method with a ghost input), `test_trait_signature` (replaced:
+it expected the old error; now ghost inputs and a ghost output on a trait
+method, an impl, and a generic caller that receives the output), and three
+that must fail and do (an impl breaking the `ensures`, a caller breaking
+the `requires`, a false assertion after the call). In
+`rust_verify_test/tests/async_functions.rs`, async default methods: a
+generic caller and a caller on a non-overriding impl, an overriding impl,
+and three that must fail and do (a default body breaking its `ensures`, a
+false assertion after the call, generic and concrete).
+
+**Test results.** With all five patches: `syntax_attr` 85 passed,
+`async_functions` 26, `traits` 216 (2 ignored), `external_traits` 42,
+`assoc_type_impls` 45, `traits_dyn` 26, `external_fn_specification` 78 (3
+ignored), `recursive_types` 28, `opaque_types` 23, `opaque_reveal` 24 (4
+ignored), `adts_opaque` 10, `functions` 10, `mut_refs` 117, `mut_refs_old`
+27, `regression` 83 (1 ignored), `return` 13, `returns_postcondition` 14; 0
+failed. The full suite has not been run. All nine OpenVMM spec crates
+verify (`scripts/verify-snapshot-spec.sh`).
+
+**Not covered.** Ghost outputs (`-> out`) of an async trait method (as for
+any `async fn`, see 0002); `with` on methods of traits declared with
+`external_trait_specification`.

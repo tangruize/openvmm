@@ -798,6 +798,70 @@ Concerns:
 - **Lossless protobuf encoding** (the `SavedStateBlob` injectivity axiom)
   underlies layers 2 and 3.
 
+### Production units: the contract on `StateUnit`
+
+Decided 2026-10-27 (user): every production unit holds its own FracGhost
+share, following the rule ("Design change: the FracGhost lives with the
+device"), and every path that changes a unit's state gets proof
+obligations; nothing about the units is trusted to save spec work. The
+contract is written once, on the `StateUnit` trait, so that every unit is
+specified by it. (Rejected: keeping the ghost in `run_unit`'s task and
+trusting each unit's methods and that nothing changes a stopped unit.)
+
+**Shape** (decided 2026-10-27; Verus patch 0005):
+
+- The contract is the request protocol, on `StateUnit`'s methods: each
+  method takes the FracGhost halves as ghost inputs (`#[verus_spec(with
+  Tracked(..))]`) and its contract says what it does with them, as the
+  table in "Request protocol" does for the replies. It names nothing about
+  where the unit keeps its own share, so it fits every unit: a field (the
+  partition, vmtime, input), inside the device's `CloseableMutex` (the
+  chipset units, the PIT), or behind `&X` (the vmbus units).
+- Each unit's impl proves it meets the contract, keeping its own share
+  where its state is, with an invariant tying the two; so does every other
+  path that changes its state.
+- `StateRequest::apply` / `run_unit`, verified once for every unit, pass
+  the halves from the request to the method and back to the reply.
+  `DeviceUnit` becomes one instance of the general scheme.
+- Written in `lib.rs`, on the trait itself (annotation style, as `lib.rs`
+  already does for `StateUnits`' methods): `with` works on a trait's own
+  methods, not through `external_trait_specification`.
+
+**Why not a ghost field reached through a supertrait** (the first
+proposal, probed and dropped 2026-10-27): its contract was stated on the
+unit's ghost field, `self.ghost()`, so it fit only units whose state is in
+a field of the unit, not those whose state is in a `CloseableMutex` or
+behind `&X`.
+
+**Verus patch 0005** (`verus-patches/README.md`): ghost inputs on trait
+methods (the macro made both the original and the verified copy only for
+functions) and async default methods (0004 covered only methods without a
+default body). Tested in Verus's own tests, sync and async, with an impl,
+a generic caller, and negative checks.
+
+**Consequences and open questions:**
+
+- **All implementors at once.** In the Verus build, every impl of
+  `StateUnit` must provide the methods' verified copies (patch 0005: an
+  impl without `with` does not compile there), so every crate with a
+  production unit becomes Verus-enabled together: vmm_core (already),
+  vmotherboard (not yet), openvmm_core (`TimeAbiUnit`). OpenHCL's
+  `VmbusRelayUnit` (underhill_core) is outside the build of the verified
+  crates; `state_unit`'s test units are built only for tests.
+- **Units implemented for `&X`** (`VmbusServerUnit`, vmbus `ChannelUnit` and
+  `SimpleChannelUnit`, the relay unit; used with `run_async_unit` to serve
+  inspects during a state change): the contract fits them, but each must
+  keep its share behind interior mutability (with a lock invariant, as the
+  chipset devices do with `CloseableMutex`). Open: how, per unit.
+- **Default method bodies** (`quiesce_input`, `resume_input`,
+  `advance_time` return `Ok(())`): verified with the trait (patch 0005
+  supports async default methods, with ghost inputs).
+- **Per unit**: where it keeps its share (Verus-only), its snapshot
+  definition, its invariant, its `StateUnit` impl verified, and contracts
+  on every other path that changes its state (for the partition: the VPs; for vmbus: the
+  channels; for vmtime: the timer updates; for the chipset units: the
+  devices' I/O handlers, as for the PIT).
+
 ### Where the halves come from
 
 Facts from the code:

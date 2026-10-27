@@ -1,0 +1,629 @@
+diff --git a/source/builtin_macros/src/attr_rewrite.rs b/source/builtin_macros/src/attr_rewrite.rs
+index e6bfbe3..bc41f2e 100644
+--- a/source/builtin_macros/src/attr_rewrite.rs
++++ b/source/builtin_macros/src/attr_rewrite.rs
+@@ -449,6 +449,7 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
+             add_verus_spec_if_needed(attrs, span);
+         }
+         syn::Item::Impl(i) => {
++            let is_trait_impl = i.trait_.is_some();
+             for item in &mut i.items {
+                 match item {
+                     syn::ImplItem::Const(syn::ImplItemConst { attrs, .. }) => {
+@@ -456,11 +457,17 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
+                     }
+                     syn::ImplItem::Fn(syn::ImplItemFn { attrs, .. }) => {
+                         add_verus_spec_if_needed(attrs, span);
+-                        attrs.push(crate::syntax::mk_rust_attr_syn(
+-                            span,
+-                            "allow",
+-                            quote_spanned! { span => (unused, verus_impl_method_marker)},
+-                        ));
++                        // A trait impl's methods are also marked as such: they
++                        // inherit their specification and cannot declare
++                        // `requires`.
++                        let marker = if is_trait_impl {
++                            quote_spanned! { span =>
++                                (unused, verus_impl_method_marker, verus_trait_impl_method_marker)
++                            }
++                        } else {
++                            quote_spanned! { span => (unused, verus_impl_method_marker)}
++                        };
++                        attrs.push(crate::syntax::mk_rust_attr_syn(span, "allow", marker));
+                     }
+                     _ => {}
+                 }
+@@ -690,6 +697,11 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+ 
+             // Check if the function has the impl method marker
+             let is_impl_fn = fun.attrs.iter().any(&is_hidden_impl_marker);
++            let is_trait_impl_fn = fun.attrs.iter().any(|attr| {
++                is_hidden_impl_marker(attr)
++                    && matches!(&attr.meta, syn::Meta::List(meta_list)
++                        if meta_list.tokens.to_string().contains("verus_trait_impl_method_marker"))
++            });
+ 
+             // Remove the marker attribute (internal use only)
+             fun.attrs.retain(|attr| !is_hidden_impl_marker(attr));
+@@ -733,7 +745,8 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+             // we add `requires false` and thus prevent verified function to use it.
+             // Allow unverified code to use the function without changing in/output.
+             if let Some(with) = &spec_attr.spec.with {
+-                let mut extra_funs = rewrite_unverified_func(&mut fun, with.with.span(), erase);
++                let mut extra_funs =
++                    rewrite_unverified_func(&mut fun, with.with.span(), erase, is_trait_impl_fn);
+ 
+                 if crate::rustdoc::env_rustdoc() {
+                     if let Some(unverified_fun) = extra_funs.last_mut() {
+@@ -811,6 +824,20 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+             fun.to_tokens(&mut new_stream);
+             proc_macro::TokenStream::from(new_stream)
+         }
++        AnyFnOrLoop::TraitMethod(method) if erase.erase() => {
++            // A method with ghost inputs (`with`) still has its two copies in
++            // erase mode, since the trait's impls do.
++            let spec_attr =
++                verus_syn::parse_macro_input!(outer_attr_tokens as verus_syn::SignatureSpecAttr);
++            if spec_attr.spec.with.is_none() {
++                return method.to_token_stream().into();
++            }
++            let mut new_stream = TokenStream::new();
++            let mut method = split_trait_method_with(method, &spec_attr, &mut new_stream);
++            let _ = syntax::sig_specs_attr(erase, spec_attr, &mut method.sig, true, false);
++            method.to_tokens(&mut new_stream);
++            proc_macro::TokenStream::from(new_stream)
++        }
+         // erase non-function cases if in erase mode
+         _ if erase.erase() => return f.to_token_stream().into(),
+         AnyFnOrLoop::Closure(mut closure) => {
+@@ -867,14 +894,12 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+                 verus_syn::parse_macro_input!(outer_attr_tokens as verus_syn::SignatureSpecAttr);
+             let mut new_stream = TokenStream::new();
+ 
+-            if let Some(with) = &spec_attr.spec.with {
+-                // Trait method requires can only be inherited from the trait declaration
+-                // However, we cannot distinguish trait function impl vs other function impl.
+-                // let unverified_method = rewrite_unverified_func(&mut method, with.with.span());
+-                // unverified_method.to_tokens(&mut new_stream);
+-                return proc_macro::TokenStream::from(
+-                    quote_spanned!(with.with.span() => compile_error!("`with` does not support trait");),
+-                );
++            if spec_attr.spec.with.is_some() {
++                // As for a function with ghost inputs: the method itself, for
++                // unverified callers, and the verified copy with the ghost
++                // inputs and the specification. Each impl provides both (the
++                // impl method's `verus_spec(with ...)` makes both).
++                method = split_trait_method_with(method, &spec_attr, &mut new_stream);
+             }
+ 
+             let spec_stmts = syntax::sig_specs_attr(erase, spec_attr, &mut method.sig, true, false);
+@@ -1184,10 +1209,34 @@ fn rewrite_const_ret_proxy(const_fun: &mut syn::ItemFn) -> syn::ItemFn {
+ // function body, to enable seamless use of unverified call to the function in
+ // verification.
+ // If the function is const, it will be rewritten to a proxy function and a verified function.
++/// For a trait method declared with ghost inputs (`with`): writes the method
++/// itself, unchanged and without specification (for unverified callers and
++/// for unverified uses of the trait), to `new_stream`, and returns the method
++/// renamed to the verified copy (`_VERUS_VERIFIED_<name>`), which gets the
++/// ghost inputs and the specification. Verified callers call the verified copy
++/// (`proof_with!` renames the call).
++fn split_trait_method_with(
++    method: syn::TraitItemFn,
++    spec_attr: &verus_syn::SignatureSpecAttr,
++    new_stream: &mut TokenStream,
++) -> syn::TraitItemFn {
++    let span = spec_attr.spec.with.as_ref().unwrap().with.span();
++    method.to_tokens(new_stream);
++    let mut verified = method;
++    let x = &verified.sig.ident;
++    verified.sig.ident = syn::Ident::new(&format!("{VERIFIED}_{x}"), x.span());
++    verified.attrs.push(crate::syntax::mk_rust_attr_syn(span, "allow", quote! {non_snake_case}));
++    if !crate::rustdoc::env_rustdoc() {
++        verified.attrs.push(crate::syntax::mk_rust_attr_syn(span, "doc", quote! {hidden}));
++    }
++    verified
++}
++
+ fn rewrite_unverified_func(
+     fun: &mut syn::ItemFn,
+     span: proc_macro2::Span,
+     erase: EraseGhost,
++    is_trait_impl_fn: bool,
+ ) -> Vec<syn::ItemFn> {
+     let mut ret = vec![];
+     let mut unverified_fun = fun.clone();
+@@ -1225,7 +1274,11 @@ fn rewrite_unverified_func(
+         // see correct body in generated executable in erase mode.
+         if erase.keep() {
+             block.stmts.clear();
+-            block.stmts.push(precondition_false);
++            // (A trait impl method cannot declare `requires`; verified code
++            // calls the verified copy anyway.)
++            if !is_trait_impl_fn {
++                block.stmts.push(precondition_false);
++            }
+             block.stmts.push(unimplemented.clone());
+         }
+     }
+diff --git a/source/rust_verify/src/rust_to_vir_base.rs b/source/rust_verify/src/rust_to_vir_base.rs
+index 3a5ce4a..11207ac 100644
+--- a/source/rust_verify/src/rust_to_vir_base.rs
++++ b/source/rust_verify/src/rust_to_vir_base.rs
+@@ -1273,7 +1273,15 @@ pub(crate) fn mid_ty_to_vir_ghost<'tcx>(
+                             false
+                         }
+                     });
+-                    if norm_value != *ty && !has_infer {
++                    // An RPITIT projection (a trait method's `impl Trait` /
++                    // `async fn` return) normalizes, in its trait's default
++                    // method, to the default body's opaque type; keep the
++                    // projection, which is what callers of the method see.
++                    let is_rpitit_default = tcx.opt_rpitit_info(def_id).is_some()
++                        && matches!(norm_value.kind(), TyKind::Alias(_, a)
++                            if matches!(a.kind, rustc_middle::ty::AliasTyKind::Opaque { def_id: op }
++                                if tcx.def_kind(tcx.parent(tcx.parent(op))) == rustc_hir::def::DefKind::Trait));
++                    if norm_value != *ty && !has_infer && !is_rpitit_default {
+                         return t_rec(&norm_value);
+                     }
+                     // If normalization isn't possible, return a projection type:
+@@ -2340,7 +2348,19 @@ pub(crate) fn check_fn_opaque_ty<'tcx>(
+     if !ctxt.tcx.def_kind(*fn_def_id).is_fn_like() {
+         return Ok(assume_specification_opaque_type_map);
+     }
+-    let ty = ctxt.tcx.fn_sig(*fn_def_id).skip_binder().output().skip_binder();
++    let mut ty = ctxt.tcx.fn_sig(*fn_def_id).skip_binder().output().skip_binder();
++    // A trait method with a default body that returns `impl Trait` (such as an
++    // `async fn`) returns a projection onto its RPITIT associated type; the
++    // default body's opaque type is that associated type's default.
++    if let TyKind::Alias(_, al_ty) = ty.kind() {
++        if let rustc_middle::ty::AliasTyKind::Projection { def_id } = al_ty.kind {
++            if ctxt.tcx.opt_rpitit_info(def_id).is_some()
++                && ctxt.tcx.defaultness(def_id).has_value()
++            {
++                ty = ctxt.tcx.type_of(def_id).skip_binder();
++            }
++        }
++    }
+     let assume_specification_ty =
+         if let Some(assume_specification_def_id) = assume_specification_def_id {
+             // if ctxt.tcx.def_kind(assume_specification_def_id).is_fn_like() {
+diff --git a/source/rust_verify/src/rust_to_vir_func.rs b/source/rust_verify/src/rust_to_vir_func.rs
+index 38f500a..fb3d84f 100644
+--- a/source/rust_verify/src/rust_to_vir_func.rs
++++ b/source/rust_verify/src/rust_to_vir_func.rs
+@@ -2417,7 +2417,11 @@ pub(crate) fn finish_function<'tcx>(
+                 }
+             }
+             (true, Some((_, Some(_))), Some((ret_typ, _))) => {
+-                if !matches!(**ret_typ, TypX::Opaque { .. }) {
++                // (A trait's default `async fn` returns the projection onto
++                // its RPITIT associated type; see `assoc_item_name`.)
++                let is_rpitit_projection = matches!(&**ret_typ,
++                    TypX::Projection { name, .. } if name.starts_with("VERUS_RPITIT"));
++                if !matches!(**ret_typ, TypX::Opaque { .. }) && !is_rpitit_projection {
+                     return err_span(
+                         sig.span,
+                         format!(
+diff --git a/source/rust_verify/src/rust_to_vir_impl.rs b/source/rust_verify/src/rust_to_vir_impl.rs
+index 70a3a28..16866f2 100644
+--- a/source/rust_verify/src/rust_to_vir_impl.rs
++++ b/source/rust_verify/src/rust_to_vir_impl.rs
+@@ -479,6 +479,63 @@ pub(crate) fn translate_impl<'tcx>(
+                 Err(e) => errors.push(e),
+             }
+         }
++        // An impl that does not override a default method returning `impl
++        // Trait` (such as an `async fn`) has no RPITIT item for it; its RPITIT
++        // type is the default body's opaque type, for this impl's arguments.
++        let tcx = ctxt.tcx;
++        let trait_ref = tcx.impl_trait_ref(impl_def_id).instantiate_identity().skip_norm_wip();
++        let implemented = tcx.impl_item_implementor_ids(impl_def_id);
++        for trait_item in tcx.associated_items(trait_ref.def_id).in_definition_order() {
++            let Some(rustc_middle::ty::ImplTraitInTraitData::Trait { fn_def_id, .. }) =
++                tcx.opt_rpitit_info(trait_item.def_id)
++            else {
++                continue;
++            };
++            if tcx.item_name(fn_def_id).as_str().starts_with(vir::def::VERUS_SPEC)
++                || !tcx.defaultness(trait_item.def_id).has_value()
++                || implemented.contains_key(&trait_item.def_id)
++            {
++                continue;
++            }
++            let span = tcx.def_span(impl_def_id);
++            // The RPITIT type's own generic parameters are the method's
++            // captured lifetimes; Verus erases lifetimes.
++            let args = rustc_middle::ty::GenericArgs::for_item(tcx, trait_item.def_id, |param, _| {
++                if (param.index as usize) < trait_ref.args.len() {
++                    trait_ref.args[param.index as usize]
++                } else {
++                    tcx.lifetimes.re_erased.into()
++                }
++            });
++            let ty = tcx.type_of(trait_item.def_id).instantiate(tcx, args).skip_norm_wip();
++            let result = (|| {
++                let typ = ctxt.mid_ty_to_vir(impl_def_id, span, &ty, None)?;
++                let (typ_params, typ_bounds) =
++                    crate::rust_to_vir_base::check_generics_bounds_no_polarity(
++                        tcx,
++                        &ctxt.verus_items,
++                        impll.generics.span,
++                        Some(&impll.generics),
++                        impl_def_id,
++                        Some(&mut *ctxt.diagnostics.borrow_mut()),
++                    )?;
++                let assocx = AssocTypeImplX {
++                    name: Arc::new(crate::rust_to_vir_base::assoc_item_name(tcx, trait_item)),
++                    impl_path: ctxt.def_id_to_vir_path(impl_def_id),
++                    typ_params,
++                    typ_bounds,
++                    trait_path: trait_path.clone(),
++                    trait_typ_args: trait_typ_args.clone(),
++                    typ,
++                    impl_paths: Arc::new(vec![]),
++                };
++                Ok(ctxt.spanned_new(span, assocx))
++            })();
++            match result {
++                Ok(assoc_type_impl) => vir.assoc_type_impls.push(assoc_type_impl),
++                Err(e) => errors.push(e),
++            }
++        }
+     }
+     if errors.len() > 0 { Err(errors) } else { Ok(()) }
+ }
+diff --git a/source/rust_verify_test/tests/async_functions.rs b/source/rust_verify_test/tests/async_functions.rs
+index a5ce88d..9cee3e8 100644
+--- a/source/rust_verify_test/tests/async_functions.rs
++++ b/source/rust_verify_test/tests/async_functions.rs
+@@ -435,3 +435,116 @@ test_verify_one_file! {
+         }
+     } => Err(err) => assert_one_fails(err)
+ }
++
++test_verify_one_file! {
++    // An async default method: a generic caller and a caller on an impl that
++    // does not override it.
++    #[test] async_fn_in_trait_default_method verus_code! {
++        use vstd::prelude::*;
++
++        trait Tr {
++            async fn d(&mut self) -> (r: u32)
++                ensures r == 1,
++            {
++                1
++            }
++        }
++
++        struct S;
++        impl Tr for S {}
++
++        async fn g<T: Tr>(t: &mut T) {
++            let r = t.d().await;
++            assert(r == 1);
++        }
++
++        async fn h(s: &mut S) {
++            let r = s.d().await;
++            assert(r == 1);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_default_method_overridden verus_code! {
++        use vstd::prelude::*;
++
++        trait Tr {
++            async fn d(&mut self) -> (r: u32)
++                ensures r >= 1,
++            {
++                1
++            }
++        }
++
++        struct S;
++        impl Tr for S {
++            async fn d(&mut self) -> (r: u32) {
++                2
++            }
++        }
++
++        async fn h(s: &mut S) {
++            let r = s.d().await;
++            assert(r >= 1);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_default_body_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Tr {
++            async fn d(&mut self) -> (r: u32)
++                ensures r == 1, // FAILS
++            {
++                2
++            }
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_default_generic_assert_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Tr {
++            async fn d(&mut self) -> (r: u32)
++                ensures r == 1,
++            {
++                1
++            }
++        }
++
++        struct S;
++        impl Tr for S {}
++
++        async fn g<T: Tr>(t: &mut T) {
++            let r = t.d().await;
++            assert(r == 2); // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_default_concrete_assert_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Tr {
++            async fn d(&mut self) -> (r: u32)
++                ensures r == 1,
++            {
++                1
++            }
++        }
++
++        struct S;
++        impl Tr for S {}
++
++        async fn h(s: &mut S) {
++            let r = s.d().await;
++            assert(r == 2); // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
+diff --git a/source/rust_verify_test/tests/syntax_attr.rs b/source/rust_verify_test/tests/syntax_attr.rs
+index f9f3134..b1943b3 100644
+--- a/source/rust_verify_test/tests/syntax_attr.rs
++++ b/source/rust_verify_test/tests/syntax_attr.rs
+@@ -411,17 +411,48 @@ test_verify_one_file! {
+ }
+ 
+ test_verify_one_file! {
++    // Ghost inputs and a ghost output on a trait method: the trait, an impl,
++    // and a generic caller.
+     #[test] test_trait_signature code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
+         trait X {
+             #[verus_spec(ret =>
+                 with
+                     Tracked(y): Tracked<&mut u32>,
+                     Ghost(w): Ghost<u32>,
+                     -> z: Ghost<u32>
++                ensures z@ == x,
+             )]
+             fn f(&self, x: u32) -> bool;
+         }
+-    } => Err(e) => assert_any_vir_error_msg(e, "`with` does not support trait")
++
++        #[verus_verify]
++        struct S;
++
++        #[verus_verify]
++        impl X for S {
++            #[verus_spec(ret => with Tracked(y): Tracked<&mut u32>, Ghost(w): Ghost<u32> -> z: Ghost<u32>)]
++            fn f(&self, x: u32) -> bool {
++                proof_with!{|= Ghost(x)}
++                true
++            }
++        }
++
++        #[verus_spec]
++        fn g<T: X>(t: &T) {
++            proof_decl!{
++                let tracked mut y = 0u32;
++                let ghost mut z = 0u32;
++            }
++            let r = {
++                proof_with!{Tracked(&mut y), Ghost(0) => Ghost(z)}
++                t.f(3)
++            };
++            proof!{ assert(z == 3); }
++        }
++    } => Ok(())
+ }
+ 
+ test_verify_one_file! {
+@@ -1836,3 +1867,179 @@ test_verify_one_file! {
+         }
+     } => Err(e) => assert_one_fails(e)
+ }
++
++test_verify_one_file! {
++    #[test] test_trait_method_with_ghost_params code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                requires *old(y) < 100,
++                ensures *final(y) == x, r == x,
++            )]
++            fn f(&self, x: u32) -> u32;
++        }
++
++        #[verus_verify]
++        struct S;
++
++        #[verus_verify]
++        impl Tr for S {
++            #[verus_spec(r => with Tracked(y): Tracked<&mut int>)]
++            fn f(&self, x: u32) -> u32 {
++                proof!{ *y = x as int; }
++                x
++            }
++        }
++
++        #[verus_spec]
++        fn g<T: Tr>(t: &T) {
++            proof_decl!{ let tracked mut y = 0int; }
++            let r = {
++                proof_with!{Tracked(&mut y)}
++                t.f(3)
++            };
++            proof!{
++                assert(r == 3);
++                assert(y == 3);
++            }
++        }
++
++        fn unverified_caller(s: &S) -> u32 {
++            s.f(4)
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_async_trait_method_with_ghost_params code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                requires *old(y) < 100,
++                ensures *final(y) == x, r == x,
++            )]
++            async fn f(&mut self, x: u32) -> u32;
++
++            #[verus_spec(
++                with Tracked(y): Tracked<&mut int>
++                ensures *final(y) == *old(y),
++            )]
++            async fn d(&mut self) {}
++        }
++
++        #[verus_verify]
++        struct S;
++
++        #[verus_verify]
++        impl Tr for S {
++            #[verus_spec(r => with Tracked(y): Tracked<&mut int>)]
++            async fn f(&mut self, x: u32) -> u32 {
++                proof!{ *y = x as int; }
++                x
++            }
++        }
++
++        #[verus_spec]
++        async fn g<T: Tr>(t: &mut T) {
++            proof_decl!{ let tracked mut y = 0int; }
++            let fut = {
++                proof_with!{Tracked(&mut y)}
++                t.f(3)
++            };
++            let r = fut.await;
++            let fut = {
++                proof_with!{Tracked(&mut y)}
++                t.d()
++            };
++            fut.await;
++            proof!{
++                assert(r == 3);
++                assert(y == 3);
++            }
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] test_trait_method_with_ghost_params_impl_fails code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                ensures *final(y) == x, // FAILS
++            )]
++            async fn f(&mut self, x: u32) -> u32;
++        }
++
++        #[verus_verify]
++        struct S;
++
++        #[verus_verify]
++        impl Tr for S {
++            #[verus_spec(r => with Tracked(y): Tracked<&mut int>)]
++            async fn f(&mut self, x: u32) -> u32 {
++                proof!{ *y = x as int + 1; }
++                x
++            }
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] test_trait_method_with_ghost_params_caller_fails code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                requires *old(y) < 100,
++                ensures *final(y) == x,
++            )]
++            async fn f(&mut self, x: u32) -> u32;
++        }
++
++        #[verus_spec]
++        async fn g<T: Tr>(t: &mut T) {
++            proof_decl!{ let tracked mut y = 100int; }
++            let fut = {
++                proof_with!{Tracked(&mut y)}
++                t.f(3) // FAILS
++            };
++            fut.await;
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] test_trait_method_with_ghost_params_caller_assert_fails code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                ensures *final(y) == x,
++            )]
++            fn f(&self, x: u32) -> u32;
++        }
++
++        #[verus_spec]
++        fn g<T: Tr>(t: &T) {
++            proof_decl!{ let tracked mut y = 0int; }
++            let r = {
++                proof_with!{Tracked(&mut y)}
++                t.f(3)
++            };
++            proof!{ assert(y == 4); } // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
