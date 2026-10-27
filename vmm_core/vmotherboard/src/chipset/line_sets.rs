@@ -13,7 +13,24 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use vmcore::line_interrupt::LineSet;
 use vmcore::line_interrupt::LineSetTarget;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::vm_task::VmTaskDriverSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// The `StateUnit` spec of a line set's state unit.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("line_sets.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("line_sets.proof.rs");
+}
 
 pub struct LineSets {
     map: HashMap<LineSetId, (Arc<LineSet>, usize)>,
@@ -59,23 +76,34 @@ impl LineSets {
 #[inspect(transparent)]
 struct LineSetUnit<'a>(&'a LineSet);
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for LineSetUnit<'_> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {}
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(
         &mut self,
     ) -> Result<Option<vmcore::save_restore::SavedStateBlob>, vmcore::save_restore::SaveError> {
         Ok(None)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(
         &mut self,
         _: vmcore::save_restore::SavedStateBlob,

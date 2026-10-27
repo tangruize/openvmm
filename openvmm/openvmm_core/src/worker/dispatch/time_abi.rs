@@ -53,7 +53,24 @@ use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 #[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// The `StateUnit` spec of the time ABI's state unit.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("time_abi.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("time_abi.proof.rs");
+}
 
 /// The name of the time ABI state unit.
 pub(super) const TIME_ABI_UNIT: &str = "time-abi";
@@ -1093,22 +1110,33 @@ impl InspectMut for TimeAbiUnit {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for TimeAbiUnit {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {}
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.msrs.reset();
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         Ok(Some(SavedStateBlob::new(self.msrs.save())))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
         self.msrs.restore(state.parse()?)
     }

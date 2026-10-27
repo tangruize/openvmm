@@ -51,10 +51,21 @@ use vmcore::save_restore::ProtobufSaveRestore;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 use vmm_core_defs::HaltReason;
 use vp_set::VpSet;
 use vstd::prelude::Ghost;
 use vstd::prelude::Tracked;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("partition_unit.proof.rs");
+}
 
 /// The control point for managing a partition unit.
 pub struct PartitionUnit {
@@ -621,13 +632,18 @@ impl Drop for StopGuard {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for PartitionUnitRunner {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         self.unit_started = true;
         self.try_start();
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {
         self.vp_set.stop().await;
         self.unit_started = false;
@@ -639,6 +655,8 @@ impl StateUnit for PartitionUnitRunner {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.partition.reset()?;
         self.vp_set.reset().await?;
@@ -647,11 +665,15 @@ impl StateUnit for PartitionUnitRunner {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         let state = self.save().await?;
         Ok(Some(SavedStateBlob::new(state)))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, buffer: SavedStateBlob) -> Result<(), RestoreError> {
         self.needs_reset = true;
         self.restore(buffer.parse()?).await?;

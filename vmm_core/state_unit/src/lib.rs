@@ -63,7 +63,19 @@ pub mod spec {
 }
 
 #[cfg(verus_keep_ghost)]
+pub use spec::StateUnitSpec;
+#[cfg(verus_keep_ghost)]
 use spec::UnitSnapshot;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// What `StateUnit`'s contract needs to know about a unit (see
+/// `spec::StateUnitSpec`). Empty in normal builds.
+#[cfg(not(verus_keep_ghost))]
+pub trait StateUnitSpec {}
+
+#[cfg(not(verus_keep_ghost))]
+impl<T: ?Sized> StateUnitSpec for T {}
 #[cfg(verus_keep_ghost)]
 use vmcore::save_restore::spec::SavedStateBlobView;
 #[cfg(verus_keep_ghost)]
@@ -141,20 +153,77 @@ pub enum StateRequest {
 /// Implementing this is optional, to be used with [`UnitBuilder::spawn`] or
 /// [`StateRequest::apply`]; state units can also directly process incoming
 /// [`StateRequest`]s.
+///
+/// Verus: each method's contract is the request protocol (see
+/// `MeshProtocol::request_ok` for `StateRequest`, in `lib.proof.rs`). `g`
+/// carries the FracGhost half the request sends, and on return the half the
+/// reply sends back. Every method keeps the unit's `wf()` and `id()`.
 #[expect(async_fn_in_trait)] // Don't need Send bounds
-pub trait StateUnit: InspectMut {
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+pub trait StateUnit: InspectMut + StateUnitSpec {
     /// Start asynchronous processing.
+    ///
+    /// Verus: takes the caller's half; the unit, now holding the whole,
+    /// runs. Nothing comes back, also on `Err`.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            *old(g) matches Some(h) && h.valid(old(self).id(), 0.5real),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running(),
+            *final(g) is None,
+    ))]
     async fn start(&mut self) -> anyhow::Result<()>;
 
     /// Stop asynchronous processing.
+    ///
+    /// Verus: the running unit records its state and gives back a half
+    /// recording it. (`running()` is the trusted fact that `StateUnits`
+    /// stops only running units.)
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            old(self).running(),
+            *old(g) is None,
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            !final(self).running(),
+            *final(g) matches Some(h) && h.valid(final(self).id(), 0.5real)
+                && !(h@ is Unknown),
+    ))]
     async fn stop(&mut self);
 
     /// Stops accepting new host input while preserving runtime state.
+    ///
+    /// Verus: no ghost.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+    ))]
     async fn quiesce_input(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
     /// Resumes host input after a failed snapshot transaction.
+    ///
+    /// Verus: no ghost.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+    ))]
     async fn resume_input(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
@@ -162,21 +231,80 @@ pub trait StateUnit: InspectMut {
     /// Reset to initial state.
     ///
     /// Must only be called while stopped.
+    ///
+    /// Verus: takes the caller's half and gives back a half (the unit's
+    /// state may have changed), also on `Err`.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            *old(g) matches Some(h) && h.valid(old(self).id(), 0.5real),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+            *final(g) matches Some(h) && h.valid(final(self).id(), 0.5real),
+    ))]
     async fn reset(&mut self) -> anyhow::Result<()>;
 
     /// Save state.
     ///
     /// Must only be called while stopped.
+    ///
+    /// Verus: the caller lends its half, recording a known state, and gets
+    /// it back unchanged; `Ok(Some(blob))` iff the half records
+    /// `Saved(blob@)`, `Ok(None)` iff it records `NoSavedState`.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            *old(g) matches Some(h) && h.valid(old(self).id(), 0.5real) && !(h@ is Unknown),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+            *final(g) == *old(g),
+            result matches Ok(Some(blob)) ==> old(g)->Some_0@ == UnitSnapshot::Saved(blob@),
+            result matches Ok(None) ==> old(g)->Some_0@ == UnitSnapshot::NoSavedState,
+    ))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError>;
 
     /// Restore state.
     ///
     /// Must only be called while stopped.
+    ///
+    /// Verus: takes the caller's half and gives back a half, also on `Err`;
+    /// on `Ok`, it records `Saved(buffer@)`.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            *old(g) matches Some(h) && h.valid(old(self).id(), 0.5real),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+            *final(g) matches Some(h) && h.valid(final(self).id(), 0.5real)
+                && (result is Ok ==> h@ == UnitSnapshot::Saved(buffer@)),
+    ))]
     async fn restore(&mut self, buffer: SavedStateBlob) -> Result<(), RestoreError>;
 
     /// Advance guest-visible time after restore. Most units derive their
     /// deadlines from VM time and need no direct adjustment; only units added
     /// with [`UnitBuilder::advances_time`] receive this request.
+    ///
+    /// Verus: takes the caller's half and gives back a half, also on `Err`.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(self).wf(),
+            *old(g) matches Some(h) && h.valid(old(self).id(), 0.5real),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+            final(self).running() == old(self).running(),
+            *final(g) matches Some(h) && h.valid(final(self).id(), 0.5real),
+    ))]
     async fn advance_time(&mut self, _duration: std::time::Duration) -> anyhow::Result<()> {
         Ok(())
     }

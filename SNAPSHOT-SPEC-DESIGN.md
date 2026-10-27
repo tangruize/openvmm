@@ -827,6 +827,24 @@ trusting each unit's methods and that nothing changes a stopped unit.)
   already does for `StateUnits`' methods): `with` works on a trait's own
   methods, not through `external_trait_specification`.
 
+**Status** (2026-10-27): the contract is written (`StateUnit` in
+`lib.rs`, `StateUnitSpec` in `lib.spec.rs`); `state_unit` verifies (14
+verified, including the three default bodies, against it); negative
+check: a default `advance_time` that drops the half fails. The ten
+production impls are converted (code change 39): each takes the ghost
+input, its bodies are `external_body`, and its `StateUnitSpec` is
+uninterpreted (listed in `SNAPSHOT-SPEC-TRUSTED.md`). Next: each unit's
+`StateUnitSpec` definition (where its share lives, its `wf`), and
+`run_unit` / `apply` passing the real halves.
+`InspectMut` is declared without a contract: `apply`'s `Inspect` path
+(and `run_async_unit`'s concurrent inspects) can change a unit outside the
+contract, so `inspect_mut` needs one too (keeps `wf()`, `id()`,
+`running()`). Open. Verus panicked ("compute_dyn_compatibility: missing
+trait") instead of reporting the undeclared supertrait; a Verus bug, not
+yet patched. Verus patch 0005 gained a third fix on the way: a
+`cfg_attr`'d `verus_spec` in a `verus_verify` trait impl got a second,
+empty `verus_spec`.
+
 **Why not a ghost field reached through a supertrait** (the first
 proposal, probed and dropped 2026-10-27): its contract was stated on the
 unit's ghost field, `self.ghost()`, so it fit only units whose state is in

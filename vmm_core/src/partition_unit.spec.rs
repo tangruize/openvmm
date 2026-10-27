@@ -5,8 +5,11 @@
 // review.
 
 use super::PartitionRequest;
+use super::PartitionUnitRunner;
 use mesh_rpc_verus::MeshProtocol;
+use state_unit::StateUnitSpec;
 use vstd::prelude::*;
+use vstd::resource::Loc;
 
 verus! {
 
@@ -30,6 +33,17 @@ impl MeshProtocol for PartitionRequest {
     /// armed). Uninterpreted until then: verified code can neither send a
     /// `PartitionRequest` nor learn anything from receiving one.
     uninterp spec fn request_ok(k: (), msg: PartitionRequest, gin: ()) -> bool;
+}
+
+/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
+/// and its invariant (`wf`). Uninterpreted until then; the impl's method
+/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+impl StateUnitSpec for PartitionUnitRunner {
+    uninterp spec fn wf(&self) -> bool;
+
+    uninterp spec fn id(&self) -> Loc;
+
+    uninterp spec fn running(&self) -> bool;
 }
 
 } // verus!

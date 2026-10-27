@@ -17,7 +17,24 @@ use std::task::Context;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::slim_event::SlimEvent;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// The `StateUnit` spec of a chipset device's state unit.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("state_unit.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("state_unit.proof.rs");
+}
 
 pub struct ArcMutexChipsetDeviceUnit {
     device: Arc<CloseableMutex<dyn DynDevice>>,
@@ -151,7 +168,10 @@ impl ArcMutexChipsetDeviceUnit {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for ArcMutexChipsetDeviceUnit {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         self.device.clone().close().start().await?;
         self.running = true;
@@ -162,6 +182,8 @@ impl StateUnit for ArcMutexChipsetDeviceUnit {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {
         self.device.clone().close().stop().await;
         self.running = false;
@@ -176,23 +198,31 @@ impl StateUnit for ArcMutexChipsetDeviceUnit {
         // These are currently not true.
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     async fn quiesce_input(&mut self) -> anyhow::Result<()> {
         self.device.clone().close().quiesce_input().await
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     async fn resume_input(&mut self) -> anyhow::Result<()> {
         self.device.clone().close().resume_input().await
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.device.clone().close().reset().await;
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn advance_time(&mut self, duration: std::time::Duration) -> anyhow::Result<()> {
         self.device.clone().close().advance_time(duration).await
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         if self.omit_saved_state {
             return Ok(None);
@@ -203,6 +233,8 @@ impl StateUnit for ArcMutexChipsetDeviceUnit {
         Ok(Some(state))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
         // TODO: make async
         self.device.clone().close().restore(state)

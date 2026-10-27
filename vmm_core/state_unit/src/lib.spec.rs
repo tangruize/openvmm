@@ -4,11 +4,12 @@
 // High-level spec of state units, for human review.
 
 use super::SavedStateUnit;
-use super::quiesce::QuiesceForSaveError;
 use super::StateUnits;
+use super::quiesce::QuiesceForSaveError;
 use vmcore::save_restore::spec::SavedStateBlobView;
 pub use vmcore::save_restore::spec::UnitSnapshot;
 use vstd::prelude::*;
+use vstd::resource::Loc;
 
 verus! {
 
@@ -111,7 +112,7 @@ impl View for StateUnits {
         StateUnitsView {
             units: Map::new(
                 self.units_ghost@.registry.values().map(
-                    |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0,
+                    |entry: (Seq<char>, Loc, bool)| entry.0,
                 ),
                 |name: Seq<char>| {
                     let id = choose|id: u64| #[trigger] self.units_ghost@.registry.contains_key(id)
@@ -129,8 +130,8 @@ impl View for StateUnits {
                 |id: u64| self.units_ghost@.registry[id].0,
             ),
             advances_time: self.units_ghost@.registry.values().filter(
-                |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.2,
-            ).map(|entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0),
+                |entry: (Seq<char>, Loc, bool)| entry.2,
+            ).map(|entry: (Seq<char>, Loc, bool)| entry.0),
             running: self.running,
         }
     }
@@ -151,5 +152,26 @@ impl View for QuiesceForSaveError {
     uninterp spec fn view(&self) -> QuiesceForSaveErrorView;
 }
 
-} // verus!
+/// What `StateUnit`'s contract needs to know about a unit (a supertrait of
+/// `StateUnit` in Verus builds; empty in normal builds). The contract itself
+/// is on `StateUnit`'s methods, in `lib.rs`: the request protocol ("Request
+/// protocol" in `SNAPSHOT-SPEC-DESIGN.md`), with the FracGhost halves passed
+/// through each method as a ghost input.
+///
+/// Each unit keeps its own share of its FracGhost where its state is (a
+/// field; inside its device's `CloseableMutex`; behind interior
+/// mutability), and its `wf()` ties that share to its state: the share,
+/// unless still `Unknown`, records what the unit's save returns; the whole
+/// while running, one half while stopped.
+pub trait StateUnitSpec {
+    /// The unit's invariant.
+    spec fn wf(&self) -> bool;
 
+    /// The id of the unit's FracGhost (its channel's constant).
+    spec fn id(&self) -> Loc;
+
+    /// Whether the unit runs (between `start` and `stop`).
+    spec fn running(&self) -> bool;
+}
+
+} // verus!

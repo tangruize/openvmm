@@ -377,26 +377,54 @@ mod chipset_unit {
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SavedStateBlob;
+    #[cfg(verus_keep_ghost)]
+    use vmcore::save_restore::spec::UnitSnapshot;
+    #[cfg(verus_keep_ghost)]
+    use vstd::prelude::*;
+    #[cfg(verus_keep_ghost)]
+    use vstd::resource::frac::FracGhost;
+
+    /// The `StateUnit` spec of the chipset unit.
+    #[cfg(verus_keep_ghost)]
+    mod spec {
+        include!("chipset_unit.spec.rs");
+    }
+
+    #[cfg(verus_keep_ghost)]
+    mod proof {
+        include!("chipset_unit.proof.rs");
+    }
 
     #[derive(InspectMut)]
     #[inspect(transparent)]
     pub struct ChipsetUnit<'a>(pub &'a Chipset);
 
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl StateUnit for ChipsetUnit<'_> {
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
         async fn start(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
         async fn stop(&mut self) {}
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
         async fn reset(&mut self) -> anyhow::Result<()> {
             Ok(())
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
         async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
             Ok(None)
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
         async fn restore(&mut self, _buffer: SavedStateBlob) -> Result<(), RestoreError> {
             Err(RestoreError::SavedStateNotSupported)
         }

@@ -9617,8 +9617,6 @@ checksum = "5e4a9e69d45ddbe303075756d3fc2fcc965eb9dc70c80651d0e4458a6af1ed83"
 [[package]]
 name = "verus_builtin_macros"
 version = "0.0.0-2026-09-20-0158"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "213ca3e8a80925aec251d3f1952a213d6090156b58ad81dccc3a2f1fed77c99f"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -11017,6 +11015,7 @@ dependencies = [
  "vm_resource",
  "vm_topology",
  "vmbus_channel",
+ "vmbus_ring",
  "vmbus_server",
  "vmcore",
  "vmm_core_defs",
@@ -11167,6 +11166,7 @@ dependencies = [
  "vga_proxy",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]

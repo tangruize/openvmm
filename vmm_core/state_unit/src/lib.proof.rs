@@ -9,11 +9,11 @@ use crate::State;
 use crate::StateRequest;
 use crate::StateUnits;
 use crate::Unit;
-use mesh_rpc_verus::*;
-use crate::mutex_t::MutexPredicate;
 use crate::UnitSnapshot;
+use crate::mutex_t::MutexPredicate;
 use mesh::error::RemoteError;
 use mesh::rpc::Rpc;
+use mesh_rpc_verus::*;
 use std::sync::Arc;
 use vmcore::save_restore::SavedStateBlob;
 use vstd::prelude::*;
@@ -62,6 +62,22 @@ pub struct ExQuiesceForSaveError(crate::quiesce::QuiesceForSaveError);
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExSensitivityLevel(inspect::SensitivityLevel);
+
+/// `StateUnit`'s supertrait, declared to Verus (no methods: inspection is
+/// not part of the contract; see "Production units" in
+/// `SNAPSHOT-SPEC-DESIGN.md`).
+#[verifier::external_trait_specification]
+pub trait ExInspectMut {
+    type ExternalTraitSpecificationFor: inspect::InspectMut;
+}
+
+/// `inspect::Inspect`, declared to Verus: units implemented for `&X` (the
+/// vmbus units) get `InspectMut` from `Inspect` for `X` (inspect's blanket
+/// impl for `&T`).
+#[verifier::external_trait_specification]
+pub trait ExInspect {
+    type ExternalTraitSpecificationFor: inspect::Inspect;
+}
 
 /// A spec view of `Arc<str>` (vstd has views only for `Arc` of sized types).
 pub trait ArcStrView {

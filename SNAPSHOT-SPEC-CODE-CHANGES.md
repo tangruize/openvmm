@@ -339,6 +339,38 @@ Baseline: upstream `nanvix/openvmm` commit
     `time_abi_restore`, `StateUnits::advance_time`, `InitializedVm::load`,
     and `LoadedVm::restore` claim equality for every unit (no clock-unit
     exclusions); `lemma_load_restores` is simplified.
+38. **`StateUnit`'s contract** (Verus only, no runtime change;
+    `vmm_core/state_unit`): `StateUnit` is `verus_verify`, each method has
+    a `verus_spec` contract (the request protocol, with the FracGhost halves
+    as a ghost input `g`), and it gains the supertrait `StateUnitSpec`
+    (`lib.spec.rs`: `wf`, `id`, `running`; in normal builds an empty trait
+    implemented for every type, `lib.rs`). `lib.proof.rs` declares
+    `inspect::InspectMut` and `inspect::Inspect`. Workspace `Cargo.toml`:
+    `[patch.crates-io]` replaces `verus_builtin_macros` (the version `vstd`
+    pins) with a patched copy, `verus-patches/verus_builtin_macros`
+    (excluded from the workspace), carrying the macro half of Verus patch
+    0005; `Cargo.lock` follows. The copy's diff from the published crate is
+    `verus-patches/0005-verus_builtin_macros-published.patch`; normal builds
+    use it too (the fixes change only `verus_spec(with ...)` on traits and
+    trait impls, and `cfg_attr`'d `verus_spec` under `verus_verify`, which
+    normal builds strip).
+39. **The production `StateUnit` impls converted** (Verus only, no runtime
+    change): the ten impls (`ArcMutexChipsetDeviceUnit`, `ChipsetUnit`,
+    `LineSetUnit` in `vmm_core/vmotherboard`; `KeeperUnit`,
+    `input_distributor::Inner`, `PartitionUnitRunner`, `&VmbusServerUnit`,
+    `&ChannelUnit<T>`, `&SimpleChannelUnit<T>` in `vmm_core`; `TimeAbiUnit`
+    in `openvmm_core`) are `verus_verify`; each method takes the ghost input
+    (`verus_spec(with Tracked(g): ...)`) and is `external_body` for now. Each
+    unit file includes a new `<file>.spec.rs` (the unit's `StateUnitSpec`,
+    uninterpreted until its per-unit definition) and `<file>.proof.rs` (the
+    unit type's declaration); for the partition unit, its existing
+    `partition_unit.spec.rs` gains the impl. `vmbus_unit.proof.rs` declares
+    `VmbusDevice`, `SimpleVmbusDevice`, `RingMem`, `GpadlRingMem`, and
+    `core::any::Any`. vmotherboard becomes Verus-enabled
+    (`[package.metadata.verus] verify = true`, `vstd` dependency, a
+    `build.rs` declaring the `verus_keep_ghost` cfg, a cfg'd `vstd` import in
+    `lib.rs`); vmm_core gains a `vmbus_ring` dependency (already in its
+    dependency graph through `vmbus_channel`).
 
 ### Planned: mesh RPC trusted spec
 
@@ -400,12 +432,20 @@ itself is unmodified.
    `rust_verify_test/tests/external_traits.rs`. Applied to the local
    checkout and built. Details and test results: `verus-patches/README.md`.
 
+4. **`0004-async-fn-in-trait.patch`** (`verus-patches/`): `async fn` in
+   a trait ("does not yet support Opaque types in trait def"), for
+   `StateUnit`. Details and test results: `verus-patches/README.md`.
+5. **`0005-trait-method-ghost-params-and-async-defaults.patch`**
+   (`verus-patches/`): ghost inputs (`with`) on trait methods, and async
+   default methods. Its macro half also lives in the patched copy of the
+   published macro crate, `verus-patches/verus_builtin_macros`, which
+   OpenVMM's build uses (OpenVMM change 38). Details and test results:
+   `verus-patches/README.md`.
+
 ### Possibly needed
 
 From the gaps in the design doc; not started.
 
-- `async fn` in traits ("does not yet support Opaque types in trait def"):
-  `StateUnit`.
 - Async closures ("does not yet support coroutine closure types"); avoided
   for now by OpenVMM change 5 above.
 - Datatype constructors as function values; avoided by OpenVMM change 6.

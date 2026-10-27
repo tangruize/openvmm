@@ -32,7 +32,24 @@ use vmbus_server::VmbusServerControl;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::vm_task::VmTaskDriverSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// The `StateUnit` spec of the vmbus server's and channels' state units.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("vmbus_unit.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("vmbus_unit.proof.rs");
+}
 
 /// A handle to a vmbus server that is registered as a state unit.
 ///
@@ -77,25 +94,36 @@ impl VmbusServerHandle {
 #[inspect(transparent)]
 struct VmbusServerUnit(VmbusServer);
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for &'_ VmbusServerUnit {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         self.0.start();
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {
         self.0.stop().await;
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.0.reset().await;
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         Ok(Some(SavedStateBlob::new(self.0.save().await)))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, buffer: SavedStateBlob) -> Result<(), RestoreError> {
         self.0
             .restore(buffer.parse()?)
@@ -134,26 +162,37 @@ impl<T: 'static + VmbusDevice> ChannelUnit<T> {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: 'static + VmbusDevice + ?Sized> StateUnit for &'_ ChannelUnit<T> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         self.0.start();
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {
         self.0.stop().await;
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.0.reset().await;
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         let state = self.0.save().await.map_err(SaveError::Other)?;
         Ok(state)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
         self.0.restore(state).await.map_err(RestoreError::Other)
     }
@@ -206,26 +245,37 @@ impl<T: SimpleVmbusDevice> Inspect for SimpleChannelUnit<T> {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: SimpleVmbusDevice> StateUnit for &'_ SimpleChannelUnit<T> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
         self.0.start();
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn stop(&mut self) {
         self.0.stop().await;
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.0.reset().await;
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
         let state = self.0.save().await.map_err(SaveError::Other)?;
         Ok(state)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
         self.0.restore(state).await.map_err(RestoreError::Other)
     }

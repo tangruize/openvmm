@@ -244,7 +244,7 @@ Lets a trait method take ghost inputs (`#[verus_spec(with Tracked(..))]`),
 including an `async fn` and a default method, so that `StateUnit`'s
 contract can pass the FracGhost halves of the request protocol through its
 methods (see "Production units: the contract on `StateUnit`" in
-`SNAPSHOT-SPEC-DESIGN.md`). Two fixes.
+`SNAPSHOT-SPEC-DESIGN.md`). Three fixes.
 
 **Bug 1.** `#[verus_spec(with ...)]` on a trait method declaration is
 refused: "`with` does not support trait" (`builtin_macros/src/attr_rewrite.rs`).
@@ -288,8 +288,22 @@ opaque type for the impl (`rust_to_vir_impl.rs`), as rustc does, so that
 callers on the impl's type, whose future rustc gives the opaque type, get
 the contract too.
 
+**Bug 3.** In a `#[verus_verify]` trait impl, a method whose specification
+is written `#[cfg_attr(verus_keep_ghost, verus_spec(...))]` (as OpenVMM
+writes every specification, so that normal builds do not see it) fails:
+"Multiple #[verus_spec] attributes are not allowed".
+
+**Cause 3.** `#[verus_verify]` on an impl adds an empty `#[verus_spec]` to
+each method that has none (`add_verus_spec_if_needed`), and it runs before
+the method's `cfg_attr` is expanded, so it does not see that one.
+
+**Fix 3.** Count a `cfg_attr` that contains `verus_spec` as a
+specification.
+
 **Tests.** In `rust_verify_test/tests/syntax_attr.rs`:
-`test_trait_method_with_ghost_params` (a trait method with a tracked input,
+`test_trait_impl_cfg_attr_verus_spec` (two impls of a trait method with a
+ghost input, both written with `cfg_attr`: one verifies, the other breaks
+the `ensures` and fails); `test_trait_method_with_ghost_params` (a trait method with a tracked input,
 an impl, a generic caller, and an unverified caller of the original),
 `test_async_trait_method_with_ghost_params` (the same for `async fn`, and an
 async default method with a ghost input), `test_trait_signature` (replaced:
@@ -302,15 +316,26 @@ generic caller and a caller on a non-overriding impl, an overriding impl,
 and three that must fail and do (a default body breaking its `ensures`, a
 false assertion after the call, generic and concrete).
 
-**Test results.** With all five patches: `syntax_attr` 85 passed,
+**Test results.** With all five patches: `syntax_attr` 86 passed,
 `async_functions` 26, `traits` 216 (2 ignored), `external_traits` 42,
 `assoc_type_impls` 45, `traits_dyn` 26, `external_fn_specification` 78 (3
 ignored), `recursive_types` 28, `opaque_types` 23, `opaque_reveal` 24 (4
 ignored), `adts_opaque` 10, `functions` 10, `mut_refs` 117, `mut_refs_old`
 27, `regression` 83 (1 ignored), `return` 13, `returns_postcondition` 14; 0
-failed. The full suite has not been run. All nine OpenVMM spec crates
-verify (`scripts/verify-snapshot-spec.sh`).
+failed. The full suite has not been run. All OpenVMM spec crates verify
+(`scripts/verify-snapshot-spec.sh`).
 
 **Not covered.** Ghost outputs (`-> out`) of an async trait method (as for
 any `async fn`, see 0002); `with` on methods of traits declared with
 `external_trait_specification`.
+
+**OpenVMM's build.** Fixes 1 and 3 are in Verus's macros
+(`builtin_macros`), which OpenVMM takes from crates.io
+(`verus_builtin_macros 0.0.0-2026-09-20-0158`, pinned by `vstd`), not from
+the local checkout. So the repo carries a copy of that published crate
+with the fix applied, `verus-patches/verus_builtin_macros`, used through
+`[patch.crates-io]` in the workspace `Cargo.toml`; its diff from the
+published crate is `0005-verus_builtin_macros-published.patch` (the same
+change as this patch's `attr_rewrite.rs` hunks, at other line offsets).
+Fix 2 is in the verifier and comes from the local checkout, as
+for the other patches.

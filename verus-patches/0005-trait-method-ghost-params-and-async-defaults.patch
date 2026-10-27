@@ -1,8 +1,27 @@
 diff --git a/source/builtin_macros/src/attr_rewrite.rs b/source/builtin_macros/src/attr_rewrite.rs
-index e6bfbe3..bc41f2e 100644
+index e6bfbe3..11034f4 100644
 --- a/source/builtin_macros/src/attr_rewrite.rs
 +++ b/source/builtin_macros/src/attr_rewrite.rs
-@@ -449,6 +449,7 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
+@@ -420,6 +420,18 @@ fn add_verus_spec_if_needed(attrs: &mut Vec<syn::Attribute>, span: proc_macro2::
+     if attrs.iter().any(|attr| attr.path().get_ident().map_or(false, |ident| ident == VERUS_SPEC)) {
+         return;
+     }
++    // A `#[cfg_attr(<predicate>, verus_spec(...))]` (such as
++    // `cfg_attr(verus_keep_ghost, ...)`, which keeps specifications out of
++    // normal builds) is expanded only after this attribute; adding an empty
++    // `#[verus_spec]` would give the item two.
++    if attrs.iter().any(|attr| {
++        attr.path().is_ident("cfg_attr")
++            && matches!(&attr.meta, syn::Meta::List(list)
++                if list.tokens.clone().into_iter().any(|t| matches!(&t,
++                    proc_macro2::TokenTree::Ident(ident) if ident == VERUS_SPEC)))
++    }) {
++        return;
++    }
+     attrs.push(crate::syntax::mk_rust_attr_syn(span, VERUS_SPEC, TokenStream::new()));
+ }
+ 
+@@ -449,6 +461,7 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
              add_verus_spec_if_needed(attrs, span);
          }
          syn::Item::Impl(i) => {
@@ -10,7 +29,7 @@ index e6bfbe3..bc41f2e 100644
              for item in &mut i.items {
                  match item {
                      syn::ImplItem::Const(syn::ImplItemConst { attrs, .. }) => {
-@@ -456,11 +457,17 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
+@@ -456,11 +469,17 @@ fn prepare_items_for_verus_spec(span: proc_macro2::Span, i: &mut syn::Item) {
                      }
                      syn::ImplItem::Fn(syn::ImplItemFn { attrs, .. }) => {
                          add_verus_spec_if_needed(attrs, span);
@@ -33,7 +52,7 @@ index e6bfbe3..bc41f2e 100644
                      }
                      _ => {}
                  }
-@@ -690,6 +697,11 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+@@ -690,6 +709,11 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
  
              // Check if the function has the impl method marker
              let is_impl_fn = fun.attrs.iter().any(&is_hidden_impl_marker);
@@ -45,7 +64,7 @@ index e6bfbe3..bc41f2e 100644
  
              // Remove the marker attribute (internal use only)
              fun.attrs.retain(|attr| !is_hidden_impl_marker(attr));
-@@ -733,7 +745,8 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+@@ -733,7 +757,8 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
              // we add `requires false` and thus prevent verified function to use it.
              // Allow unverified code to use the function without changing in/output.
              if let Some(with) = &spec_attr.spec.with {
@@ -55,7 +74,7 @@ index e6bfbe3..bc41f2e 100644
  
                  if crate::rustdoc::env_rustdoc() {
                      if let Some(unverified_fun) = extra_funs.last_mut() {
-@@ -811,6 +824,20 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+@@ -811,6 +836,20 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
              fun.to_tokens(&mut new_stream);
              proc_macro::TokenStream::from(new_stream)
          }
@@ -76,7 +95,7 @@ index e6bfbe3..bc41f2e 100644
          // erase non-function cases if in erase mode
          _ if erase.erase() => return f.to_token_stream().into(),
          AnyFnOrLoop::Closure(mut closure) => {
-@@ -867,14 +894,12 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
+@@ -867,14 +906,12 @@ pub(crate) fn rewrite_verus_spec_on_fun_or_loop(
                  verus_syn::parse_macro_input!(outer_attr_tokens as verus_syn::SignatureSpecAttr);
              let mut new_stream = TokenStream::new();
  
@@ -97,7 +116,7 @@ index e6bfbe3..bc41f2e 100644
              }
  
              let spec_stmts = syntax::sig_specs_attr(erase, spec_attr, &mut method.sig, true, false);
-@@ -1184,10 +1209,34 @@ fn rewrite_const_ret_proxy(const_fun: &mut syn::ItemFn) -> syn::ItemFn {
+@@ -1184,10 +1221,34 @@ fn rewrite_const_ret_proxy(const_fun: &mut syn::ItemFn) -> syn::ItemFn {
  // function body, to enable seamless use of unverified call to the function in
  // verification.
  // If the function is const, it will be rewritten to a proxy function and a verified function.
@@ -132,7 +151,7 @@ index e6bfbe3..bc41f2e 100644
  ) -> Vec<syn::ItemFn> {
      let mut ret = vec![];
      let mut unverified_fun = fun.clone();
-@@ -1225,7 +1274,11 @@ fn rewrite_unverified_func(
+@@ -1225,7 +1286,11 @@ fn rewrite_unverified_func(
          // see correct body in generated executable in erase mode.
          if erase.keep() {
              block.stmts.clear();
@@ -394,7 +413,7 @@ index a5ce88d..9cee3e8 100644
 +    } => Err(err) => assert_one_fails(err)
 +}
 diff --git a/source/rust_verify_test/tests/syntax_attr.rs b/source/rust_verify_test/tests/syntax_attr.rs
-index f9f3134..b1943b3 100644
+index f9f3134..3a01be8 100644
 --- a/source/rust_verify_test/tests/syntax_attr.rs
 +++ b/source/rust_verify_test/tests/syntax_attr.rs
 @@ -411,17 +411,48 @@ test_verify_one_file! {
@@ -447,7 +466,7 @@ index f9f3134..b1943b3 100644
  }
  
  test_verify_one_file! {
-@@ -1836,3 +1867,179 @@ test_verify_one_file! {
+@@ -1836,3 +1867,221 @@ test_verify_one_file! {
          }
      } => Err(e) => assert_one_fails(e)
  }
@@ -624,6 +643,48 @@ index f9f3134..b1943b3 100644
 +                t.f(3)
 +            };
 +            proof!{ assert(y == 4); } // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    // A specification written as `cfg_attr(verus_keep_ghost, verus_spec(...))`
++    // (as code that also builds without Verus writes it) on a method of a
++    // `#[verus_verify]` impl: the impl does not add a second `verus_spec`.
++    #[test] test_trait_impl_cfg_attr_verus_spec code!{
++        use vstd::prelude::*;
++
++        #[verus_verify]
++        trait Tr {
++            #[cfg_attr(verus_keep_ghost, verus_spec(r =>
++                with Tracked(y): Tracked<&mut int>
++                ensures *final(y) == x, // FAILS (for U)
++            ))]
++            fn f(&self, x: u32) -> u32;
++        }
++
++        #[verus_verify]
++        struct S;
++
++        #[verus_verify]
++        impl Tr for S {
++            #[cfg_attr(verus_keep_ghost, verus_spec(r => with Tracked(y): Tracked<&mut int>))]
++            fn f(&self, x: u32) -> u32 {
++                proof!{ *y = x as int; }
++                x
++            }
++        }
++
++        #[verus_verify]
++        struct U;
++
++        #[verus_verify]
++        impl Tr for U {
++            #[cfg_attr(verus_keep_ghost, verus_spec(r => with Tracked(y): Tracked<&mut int>))]
++            fn f(&self, x: u32) -> u32 {
++                proof!{ *y = x as int + 1; }
++                x
++            }
 +        }
 +    } => Err(err) => assert_one_fails(err)
 +}

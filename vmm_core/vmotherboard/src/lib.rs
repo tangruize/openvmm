@@ -9,6 +9,11 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 mod base_chipset;
 mod chipset;
 
