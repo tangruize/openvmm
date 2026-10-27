@@ -532,6 +532,16 @@ paths, including its I/O handlers.
 2. *Decided.* `unit_channel()` keeps creating the FracGhost with `Unknown`,
    so a device's `wf()` allows `Unknown` ("state equals ghost, unless the
    ghost is `Unknown`").
+   *Extended 2026-10-27 (user):* for state created before its unit's
+   channel (the time-ABI MSRs, chipset devices), the state's creator
+   creates the FracGhost (still `Unknown`), keeps one half as the state's
+   share, and passes the other to `state_unit::unit_channel_for`, which
+   attaches it to the sender (the receiver carries none); the unit is
+   spawned with `UnitBuilder::spawn_with_channel`. (Choosing
+   `unit_channel()` earlier was for convenience: the device-created
+   FracGhost works for restore and registration too, the half travelling
+   through registration.) Units created with their channel keep the
+   `unit_channel()` path.
 3. *Done.* A trusted spec of `CloseableMutex`
    (`support/closeable_mutex/src/closeable_mutex_t.rs`): a lock invariant
    given by the value's type (`LockInvariant`: `inv()`, and a `key()` that
@@ -552,9 +562,12 @@ paths, including its I/O handlers.
    (`vm/devices/chipset/src/pit/`; spec in `mod.spec.rs`; declarations, its
    `StateUnitDevice` implementation, and examples in `mod.proof.rs`). See
    "The PIT" below.
-5. *Done (Verus only; not yet wired or tested).* The unit loop. Decided 2026-10-26: the shared chipset unit
-   (`ArcMutexChipsetDeviceUnit`, used by about 56 device types) stays as it
-   is, trusted; a separate verified unit, `DeviceUnit<T>`
+5. *Done (Verus only; not yet wired or tested).* The unit loop. Decided 2026-10-26, as a first step (the PIT as the
+   first device worked end to end): the shared chipset unit
+   (`ArcMutexChipsetDeviceUnit`, used by about 56 device types) stayed as
+   it was, trusted, for now. (That interim step has ended, 2026-10-27:
+   every unit's share lives with its state, under its lock; see
+   "Production units: the contract on `StateUnit`".) a separate verified unit, `DeviceUnit<T>`
    (`vmm_core/state_unit/src/device_unit.rs`, Verus only for now), is for
    devices that implement `StateUnitDevice` (for now, the PIT): verified
    `handle` and `poll`, and the unverified run loop. See "The verified
@@ -849,6 +862,35 @@ verified `handle_request`. Next: the vmbus units' `run_async_unit` (with
 concurrent inspects), the input distributor's loop (state requests merged
 with input events, which change its state: other mutation paths), and
 each unit's `StateUnitSpec` definition (where its share lives, its `wf`).
+
+Per-unit `StateUnitSpec` (code changes 42, 43): defined for the line sets,
+the chipset unit, the input distributor (no saved state), and the time
+keeper; each keeps its share in a ghost field of the unit, which only the
+unit's task changes. The time keeper's saved state is all time, so its
+view is only its running flag and its snapshot one constant,
+`Saved(VmTimeKeeperView::saved_blob())` (trusted: vmtime's saved states
+are all equal except time, `vmtime_t.rs`).
+
+Decided 2026-10-27 (user): a unit whose state is shared with other code
+that changes it keeps its share with that state, under the state's own
+synchronization; not in the unit, with a trusted "nobody changes a stopped
+unit". The time-ABI unit is the first (code change 43): its saved state is
+one atomic MSR value (`TimeAbiMsrs::tsc_invariant_control`, a control
+setting, not time), which VPs write; in Verus builds it is vstd's atomic
+with ghost (`vstd::atomic_ghost::AtomicU64`), whose invariant
+(`TscControlPred`) ties the share to the value. The unit's id is the
+atomic's key (as `DeviceUnit`'s is its mutex's key). The VP write path
+must change the value and the share together, which needs the whole,
+that is, the unit running (as for the PIT's handlers). Still
+uninterpreted: `ArcMutexChipsetDeviceUnit` (shares in each device, inside
+the `CloseableMutex`), the vmbus units, `PartitionUnitRunner`.
+
+Proof hint (time-ABI): `TimeAbiMsrs::load_control` / `store_control` now
+reach the inner `PAtomicU64` (`.patomic`) with a made-up permission
+(`Tracked::assume_new()`), bypassing the atomic's invariant; they are
+`external_body` placeholders. Rewrite them with vstd's `atomic_with_ghost!`,
+which opens the invariant, performs the load or store, and updates the
+share in the same step (the store needs the whole, so the unit running).
 
 Verus bug (not patched): unverified code that returns a verified `async
 fn`'s future without awaiting it (`spawn(.., |recv| unit.run(recv))`)

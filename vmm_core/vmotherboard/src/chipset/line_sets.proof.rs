@@ -8,9 +8,13 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Declares `LineSetUnit` to Verus, as an opaque type.
+/// Declares `LineSetUnit` (its fields) to Verus.
+#[verifier::external_type_specification]
+pub(super) struct ExLineSetUnit<'a>(LineSetUnit<'a>);
+
+/// Declares `LineSet` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub(super) struct ExLineSetUnit<'a>(LineSetUnit<'a>);
+pub struct ExLineSet(vmcore::line_interrupt::LineSet);
 
 } // verus!

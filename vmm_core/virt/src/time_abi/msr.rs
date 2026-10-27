@@ -19,8 +19,29 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use thiserror::Error;
 use vm_topology::processor::VpIndex;
+#[cfg(verus_keep_ghost)]
+use vmcore::device_state::spec::DeviceGhostState;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SavedStateRoot;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::Loc;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// Verus specification of the identity MSR handler's snapshotable state.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("msr.spec.rs");
+
+    /// Declarations supporting the spec.
+    mod proof {
+        include!("msr.proof.rs");
+    }
+}
 
 /// The identity MSR range. Every MSR in it that the table below does not
 /// define raises #GP.
@@ -95,10 +116,27 @@ pub struct AlreadyDeclared(pub DeclaredRates);
 ///
 /// It is shared between the backend's MSR exit path and the worker's
 /// `time-abi` state unit.
-#[derive(Debug, Default)]
+///
+/// Verus: the time-ABI state unit's share of its FracGhost lives with the
+/// MSR value, under its atomic's invariant (`spec::TscControlPred`), since
+/// both the unit and the VPs change the value.
+#[cfg_attr(not(verus_keep_ghost), derive(Debug, Default))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct TimeAbiMsrs {
     rates: OnceLock<DeclaredRates>,
+    #[cfg(not(verus_keep_ghost))]
     tsc_invariant_control: AtomicU64,
+    /// `HV_X64_MSR_TSC_INVARIANT_CONTROL`, with the time-ABI unit's share.
+    #[cfg(verus_keep_ghost)]
+    tsc_invariant_control:
+        vstd::atomic_ghost::AtomicU64<Loc, DeviceGhostState, spec::TscControlPred>,
+}
+
+#[cfg(verus_keep_ghost)]
+impl std::fmt::Debug for TimeAbiMsrs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TimeAbiMsrs").finish_non_exhaustive()
+    }
 }
 
 /// Saved state of the identity MSRs.
@@ -110,12 +148,61 @@ pub struct TimeAbiSavedState {
     pub tsc_invariant_control: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl TimeAbiMsrs {
     /// Returns a handler with no declared rates.
+    ///
+    /// Verus: it creates the time-ABI unit's FracGhost (value `Unknown`),
+    /// keeps one half as the MSR value's share, and returns the other in
+    /// `half`, for `StateUnits` (registered with `state_unit::unit_channel_for`).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(msrs =>
+        with Tracked(half): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        ensures
+            msrs.wf(),
+            *final(half) matches Some(h) && h.valid(msrs.key(), 0.5real) && h@ is Unknown,
+    ))]
     pub fn new() -> Self {
-        Self::default()
+        #[cfg(verus_keep_ghost)]
+        return Self {
+            rates: OnceLock::new(),
+            tsc_invariant_control: vstd::atomic_ghost::AtomicU64::new(
+                Ghost::assume_new(),
+                0,
+                Tracked::assume_new(),
+            ),
+        };
+        #[cfg(not(verus_keep_ghost))]
+        return Self::default();
     }
 
+    /// Loads the MSR value. (In Verus builds, without its ghost: the proof
+    /// is still to come.)
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    fn load_control(&self) -> u64 {
+        #[cfg(verus_keep_ghost)]
+        return self
+            .tsc_invariant_control
+            .patomic
+            .load(Tracked::assume_new());
+        #[cfg(not(verus_keep_ghost))]
+        return self.tsc_invariant_control.load(Ordering::Relaxed);
+    }
+
+    /// Stores the MSR value. (In Verus builds, without its ghost: the proof
+    /// is still to come.)
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    fn store_control(&self, value: u64) {
+        #[cfg(verus_keep_ghost)]
+        self.tsc_invariant_control
+            .patomic
+            .store(Tracked::assume_new(), value);
+        #[cfg(not(verus_keep_ghost))]
+        self.tsc_invariant_control.store(value, Ordering::Relaxed);
+    }
+}
+
+impl TimeAbiMsrs {
     /// Declares the rates. The worker calls this once, before any VP runs;
     /// declaring the same rates again is accepted.
     pub fn declare(&self, rates: DeclaredRates) -> Result<(), AlreadyDeclared> {
@@ -169,7 +256,7 @@ impl TimeAbiMsrs {
         }
         let result = match (msr, value) {
             (MSR_TSC_INVARIANT_CONTROL, 0 | 1) => {
-                self.tsc_invariant_control.store(value, Ordering::Relaxed);
+                self.store_control(value);
                 Ok(())
             }
             _ => Err(MsrError::InvalidAccess),
@@ -179,13 +266,13 @@ impl TimeAbiMsrs {
 
     /// Returns `HV_X64_MSR_TSC_INVARIANT_CONTROL`.
     pub fn tsc_invariant_control(&self) -> u64 {
-        self.tsc_invariant_control.load(Ordering::Relaxed)
+        self.load_control()
     }
 
     /// Resets the guest state to its power-on value. The declared rates are
     /// kept: they belong to the VM process.
     pub fn reset(&self) {
-        self.tsc_invariant_control.store(0, Ordering::Relaxed);
+        self.store_control(0);
     }
 
     /// Saves the guest state.
@@ -205,8 +292,7 @@ impl TimeAbiMsrs {
                 "HV_X64_MSR_TSC_INVARIANT_CONTROL value {tsc_invariant_control} is not 0 or 1"
             )));
         }
-        self.tsc_invariant_control
-            .store(tsc_invariant_control, Ordering::Relaxed);
+        self.store_control(tsc_invariant_control);
         Ok(())
     }
 }

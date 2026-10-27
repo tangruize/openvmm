@@ -8,9 +8,13 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Declares `TimeAbiUnit` to Verus, as an opaque type.
+/// Declares `TimeAbiUnit` (its fields) to Verus.
+#[verifier::external_type_specification]
+pub(in crate::worker::dispatch) struct ExTimeAbiUnit(TimeAbiUnit);
+
+/// Declares `TimeAbiReport` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub(in crate::worker::dispatch) struct ExTimeAbiUnit(TimeAbiUnit);
+pub(in crate::worker::dispatch) struct ExTimeAbiReport(super::TimeAbiReport);
 
 } // verus!

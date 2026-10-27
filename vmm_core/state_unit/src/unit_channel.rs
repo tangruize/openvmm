@@ -32,3 +32,24 @@ pub fn unit_channel() -> (result: (Sender<StateRequest>, Receiver<StateRequest>)
 }
 
 } // verus!
+
+/// Creates the channel for a new state unit whose state was created before
+/// the channel, with the unit's FracGhost: the state's creator made the
+/// FracGhost, keeps one half as the state's share, and passes the other,
+/// `half`, here. It is attached to the sender, for `StateUnits`
+/// (`UnitBuilder::build`); the receiver carries none. The channel's constant
+/// is the ghost's id.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    with Tracked(half): Tracked<vstd::resource::frac::FracGhost<crate::spec::UnitSnapshot>>
+    requires
+        half.frac() == 0.5real,
+    ensures
+        result.0.attached() == Some(half),
+        result.1.attached() is None,
+        result.0.constant() == half.id(),
+        result.1.constant() == half.id(),
+))]
+pub fn unit_channel_for() -> (Sender<StateRequest>, Receiver<StateRequest>) {
+    mesh::channel()
+}

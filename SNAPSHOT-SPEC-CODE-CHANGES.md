@@ -394,6 +394,44 @@ Baseline: upstream `nanvix/openvmm` commit
     `recv_msg`); its two spawn sites await `run` inside an `async` block
     (a Verus/rustc bug otherwise, see the design doc); `mesh_rpc_verus`
     dependency.
+42. **Per-unit `StateUnitSpec` definitions, first four** (Verus only, no
+    runtime change): `LineSetUnit`, `ChipsetUnit` (now `verus_verify`),
+    `KeeperUnit` gain a Verus-only ghost field (`Tracked<DeviceGhostState>`,
+    `#[inspect(skip)]`) and a constructor `new(.., &mut recv)` that takes the
+    unit's half (`external_body`, contract); their tasks construct them with
+    it. The input distributor's `Inner` gains
+    `Tracked<Option<DeviceGhostState>>`, filled by `InputDistributor::run`
+    (now `external_body` with a contract). Their `StateUnitSpec`s are
+    defined (closed): the share follows the rule and records
+    `NoSavedState` (line sets, chipset unit, input distributor) or
+    `Saved(of(keeper@.saved))` (time keeper). `vm/vmcore`: new
+    `vmtime.spec.rs` (`VmTimeKeeperView`) and `vmtime.proof.rs`;
+    contracts on `VmTimeKeeper::save`, `restore`, `advance`, `reset`,
+    `start`, `stop` (`external_body`). Declarations: `LineSet`, `Chipset`,
+    `Forwarder`, `KeyboardData`, `MouseData`, `InputDistributor`,
+    `VmTimeKeeper`, vmtime's `SavedState`.
+43. **The time-ABI unit's share with its state; creator-made FracGhost**
+    (Verus only, no runtime change): `state_unit` gains `unit_channel_for`
+    (a channel whose sender carries a given half; `external_body`) and
+    `UnitBuilder::spawn_with_channel` (`spawn` with a given channel;
+    `spawn` uses it). `vmm_core/virt` is Verus-enabled (metadata, `vstd`
+    dependency, `build.rs` cfg, `lib.rs` import); in Verus builds
+    `TimeAbiMsrs::tsc_invariant_control` is vstd's atomic with ghost
+    (normal builds keep `std`'s `AtomicU64`), `TimeAbiMsrs` is
+    `verus_verify` with a hand-written `Debug` in Verus builds, `new` takes a
+    ghost out-parameter for the other half (`external_body`), and the
+    value's loads and stores go through two private helpers
+    (`load_control`, `store_control`; `external_body` in Verus builds); new
+    `time_abi/msr.spec.rs` (`TscControlPred`, `key`, `wf`) and
+    `msr.proof.rs`. `openvmm_core`: `TimeAbiUnit` gains a Verus-only
+    `running` and `new` (`external_body`), its `StateUnitSpec` is defined,
+    and `dispatch.rs` spawns it with `spawn_with_channel(..,
+    unit_channel_for(), ..)`, awaiting `run_unit` in an `async` block. The
+    time keeper: `VmTimeKeeperView` keeps only `running`; the keeper's
+    snapshot is the constant `VmTimeKeeperView::saved_blob()`; new trusted
+    `vm/vmcore/src/vmtime_t.rs` (`SavedState::axiom_all_time`); the keeper's
+    method contracts keep their `running` clauses, `save` ensures its
+    result's view is `saved_blob()`.
 
 ### Planned: mesh RPC trusted spec
 

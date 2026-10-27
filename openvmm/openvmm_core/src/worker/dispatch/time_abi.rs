@@ -31,6 +31,8 @@ use openvmm_defs::time_abi::encode_effective_cpuid;
 use openvmm_defs::worker::SavedState;
 use state_unit::SpawnedUnit;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -54,8 +56,6 @@ use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 #[cfg(verus_keep_ghost)]
 use vmcore::save_restore::spec::UnitSnapshot;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 #[cfg(verus_keep_ghost)]
@@ -1102,6 +1102,33 @@ impl LoadedVm {
 pub(super) struct TimeAbiUnit {
     pub msrs: Arc<TimeAbiMsrs>,
     pub report: TimeAbiReport,
+    /// Whether the unit runs (Verus only). Its share of its FracGhost is
+    /// kept with the MSR value, in `msrs`.
+    #[cfg(verus_keep_ghost)]
+    pub running: Ghost<bool>,
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl TimeAbiUnit {
+    /// The unit for `msrs`, which keep its share of its FracGhost (from
+    /// `TimeAbiMsrs::new`).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        requires
+            (*msrs).wf(),
+        ensures
+            unit.wf(),
+            unit.id() == (*msrs).key(),
+            !unit.running(),
+    ))]
+    pub fn new(msrs: Arc<TimeAbiMsrs>, report: TimeAbiReport) -> Self {
+        Self {
+            msrs,
+            report,
+            #[cfg(verus_keep_ghost)]
+            running: Ghost::assume_new(),
+        }
+    }
 }
 
 impl InspectMut for TimeAbiUnit {

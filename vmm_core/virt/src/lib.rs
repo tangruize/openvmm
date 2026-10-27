@@ -3,6 +3,11 @@
 
 #![expect(missing_docs)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 pub mod aarch64;
 mod cpuid;
 mod generic;

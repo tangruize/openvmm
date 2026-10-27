@@ -5,20 +5,27 @@
 
 use super::ChipsetUnit;
 use state_unit::StateUnitSpec;
+use vmcore::save_restore::spec::UnitSnapshot;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 
 verus! {
 
-/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
-/// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// The chipset unit keeps its share of its FracGhost in its ghost field.
+/// It has no saved state (its `save` returns `Ok(None)`; the devices are
+/// their own units), so the share, once known, records `NoSavedState`.
 impl StateUnitSpec for ChipsetUnit<'_> {
-    uninterp spec fn wf(&self) -> bool;
+    closed spec fn wf(&self) -> bool {
+        self.1@.wf(self.id(), UnitSnapshot::NoSavedState)
+    }
 
-    uninterp spec fn id(&self) -> Loc;
+    closed spec fn id(&self) -> Loc {
+        self.1@.frac.id()
+    }
 
-    uninterp spec fn running(&self) -> bool;
+    closed spec fn running(&self) -> bool {
+        self.1@.running
+    }
 }
 
 } // verus!

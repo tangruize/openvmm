@@ -19,6 +19,8 @@ use inspect::Inspect;
 use inspect::InspectMut;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcSend;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
 use state_unit::StateRequest;
 use state_unit::StateUnit;
 use thiserror::Error;
@@ -26,6 +28,8 @@ use vm_resource::AsyncResolveResource;
 use vm_resource::ResourceResolver;
 use vm_resource::kind::KeyboardInputHandleKind;
 use vm_resource::kind::MouseInputHandleKind;
+#[cfg(verus_keep_ghost)]
+use vmcore::device_state::spec::DeviceGhostState;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
@@ -74,6 +78,9 @@ impl InputDistributor {
                 running: false,
                 keyboard: Forwarder::new(),
                 mouse: Forwarder::new(),
+                // A placeholder: `run` replaces it with the unit's share.
+                #[cfg(verus_keep_ghost)]
+                ghost: Tracked::assume_new(),
             },
             recv: input,
             client: InputDistributorClient { send: client_send },
@@ -91,6 +98,18 @@ impl InputDistributor {
     }
 
     /// Runs the distributor.
+    ///
+    /// Verus: `recv` is the unit's channel's receiver, carrying the unit's
+    /// half, which `run` keeps in `Inner` (its share). Besides state
+    /// requests, the loop forwards input and adds sinks, which change only
+    /// the forwarders (not what `Inner`'s `wf()` mentions).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
+        ensures
+            final(recv).constant() == old(recv).constant(),
+    ))]
     pub async fn run(&mut self, recv: &mut mesh::Receiver<StateRequest>) {
         enum Event {
             State(StateRequest),
@@ -209,6 +228,11 @@ struct Inner {
     running: bool,
     keyboard: Forwarder<KeyboardData>,
     mouse: Forwarder<MouseData>,
+    /// The unit's share of its FracGhost (Verus only): `None` until `run`
+    /// takes it from the unit's receiver.
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    ghost: Tracked<Option<DeviceGhostState>>,
 }
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]

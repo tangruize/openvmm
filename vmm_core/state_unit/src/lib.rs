@@ -48,6 +48,7 @@ mod start;
 mod unit_channel;
 
 pub use unit_channel::unit_channel;
+pub use unit_channel::unit_channel_for;
 
 /// Verus specification of state units.
 #[cfg(verus_keep_ghost)]
@@ -1503,7 +1504,24 @@ impl UnitBuilder<'_> {
         Fut: 'static + Send + Future,
         Fut::Output: 'static + Send,
     {
-        let (send, recv) = unit_channel();
+        self.spawn_with_channel(spawner, unit_channel(), f)
+    }
+
+    /// As [`Self::spawn`], with the unit's channel made by the caller
+    /// (`unit_channel_for`, for a unit whose state was created before its
+    /// channel and keeps its own share of the unit's FracGhost).
+    #[track_caller]
+    pub fn spawn_with_channel<F, Fut>(
+        self,
+        spawner: impl Spawn,
+        (send, recv): (Sender<StateRequest>, Receiver<StateRequest>),
+        f: F,
+    ) -> Result<SpawnedUnit<Fut::Output>, NameInUse>
+    where
+        F: FnOnce(Receiver<StateRequest>) -> Fut,
+        Fut: 'static + Send + Future,
+        Fut::Output: 'static + Send,
+    {
         let task_name = format!("unit-{}", self.name);
         let handle = self.build(send)?;
         let fut = (f)(recv);

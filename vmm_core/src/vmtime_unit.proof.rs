@@ -8,9 +8,8 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Declares `KeeperUnit` to Verus, as an opaque type.
+/// Declares `KeeperUnit` (its fields) to Verus.
 #[verifier::external_type_specification]
-#[verifier::external_body]
 pub(super) struct ExKeeperUnit<'a>(KeeperUnit<'a>);
 
 } // verus!

@@ -23,6 +23,27 @@
 
 pub use saved_state::SavedState;
 
+/// Verus specification of the VM time keeper.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("vmtime.spec.rs");
+
+    /// Declarations supporting the spec.
+    mod proof {
+        include!("vmtime.proof.rs");
+    }
+
+    /// Trusted: vmtime's saved state is all time.
+    mod trusted {
+        include!("vmtime_t.rs");
+    }
+}
+
+#[cfg(verus_keep_ghost)]
+use crate::save_restore::spec::SavedStateBlobView;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
 use futures::StreamExt;
 use futures::future::join_all;
 use futures_concurrency::future::Race;
@@ -512,6 +533,13 @@ impl VmTimeKeeper {
     }
 
     /// Saves the time state.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            !self@.running,
+        ensures
+            SavedStateBlobView::of(result) == spec::VmTimeKeeperView::saved_blob(),
+    ))]
     pub fn save(&self) -> SavedState {
         SavedState {
             vmtime: self.time.stop_time().expect("should be stopped"),
@@ -520,6 +548,13 @@ impl VmTimeKeeper {
     }
 
     /// Restores the time state.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            !old(self)@.running,
+        ensures
+            !final(self)@.running,
+    ))]
     pub async fn restore(&mut self, state: SavedState) {
         let SavedState {
             vmtime,
@@ -529,6 +564,13 @@ impl VmTimeKeeper {
     }
 
     /// Advances stopped VM time by `duration`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            !old(self)@.running,
+        ensures
+            !final(self)@.running,
+    ))]
     pub async fn advance(&mut self, duration: Duration) {
         let vmtime = self
             .time
@@ -549,11 +591,25 @@ impl VmTimeKeeper {
     }
 
     /// Reset the VM time to 0.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            !old(self)@.running,
+        ensures
+            !final(self)@.running,
+    ))]
     pub async fn reset(&mut self) {
         self.reset_to(VmTime::from_100ns(0)).await
     }
 
     /// Starts the timer, so that the current time will increase.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            !old(self)@.running,
+        ensures
+            final(self)@.running,
+    ))]
     pub async fn start(&mut self) {
         let vmtime = self.time.stop_time().expect("should be stopped");
         self.stop_host_time = None;
@@ -566,6 +622,13 @@ impl VmTimeKeeper {
     }
 
     /// Stops the timer, so that the current time will stop increasing.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self)@.running,
+        ensures
+            !final(self)@.running,
+    ))]
     pub async fn stop(&mut self) {
         assert!(self.time.is_started(), "should be running");
         let stop_time = self.req_send.call(KeeperRequest::Stop, ()).await.unwrap();

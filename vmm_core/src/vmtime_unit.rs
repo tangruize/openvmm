@@ -5,8 +5,14 @@
 
 use inspect::InspectMut;
 use mesh::Receiver;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
 use state_unit::StateRequest;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
+#[cfg(verus_keep_ghost)]
+use vmcore::device_state::spec::DeviceGhostState;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
@@ -31,7 +37,37 @@ mod proof {
 
 #[derive(InspectMut)]
 #[inspect(transparent)]
-struct KeeperUnit<'a>(#[inspect(mut)] &'a mut VmTimeKeeper);
+struct KeeperUnit<'a>(
+    #[inspect(mut)] &'a mut VmTimeKeeper,
+    /// The unit's share of its FracGhost (Verus only).
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    Tracked<DeviceGhostState>,
+);
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<'a> KeeperUnit<'a> {
+    /// The unit for `keeper`, which is stopped, taking its half from `recv`,
+    /// its channel's receiver.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        requires
+            !keeper@.running,
+            old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
+        ensures
+            unit.wf(),
+            unit.id() == old(recv).constant(),
+            !unit.running(),
+            final(recv).constant() == old(recv).constant(),
+    ))]
+    fn new(keeper: &'a mut VmTimeKeeper, recv: &mut Receiver<StateRequest>) -> Self {
+        let _ = recv;
+        #[cfg(verus_keep_ghost)]
+        return Self(keeper, Tracked::assume_new());
+        #[cfg(not(verus_keep_ghost))]
+        return Self(keeper);
+    }
+}
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for KeeperUnit<'_> {
@@ -78,6 +114,7 @@ impl StateUnit for KeeperUnit<'_> {
 
 /// Runs the VM time keeper, responding to state changes from `recv`, until
 /// `recv` is closed.
-pub async fn run_vmtime(keeper: &mut VmTimeKeeper, recv: Receiver<StateRequest>) {
-    state_unit::run_unit(KeeperUnit(keeper), recv).await;
+pub async fn run_vmtime(keeper: &mut VmTimeKeeper, mut recv: Receiver<StateRequest>) {
+    let unit = KeeperUnit::new(keeper, &mut recv);
+    state_unit::run_unit(unit, recv).await;
 }

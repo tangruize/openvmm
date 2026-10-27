@@ -5,12 +5,18 @@ use chipset_device::ChipsetDevice;
 use chipset_device_resources::LineSetId;
 use closeable_mutex::CloseableMutex;
 use inspect::InspectMut;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
 use state_unit::SpawnedUnit;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
 use state_unit::StateUnits;
 use state_unit::UnitHandle;
 use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(verus_keep_ghost)]
+use vmcore::device_state::spec::DeviceGhostState;
 use vmcore::line_interrupt::LineSet;
 use vmcore::line_interrupt::LineSetTarget;
 #[cfg(verus_keep_ghost)]
@@ -57,8 +63,9 @@ impl LineSets {
                 .add(format!("lines/{}", id.name()))
                 .spawn(driver.simple(), {
                     let set = set.clone();
-                    async move |recv| {
-                        state_unit::run_unit(LineSetUnit(&set), recv).await;
+                    async move |mut recv| {
+                        let unit = LineSetUnit::new(&set, &mut recv);
+                        state_unit::run_unit(unit, recv).await;
                     }
                 })
                 .unwrap();
@@ -72,7 +79,36 @@ impl LineSets {
 
 #[derive(InspectMut)]
 #[inspect(transparent)]
-struct LineSetUnit<'a>(&'a LineSet);
+struct LineSetUnit<'a>(
+    &'a LineSet,
+    /// The unit's share of its FracGhost (Verus only).
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    Tracked<DeviceGhostState>,
+);
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<'a> LineSetUnit<'a> {
+    /// The unit for `set`, taking its half from `recv`, its channel's
+    /// receiver.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        requires
+            old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
+        ensures
+            unit.wf(),
+            unit.id() == old(recv).constant(),
+            !unit.running(),
+            final(recv).constant() == old(recv).constant(),
+    ))]
+    fn new(set: &'a LineSet, recv: &mut mesh::Receiver<state_unit::StateRequest>) -> Self {
+        let _ = recv;
+        #[cfg(verus_keep_ghost)]
+        return Self(set, Tracked::assume_new());
+        #[cfg(not(verus_keep_ghost))]
+        return Self(set);
+    }
+}
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for LineSetUnit<'_> {

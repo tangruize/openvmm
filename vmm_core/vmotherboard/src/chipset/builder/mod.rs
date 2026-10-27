@@ -338,9 +338,10 @@ impl<'a> ChipsetBuilder<'a> {
         let vm_chipset = Arc::new(inner.vm_chipset);
         let chipset_task = self.driver_source.simple().spawn("chipset-unit", {
             let vm_chipset = vm_chipset.clone();
-            let recv = inner.chipset_recv;
+            let mut recv = inner.chipset_recv;
             async move {
-                state_unit::run_unit(chipset_unit::ChipsetUnit(&vm_chipset), recv).await;
+                let unit = chipset_unit::ChipsetUnit::new(&vm_chipset, &mut recv);
+                state_unit::run_unit(unit, recv).await;
             }
         });
 
@@ -373,7 +374,13 @@ impl<'a> ChipsetBuilder<'a> {
 mod chipset_unit {
     use crate::Chipset;
     use inspect::InspectMut;
+    #[cfg(verus_keep_ghost)]
+    use mesh_rpc_verus::ReceiverAdditionalSpecFns;
     use state_unit::StateUnit;
+    #[cfg(verus_keep_ghost)]
+    use state_unit::StateUnitSpec;
+    #[cfg(verus_keep_ghost)]
+    use vmcore::device_state::spec::DeviceGhostState;
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SavedStateBlob;
@@ -397,7 +404,40 @@ mod chipset_unit {
 
     #[derive(InspectMut)]
     #[inspect(transparent)]
-    pub struct ChipsetUnit<'a>(pub &'a Chipset);
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    pub struct ChipsetUnit<'a>(
+        pub &'a Chipset,
+        /// The unit's share of its FracGhost (Verus only).
+        #[cfg(verus_keep_ghost)]
+        #[inspect(skip)]
+        Tracked<DeviceGhostState>,
+    );
+
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    impl<'a> ChipsetUnit<'a> {
+        /// The unit for `chipset`, taking its half from `recv`, its
+        /// channel's receiver.
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+            requires
+                old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
+            ensures
+                unit.wf(),
+                unit.id() == old(recv).constant(),
+                !unit.running(),
+                final(recv).constant() == old(recv).constant(),
+        ))]
+        pub fn new(
+            chipset: &'a Chipset,
+            recv: &mut mesh::Receiver<state_unit::StateRequest>,
+        ) -> Self {
+            let _ = recv;
+            #[cfg(verus_keep_ghost)]
+            return Self(chipset, Tracked::assume_new());
+            #[cfg(not(verus_keep_ghost))]
+            return Self(chipset);
+        }
+    }
 
     #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl StateUnit for ChipsetUnit<'_> {

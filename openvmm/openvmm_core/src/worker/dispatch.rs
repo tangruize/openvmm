@@ -2091,13 +2091,17 @@ impl InitializedVm {
                     }),
                     &parameters.hooks,
                 )?;
+                // The unit's state (`msrs`) predates its channel and keeps its
+                // share; the other half, from `TimeAbiMsrs::new`, goes to the
+                // channel's sender (Verus: `unit_channel_for`).
                 let unit = state_units
                     .add(time_abi::TIME_ABI_UNIT)
-                    .spawn(driver_source.simple(), {
+                    .spawn_with_channel(driver_source.simple(), state_unit::unit_channel_for(), {
                         let msrs = msrs.clone();
                         let report = report.clone();
-                        move |recv| {
-                            state_unit::run_unit(time_abi::TimeAbiUnit { msrs, report }, recv)
+                        move |recv| async move {
+                            state_unit::run_unit(time_abi::TimeAbiUnit::new(msrs, report), recv)
+                                .await
                         }
                     })
                     .unwrap();

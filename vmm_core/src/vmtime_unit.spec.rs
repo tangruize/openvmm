@@ -5,20 +5,30 @@
 
 use super::KeeperUnit;
 use state_unit::StateUnitSpec;
+use vmcore::save_restore::spec::UnitSnapshot;
+use vmcore::vmtime::spec::VmTimeKeeperView;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 
 verus! {
 
-/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
-/// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// The time keeper's unit keeps its share of its FracGhost in its ghost
+/// field. Its saved state is all time, so the share, once known, records
+/// the one blob view every keeper's saved state has
+/// (`VmTimeKeeperView::saved_blob`); its running flag is the keeper's.
 impl StateUnitSpec for KeeperUnit<'_> {
-    uninterp spec fn wf(&self) -> bool;
+    closed spec fn wf(&self) -> bool {
+        &&& self.1@.wf(self.id(), UnitSnapshot::Saved(VmTimeKeeperView::saved_blob()))
+        &&& self.1@.running == (*self.0)@.running
+    }
 
-    uninterp spec fn id(&self) -> Loc;
+    closed spec fn id(&self) -> Loc {
+        self.1@.frac.id()
+    }
 
-    uninterp spec fn running(&self) -> bool;
+    closed spec fn running(&self) -> bool {
+        (*self.0)@.running
+    }
 }
 
 } // verus!

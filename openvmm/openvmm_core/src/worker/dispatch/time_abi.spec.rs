@@ -10,15 +10,22 @@ use vstd::resource::Loc;
 
 verus! {
 
-/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
-/// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// The time-ABI unit's share of its FracGhost is kept with the MSR value it
+/// saves, in `msrs`'s atomic (`virt::time_abi::msr::spec::TscControlPred`):
+/// the VPs change that value too. The unit's id is the atomic's key; its
+/// running flag is the unit's ghost field.
 impl StateUnitSpec for TimeAbiUnit {
-    uninterp spec fn wf(&self) -> bool;
+    closed spec fn wf(&self) -> bool {
+        (*self.msrs).wf()
+    }
 
-    uninterp spec fn id(&self) -> Loc;
+    closed spec fn id(&self) -> Loc {
+        (*self.msrs).key()
+    }
 
-    uninterp spec fn running(&self) -> bool;
+    closed spec fn running(&self) -> bool {
+        self.running@
+    }
 }
 
 } // verus!
