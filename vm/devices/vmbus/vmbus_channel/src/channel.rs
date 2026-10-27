@@ -259,6 +259,23 @@ impl<T: ?Sized> std::fmt::Debug for ChannelHandle<T> {
     }
 }
 
+/// Inspects a channel without borrowing its handle: sends the inspect
+/// request to the channel's task, as inspecting the [`ChannelHandle`] does.
+#[derive(Inspect)]
+pub struct ChannelInspector {
+    #[inspect(flatten, send = "StateRequest::Inspect")]
+    state_req: mesh::Sender<StateRequest>,
+}
+
+impl<T: ?Sized> ChannelHandle<T> {
+    /// An inspector of this channel, separate from its handle.
+    pub fn inspector(&self) -> ChannelInspector {
+        ChannelInspector {
+            state_req: self.0.state_req.clone(),
+        }
+    }
+}
+
 impl<T: 'static + VmbusDevice> ChannelHandle<T> {
     /// Revokes the channel, returning it if the VMBus server is still running.
     pub async fn revoke(self) -> Option<T> {

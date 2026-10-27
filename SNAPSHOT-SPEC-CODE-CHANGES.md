@@ -470,6 +470,28 @@ Baseline: upstream `nanvix/openvmm` commit
     is renamed `follows_rule(id, snapshot)` (so that `wf` is always the
     zero-argument convention); its callers in the units' spec files and
     `TscControlPred` follow.
+46. **The vmbus units implement `StateUnit` for `X`** (executable change;
+    behavior unchanged; design doc, "The vmbus units", option A):
+    `state_unit` gains `InspectConcurrently`; `run_async_unit` requires
+    `T: StateUnit + InspectConcurrently` (was `for<'a> &'a T: StateUnit`),
+    takes the unit's inspector once, and passes the unit as `&mut T`;
+    `apply_with_concurrent_inspects(self, unit: &mut T, inspector: &impl
+    Inspect, recv)` (was `(self, unit: &mut &T, recv)`) sends inspects that
+    arrive during a state change to the inspector; both are `external_body`
+    with the contracts of `run_unit` / `apply`; `lib.proof.rs` declares
+    `InspectConcurrently`. `vmbus_server` (`VmbusServerInspector`,
+    `VmbusServer::inspector`), `vmbus_channel` (`ChannelInspector`,
+    `ChannelHandle::inspector`, `SimpleDeviceHandle::inspector`),
+    `vmbus_relay` (`HostVmbusTransportInspector`,
+    `HostVmbusTransport::inspector`): an inspector holding a clone of the
+    internal sender. `vmm_core/src/vmbus_unit.rs` (`VmbusServerUnit`,
+    `ChannelUnit`, `SimpleChannelUnit`) and
+    `openhcl/underhill_core/src/vmbus_relay_unit.rs` (`VmbusRelayUnit`):
+    `StateUnit` for `X` instead of `&X` (same bodies), plus `InspectMut`
+    (forwarding to `Inspect`) and `InspectConcurrently`; `vmbus_unit.spec.rs`
+    implements `StateUnitSpec` for `X` (still uninterpreted). New test
+    `tests/concurrent_inspect.rs`; `state_unit`'s dev-dependency on
+    `inspect` enables `initiate`.
 
 ### Planned: mesh RPC trusted spec
 

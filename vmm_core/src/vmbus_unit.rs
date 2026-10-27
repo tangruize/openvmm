@@ -6,7 +6,9 @@
 #![warn(missing_docs)]
 
 use inspect::Inspect;
+use inspect::InspectMut;
 use pal_async::task::Spawn;
+use state_unit::InspectConcurrently;
 use state_unit::NameInUse;
 use state_unit::SpawnedUnit;
 use state_unit::StateUnit;
@@ -94,8 +96,23 @@ impl VmbusServerHandle {
 #[inspect(transparent)]
 struct VmbusServerUnit(VmbusServer);
 
+impl InspectMut for VmbusServerUnit {
+    fn inspect_mut(&mut self, req: inspect::Request<'_>) {
+        Inspect::inspect(&*self, req)
+    }
+}
+
+/// Inspects concurrently through the server task (as inspecting the unit does).
+impl InspectConcurrently for VmbusServerUnit {
+    type Inspector = vmbus_server::VmbusServerInspector;
+
+    fn inspector(&self) -> Self::Inspector {
+        self.0.inspector()
+    }
+}
+
 #[cfg_attr(verus_keep_ghost, verus_verify)]
-impl StateUnit for &'_ VmbusServerUnit {
+impl StateUnit for VmbusServerUnit {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
@@ -162,8 +179,24 @@ impl<T: 'static + VmbusDevice> ChannelUnit<T> {
     }
 }
 
+impl<T: ?Sized> InspectMut for ChannelUnit<T> {
+    fn inspect_mut(&mut self, req: inspect::Request<'_>) {
+        Inspect::inspect(&*self, req)
+    }
+}
+
+/// Inspects concurrently through the channel's task (as inspecting the unit
+/// does).
+impl<T: ?Sized> InspectConcurrently for ChannelUnit<T> {
+    type Inspector = vmbus_channel::channel::ChannelInspector;
+
+    fn inspector(&self) -> Self::Inspector {
+        self.0.inspector()
+    }
+}
+
 #[cfg_attr(verus_keep_ghost, verus_verify)]
-impl<T: 'static + VmbusDevice + ?Sized> StateUnit for &'_ ChannelUnit<T> {
+impl<T: 'static + VmbusDevice + ?Sized> StateUnit for ChannelUnit<T> {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {
@@ -245,8 +278,24 @@ impl<T: SimpleVmbusDevice> Inspect for SimpleChannelUnit<T> {
     }
 }
 
+impl<T: SimpleVmbusDevice> InspectMut for SimpleChannelUnit<T> {
+    fn inspect_mut(&mut self, req: inspect::Request<'_>) {
+        Inspect::inspect(&*self, req)
+    }
+}
+
+/// Inspects concurrently through the channel's task (as inspecting the unit
+/// does).
+impl<T: SimpleVmbusDevice> InspectConcurrently for SimpleChannelUnit<T> {
+    type Inspector = vmbus_channel::channel::ChannelInspector;
+
+    fn inspector(&self) -> Self::Inspector {
+        self.0.inspector()
+    }
+}
+
 #[cfg_attr(verus_keep_ghost, verus_verify)]
-impl<T: SimpleVmbusDevice> StateUnit for &'_ SimpleChannelUnit<T> {
+impl<T: SimpleVmbusDevice> StateUnit for SimpleChannelUnit<T> {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
     async fn start(&mut self) -> anyhow::Result<()> {

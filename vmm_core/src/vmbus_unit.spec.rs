@@ -17,7 +17,7 @@ verus! {
 /// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
 /// and its invariant (`wf`). Uninterpreted until then; the impl's method
 /// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
-impl StateUnitSpec for &VmbusServerUnit {
+impl StateUnitSpec for VmbusServerUnit {
     uninterp spec fn wf(&self) -> bool;
 
     uninterp spec fn id(&self) -> Loc;
@@ -28,7 +28,7 @@ impl StateUnitSpec for &VmbusServerUnit {
 /// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
 /// and its invariant (`wf`). Uninterpreted until then; the impl's method
 /// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
-impl<T: 'static + VmbusDevice + ?Sized> StateUnitSpec for &ChannelUnit<T> {
+impl<T: 'static + VmbusDevice + ?Sized> StateUnitSpec for ChannelUnit<T> {
     uninterp spec fn wf(&self) -> bool;
 
     uninterp spec fn id(&self) -> Loc;
@@ -39,7 +39,7 @@ impl<T: 'static + VmbusDevice + ?Sized> StateUnitSpec for &ChannelUnit<T> {
 /// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
 /// and its invariant (`wf`). Uninterpreted until then; the impl's method
 /// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
-impl<T: SimpleVmbusDevice> StateUnitSpec for &SimpleChannelUnit<T> {
+impl<T: SimpleVmbusDevice> StateUnitSpec for SimpleChannelUnit<T> {
     uninterp spec fn wf(&self) -> bool;
 
     uninterp spec fn id(&self) -> Loc;

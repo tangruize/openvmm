@@ -28,6 +28,7 @@ tracing.workspace = true
 vstd.workspace = true
 
 [dev-dependencies]
+inspect = { workspace = true, features = ["defer", "initiate"] }
 test_with_tracing.workspace = true
 
 [lints]

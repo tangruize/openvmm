@@ -396,14 +396,38 @@ pub async fn handle_request<T: StateUnit>(
     fut.await;
 }
 
+/// A state unit that serves inspect requests while one of its state changes
+/// is in flight ([`run_async_unit`]), through an inspector separate from the
+/// unit, so that the state change can hold the unit exclusively.
+pub trait InspectConcurrently {
+    /// Inspects the unit's state without borrowing the unit (for example, a
+    /// clone of the sender to the task that owns the state).
+    type Inspector: Inspect;
+
+    /// The unit's inspector.
+    fn inspector(&self) -> Self::Inspector;
+}
+
 /// Runs a state unit that can handle inspect requests while there is an active
 /// state transition.
-pub async fn run_async_unit<T>(unit: T, mut recv: Receiver<StateRequest>) -> T
+///
+/// Verus: as [`run_unit`]; `recv` is the unit's own channel.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    requires
+        unit.wf(),
+        recv.constant() == unit.id(),
+    ensures
+        result.wf(),
+        result.id() == unit.id(),
+))]
+pub async fn run_async_unit<T>(mut unit: T, mut recv: Receiver<StateRequest>) -> T
 where
-    for<'a> &'a T: StateUnit,
+    T: StateUnit + InspectConcurrently,
 {
+    let inspector = unit.inspector();
     while let Some((req, _ghost)) = mesh_rpc_verus::recv_msg(&mut recv).await {
-        req.apply_with_concurrent_inspects(&mut &unit, &mut recv)
+        req.apply_with_concurrent_inspects(&mut unit, &inspector, &mut recv)
             .await;
     }
     unit
@@ -411,21 +435,30 @@ where
 
 impl StateRequest {
     /// Runs this state request against `unit`, polling `recv` for incoming
-    /// inspect requests and applying them while any state transition is in
-    /// flight.
-    ///
-    /// For this to work, your state unit `T` should implement [`StateUnit`] for
-    /// `&'_ T`.
+    /// inspect requests and applying them, through `inspector`, while any
+    /// state transition is in flight.
     ///
     /// Panics if a state transition arrives on `recv` while this one is being
     /// processed. This would indicate a contract violation with [`StateUnits`].
-    pub async fn apply_with_concurrent_inspects<'a, T>(
+    ///
+    /// Verus: as [`StateRequest::apply`]; inspects keep the unit's `wf()`
+    /// (trusted, as for `apply`'s `Inspect`).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(gin): Tracked<Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(unit).wf(),
+            StateRequest::request_ok(old(unit).id(), self, gin),
+        ensures
+            final(unit).wf(),
+            final(unit).id() == old(unit).id(),
+    ))]
+    pub async fn apply_with_concurrent_inspects<T: StateUnit>(
         self,
-        unit: &mut &'a T,
+        unit: &mut T,
+        inspector: &impl Inspect,
         recv: &mut Receiver<StateRequest>,
-    ) where
-        &'a T: StateUnit,
-    {
+    ) {
         match self {
             StateRequest::Inspect(_) => {
                 // This request has no response and completes synchronously,
@@ -446,12 +479,11 @@ impl StateRequest {
                     OpDone,
                     Req(StateRequest),
                 }
-                let mut op_unit = *unit;
-                let op = pin!(self.apply(&mut op_unit).into_stream());
+                let op = pin!(self.apply(unit).into_stream());
                 let mut stream = (op.map(|()| Event::OpDone), recv.map(Event::Req)).merge();
                 while let Some(Event::Req(next_req)) = stream.next().await {
                     match next_req {
-                        StateRequest::Inspect(req) => req.inspect(&mut *unit),
+                        StateRequest::Inspect(req) => req.inspect(inspector),
                         _ => panic!(
                             "unexpected state transition {next_req:?} during state transition"
                         ),
@@ -1590,6 +1622,7 @@ impl Ready {
 
 #[cfg(test)]
 mod tests {
+    mod concurrent_inspect;
     mod inventory;
     mod quiesce;
     mod start;

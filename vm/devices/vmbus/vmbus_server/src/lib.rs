@@ -657,7 +657,22 @@ impl<T: SpawnDriver + Clone> VmbusServerBuilder<T> {
     }
 }
 
+/// Inspects a vmbus server without borrowing it: sends the inspect request
+/// to the server's task, as inspecting the [`VmbusServer`] does.
+#[derive(Inspect)]
+pub struct VmbusServerInspector {
+    #[inspect(flatten, send = "VmbusRequest::Inspect")]
+    task_send: mesh::Sender<VmbusRequest>,
+}
+
 impl VmbusServer {
+    /// An inspector of this server, separate from it.
+    pub fn inspector(&self) -> VmbusServerInspector {
+        VmbusServerInspector {
+            task_send: self.task_send.clone(),
+        }
+    }
+
     /// Creates a new builder for `VmbusServer` with the default options.
     pub fn builder<T: SpawnDriver + Clone>(
         spawner: T,

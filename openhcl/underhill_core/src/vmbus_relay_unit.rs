@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 use inspect::Inspect;
+use inspect::InspectMut;
 use pal_async::task::Spawn;
+use state_unit::InspectConcurrently;
 use state_unit::NameInUse;
 use state_unit::SpawnedUnit;
 use state_unit::StateUnit;
@@ -42,7 +44,23 @@ impl VmbusRelayHandle {
 #[inspect(transparent)]
 struct VmbusRelayUnit(HostVmbusTransport);
 
-impl StateUnit for &'_ VmbusRelayUnit {
+impl InspectMut for VmbusRelayUnit {
+    fn inspect_mut(&mut self, req: inspect::Request<'_>) {
+        Inspect::inspect(&*self, req)
+    }
+}
+
+/// Inspects concurrently through the relay's task (as inspecting the unit
+/// does).
+impl InspectConcurrently for VmbusRelayUnit {
+    type Inspector = vmbus_relay::HostVmbusTransportInspector;
+
+    fn inspector(&self) -> Self::Inspector {
+        self.0.inspector()
+    }
+}
+
+impl StateUnit for VmbusRelayUnit {
     async fn start(&mut self) -> anyhow::Result<()> {
         self.0.start();
         Ok(())

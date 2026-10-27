@@ -945,11 +945,8 @@ a generic caller, and negative checks.
   vmotherboard (not yet), openvmm_core (`TimeAbiUnit`). OpenHCL's
   `VmbusRelayUnit` (underhill_core) is outside the build of the verified
   crates; `state_unit`'s test units are built only for tests.
-- **Units implemented for `&X`** (`VmbusServerUnit`, vmbus `ChannelUnit` and
-  `SimpleChannelUnit`, the relay unit; used with `run_async_unit` to serve
-  inspects during a state change): the contract fits them, but each must
-  keep its share behind interior mutability (with a lock invariant, as the
-  chipset devices do with `CloseableMutex`). Open: how, per unit.
+- **Units implemented for `&X`**: resolved 2026-10-27 (user): they now
+  implement `StateUnit` for `X`; see "The vmbus units" below.
 - **Default method bodies** (`quiesce_input`, `resume_input`,
   `advance_time` return `Ok(())`): verified with the trait (patch 0005
   supports async default methods, with ghost inputs).
@@ -958,6 +955,79 @@ a generic caller, and negative checks.
   on every other path that changes its state (for the partition: the VPs; for vmbus: the
   channels; for vmtime: the timer updates; for the chipset units: the
   devices' I/O handlers, as for the PIT).
+
+### The vmbus units
+
+**What they are.** The vmbus server's unit (`VmbusServerUnit`), the vmbus
+channels' units (`ChannelUnit<T>`, `SimpleChannelUnit<T>`), and OpenHCL's
+vmbus relay unit (`VmbusRelayUnit`) are proxies: their state lives in
+another task (the vmbus server's task; the channel's task, which owns the
+device `T`; the relay's task), which guest vmbus traffic also changes. Each
+unit's methods send `Start` / `Stop` / `Save` / `Restore` / `Reset` over
+that task's own internal channel (`VmbusRequest`,
+`vmbus_channel::channel::StateRequest`, the relay's `TaskRequest`), and
+inspecting the unit sends an `Inspect` request over the same channel.
+
+**The problem.** They implemented `StateUnit` for `&X`, so that
+`run_async_unit` could serve inspects while a state change was in flight
+(the state change held `&X`, the inspect another `&X`). But
+`StateUnit`'s contract has `running()` change (`start` ensures it; `stop`
+requires it and ensures its negation), and nothing in `X` can change
+through `&X`, so the contract could not be met.
+
+**Decided 2026-10-27 (user): option A.** They implement `StateUnit` for `X`
+(the state change holds `&mut X`), and `run_async_unit` serves concurrent
+inspects through a separate *inspector*. Options considered:
+
+| | How | Cost |
+|---|---|---|
+| A (chosen) | `StateUnit` for `X`; concurrent inspects through an inspector that does not borrow the unit | an executable change in `run_async_unit` and the four units, and an `inspector()` on four handle types; inspect behavior unchanged |
+| B | keep `&X`, with the running flag behind interior mutability | a `running()` that is a function of a lock's contents cannot be stated as a spec function; would need tokens |
+| C | drop `running()` from the `StateUnit` contract | the one trusted fact ("`Stop` arrives only while running") would be copied into every unit and owning task |
+
+**The executable change** (code change 46; also listed in "Executable code
+changes (normal builds)"):
+
+- `state_unit`: new trait `InspectConcurrently` (`type Inspector:
+  Inspect; fn inspector(&self)`). `run_async_unit`'s bound changes from
+  `for<'a> &'a T: StateUnit` to `T: StateUnit + InspectConcurrently`; it
+  takes the inspector once, before its loop, and passes the unit as `&mut
+  T`. `StateRequest::apply_with_concurrent_inspects` takes `(unit: &mut T,
+  inspector: &impl Inspect, recv)` instead of `(unit: &mut &T, recv)`: an
+  `Inspect` request with no state change in flight goes to the unit, as
+  before; one that arrives while a state change is in flight goes to the
+  inspector (before: to the unit through another `&T`).
+- The four handle types gain `inspector()`, returning a new type that holds
+  a clone of the handle's internal sender and inspects with the same
+  attribute as the handle (`#[inspect(flatten, send = "...::Inspect")]`):
+  `VmbusServer::inspector` (`VmbusServerInspector`, `vmbus_server`),
+  `ChannelHandle::inspector` and `SimpleDeviceHandle::inspector`
+  (`ChannelInspector`, `vmbus_channel`), `HostVmbusTransport::inspector`
+  (`HostVmbusTransportInspector`, `vmbus_relay`).
+- The four units implement `StateUnit` for `X` (same method bodies; they
+  call the same `&self` methods of their handles), `InspectMut` (forwarding
+  to their existing `Inspect`), and `InspectConcurrently` (their handle's
+  inspector).
+
+**Why behavior is unchanged.** Before and after, an inspect of these units
+sends the same `Inspect` request to the same task, which answers it; only
+the sender it goes through is a clone, and a mesh sender's clones share one
+queue (`mesh_channel_core`'s `SenderCore` is an `Arc<Queue>`), so the order
+of requests on the task's channel is the same. Inspects that arrive during
+a state change are still served during it, not after. New test
+`state_unit::tests::concurrent_inspect::test_inspect_during_state_change`:
+while a unit's `start` is blocked, an inspect is answered, by the
+inspector; after `start` completes, an inspect goes to the unit.
+
+**Spec.** `run_async_unit` and `apply_with_concurrent_inspects` have the
+contracts of `run_unit` and `apply` (`external_body`).
+
+**Open: where the vmbus units' shares live.** By the rule, with their
+state, that is, in the owning tasks; the proxies hold no share and pass
+the halves over their internal channels, whose protocols (a
+`MeshProtocol` for each internal request type) mirror the outer request
+protocol. This needs `vmbus_server`, `vmbus_channel` (and `vmbus_relay`)
+Verus-enabled. Until then their `StateUnitSpec`s stay uninterpreted.
 
 ### Chipset devices: the share in the device's lock
 
@@ -1301,6 +1371,9 @@ change preserves behavior: same results, same order of effects.
 | 42 | `vmm_core/vmotherboard`, `vmm_core` | new constructors `LineSetUnit::new`, `ChipsetUnit::new`, `KeeperUnit::new` (each also takes the unit's receiver, unused in normal builds) |
 | 44 | vmcore and every device lock | new `vmcore::device_state::DeviceSlot<T>` (normal builds: holds just the device; `Deref` / `DerefMut` to it), `DeviceMutex<T>` = `CloseableMutex<DeviceSlot<T>>`, `DeviceSnapshot` (empty trait for every type). **Every chipset device's lock changes type** from `CloseableMutex<T>` to `CloseableMutex<DeviceSlot<T>>`, including in public APIs: vmotherboard's device builder (`add`, `add_async`, `try_add`, `try_add_async` return `Arc<DeviceMutex<T>>`), `ArcMutexChipsetServicesFinalize::finalize`, `add_dyn_device`, the PCI/PCIe registration traits, `ArcMutexChipsetDeviceUnit::new`; `vpci`'s bus and device APIs (`VpciBus::new_unoffered`, `offer_registered`, ...); `chipset_arc_mutex_device`'s builder and test chipset; `vmm_core::device_builder`; `openvmm_core`'s `dispatch.rs` (PCIe root complexes, erased devices, hotplug) |
 | 44 | `vmm_core/vmotherboard` | the private `DynDevice` trait gains the supertrait `DeviceSnapshot` |
+| 46 | `vmm_core/state_unit` | new public trait `InspectConcurrently`; **`run_async_unit`'s bound changes** from `for<'a> &'a T: StateUnit` to `T: StateUnit + InspectConcurrently`; **`StateRequest::apply_with_concurrent_inspects`'s signature changes** from `(self, unit: &mut &T, recv)` to `(self, unit: &mut T, inspector: &impl Inspect, recv)` |
+| 46 | `vmbus_server`, `vmbus_channel`, `vmbus_relay` | new public types `VmbusServerInspector`, `ChannelInspector`, `HostVmbusTransportInspector`, and methods `VmbusServer::inspector`, `ChannelHandle::inspector`, `SimpleDeviceHandle::inspector`, `HostVmbusTransport::inspector` |
+| 46 | `vmm_core` (`vmbus_unit.rs`), `underhill_core` (`vmbus_relay_unit.rs`) | `VmbusServerUnit`, `ChannelUnit<T>`, `SimpleChannelUnit<T>`, `VmbusRelayUnit` implement `StateUnit` for `X` instead of `&X`, and newly `InspectMut` and `InspectConcurrently` |
 
 **Code**
 
@@ -1321,6 +1394,7 @@ change preserves behavior: same results, same order of effects.
 | 43 | `vmm_core/virt` | `TimeAbiMsrs`: the MSR value's loads and stores go through `load_control` / `store_control` (normal builds: the same `Relaxed` load and store) |
 | 43 | `openvmm_core` | the time-ABI unit is spawned with `spawn_with_channel(.., unit_channel_for(), ..)`, awaiting `run_unit` inside an `async` block |
 | 44 | about 15 files (see CC 44) | every device lock created as `CloseableMutex::new(DeviceSlot::new(dev))`; the fuzzer passes `&mut **locked_dev` (one more dereference); OpenHCL's fallback MMIO device wrapped; the chipset device unit's two spawn sites use `spawn_with_channel(.., unit_channel_for(), ..)` |
+| 46 | `vmm_core/state_unit` | `run_async_unit` takes the unit's inspector once and passes the unit as `&mut`; `apply_with_concurrent_inspects` sends inspects that arrive during a state change to the inspector instead of to the unit (for every production user, the inspector sends the same `Inspect` request to the same task, through a clone of the same sender; same queue, same order; see "The vmbus units") |
 
 **Dependencies and build**
 
@@ -1330,6 +1404,7 @@ change preserves behavior: same results, same order of effects.
 | 39 | `vmm_core` | new dependency `vmbus_ring` (already in its dependency graph) |
 | 41 | `vmm_core/vmotherboard` | new dependency `mesh_rpc_verus` |
 | 44 | `chipset_arc_mutex_device`, `chipset_device_fuzz` | new dependency `vmcore` (no cycle) |
+| 46 | `vmm_core/state_unit` | dev-dependency (tests only): `inspect` with the `initiate` feature, for the new test |
 | 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
 | 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
 

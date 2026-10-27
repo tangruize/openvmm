@@ -332,6 +332,11 @@ pub async fn offer_simple_device<T: 'static + SimpleVmbusDevice>(
 pub struct SimpleDeviceHandle<T: SimpleVmbusDevice>(ChannelHandle<SimpleDeviceWrapper<T>>);
 
 impl<T: SimpleVmbusDevice> SimpleDeviceHandle<T> {
+    /// An inspector of this device's channel, separate from its handle.
+    pub fn inspector(&self) -> crate::channel::ChannelInspector {
+        self.0.inspector()
+    }
+
     /// Revokes the device, returning it if the VMBus server is still running.
     pub async fn revoke(self) -> Option<T> {
         self.0.revoke().await.map(|x| x.into_inner())

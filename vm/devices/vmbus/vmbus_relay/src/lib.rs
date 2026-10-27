@@ -95,7 +95,22 @@ pub struct HostVmbusTransport {
     task_send: mesh::Sender<TaskRequest>,
 }
 
+/// Inspects a relay without borrowing it: sends the inspect request to the
+/// relay's task, as inspecting the [`HostVmbusTransport`] does.
+#[derive(Inspect)]
+pub struct HostVmbusTransportInspector {
+    #[inspect(flatten, send = "TaskRequest::Inspect")]
+    task_send: mesh::Sender<TaskRequest>,
+}
+
 impl HostVmbusTransport {
+    /// An inspector of this relay, separate from it.
+    pub fn inspector(&self) -> HostVmbusTransportInspector {
+        HostVmbusTransportInspector {
+            task_send: self.task_send.clone(),
+        }
+    }
+
     /// Create a new instance of the host vmbus relay.
     pub async fn new(
         driver: impl SpawnDriver + Clone,

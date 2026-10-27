@@ -79,6 +79,14 @@ pub trait ExInspect {
     type ExternalTraitSpecificationFor: inspect::Inspect;
 }
 
+/// `InspectConcurrently`, declared to Verus (no methods).
+#[verifier::external_trait_specification]
+pub trait ExInspectConcurrently {
+    type ExternalTraitSpecificationFor: crate::InspectConcurrently;
+
+    type Inspector: inspect::Inspect;
+}
+
 /// A spec view of `Arc<str>` (vstd has views only for `Arc` of sized types).
 pub trait ArcStrView {
     spec fn view_str(&self) -> Seq<char>;
