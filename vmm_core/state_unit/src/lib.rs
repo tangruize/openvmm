@@ -361,16 +361,40 @@ pub async fn run_unit<T: StateUnit>(unit: T, recv: Receiver<StateRequest>) -> (r
         final(recv).constant() == old(recv).constant(),
 ))]
 async fn run_unit_step<T: StateUnit>(unit: &mut T, recv: &mut Receiver<StateRequest>) -> bool {
-    // (`_gin` is the half; used only by Verus builds.)
-    let Some((req, _gin)) = mesh_rpc_verus::recv_msg(recv).await else {
+    let Some((req, gin)) = mesh_rpc_verus::recv_msg(recv).await else {
         return false;
     };
+    handle_request(unit, req, gin).await;
+    true
+}
+
+/// The ghost a request carries (`MeshProtocol::GhostIn`).
+pub type RequestGhost = <StateRequest as MeshProtocol>::GhostIn;
+
+/// Answers `req`, which came with the half `gin`, on `unit`'s own channel
+/// (`StateRequest::apply`). For a unit's own request loop: unlike `apply`,
+/// it takes the half as an argument, so `verus!` code can call it.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_spec(
+    requires
+        old(unit).wf(),
+        StateRequest::request_ok(old(unit).id(), req, gin@),
+    ensures
+        final(unit).wf(),
+        final(unit).id() == old(unit).id(),
+))]
+pub async fn handle_request<T: StateUnit>(
+    unit: &mut T,
+    req: StateRequest,
+    gin: Tracked<RequestGhost>,
+) {
+    // (`gin` is used only by Verus builds.)
+    let _ = &gin;
     let fut = {
-        proof_with! {_gin}
+        proof_with! {gin}
         req.apply(unit)
     };
     fut.await;
-    true
 }
 
 /// Runs a state unit that can handle inspect requests while there is an active

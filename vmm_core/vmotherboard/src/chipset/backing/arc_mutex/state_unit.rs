@@ -5,13 +5,18 @@ use crate::VmmChipsetDevice;
 use async_trait::async_trait;
 use closeable_mutex::CloseableMutex;
 use futures::FutureExt;
-use futures::StreamExt;
 use futures::task::ArcWake;
-use futures::task::WakerRef;
 use futures::task::waker_ref;
 use inspect::InspectMut;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::MeshProtocol;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
+use state_unit::RequestGhost;
 use state_unit::StateRequest;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
 use std::sync::Arc;
 use std::task::Context;
 use vmcore::save_restore::RestoreError;
@@ -20,7 +25,6 @@ use vmcore::save_restore::SavedStateBlob;
 #[cfg(verus_keep_ghost)]
 use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::slim_event::SlimEvent;
-#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 #[cfg(verus_keep_ghost)]
 use vstd::resource::frac::FracGhost;
@@ -122,51 +126,96 @@ impl ArcMutexChipsetDeviceUnit {
             omit_saved_state,
         }
     }
+}
 
-    pub async fn run(mut self, mut state_change: mesh::Receiver<StateRequest>) -> Self {
-        loop {
-            enum Event<'a> {
-                StateChange(StateRequest),
-                Poll(WakerRef<'a>),
-            }
+verus! {
 
-            // Wait for poll requests.
-            let poll_fut = async {
-                if self.running {
-                    self.poll_event.0.wait().await;
-                    return waker_ref(&self.poll_event);
-                }
-                // The device is not running. Never
-                // complete this future.
-                std::future::pending().await
-            };
+/// What the unit's loop waits for.
+enum UnitEvent {
+    /// A state request and the FracGhost half it carries.
+    StateChange(StateRequest, Tracked<RequestGhost>),
+    /// The running device asked to be polled.
+    Poll,
+}
 
-            let event = futures::select! {
-                req = state_change.next() => {
-                    if let Some(req) = req {
-                        Event::StateChange(req)
-                    } else {
-                        break;
-                    }
-                }
-                waker = poll_fut.fuse() => {
-                    Event::Poll(waker)
-                }
-            };
-
-            match event {
-                Event::StateChange(req) => {
-                    req.apply(&mut self).await;
-                }
-                Event::Poll(waker) => {
-                    let mut device = self.device.lock();
-                    device.poll_device(&mut Context::from_waker(&waker));
-                }
+impl ArcMutexChipsetDeviceUnit {
+    /// Answers state requests until every sender is gone, polling the
+    /// device while it runs.
+    ///
+    /// Verus: `state_change` is the unit's own channel.
+    #[verifier::exec_allows_no_decreases_clause]
+    pub async fn run(self, state_change: mesh::Receiver<StateRequest>) -> (result: Self)
+        requires
+            self.wf(),
+            state_change.constant() == self.id(),
+        ensures
+            result.wf(),
+            result.id() == self.id(),
+    {
+        let mut unit = self;
+        let mut recv = state_change;
+        let ghost id = unit.id();
+        loop
+            invariant
+                unit.wf(),
+                unit.id() == id,
+                recv.constant() == id,
+        {
+            match unit.next_event(&mut recv).await {
+                None => break,
+                Some(UnitEvent::StateChange(req, gin)) => {
+                    state_unit::handle_request(&mut unit, req, gin).await;
+                },
+                Some(UnitEvent::Poll) => unit.poll_now(),
             }
         }
-        self
+        unit
+    }
+
+    /// Waits for the next state request on `recv` (`None` when every
+    /// sender is gone) or, while the device runs, for it to ask to be
+    /// polled. Trusted: as `recv_msg`, a request comes with a half meeting
+    /// the request protocol for `recv`'s constant.
+    #[verifier::external_body]
+    async fn next_event(&self, recv: &mut mesh::Receiver<StateRequest>) -> (event: Option<UnitEvent>)
+        ensures
+            final(recv).constant() == old(recv).constant(),
+            event matches Some(UnitEvent::StateChange(req, gin)) ==> StateRequest::request_ok(
+                old(recv).constant(),
+                req,
+                gin@,
+            ),
+    {
+        // Wait for poll requests.
+        let poll_fut = async {
+            if self.running {
+                self.poll_event.0.wait().await;
+                return;
+            }
+            // The device is not running. Never
+            // complete this future.
+            std::future::pending().await
+        };
+
+        futures::select! {
+            req = mesh_rpc_verus::recv_msg(recv).fuse() => {
+                req.map(|(req, gin)| UnitEvent::StateChange(req, gin))
+            }
+            () = poll_fut.fuse() => Some(UnitEvent::Poll),
+        }
+    }
+
+    /// Polls the device. Trusted: it keeps the unit's `wf()` (the device
+    /// changes only through its mutex, by its poll handler).
+    #[verifier::external_body]
+    fn poll_now(&self) {
+        let waker = waker_ref(&self.poll_event);
+        let mut device = self.device.lock();
+        device.poll_device(&mut Context::from_waker(&waker));
     }
 }
+
+} // verus!
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for ArcMutexChipsetDeviceUnit {

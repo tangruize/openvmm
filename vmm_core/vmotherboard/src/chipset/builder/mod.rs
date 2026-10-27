@@ -89,7 +89,9 @@ impl ChipsetDevices {
             builder = builder.advances_time();
         }
         let unit = builder
-            .spawn(driver_source.simple(), |recv| device_unit.run(recv))
+            .spawn(driver_source.simple(), |recv| async move {
+                device_unit.run(recv).await
+            })
             .context("name in use")?;
 
         Ok((DynamicDeviceUnit(unit), device))
@@ -336,11 +338,9 @@ impl<'a> ChipsetBuilder<'a> {
         let vm_chipset = Arc::new(inner.vm_chipset);
         let chipset_task = self.driver_source.simple().spawn("chipset-unit", {
             let vm_chipset = vm_chipset.clone();
-            let mut recv = inner.chipset_recv;
+            let recv = inner.chipset_recv;
             async move {
-                while let Ok(req) = recv.recv().await {
-                    req.apply(&mut chipset_unit::ChipsetUnit(&vm_chipset)).await;
-                }
+                state_unit::run_unit(chipset_unit::ChipsetUnit(&vm_chipset), recv).await;
             }
         });
 

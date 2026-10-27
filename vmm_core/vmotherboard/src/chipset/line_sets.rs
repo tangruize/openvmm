@@ -57,10 +57,8 @@ impl LineSets {
                 .add(format!("lines/{}", id.name()))
                 .spawn(driver.simple(), {
                     let set = set.clone();
-                    async move |mut recv| {
-                        while let Ok(req) = recv.recv().await {
-                            req.apply(&mut LineSetUnit(&set)).await;
-                        }
+                    async move |recv| {
+                        state_unit::run_unit(LineSetUnit(&set), recv).await;
                     }
                 })
                 .unwrap();

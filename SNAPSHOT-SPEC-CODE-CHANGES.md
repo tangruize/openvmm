@@ -383,6 +383,17 @@ Baseline: upstream `nanvix/openvmm` commit
     `no_reply_ghost` is removed. `lib.rs` imports `vstd::prelude` in both
     builds (for the macros); `build.rs` declares the
     `verus_keep_ghost_body` cfg.
+41. **More request loops verified** (same runtime behavior): new verified
+    `state_unit::handle_request(unit, req, gin)` (takes the half as an
+    argument, so `verus!` code can call it; `run_unit_step` uses it) and
+    the alias `RequestGhost`. `vmotherboard`: the chipset unit's and each
+    line set's task call `run_unit` instead of their own
+    `recv` / `apply` loop; `ArcMutexChipsetDeviceUnit::run` is in `verus!`,
+    its loop verified, its `select!` moved into `next_event` and its poll
+    into `poll_now` (both `external_body`; `next_event` receives with
+    `recv_msg`); its two spawn sites await `run` inside an `async` block
+    (a Verus/rustc bug otherwise, see the design doc); `mesh_rpc_verus`
+    dependency.
 
 ### Planned: mesh RPC trusted spec
 

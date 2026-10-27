@@ -11151,6 +11151,7 @@ dependencies = [
  "inspect",
  "inspect_counters",
  "mesh",
+ "mesh_rpc_verus",
  "missing_dev",
  "pal_async",
  "parking_lot",

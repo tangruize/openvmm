@@ -840,11 +840,22 @@ comes back; `Stop` assumes the unit runs (the trusted fact, as in
 `DeviceUnit::handle`). Negative checks, each failing: `Save` replying
 `Ok(None)`; `Stop` without the assumption; `Restore` replying `Ok`
 without restoring; `run_unit` without requiring its own channel.
-Only `KeeperUnit` and `TimeAbiUnit` run through `run_unit`. Next: the
-other request loops (the vmbus units' `run_async_unit`, and the own loops
-of `ArcMutexChipsetDeviceUnit`, the chipset unit, the line sets, the
-input distributor), which call `apply` without the half; and each unit's
-`StateUnitSpec` definition (where its share lives, its `wf`).
+Request loops (code change 41): `KeeperUnit`, `TimeAbiUnit`, the chipset
+unit, and the line sets run through `run_unit`;
+`ArcMutexChipsetDeviceUnit::run` is verified, with its `select!` and
+its poll in two trusted helpers (negative check: without requiring its
+own channel, its loop invariant fails). All loops go through the new
+verified `handle_request`. Next: the vmbus units' `run_async_unit` (with
+concurrent inspects), the input distributor's loop (state requests merged
+with input events, which change its state: other mutation paths), and
+each unit's `StateUnitSpec` definition (where its share lives, its `wf`).
+
+Verus bug (not patched): unverified code that returns a verified `async
+fn`'s future without awaiting it (`spawn(.., |recv| unit.run(recv))`)
+makes rustc panic in Verus builds ("internal compiler error:
+OpaqueTypeStorage ... ProvisionalHiddenType ... ?0t", reported at the
+enclosing `async fn`, `add_dyn_device`). Workaround: await it inside an
+`async` block.
 `InspectMut` is declared without a contract: `apply`'s `Inspect` path
 (and `run_async_unit`'s concurrent inspects) can change a unit outside the
 contract, so `inspect_mut` needs one too (keeps `wf()`, `id()`,

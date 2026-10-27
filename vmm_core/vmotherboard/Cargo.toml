@@ -24,6 +24,7 @@ state_unit.workspace = true
 guestmem.workspace = true
 vmcore.workspace = true
 vstd.workspace = true
+mesh_rpc_verus.workspace = true
 vm_resource.workspace = true
 
 # vm/devices

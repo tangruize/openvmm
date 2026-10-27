@@ -138,7 +138,9 @@ impl<T: VmmChipsetDevice> ArcMutexChipsetServicesFinalize<T> for ArcMutexChipset
 
         let device = ArcMutexChipsetDeviceUnit::new(device.clone(), self.omit_saved_state);
         let unit = builder
-            .spawn(self.builder.driver_source.simple(), |recv| device.run(recv))
+            .spawn(self.builder.driver_source.simple(), |recv| async move {
+                device.run(recv).await
+            })
             .map_err(FinalizeError::NameInUse)?;
 
         inner.arc_mutex_device_units.push(unit);
