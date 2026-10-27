@@ -29,6 +29,9 @@ only where a trusted item gives them meaning.
 | `StateUnits::stop`, `reset`, `save`, `restore` | `vmm_core/state_unit/src/lib.rs` | Same (`external_body`; contracts in the design doc, "State-unit contracts"). |
 | `StateUnits::inventory`, `StateUnits::validate_inventory` | `vmm_core/state_unit/src/inventory.rs` | Same. |
 | `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
+| `LoadedVm::quiesce_for_snapshot`, `resume_after_failed_snapshot`, `establish_snapshot_boundary`, `release_snapshot_boundary`, `handle_snapshot_boundary` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). |
+| `StateUnits::resume_after_failed_save`, `QuiesceForSaveError::has_uncertain_state` | `vmm_core/state_unit/src/quiesce.rs` | Same. `has_uncertain_state` returns the error's `uncertain` field, which is `QuiesceForSaveError`'s view (uninterpreted). |
+| `View for SnapshotBoundary` (uninterpreted) | `dispatch.spec.rs` | `active` is `stop_guard.is_some()` (private fields). |
 | `LoadedVm::quiesce_and_save`, `LoadedVm::capture_time_abi` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). `capture_time_abi`'s contract (the view is unchanged) is a claim about the VPs' timer check and the partition's time records. |
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
 | `LoadedVm::restore_from_snapshot`, `begin_snapshot_restore`, `finish_snapshot_restore` | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same (design doc, "Restore from snapshot"). |
@@ -58,6 +61,7 @@ Protobuf encoding and decoding are not verified.
 | `assume_specification` for `SavedStateBlob::clone` | A clone encodes the same value: `result@ == blob@`. |
 | `assume_specification` for `SavedStateBlob::new` / `parse` | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Needs Verus patch 0003. |
 | Protobuf trait chain declared to Verus | `SavedStateRoot`, `DescribedProtobuf`, `Protobuf`, `DefaultEncoding`, the codec traits, `DescribeMessage`, `NoResources`, the encoders `TableEncoder` and `OneofEncoder` with their traits (`external_trait_specification` / `external_type_specification`, no methods). Verus checks the declared bounds against the real traits. |
+| `assume_specification` for `ProtobufMessage::new`; **AXIOM** `ProtobufMessageView::axiom_of_injective` | `openvmm/openvmm_defs/src/rpc_t.rs` | `new(data).encoded() == of(data)`; `of::<T>` is injective. As for blobs; the protobuf encoding is not verified. |
 | `assume_specification` for `RestoreError: From<payload::Error>` | No contract (nothing assumed beyond termination). |
 | Unverified `ProtobufSaveRestore` implementations meet its contract | `ChipsetDeviceProxy` (`workers/chipset_device_worker`), `BoundVp` (`vmm_core/src/partition_unit/vp_set.rs`), `ErasedChipsetDevice` (`vm/chipset_device_resources`): `save` returns `saved_blob()` and keeps it; `restore` sets it. (The blanket impl for `SaveRestore` types is verified.) |
 

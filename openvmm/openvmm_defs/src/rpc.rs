@@ -24,6 +24,13 @@ pub mod spec {
     include!("rpc.spec.rs");
 }
 
+/// Trusted encode contract of protobuf messages.
+#[cfg(verus_keep_ghost)]
+#[allow(unsafe_code)] // `assume_specification` expands to `unsafe` declarations
+mod trusted {
+    include!("rpc_t.rs");
+}
+
 #[derive(MeshPayload)]
 pub enum VmRpc {
     Save(FailableRpc<(), ProtobufMessage>),

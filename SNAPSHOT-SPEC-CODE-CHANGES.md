@@ -317,6 +317,20 @@ Baseline: upstream `nanvix/openvmm` commit
     `agrees_exactly`, `collected`, `no_halves` removed). `mutex_t.rs`:
     `MutexPredicate` gains a key (`type Key`, `key`), `Mutex::key`,
     `MutexHandle::key`.
+36. **The worker's quiesce side completed** (Verus only, no runtime
+    change): contracts on `quiesce_for_snapshot`,
+    `resume_after_failed_snapshot`, `establish_snapshot_boundary`,
+    `release_snapshot_boundary`, `handle_snapshot_boundary`
+    (`dispatch/microvm.rs`), `resume_after_failed_save` and
+    `has_uncertain_state` (`quiesce.rs`); `quiesce_and_save` and
+    `quiesce_for_save` gain error-path clauses. `LoadedVmView::runtime`
+    gains `snapshot_boundary` (`SnapshotBoundary`'s view); `LoadedVm::wf()`
+    ties the two running flags; `QuiesceForSaveError` gets a view.
+    `openvmm_defs`: `ProtobufMessageView` and `SnapshotSaveResponse`'s
+    declaration (`rpc.spec.rs`), new trusted `rpc_t.rs`; `lib.rs` forbids
+    `unsafe` only outside Verus (denies it under Verus), for
+    `assume_specification`. Declarations of
+    `MicrovmSnapshotBoundaryRequest` and `RecvError`.
 
 ### Planned: mesh RPC trusted spec
 

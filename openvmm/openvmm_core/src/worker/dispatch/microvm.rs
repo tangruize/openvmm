@@ -30,6 +30,8 @@ use openvmm_defs::microvm::MachineProfile;
 use openvmm_defs::microvm::MicrovmConfig;
 use openvmm_defs::rpc::PulseSaveRestoreError;
 use openvmm_defs::rpc::VmRpc;
+#[cfg(verus_keep_ghost)]
+use openvmm_defs::rpc::spec::ProtobufMessageAdditionalSpecFns;
 use openvmm_defs::worker::VmWorkerParameters;
 use std::sync::Arc;
 use std::time::Duration;
@@ -195,6 +197,27 @@ pub(super) fn load_linux_x86_mptable(
 }
 
 impl LoadedVm {
+    /// Handles a guest's snapshot-boundary request: gates host input and
+    /// holds the vCPUs stopped at the request's I/O boundary, then tells the
+    /// controller. Ignores a filtered or duplicate request, or one without a
+    /// controller. Returns `false` when the VM worker must stop.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            // Only the boundary may change: the state units' state is
+            // untouched (`QuiesceInput` carries no ghost).
+            final(self)@.snapshot == old(self)@.snapshot,
+            final(self)@.recorded == old(self)@.recorded,
+            final(self)@.time_units == old(self)@.time_units,
+            final(self)@.clock_units == old(self)@.clock_units,
+            final(self)@.runtime.running == old(self)@.runtime.running,
+            // An active boundary stays active; a new one only on success.
+            old(self)@.runtime.snapshot_boundary ==> final(self)@.runtime.snapshot_boundary,
+            final(self)@.runtime.snapshot_boundary && !old(self)@.runtime.snapshot_boundary ==> result,
+    ))]
     pub(super) async fn establish_snapshot_boundary(
         &mut self,
         request: MicrovmSnapshotBoundaryRequest,
@@ -279,6 +302,22 @@ impl LoadedVm {
         }
     }
 
+    /// Releases the active snapshot boundary: ungates host input, completes
+    /// the guest's snapshot transaction, and lets the vCPUs run.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            // Only the boundary changes (`ResumeInput` carries no ghost).
+            final(self)@.snapshot == old(self)@.snapshot,
+            final(self)@.recorded == old(self)@.recorded,
+            final(self)@.time_units == old(self)@.time_units,
+            final(self)@.clock_units == old(self)@.clock_units,
+            final(self)@.runtime.running == old(self)@.runtime.running,
+            result is Ok ==> !final(self)@.runtime.snapshot_boundary,
+    ))]
     pub(super) async fn release_snapshot_boundary(&mut self) -> anyhow::Result<()> {
         let input_gate_timeout = self
             .snapshot_boundary
@@ -310,6 +349,38 @@ impl LoadedVm {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary,
+            // On success the VM is stopped, the response's saved state
+            // encodes its snapshot state, and the response's inventory is
+            // the VM's.
+            result matches Ok(response) ==> {
+                &&& !final(self)@.runtime.running
+                &&& final(self)@.recorded
+                &&& exists|saved: openvmm_defs::worker::SavedState|
+                    saved.wf() && saved@ == final(self)@.snapshot
+                        && #[trigger] openvmm_defs::rpc::spec::ProtobufMessageView::of(saved)
+                        == response.saved_state.encoded()
+                &&& response.state_unit_names@.map_values(|name: String| name@)
+                    == final(self)@.snapshot.inventory
+            },
+            // A rejected request changes nothing.
+            result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_))
+                ==> final(self)@ == old(self)@,
+            // A rollback-safe failure happens after a successful quiesce
+            // (every quiesce failure is uncertain): the units are stopped
+            // and recorded, so `resume_after_failed_snapshot` can restart
+            // them. After an uncertain failure nothing more is promised;
+            // the VM must be terminated.
+            result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
+                ==> !final(self)@.runtime.running && final(self)@.recorded,
+    ))]
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
         timeout: Duration,
@@ -360,6 +431,7 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary,
             // On success the VM is stopped, and the saved state is its
             // snapshot state.
             result matches Ok((saved, _time)) ==> {
@@ -371,6 +443,13 @@ impl LoadedVm {
             // A rejected request changes nothing.
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_))
                 ==> final(self)@ == old(self)@,
+            // A rollback-safe failure happens after a successful quiesce
+            // (every quiesce failure is uncertain): the units are stopped
+            // and recorded, so `resume_after_failed_snapshot` can restart
+            // them. After an uncertain failure nothing more is promised;
+            // the VM must be terminated.
+            result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
+                ==> !final(self)@.runtime.running && final(self)@.recorded,
     ))]
     pub(super) async fn quiesce_and_save(
         &mut self,
@@ -462,6 +541,21 @@ impl LoadedVm {
 
     /// Resumes the VM after a rollback-safe snapshot failure and releases the
     /// snapshot boundary.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            // Succeeds only from a stopped VM, and restarts it and releases
+            // the snapshot boundary.
+            result is Ok ==> {
+                &&& !old(self)@.runtime.running
+                &&& final(self)@.runtime.running
+                &&& !final(self)@.runtime.snapshot_boundary
+            },
+    ))]
     pub(super) async fn resume_after_failed_snapshot(
         &mut self,
         timeout: Duration,
@@ -474,6 +568,16 @@ impl LoadedVm {
 
     /// Handles an event of the snapshot boundary request channel. Returns
     /// `false` when the VM worker must stop.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            // When the worker must stop, the VM has been stopped.
+            !result ==> !final(self)@.runtime.running,
+    ))]
     pub(super) async fn handle_snapshot_boundary(&mut self, event: SnapshotBoundaryEvent) -> bool {
         match event {
             Ok(request) => {

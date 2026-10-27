@@ -4,6 +4,7 @@
 // High-level spec of state units, for human review.
 
 use super::SavedStateUnit;
+use super::quiesce::QuiesceForSaveError;
 use super::StateUnits;
 use vmcore::save_restore::spec::SavedStateBlobView;
 pub use vmcore::save_restore::spec::UnitSnapshot;
@@ -135,4 +136,20 @@ impl View for StateUnits {
     }
 }
 
+/// The view of a `QuiesceForSaveError`.
+pub struct QuiesceForSaveErrorView {
+    /// Whether some unit may have partly changed its state or ownership:
+    /// the VM cannot be resumed and must be terminated.
+    pub uncertain: bool,
+}
+
+impl View for QuiesceForSaveError {
+    type V = QuiesceForSaveErrorView;
+
+    /// Trusted: `uncertain` is the error's `uncertain` field (the type is
+    /// opaque to Verus; `has_uncertain_state` returns the field).
+    uninterp spec fn view(&self) -> QuiesceForSaveErrorView;
+}
+
 } // verus!
+

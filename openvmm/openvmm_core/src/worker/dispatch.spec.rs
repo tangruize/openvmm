@@ -4,6 +4,7 @@
 // High-level spec of a loaded VM, for human review.
 
 use super::LoadedVm;
+use super::microvm::SnapshotBoundary;
 use super::restore::SnapshotRestore;
 use openvmm_defs::worker::spec::SavedStateView;
 use vstd::prelude::*;
@@ -45,6 +46,10 @@ pub struct VmRuntime {
     /// Whether the state units are running (`StateUnits::save` and
     /// `StateUnits::restore` require them stopped).
     pub running: bool,
+    /// Whether a guest-requested snapshot boundary is active: the vCPUs are
+    /// held stopped at an I/O boundary and host input is gated, until the
+    /// boundary is released.
+    pub snapshot_boundary: bool,
 }
 
 /// The view of a `SnapshotRestore`.
@@ -52,6 +57,20 @@ pub struct SnapshotRestoreView {
     /// Whether a time ABI clock restore is pending (`time_abi` is set; it is
     /// taken by `finish_snapshot_restore`).
     pub clock_restore_pending: bool,
+}
+
+/// The view of a `SnapshotBoundary`.
+pub struct SnapshotBoundaryView {
+    /// Whether a boundary is active.
+    pub active: bool,
+}
+
+impl View for SnapshotBoundary {
+    type V = SnapshotBoundaryView;
+
+    /// Trusted: `active` is `self.stop_guard.is_some()`. (Uninterpreted:
+    /// `SnapshotBoundary` has private fields, so Verus cannot see them.)
+    uninterp spec fn view(&self) -> SnapshotBoundaryView;
 }
 
 impl View for SnapshotRestore {
@@ -64,11 +83,16 @@ impl View for SnapshotRestore {
 }
 
 impl LoadedVm {
-    /// Well formed: the view's invariant holds, and the state units are well
-    /// formed.
+    /// Well formed: the view's invariant holds, the state units are well
+    /// formed, and the VM's running flag is the state units' (the view's
+    /// `runtime.running`). Every function that changes one changes the other
+    /// before it returns (`resume`, `pause`, `quiesce_and_save`,
+    /// `resume_after_failed_snapshot`, and the error paths that stop the
+    /// units).
     pub closed spec fn wf(&self) -> bool {
         &&& self@.inv()
         &&& self.state_units.wf()
+        &&& self.running == self.state_units@.running
     }
 }
 
@@ -89,7 +113,10 @@ impl View for LoadedVm {
             } else {
                 Set::empty()
             },
-            runtime: VmRuntime { running: units.running },
+            runtime: VmRuntime {
+                running: units.running,
+                snapshot_boundary: self.snapshot_boundary@.active,
+            },
         }
     }
 }

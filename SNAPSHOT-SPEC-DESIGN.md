@@ -290,9 +290,43 @@ reads the effective command line, and encodes the saved state into a
 
 | Function | Requires | Ensures |
 |---|---|---|
-| `quiesce_and_save` | `wf` | `wf`; inventory unchanged; on `Ok((saved, time))`: stopped, `recorded`, `saved.wf()`, `saved@ == final@.snapshot`; on `Err(Rejected)`: nothing changed |
-| `StateUnits::quiesce_for_save` (`vmm_core/state_unit/src/quiesce.rs`) | `wf`, running | `wf`; same units and inventory; on `Ok`: stopped, `all_recorded`; on `Err`: still marked running |
+| `quiesce_and_save` | `wf` | `wf`; inventory and boundary unchanged; on `Ok((saved, time))`: stopped, `recorded`, `saved.wf()`, `saved@ == final@.snapshot`; on `Err(Rejected)`: nothing changed; on `Err(RollbackSafe)`: stopped and `recorded` (the quiesce succeeded) |
+| `quiesce_for_snapshot` (the `QuiesceForSnapshot` handler) | `wf` | as `quiesce_and_save`, and on `Ok(response)`: `response.saved_state` encodes a `SavedState` whose view is the snapshot (`ProtobufMessageView::of`), and `response.state_unit_names` is the inventory |
+| `StateUnits::quiesce_for_save` (`vmm_core/state_unit/src/quiesce.rs`) | `wf`, running | `wf`; same units and inventory; on `Ok`: stopped, `all_recorded`; on `Err(e)`: still marked running, and `e@.uncertain` |
 | `capture_time_abi` | `wf` | `wf`; the view is unchanged |
+| `StateUnits::resume_after_failed_save` | `wf` | `wf`; same units and inventory; on `Ok`: it was stopped and is running |
+| `resume_after_failed_snapshot` (rollback) | `wf` | `wf`; inventory unchanged; on `Ok`: it was stopped, and is running with no boundary active |
+| `establish_snapshot_boundary` | `wf` | `wf`; only the boundary may change: an active boundary stays active, a new one only when it returns `true` |
+| `release_snapshot_boundary` | `wf` | `wf`; only the boundary changes; on `Ok`, none is active |
+| `handle_snapshot_boundary` | `wf` | `wf`; inventory unchanged; on `false` (the worker must stop), the VM is stopped |
+
+**The error paths.** Every `quiesce_for_save` failure is *uncertain*: a unit
+fails only when its `Stop` fails or times out (uncertain), or when a unit
+depending on it did not stop, a chain that starts at an uncertain unit. So
+`quiesce_and_save` returns `RollbackSafe` only after a successful quiesce
+(from the time capture or `save`; `quiesce_for_snapshot` adds the RAM flush
+and the command line), when every unit is stopped and recorded, which is
+exactly what rollback (`resume_after_failed_save`) checks. After
+`Uncertain`, nothing beyond `wf` is promised; the VM must be terminated.
+(`QuiesceForSaveError`'s view, `uncertain`, is uninterpreted and tied to its
+field by `has_uncertain_state`'s trusted contract.)
+
+**The two running flags** are one: `LoadedVm::wf()` requires
+`self.running == self.state_units@.running` (every function that changes one
+changes the other before it returns).
+
+**The snapshot boundary** is in the view's runtime part,
+`runtime.snapshot_boundary` (from `SnapshotBoundary`'s view, uninterpreted:
+trusted to mean its vCPU stop guard is held). Establishing and releasing it
+change nothing else in the view (`QuiesceInput` / `ResumeInput` carry no
+ghost); `quiesce_and_save` leaves it as it is.
+
+**The encoded response.** `ProtobufMessageView::of(value)` is the abstract
+value of a `ProtobufMessage` encoding `value` (`encoded()`, a spec function
+of `ProtobufMessageAdditionalSpecFns`, since `View` cannot be implemented
+for mesh's type outside mesh); the trusted contract
+(`openvmm/openvmm_defs/src/rpc_t.rs`) attaches `ProtobufMessage::new`'s
+encoding and states `of` injective, as for blobs.
 
 These compose: after `quiesce_for_save` succeeds the units are stopped and
 recorded, `capture_time_abi` changes nothing, so `save`'s precondition holds
@@ -300,21 +334,16 @@ and its result is the snapshot at the quiesce point.
 
 Concerns:
 
-- **The time capture is unconstrained.** `TimeCapture` (time contract, CPU
-  profile) and `record_vm_time_cut` are not specified; the restore side's
-  clock adjustment depends on them.
+- **The time capture is unconstrained**, by decision: guest time is out of
+  scope for now ("Out of scope for now"). `TimeCapture` (time contract, CPU
+  profile) and `record_vm_time_cut` are not specified.
 - **`quiesce_for_save` sends `Stop` through the unverified `state_change`
   path**, with its own dependency order, timeout, and cancellation; the
   contract assumes it records each unit's state as the request protocol's
-  `Stop` does. Its `Err` cases (`RollbackSafe`, then
-  `resume_after_failed_snapshot`; `Uncertain`, after which the VM must be
-  terminated) are not specified beyond "still marked running".
+  `Stop` does. (Its error cases are now specified; see "The error paths".)
 - **`capture_time_abi` is trusted not to change the view**: it sends
   `CheckTimers` to every VP (`check_one_shot_timers`) and reads time
   records from the partition.
-- **Two running flags**: `LoadedVm::running` (checked and cleared by
-  `quiesce_and_save`) and `StateUnits::running` (the view's
-  `runtime.running`). The contract speaks only of the latter.
 - **After `quiesce_and_save` the VM stays stopped**; resuming or ending it
   is the caller's (controller's) business.
 
@@ -369,12 +398,9 @@ They compose: `begin` changes nothing, `restore` gives the union and keeps
 
 Concerns and TODOs:
 
-- **The clock units' restored state is unconstrained.** It is the saved
+- **The clock units' restored state is unconstrained**, by decision: guest
+  time is out of scope for now ("Out of scope for now"). It is the saved
   state advanced by the downtime (TSC target, LAPIC timers, VM time, RTC).
-  TODO: specify the clock restore; this needs typed views of those units'
-  saved states (`SavedStateBlobView` is opaque) and a spec of the time
-  contract (`RestoreTimeInput`, validated by the controller, is not
-  specified).
 - **The partition's view can go stale.** The TSC set and the LAPIC advance
   write the partition's VPs directly through `partition_unit`, outside the
   request protocol, so the partition's FracGhost half is not updated: after
@@ -1361,6 +1387,27 @@ What Stage 2 still needs, found by comparing the prototype with
   trusted contract, not verified (see gap 4 above).
 - **`SnapshotManifest`** and snapshot files (`manifest.bin`, `state.bin`,
   `memory.bin`), the controller (`VmController`), and publication.
+- **Guest time** (decided 2026-10-27). The snapshot spec covers equality:
+  after a restore each unit's state is its saved state. Guest time is the
+  one place where that is wrong by design: the clocks must continue,
+  advanced by the real downtime, all by the same amount. The wanted
+  property: each VP's TSC = the TSC at the capture anchor + downtime x the
+  declared TSC rate, and VM time (and so the RTC and device timers) = VM
+  time at the cut + the cut-to-anchor gap + downtime. Proving it would
+  take many assumptions (the backend's TSC/host-clock pairing at the
+  anchor, the host clocks' meaning and monotonicity, the hypervisor's TSC
+  set and LAPIC advance, the controller's validated time inputs, vmtime's
+  saved stop time), so it is not worthwhile for now. What stays in the
+  spec: the time capture (`TimeCapture`, the VM-time cut) and the clock
+  units' restored state are unconstrained, and the clock restore's units
+  are named (`LoadedVmView::time_units`, `clock_units`) so that the
+  equality claims exclude them. What it would need, if taken up: a trusted
+  contract on the backend's capture anchor (VP 0's TSC and the host sample
+  are one instant within `pairing_ns`), vmtime exporting its saved stop
+  time, the cut rule (`vm_time_cut_to_anchor_ns = capture_monotonic_ns -
+  stop_host_time`), and the restore-side equations. (Under the time ABI the
+  partition's saved TSC is dropped on restore, `omit_saved_tsc`, so no rule
+  ties `capture_tsc` to the partition's saved state.)
 
 ## Concurrency among state units
 
@@ -1566,9 +1613,10 @@ important first.
    (`VmController::handle_guest_snapshot_request`), which needs a decision
    on the encoded `ProtobufMessage` (roadmap item 3). (`InitializedVm::load`
    now has a contract.)
-3. **Clock restore**: specify the clock units' restored state, and fix the
-   partition's stale view after the TSC set and LAPIC advance ("Restore from
-   snapshot").
+3. **Partition's stale view after a clock restore**: the TSC set and LAPIC
+   advance change the partition outside the request protocol ("Restore from
+   snapshot"). (Specifying the clocks themselves is out of scope for now:
+   "Out of scope for now", guest time.)
 4. **Unit side**: for the production units, attach the `StateUnit` and
    request-loop contracts (blocked on async trait functions;
    `StateRequest::apply` no longer uses async closures; the blob layers,
@@ -1578,8 +1626,8 @@ important first.
 5. **Other `ProtobufSaveRestore` implementations**: `ChipsetDeviceProxy`,
    `BoundVp`, `ErasedChipsetDevice` are trusted to meet its contract (the
    blanket impl for `SaveRestore` types is verified).
-6. **Quiesce path**: the time capture, and `quiesce_for_save`'s error cases
-   ("Quiesce and save").
+6. **Quiesce path**: specified, except the time capture's content, which is
+   out of scope for now (guest time, "Out of scope for now").
 7. **Pending proof**: `StateUnits::lemma_view_inv`.
 8. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
    trusted wrapper types' spec functions ("Convention TODOs").

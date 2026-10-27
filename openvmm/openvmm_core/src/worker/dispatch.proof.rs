@@ -38,6 +38,16 @@ pub(crate) struct ExInitializedVm(InitializedVm);
 #[verifier::external_body]
 pub struct ExHaltReason(HaltReason);
 
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExMicrovmSnapshotBoundaryRequest(
+    chipset_resources::microvm::MicrovmSnapshotBoundaryRequest,
+);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRecvError(mesh::RecvError);
+
 // (`anyhow::Error` is declared in `state_unit`.)
 
 impl LoadedVmView {

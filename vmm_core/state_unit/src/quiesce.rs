@@ -31,6 +31,11 @@ impl QuiesceForSaveError {
     /// Returns whether any unit may have partially changed ownership or state.
     ///
     /// When true, the VM cannot be resumed safely and must be terminated.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result == self@.uncertain,
+    ))]
     pub fn has_uncertain_state(&self) -> bool {
         self.uncertain
     }
@@ -111,6 +116,10 @@ impl StateUnits {
             // marked running.
             result is Ok ==> !final(self)@.running && final(self)@.all_recorded(),
             result is Err ==> final(self)@.running,
+            // Every failure is uncertain: a unit fails only when its `Stop`
+            // fails or times out (uncertain), or when a unit depending on it
+            // did not stop, which in turn started with an uncertain one.
+            result matches Err(e) ==> e@.uncertain,
     ))]
     pub async fn quiesce_for_save(&mut self, timeout: Duration) -> Result<(), QuiesceForSaveError> {
         assert!(self.running);
@@ -207,6 +216,20 @@ impl StateUnits {
 
     /// Restarts every unit after a save failure that occurred after a fully
     /// successful quiesce but before publication committed.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.units.dom() == old(self)@.units.dom(),
+            // Succeeds only from a stopped VM (it checks), and restarts it.
+            result is Ok ==> !old(self)@.running && final(self)@.running,
+            // On failure, units may be partly restarted; nothing more is
+            // promised (the VM must be terminated).
+    ))]
     pub async fn resume_after_failed_save(&mut self, timeout: Duration) -> anyhow::Result<()> {
         anyhow::ensure!(!self.running, "VM was not successfully quiesced for save");
         anyhow::ensure!(
