@@ -3,6 +3,7 @@
 
 // High-level spec of saved-state blobs, for human review.
 
+use super::ProtobufSaveRestore;
 use super::RestoreError;
 use super::SaveError;
 use super::SaveRestore;
@@ -93,6 +94,37 @@ pub trait ExSaveRestore {
     fn restore(&mut self, state: Self::SavedState) -> (result: Result<(), RestoreError>)
         ensures
             result is Ok ==> final(self).saved_state() == state,
+    ;
+}
+
+/// The contract of every `ProtobufSaveRestore` implementation (layer 2 of
+/// the unit-side contract): `saved_blob()` is the object's snapshotable
+/// state, encoded: what `save` returns. `save` does not change it; a
+/// successful `restore(state)` sets it to `state@`.
+///
+/// Given through `ProtobufSaveRestoreSpec`, as for `SaveRestore`. The
+/// blanket implementation for `SaveRestore` types is verified against it,
+/// with `saved_blob()` the encoding of `saved_state()`
+/// (`save_restore.proof.rs`); the other implementations
+/// (`ChipsetDeviceProxy`, `BoundVp`, `ErasedChipsetDevice`) are trusted to
+/// meet it.
+#[verifier::external_trait_specification]
+#[verifier::external_trait_extension(ProtobufSaveRestoreSpec via ProtobufSaveRestoreSpecImpl)]
+pub trait ExProtobufSaveRestore {
+    type ExternalTraitSpecificationFor: ProtobufSaveRestore;
+
+    /// The blob `save` returns: the object's snapshotable state, encoded.
+    spec fn saved_blob(&self) -> SavedStateBlobView;
+
+    fn save(&mut self) -> (result: Result<SavedStateBlob, SaveError>)
+        ensures
+            final(self).saved_blob() == old(self).saved_blob(),
+            result matches Ok(blob) ==> blob@ == old(self).saved_blob(),
+    ;
+
+    fn restore(&mut self, state: SavedStateBlob) -> (result: Result<(), RestoreError>)
+        ensures
+            result is Ok ==> final(self).saved_blob() == state@,
     ;
 }
 

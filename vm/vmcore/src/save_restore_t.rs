@@ -19,24 +19,157 @@
 // unrelated.
 
 use super::SavedStateBlob;
+use super::SavedStateRoot;
 use super::spec::SavedStateBlobView;
+use mesh::payload::DefaultEncoding;
+use mesh::payload::DescribedProtobuf;
+use mesh::payload::FieldDecode;
+use mesh::payload::FieldEncode;
+use mesh::payload::MessageDecode;
+use mesh::payload::MessageEncode;
+use mesh::payload::NoResources;
+use mesh::payload::Protobuf;
 use vstd::prelude::*;
 
 verus! {
 
-// The contract of `new` and `parse` is not yet attached to them: their
-// `T: SavedStateRoot` bound needs `SavedStateRoot`, `DescribedProtobuf`,
-// `Protobuf`, and `Protobuf`'s codec traits declared to Verus, and
-// `Protobuf`'s associated type is bounded by four generic codec traits (two
-// with higher-ranked lifetimes). Only the unit side (`ProtobufSaveRestore`)
-// calls them, so the plan is to attach the contract with that work, through
-// a local trait with `encode`/`decode` methods carrying these contracts,
-// blanket-implemented for every `SavedStateRoot` type. Stated contract:
-//
-//   SavedStateBlob::new::<T>(data)
-//       ensures result@ == SavedStateBlobView::of(data)
-//   SavedStateBlob::parse::<T>(&blob)
-//       ensures result matches Ok(value) ==> SavedStateBlobView::of(value) == blob@
+// The trait chain behind `new` and `parse`'s bound `T: SavedStateRoot`,
+// declared to Verus (no methods: the contracts below need only the traits
+// and their bounds). `SavedStateRoot: DescribedProtobuf: Protobuf`, and
+// `Protobuf`'s associated type is bounded by four codec traits, two with
+// higher-ranked lifetimes; declaring `Protobuf` needs Verus patch 0003
+// (`verus-patches/`).
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExNoResources(NoResources);
+
+#[verifier::external_trait_specification]
+pub trait ExDefaultEncoding {
+    type ExternalTraitSpecificationFor: DefaultEncoding;
+
+    type Encoding;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExMessageEncode<T, R>: Sized {
+    type ExternalTraitSpecificationFor: MessageEncode<T, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExMessageDecode<'a, T, R>: Sized {
+    type ExternalTraitSpecificationFor: MessageDecode<'a, T, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExFieldEncode<T, R>: Sized {
+    type ExternalTraitSpecificationFor: FieldEncode<T, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExFieldDecode<'a, T, R>: Sized {
+    type ExternalTraitSpecificationFor: FieldDecode<'a, T, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExProtobuf: DefaultEncoding<Encoding = <Self as ExProtobuf>::Encoding> + Sized {
+    type ExternalTraitSpecificationFor: Protobuf;
+
+    type Encoding: MessageEncode<Self, NoResources> + for<'a> MessageDecode<'a, Self, NoResources>
+        + FieldEncode<Self, NoResources> + for<'a> FieldDecode<'a, Self, NoResources>;
+}
+
+// The derive's encoders. `#[derive(Protobuf)]` gives a struct
+// `DefaultEncoding::Encoding = TableEncoder` and implements the table traits
+// below for it, and an enum `OneofEncoder` with the oneof traits; each
+// encoder implements the codec traits for any type with those. With these,
+// Verus sees that a derived saved-state struct or enum is a
+// `SavedStateRoot`. (The derive's `transparent` and `prost` modes are not
+// declared; no saved-state root uses them.)
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExTableEncoder(mesh::payload::table::TableEncoder);
+
+#[verifier::external_trait_specification]
+pub unsafe trait ExStructMetadata {
+    type ExternalTraitSpecificationFor: mesh::payload::table::StructMetadata;
+}
+
+#[verifier::external_trait_specification]
+pub unsafe trait ExStructEncodeMetadata<R>: mesh::payload::table::StructMetadata {
+    type ExternalTraitSpecificationFor: mesh::payload::table::encode::StructEncodeMetadata<R>;
+}
+
+#[verifier::external_trait_specification]
+pub unsafe trait ExStructDecodeMetadata<'de, R>: mesh::payload::table::StructMetadata {
+    type ExternalTraitSpecificationFor: mesh::payload::table::decode::StructDecodeMetadata<'de, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExDescribeTable {
+    type ExternalTraitSpecificationFor: mesh::payload::table::DescribeTable;
+}
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExOneofEncoder(mesh::payload::oneof::OneofEncoder);
+
+#[verifier::external_trait_specification]
+pub trait ExOneofEncode<R> {
+    type ExternalTraitSpecificationFor: mesh::payload::oneof::OneofEncode<R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExOneofDecode<'de, R>: Sized {
+    type ExternalTraitSpecificationFor: mesh::payload::oneof::OneofDecode<'de, R>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExDescribeOneof {
+    type ExternalTraitSpecificationFor: mesh::payload::oneof::DescribeOneof;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExDescribeMessage<T> {
+    type ExternalTraitSpecificationFor: mesh::payload::protofile::DescribeMessage<T>;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExDescribedProtobuf: Protobuf {
+    type ExternalTraitSpecificationFor: DescribedProtobuf;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExSavedStateRoot: DescribedProtobuf {
+    type ExternalTraitSpecificationFor: SavedStateRoot;
+}
+
+/// Declares `mesh::payload::Error` (a decoding error) to Verus, as an
+/// opaque type.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExPayloadError(mesh::payload::Error);
+
+/// Trusted: encoding gives a blob whose view is `of(data)`.
+pub assume_specification<T: SavedStateRoot>[ SavedStateBlob::new::<T> ](data: T) -> (result:
+    SavedStateBlob)
+    ensures
+        result@ == SavedStateBlobView::of(data),
+;
+
+/// Trusted: a successful decoding returns a value whose `of` is the blob's
+/// view.
+pub assume_specification<T: SavedStateRoot>[ SavedStateBlob::parse::<T> ](blob: &SavedStateBlob) -> (result:
+    Result<T, mesh::payload::Error>)
+    ensures
+        result matches Ok(value) ==> SavedStateBlobView::of(value) == blob@,
+;
+
+/// A decoding error as a `RestoreError` (`RestoreError::ProtobufDecode`).
+/// No contract.
+pub assume_specification[ <super::RestoreError as From<mesh::payload::Error>>::from ](err:
+    mesh::payload::Error) -> super::RestoreError;
 
 /// Trusted: a clone encodes the same value.
 pub assume_specification[ <SavedStateBlob as Clone>::clone ](blob: &SavedStateBlob) -> (result:

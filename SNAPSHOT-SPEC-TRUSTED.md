@@ -17,7 +17,7 @@ only where a trusted item gives them meaning.
 
 | Item | Where | What is trusted |
 |---|---|---|
-| Verus `426d8b0` with patches 0001 and 0002 | `~/programs/verus`; `verus-patches/` | The verifier, and the patches: 0001, an `async fn` without a named return keeps its postconditions at `.await`; 0002, annotation-style ghost parameters work on an `async fn`. Targeted tests pass (`verus-patches/README.md`); the full test suite has not been run. |
+| Verus `426d8b0` with patches 0001 to 0003 | `~/programs/verus`; `verus-patches/` | The verifier, and the patches: 0001, an `async fn` without a named return keeps its postconditions at `.await`; 0002, annotation-style ghost parameters work on an `async fn`; 0003, `external_trait_specification` accepts a trait whose bound names its own associated type, external impls with higher-ranked associated-type bounds no longer panic, and an undeclared type in a bound is an error, not a panic. Targeted tests pass (`verus-patches/README.md`); the full test suite has not been run. |
 | `vstd` `=0.0.0-2026-10-04-0306` | crates.io | vstd's own trusted specs (e.g. `BTreeMap::get_mut`, `FracGhost`). |
 
 ## Contracts assumed until verified
@@ -56,7 +56,10 @@ Protobuf encoding and decoding are not verified.
 | `View for SavedStateBlob` (uninterpreted) | A blob's view is the typed value it encodes. |
 | **AXIOM** `SavedStateBlobView::axiom_of_injective` | `of::<T>` is injective: each saved-state type's protobuf encoding loses nothing, so decoding returns exactly the value encoded. Nothing is assumed across types. |
 | `assume_specification` for `SavedStateBlob::clone` | A clone encodes the same value: `result@ == blob@`. |
-| Contract of `SavedStateBlob::new` / `parse` (stated, **not yet attached**) | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Not attachable yet: the `T: SavedStateRoot` bound needs the protobuf trait chain declared to Verus. To be attached with the unit side, through a local `encode`/`decode` trait. |
+| `assume_specification` for `SavedStateBlob::new` / `parse` | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Needs Verus patch 0003. |
+| Protobuf trait chain declared to Verus | `SavedStateRoot`, `DescribedProtobuf`, `Protobuf`, `DefaultEncoding`, the codec traits, `DescribeMessage`, `NoResources`, the encoders `TableEncoder` and `OneofEncoder` with their traits (`external_trait_specification` / `external_type_specification`, no methods). Verus checks the declared bounds against the real traits. |
+| `assume_specification` for `RestoreError: From<payload::Error>` | No contract (nothing assumed beyond termination). |
+| Unverified `ProtobufSaveRestore` implementations meet its contract | `ChipsetDeviceProxy` (`workers/chipset_device_worker`), `BoundVp` (`vmm_core/src/partition_unit/vp_set.rs`), `ErasedChipsetDevice` (`vm/chipset_device_resources`): `save` returns `saved_blob()` and keeps it; `restore` sets it. (The blanket impl for `SaveRestore` types is verified.) |
 
 ## Mesh RPC (`support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`)
 
@@ -122,7 +125,6 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`.
 |---|---|
 | PIT entry points meet their contracts | `vm/devices/chipset/src/pit/mod.rs`: `start_device`, `reset_device`, `poll`, `pio_read`, `pio_write`, `save_device`, `restore_device` are `external_body` until proved. |
 | PIT handlers called only while running | Their callers (vCPU port I/O dispatch, the unit's poll loop, `ChangeDeviceState::start`) are unverified; they are trusted to call them only when their preconditions hold (`wf()`, and running). |
-| PIT blob encoding | `pit/blob_t.rs`: `encode` gives a blob with view `of(state)`; a successful `decode` gives a state with `of(state)` equal to the blob's view. Per-type instances of the stated `SavedStateBlob::new` / `parse` contract. |
 | `DeviceUnit::run` (unverified glue) | Passes each message and ghost from `recv_msg` to `handle` unchanged, and polls only while its `running` flag is set; `recv` is the receiver of the unit's own channel (constant `id()`). |
 | Error conversion | `device_unit.rs`: `save_error`, `restore_error` (`RemoteError::new`), `external_body` with no contract (nothing assumed beyond termination). |
 | PIT ghost placeholders at creation | `PitDevice::new` (unverified) fills `ghost` and `id` with `assume_new()`; until the creation hand-off is done, the PIT's ghost is not tied to its unit's channel. |

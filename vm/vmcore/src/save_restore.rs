@@ -76,6 +76,8 @@ use mesh::payload::Protobuf;
 use mesh::payload::encoding::ImpossibleField;
 use mesh::payload::message::ProtobufAny;
 use mesh::payload::protofile::MessageDescription;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// Implemented by objects which can be saved/restored with an associated
 /// type that can be serialized as a protobuf message.
@@ -148,16 +150,25 @@ impl SavedStateBlob {
     }
 }
 
+// Verified against `ProtobufSaveRestore`'s contract
+// (`save_restore.spec.rs`).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: SaveRestore> ProtobufSaveRestore for T
 where
     T::SavedState: 'static + Send + SavedStateRoot,
 {
     fn save(&mut self) -> Result<SavedStateBlob, SaveError> {
-        self.save().map(SavedStateBlob::new)
+        match SaveRestore::save(self) {
+            Ok(state) => Ok(SavedStateBlob::new(state)),
+            Err(err) => Err(err),
+        }
     }
 
     fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
-        self.restore(state.parse()?)
+        match state.parse() {
+            Ok(state) => SaveRestore::restore(self, state),
+            Err(err) => Err(RestoreError::from(err)),
+        }
     }
 }
 

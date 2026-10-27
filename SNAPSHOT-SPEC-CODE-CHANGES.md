@@ -287,6 +287,23 @@ Baseline: upstream `nanvix/openvmm` commit
     `vmm_core` is Verus-enabled (`[package.metadata.verus]`, `vstd`,
     `build.rs` declares `verus_keep_ghost`). rustfmt reordered imports in
     `dispatch/microvm.rs`, `restore.rs`, `time_abi.rs`.
+33. **`SavedStateBlob` contract attached** (Verus only, no runtime change):
+    `vm/vmcore/src/save_restore_t.rs` declares the protobuf trait chain and
+    the struct encoder to Verus and attaches `new` / `parse`'s contract with
+    `assume_specification` (plus `RestoreError`'s `From<payload::Error>`).
+    The PIT's `save_blob` / `restore_blob` call `SavedStateBlob::new` /
+    `parse` directly; `vm/devices/chipset/src/pit/blob_t.rs` is removed.
+    Needs Verus patch 0003 (`verus-patches/`); `scripts/verify-snapshot-spec.sh`
+    notes it.
+34. **`ProtobufSaveRestore` contract; enum saved-state roots** (Verus
+    only, no runtime change): `vm/vmcore/src/save_restore.spec.rs` adds
+    `ProtobufSaveRestore`'s contract (`external_trait_extension`,
+    `saved_blob()`); the blanket impl in `save_restore.rs` is `verus_verify`
+    and its bodies use `match` instead of `map` and `?` (same behavior);
+    `save_restore.proof.rs` defines its `saved_blob()` and adds the example
+    enum root `ExampleEnumState`; `save_restore_t.rs` declares
+    `OneofEncoder` and its traits. Patch 0003 gains the third fix (an
+    undeclared type in a bound is an error).
 
 ### Planned: mesh RPC trusted spec
 
@@ -333,6 +350,20 @@ itself is unmodified.
    coroutine) and adds two tests to `rust_verify_test/tests/syntax_attr.rs`.
    Applied to the local checkout and built. Ghost outputs of an `async fn`
    are still unsupported. Details and test results: `verus-patches/README.md`.
+
+3. **`0003-external-trait-own-assoc-bounds-and-hrtb.patch`**
+   (`verus-patches/`): a trait whose supertrait bound names its own
+   associated type (mesh_protobuf's `Protobuf`) could not be declared with
+   `external_trait_specification`, and an external impl whose associated
+   type has a `for<'a>` bound panicked Verus, as did a bound naming a type
+   not declared to Verus. Changes `rust_verify/src/rust_to_vir_trait.rs`
+   (map the proxy's associated types to the external trait's before
+   comparing bounds), `rust_verify/src/rust_to_vir_impl.rs` (erase
+   late-bound regions instead of leaving them escaping), and
+   `vir/src/recursive_types.rs` (an error instead of a panic), and adds
+   three tests to
+   `rust_verify_test/tests/external_traits.rs`. Applied to the local
+   checkout and built. Details and test results: `verus-patches/README.md`.
 
 ### Possibly needed
 

@@ -10,6 +10,7 @@ To apply and rebuild (from the Verus checkout), in order:
 ```sh
 git apply /path/to/openvmm/verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch
 git apply /path/to/openvmm/verus-patches/0002-async-fn-ghost-params.patch
+git apply /path/to/openvmm/verus-patches/0003-external-trait-own-assoc-bounds-and-hrtb.patch
 cd source
 source ../tools/activate   # or put tools/vargo/target/release on PATH
 vargo build --release
@@ -98,4 +99,74 @@ output. Tracked `&mut` inputs cover the need.
 
 **Found by.** Verifying `StateUnits::run_op` in annotation style: its
 helpers are `async fn`s that need ghost parameters.
+
+## 0003-external-trait-own-assoc-bounds-and-hrtb.patch
+
+Three bugs found while declaring mesh_protobuf's `Protobuf` trait to
+Verus; the first two kept it from being declared, and so kept the contract off `SavedStateBlob::new` / `parse`, whose
+bound is `T: SavedStateRoot` (`SavedStateRoot: DescribedProtobuf:
+Protobuf`).
+
+**Bug 1.** A trait whose supertrait bound names its own associated type
+cannot be declared with `external_trait_specification`. `Protobuf` is
+`trait Protobuf: DefaultEncoding<Encoding = <Self as Protobuf>::Encoding>`.
+In the proxy trait, naming `<Self as Protobuf>::Encoding` overflows rustc's
+trait solver, and naming the proxy's own `<Self as ExProtobuf>::Encoding`
+fails Verus's check that the proxy's bounds match the external trait's
+exactly ("external_trait_specification trait bound mismatch"). No proxy can
+pass.
+
+**Cause 1.** The bound check (`rust_verify/src/rust_to_vir_trait.rs`)
+instantiates the proxy's predicates with the external trait's `Self`, but
+leaves projections onto the proxy's own associated types as they are, so
+`<X as ExProtobuf>::Encoding` never equals `<X as Protobuf>::Encoding`.
+
+**Fix 1.** Before comparing, rewrite projections onto the proxy's
+associated types into projections onto the external trait's associated
+types of the same name (a `TypeFolder`, `ProxyAssocToExternal`). Verus
+already treats the proxy as the external trait everywhere else.
+
+**Bug 2.** Verus panics (inside rustc: "has escaping bound vars, so it
+cannot be wrapped in a dummy binder") when it imports an external trait
+impl whose associated type is bounded by a higher-ranked trait bound, as
+`Protobuf::Encoding: for<'a> MessageDecode<'a, Self, NoResources>`.
+
+**Cause 2.** `translate_assoc_type` (`rust_verify/src/rust_to_vir_impl.rs`)
+looks up the impl satisfying each bound with `codegen_select_candidate`,
+passing the bound's trait reference with its binder skipped, which leaves
+the late-bound region escaping.
+
+**Fix 2.** Instantiate the bound's late-bound regions with erased regions
+(`instantiate_bound_regions_with_erased`) instead of skipping the binder;
+`codegen_select_candidate` expects erased regions anyway.
+
+**Bug 3.** Verus panics (`vir/src/recursive_types.rs`,
+`check_well_founded`) instead of reporting an error when a declared
+external trait's bound names a type not declared to Verus (mesh_protobuf's
+`NoResources`, before it was declared).
+
+**Cause 3.** The well-foundedness check walks every datatype node of the
+type graph, which includes types only referenced in bounds, and
+`check_well_founded` panics on a path it has no datatype for.
+
+**Fix 3.** Before checking a datatype node, report an error naming the
+type ("type `X` is used but not declared to Verus; declare it, for example
+with #[verifier::external_type_specification]") if it is not declared.
+
+**Tests.** Three cases added to `rust_verify_test/tests/external_traits.rs`:
+`external_trait_bound_names_own_assoc_type` (a `trait P: Enc<E = <Self as
+P>::E>` declared through a proxy, used as a bound),
+`external_trait_impl_assoc_type_higher_ranked_bound` (an impl whose
+associated type has a `for<'a>` bound, used through a generic function),
+and `external_trait_bound_names_undeclared_type` (a bound naming an
+undeclared type; expects the error). Without the fixes they fail with the
+three errors above (the last one by panicking); with them they pass.
+
+**Test results.** With all three patches: `external_traits` 42 passed,
+`traits` 216 (2 ignored), `assoc_type_impls` 45, `traits_dyn` 26,
+`external_fn_specification` 78 (3 ignored), `recursive_types` 28; 0
+failed. The full suite has not been run.
+
+**Found by.** Attaching the `SavedStateBlob::new` / `parse` contract
+(`vm/vmcore/src/save_restore_t.rs`).
 

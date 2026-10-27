@@ -98,15 +98,15 @@ impl StateUnitDevice for PitDevice {
 
     fn save_blob(&mut self) -> (result: Result<SavedStateBlob, SaveError>) {
         match self.save_device() {
-            Ok(state) => Ok(super::trusted::encode(state)),
+            Ok(state) => Ok(SavedStateBlob::new(state)),
             Err(err) => Err(err),
         }
     }
 
     fn restore_blob(&mut self, blob: SavedStateBlob) -> (result: Result<(), RestoreError>) {
-        match super::trusted::decode(&blob) {
+        match blob.parse::<SavedState>() {
             Ok(state) => self.restore_device(state),
-            Err(err) => Err(err),
+            Err(err) => Err(RestoreError::from(err)),
         }
     }
 }

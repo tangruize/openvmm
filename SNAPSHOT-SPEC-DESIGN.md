@@ -184,9 +184,11 @@ ensures
 - `SavedStateBlobView` is the abstract value a unit's blob encodes:
   `SavedStateBlobView::of(value)` for a blob encoding `value`. The trusted
   encode/decode contract (gap 4) is in `vm/vmcore/src/save_restore_t.rs`:
-  `of::<T>` is injective; `new`/`parse` are stated there but attached only
-  with the unit side (their `SavedStateRoot` bound needs the protobuf trait
-  chain declared to Verus).
+  `of::<T>` is injective, and the contract is attached to the real
+  `SavedStateBlob::new` / `parse` (`new(data)@ == of(data)`; a successful
+  `parse` returns a value whose `of` is the blob's view). Their
+  `T: SavedStateRoot` bound needs the protobuf trait chain declared to
+  Verus, which needs Verus patch 0003 (see "Next steps (agreed)", item 1).
 - `restore`'s `union_prefer_right` reflects the code: units absent from the
   saved state get no `Restore` and keep their state; `validate_inventory`
   skips the check when the saved inventory is empty.
@@ -633,10 +635,9 @@ Findings and open items:
   `device_inv()` plus the rule, and the key is its id) and, in
   `DeviceGhost`, `lemma_snapshot_known` (its snapshot is never `Unknown`,
   needed for `Stop`).
-- **The PIT implements it** (`pit/mod.proof.rs`, verified), with two
-  trusted per-type wrappers for the blob encoding (`pit/blob_t.rs`:
-  `encode`, `decode`), instances of the stated `SavedStateBlob::new` /
-  `parse` contract.
+- **The PIT implements it** (`pit/mod.proof.rs`, verified), calling
+  `SavedStateBlob::new` / `parse` directly for its blob. (Until 2026-10-27
+  it used two trusted per-type wrappers, `pit/blob_t.rs`, now removed.)
 - **`DeviceUnit<T>::handle(msg, gin)`** (verified, for any
   `T: StateUnitDevice`): requires the request protocol (`request_ok`) for
   `msg` and `gin`, and answers every request but `Inspect` by it, through
@@ -680,6 +681,10 @@ Not yet done:
 - `StateUnitDevice` has no `advance_time`, `quiesce_input`, or
   `resume_input`; needed for devices that use them.
 
+#### Verifying another device
+
+Moved to its own section: "Recipe: verifying another device".
+
 ### Unit-side contract
 
 What a state unit must do for the request protocol to hold, layer by layer,
@@ -698,7 +703,16 @@ from the device up.
    that ignores its state, or a `save` that returns another value, each
    fails.
 2. **Blob: `ProtobufSaveRestore`** (blanket impl for `SaveRestore` types).
-   *Stated, not attached.* `save` returns a blob with view
+   *Attached and verified* (2026-10-27): `external_trait_specification` +
+   `external_trait_extension(ProtobufSaveRestoreSpec via
+   ProtobufSaveRestoreSpecImpl)` in `vm/vmcore/src/save_restore.spec.rs`,
+   with `saved_blob()` the encoded snapshotable state; the blanket impl
+   (`save_restore.rs`, now `verus_verify`, its bodies rewritten without the
+   closure and `?`) is verified against it, with `saved_blob() ==
+   of(saved_state())` (`save_restore.proof.rs`). Negative check: a
+   `restore` that ignores the decoded state fails. The other
+   implementations (`ChipsetDeviceProxy`, `BoundVp`,
+   `ErasedChipsetDevice`) are trusted to meet it. `save` returns a blob with view
    `of(old.saved_state())`; a successful `restore(blob)` leaves
    `of(saved_state()) == blob@`. Follows from layer 1 and the `SavedStateBlob`
    contract.
@@ -719,13 +733,12 @@ from the device up.
 
 Concerns:
 
-- **`SavedStateRoot` trait chain** blocks layer 2 and the `SavedStateBlob`
-  `new`/`parse` contract: the bound needs `SavedStateRoot`,
-  `DescribedProtobuf`, `Protobuf`, and `Protobuf`'s four generic codec traits
-  (two with higher-ranked lifetimes) declared to Verus, matching exactly.
-  Plan: a local trait with `encode`/`decode` methods carrying the contract,
-  blanket-implemented for `SavedStateRoot` types, used by the
-  `ProtobufSaveRestore` blanket impl (a source change there).
+- **`SavedStateRoot` trait chain**: resolved 2026-10-27 (Verus patch 0003;
+  see "Next steps (agreed)", item 1), for derived structs (`TableEncoder`)
+  and enums (`OneofEncoder`; checked on an example enum root,
+  `ExampleEnumState` in `save_restore.proof.rs`, since all of OpenVMM's 85
+  saved-state roots are structs). The derive's `transparent` and `prost`
+  modes are not declared; no saved-state root uses them.
 - **Other `ProtobufSaveRestore` implementations** need their own contracts:
   `ChipsetDeviceProxy` (`workers/chipset_device_worker`), `BoundVp`
   (`vmm_core/src/partition_unit/vp_set.rs`), and `ErasedChipsetDevice`
@@ -948,6 +961,77 @@ preparation, `restore`, then guest-clock adjustment) and
 `InitializedVm::load(Some(saved_state))` (`dispatch.rs`, which builds the
 `LoadedVm` and calls `restore_from_snapshot`). Both now have contracts
 ("Restore from snapshot").
+
+## Recipe: verifying another device
+
+Worked out on the PIT ("The PIT" and "The verified unit", under "Design
+change: the FracGhost lives with the device"); the PIT's files are the
+example to copy: `vm/devices/chipset/src/pit/mod.rs` (ghost fields, entry
+points), `mod.spec.rs` (view, `saved_state()`, `wf()`, the trait impls),
+`mod.proof.rs` (declarations, `StateUnitDevice`, examples).
+
+What the PIT needed, as a checklist for each further chipset device. Items
+1 to 7 are spec work; 8 and 9 come with wiring and proofs.
+
+1. **Crate setup** (once per crate): `[package.metadata.verus] verify =
+   true`, `vstd` and `closeable_mutex` dependencies, `build.rs` declaring
+   the `verus_keep_ghost` cfg, a Verus-only `use vstd::prelude::*`.
+2. **Declare the device's types to Verus** (`external_type_specification`):
+   its state types with their fields visible (for the view), and its
+   runtime glue as opaque types (`VmTimeAccess`, `LineInterrupt`, ...); its
+   saved-state types (the root and the types inside it) with their fields
+   visible, so that `saved_state()` can be written. Types already declared
+   elsewhere (for example `VmTime` in the PIT's proof file) should move to
+   their own crate's spec once a second device needs them.
+3. **View and `saved_state()`**: a view of the snapshotable state (and the
+   static configuration that affects `save` / `restore`), its `inv()`, and
+   `saved_state()` on the view, field by field;
+   `SaveRestoreSpecImpl::saved_state` is the view's. The view leaves out
+   state that is not saved (like the PIT's `dram_refresh`); say so.
+4. **Ghost fields and `wf()`**: Verus-only fields `ghost:
+   Tracked<DeviceGhostState>` and `id: Ghost<Loc>` (placeholders in the
+   constructor until the creation hand-off), and `wf()` = the view's
+   invariant and `ghost.wf(id, snapshot)`.
+5. **`DeviceGhost`, `LockInvariant`, `StateUnitDevice`**: `snapshot()` is
+   `Saved(of(saved_state()))`; `lemma_snapshot_known` and `lemma_lock_inv`
+   are usually empty proofs. `save_blob` / `restore_blob` call
+   `SavedStateBlob::new` / `parse` directly (works for any derived struct
+   or enum saved-state root; no per-device blob code).
+6. **Entry points with contracts**: move the bodies of the device's trait
+   methods (I/O handlers such as `PortIoIntercept` / `MmioIntercept`,
+   `PollDevice`, `ChangeDeviceState`, `SaveRestore`) into inherent methods
+   with contracts, and let the trait methods call them (Verus cannot add
+   contracts to a foreign trait's impl methods). Handlers and `poll`
+   require `wf()` and running; `reset` / `restore` require `wf()`, whole,
+   and stopped; `save` keeps the view and the ghost.
+7. **Device-specific gaps** to check for each device:
+   - activity of its own to stop (`stop_device` doing work), `advance_time`
+     (`advances_time()` true, like the RTC), or `quiesce_input` /
+     `resume_input`: `StateUnitDevice` has no `advance_time` or input
+     methods yet, and `DeviceUnit` treats `AdvanceTime` as a no-op;
+   - cross-device effects: interrupt lines it drives (into the PIC /
+     IOAPIC), vmtime timers, `Halt`: not modelled;
+   - `restore` that changes state before failing, or normalizes the saved
+     state: the contracts allow the first; the second breaks `restore`'s
+     "sets `saved_state()`" contract;
+   - a saved-state root using the derive's `transparent` or `prost` mode:
+     needs those encoders declared.
+8. **Wiring** (not yet done for the PIT): the device receives its unit's
+   FracGhost half at creation, its mutex is created with `new_verified`,
+   and it is driven by `DeviceUnit` instead of the shared chipset unit;
+   needs the ghost types in normal builds.
+9. **Proofs** (proof phase): remove `external_body` from the entry points;
+   each change must update the FracGhost (it holds the whole while
+   running); the external functions they call (vmtime, interrupt lines,
+   logging) need specs or rewrites.
+
+Not needed per device: the blob contract (`SavedStateBlob::new` / `parse`)
+and `ProtobufSaveRestore`'s blanket impl, which are generic.
+
+Units that are not chipset devices (the partition, vmtime, time-abi, vmbus
+devices) have their own unit types and saved state, not built on
+`SaveRestore` for some; each needs its own snapshot definition and unit
+contract ("Unit-side contract").
 
 ## Verification approach: fractional ghost ownership
 
@@ -1354,8 +1438,28 @@ concurrent per-pin writes into the PIC and IOAPIC.
    and `Protobuf`'s codec traits with `for<'a>` bounds), so the contract can
    go on the real functions; otherwise use per-type trusted wrappers next to
    each verified device.
-   *Status:* the probe is not done; the PIT uses the fallback, per-type
-   trusted wrappers (`pit/blob_t.rs`).
+   *Status:* done (2026-10-27). The contract is attached to the real
+   functions (`assume_specification` in `vm/vmcore/src/save_restore_t.rs`),
+   and the PIT calls them directly (its per-type wrappers are removed).
+   Two Verus bugs had to be fixed (patch 0003, `verus-patches/`): a trait
+   whose supertrait bound names its own associated type (`Protobuf`'s
+   `DefaultEncoding<Encoding = <Self as Protobuf>::Encoding>`) could not be
+   declared, and an impl whose associated type has a `for<'a>` bound
+   panicked Verus. Declared to Verus, without methods: `SavedStateRoot`,
+   `DescribedProtobuf`, `Protobuf`, `DefaultEncoding`, the four codec
+   traits, `DescribeMessage`, `NoResources`, and, for a derived struct to
+   count as a `SavedStateRoot`, the struct encoder `TableEncoder` and the
+   traits the derive implements for it (`StructMetadata`,
+   `StructEncodeMetadata`, `StructDecodeMetadata`, `DescribeTable`). Also
+   `RestoreError`'s `From<payload::Error>` (no contract). Negative checks:
+   dropping `new`'s or `parse`'s postcondition makes the PIT's `save_blob`
+   / `restore_blob` fail. Follow-ups, also done: enum saved-state roots
+   (`OneofEncoder` and its traits declared; example enum root verified);
+   layer 2, `ProtobufSaveRestore`, attached and its blanket impl verified
+   ("Unit-side contract"); and a third Verus fix in patch 0003 (an
+   undeclared type in a declared trait's bound is an error, not a panic).
+   Each further device needs similar per-device work; see "Recipe:
+   verifying another device".
 2. **`InitializedVm::load(Some(_))`** (`dispatch.rs`): its contract. It
    builds the `LoadedVm` (collecting the halves in `make_ids`) and calls
    `restore_from_snapshot`.
@@ -1431,6 +1535,8 @@ concurrent per-pin writes into the PIC and IOAPIC.
    - Normal-build support, so `DeviceUnit` can run and be tested.
    - Wiring the PIT to `DeviceUnit` in the chipset builder, with its half
      handed over at creation.
+   For further devices, the steps are in "Recipe: verifying another
+   device".
 
 ### Other open items
 
@@ -1448,13 +1554,14 @@ important first.
    partition's stale view after the TSC set and LAPIC advance ("Restore from
    snapshot").
 4. **Unit side**: for the production units, attach the blob, `StateUnit`,
-   and request-loop contracts (blocked on the `SavedStateRoot` trait chain
-   and async trait functions; `StateRequest::apply` no longer uses async
-   closures); the units not built on
+   and request-loop contracts (blocked on async trait functions;
+   `StateRequest::apply` no longer uses async closures, and the
+   `SavedStateRoot` trait chain is declared); the units not built on
    `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
    the PIT, see "Next steps (agreed)", item 5.
-5. **`SavedStateBlob` `new`/`parse`**: attach their contract with the unit
-   side (local `encode`/`decode` trait).
+5. **Other `ProtobufSaveRestore` implementations**: `ChipsetDeviceProxy`,
+   `BoundVp`, `ErasedChipsetDevice` are trusted to meet its contract (the
+   blanket impl for `SaveRestore` types is verified).
 6. **Quiesce path**: the time capture, and `quiesce_for_save`'s error cases
    ("Quiesce and save").
 7. **Pending proof**: `StateUnits::lemma_view_inv`.
