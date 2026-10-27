@@ -287,18 +287,13 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
-            final(self)@.time_units == old(self)@.time_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {
-                // The clock restore, if any, has run. (On an earlier error it
-                // has not.)
-                &&& final(self)@.clock_units.is_empty()
-                // Outside the units the clock restore changes, as `restore`:
-                // units with saved state take it; the others keep theirs.
-                &&& final(self)@.snapshot.units.remove_keys(old(self)@.clock_units)
-                    == old(self)@.snapshot.units.union_prefer_right(saved_state@.units).remove_keys(
-                    old(self)@.clock_units,
-                )
+                // As `restore`: units with saved state take it; the others
+                // keep theirs. (The clock restore changes only time, which
+                // the units' views leave out.)
+                &&& final(self)@.snapshot.units
+                    == old(self)@.snapshot.units.union_prefer_right(saved_state@.units)
                 // The saved inventory, if any, matches the VM's.
                 &&& saved_state@.inventory.len() == 0
                     || saved_state@.inventory == old(self)@.snapshot.inventory
@@ -357,12 +352,10 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
-            final(self)@.time_units == old(self)@.time_units,
-            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
-            final(self)@.clock_units.is_empty(),
-            // Only the units the clock restore changes may change.
-            final(self)@.snapshot.units.remove_keys(old(self)@.clock_units)
-                == old(self)@.snapshot.units.remove_keys(old(self)@.clock_units),
+            // The clock restore changes only time, which the units' views
+            // leave out (`SavedStateBlobView::of`): the snapshot is
+            // unchanged.
+            final(self)@.snapshot == old(self)@.snapshot,
     ))]
     pub(super) async fn finish_snapshot_restore(
         &mut self,

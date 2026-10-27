@@ -356,67 +356,53 @@ For a time ABI restore, `begin` has the partition drop the VPs' saved TSCs
 synchronized TSC set, LAPIC timer advance, `StateUnits::advance_time` for VM
 time and the RTC) and holds the VPs stopped until the VM first starts.
 
-So after a time ABI restore, some units do not hold exactly their saved
-state: the partition and the units that advance time. The view names them:
-`LoadedVmView::time_units` is `state_units@.advances_time` plus
-`"partition"`, and `LoadedVmView::clock_units` is `time_units` while a time
-ABI clock restore is pending (`SnapshotRestore`'s view,
-`clock_restore_pending`), and empty otherwise. (`time_units` was added for
-`InitializedVm::load`'s contract, which must name these units after the
-clock restore has run and `clock_units` is empty; every restore contract
-keeps it.)
-`StateUnitsView::advances_time` is new (the units registered with
-`advances_time()`; the ghost registry records the flag at collection).
+The clock restore changes only guest time (the partition's TSCs and LAPIC
+timers, VM time, the RTC's clock), which is out of the spec's scope ("Out of
+scope for now", guest time): the units' views leave it out
+(`SavedStateBlobView::of` forgets the time fields of the time-keeping units'
+saved states; `equal_except_time`). So in the view a restore gives back
+exactly the saved state, for every unit, also after a time ABI restore; the
+clock restore changes nothing in the view. (Until 2026-10-27 the view named
+the units the clock restore changes, `time_units` and `clock_units`, and the
+contracts excluded them; both are gone.)
+`StateUnitsView::advances_time` records the units registered with
+`advances_time()` (the ghost registry records the flag at collection).
 
 Contracts (bodies `external_body`):
 
 | Function | Requires | Ensures |
 |---|---|---|
-| `restore_from_snapshot(saved)` | `wf`, stopped | `wf`; runtime and inventory unchanged; on `Ok`: `clock_units` empty, units outside the old `clock_units` are as `restore` leaves them (`old.units.union_prefer_right(saved@.units)`), and the saved inventory is empty or the VM's |
+| `restore_from_snapshot(saved)` | `wf`, stopped | `wf`; runtime and inventory unchanged; on `Ok`: the units are as `restore` leaves them (`old.units.union_prefer_right(saved@.units)`), and the saved inventory is empty or the VM's |
 | `begin_snapshot_restore` | `wf` | `wf`; view unchanged |
-| `finish_snapshot_restore` | `wf`, stopped | `wf`; runtime and inventory unchanged; `clock_units` empty; units outside the old `clock_units` unchanged |
-| `time_abi_restore` (`dispatch/time_abi.rs`) | `wf`, stopped | `wf`; runtime, inventory, `time_units`, `clock_units` unchanged; units outside `time_units` unchanged |
-| `StateUnits::advance_time` (`vmm_core/state_unit/src/advance_time.rs`) | `wf`, stopped | `wf`; same units, inventory, `advances_time`; units outside `advances_time` unchanged |
-| `LoadedVm::restore` (added) | | `time_units` and `clock_units` unchanged |
-| `InitializedVm::load(saved, .., snapshot_restore)` (`dispatch.rs`) | | on `Ok(vm)`: `vm.wf()`; stopped; `clock_units` empty. With `saved` `None`: no unit recorded (`snapshot.units` empty), and no clock restore was pending. With `Some(state)`: outside the clock units (`time_units` if `snapshot_restore` had a clock restore pending, else none), the units have exactly `state@.units`; the saved inventory is empty or the VM's |
-
-`restore_from_snapshot`, `restore`, and `finish_snapshot_restore` also keep
-`time_units`.
+| `finish_snapshot_restore` | `wf`, stopped | `wf`; runtime unchanged; snapshot unchanged (the clock restore changes only time) |
+| `time_abi_restore` (`dispatch/time_abi.rs`) | `wf`, stopped | `wf`; runtime unchanged; snapshot unchanged |
+| `StateUnits::advance_time` (`vmm_core/state_unit/src/advance_time.rs`) | `wf`, stopped | `wf`; same `advances_time`, inventory; units unchanged |
+| `InitializedVm::load(saved, .., snapshot_restore)` (`dispatch.rs`) | | on `Ok(vm)`: `vm.wf()`; stopped. With `saved` `None`: no unit recorded (`snapshot.units` empty), and no clock restore was pending. With `Some(state)`: the units have exactly `state@.units`; the saved inventory is empty or the VM's |
 
 `load`'s contract follows from the fresh VM it builds and
 `restore_from_snapshot`'s: `LoadedVmView::lemma_load_restores`
-(`dispatch.proof.rs`, verified) derives it from "no unit recorded, clock
-units set if pending" and `restore_from_snapshot`'s `Ok` result (a fresh
-VM records nothing, so the union with the saved units is the saved units).
-Negative check: claiming the clock units also take their saved state
-fails. The fresh-VM facts themselves are part of `load`'s unproved body:
-`make_ids` collects every unit's half, recording `Unknown`.
+(`dispatch.proof.rs`, verified) derives it from "no unit recorded" and
+`restore_from_snapshot`'s `Ok` result (a fresh VM records nothing, so the
+union with the saved units is the saved units). Negative check: claiming
+the restored VM records nothing fails. The fresh-VM facts themselves are
+part of `load`'s unproved body: `make_ids` collects every unit's half,
+recording `Unknown`.
 
-They compose: `begin` changes nothing, `restore` gives the union and keeps
-`clock_units`, and `finish` changes only `clock_units` and empties it. All
-`StateUnits` operations now also keep `advances_time`.
+They compose: `begin` changes nothing, `restore` gives the union, and
+`finish` changes nothing in the view. All `StateUnits` operations also keep
+`advances_time`.
 
 Concerns and TODOs:
 
-- **The clock units' restored state is unconstrained**, by decision: guest
-  time is out of scope for now ("Out of scope for now"). It is the saved
-  state advanced by the downtime (TSC target, LAPIC timers, VM time, RTC).
-- **The partition's view can go stale.** The TSC set and the LAPIC advance
-  write the partition's VPs directly through `partition_unit`, outside the
-  request protocol, so the partition's FracGhost half is not updated: after
-  `finish`, the view still says the partition holds its saved blob, while
-  its TSCs and timers differ. Likewise `omit_saved_tsc` means the partition's
-  `restore` does not fully apply its blob, against the unit-side restore
-  contract. The `restore_from_snapshot` contract is not affected (it says
-  nothing about clock units), but the view after it is wrong for the
-  partition. TODO: route these writes through a ghost-updating path, or mark
-  the partition's recorded state as changed (e.g. `Unknown`) after the
-  clock restore.
+- **The clock units' restored time is not modelled**, by decision: guest
+  time is out of scope for now ("Out of scope for now"). The TSC set and
+  the LAPIC advance write the partition's VPs directly, outside the request
+  protocol, and `omit_saved_tsc` makes the partition's `restore` skip its
+  saved TSC; both change only time, which the view leaves out, so the
+  partition's record stays true. (This resolves the earlier "partition's
+  stale view" concern.)
 - **`SnapshotRestore`'s view is uninterpreted** (trusted to mean
   `time_abi.is_some()`), because `SnapshotRestore` has private fields.
-- **`"partition"` is hard-coded** in `LoadedVm`'s view (the unit is added as
-  `"partition"` in `dispatch.rs`). TODO: share a constant, or derive the
-  set from the units the clock restore touches.
 - **Error paths**: on `Err`, only `wf`, runtime, and inventory are
   promised. A failed `begin` (a time ABI restore without partition state)
   or `restore` leaves the clock restore pending; a failed `finish` may have
@@ -1397,11 +1383,13 @@ What Stage 2 still needs, found by comparing the prototype with
   take many assumptions (the backend's TSC/host-clock pairing at the
   anchor, the host clocks' meaning and monotonicity, the hypervisor's TSC
   set and LAPIC advance, the controller's validated time inputs, vmtime's
-  saved stop time), so it is not worthwhile for now. What stays in the
-  spec: the time capture (`TimeCapture`, the VM-time cut) and the clock
-  units' restored state are unconstrained, and the clock restore's units
-  are named (`LoadedVmView::time_units`, `clock_units`) so that the
-  equality claims exclude them. What it would need, if taken up: a trusted
+  saved stop time), so it is not worthwhile for now. How it is kept out:
+  the units' views leave time out (`SavedStateBlobView::of` forgets the
+  time fields of the time-keeping units' saved states:
+  `equal_except_time`, trusted per type), so every equality claim is about
+  everything but time, and the clock restore changes nothing in the view;
+  the time capture (`TimeCapture`, the VM-time cut) is unconstrained. What
+  it would need, if taken up: a trusted
   contract on the backend's capture anchor (VP 0's TSC and the host sample
   are one instant within `pairing_ns`), vmtime exporting its saved stop
   time, the cut rule (`vm_time_cut_to_anchor_ns = capture_monotonic_ns -
@@ -1522,8 +1510,9 @@ concurrent per-pin writes into the PIC and IOAPIC.
    `restore_from_snapshot`.
    *Status:* done: contract stated (`external_body`), with the `None` case
    too, and checked against `restore_from_snapshot`'s by
-   `lemma_load_restores` (see "Restore from snapshot"). Added
-   `LoadedVmView::time_units` for it.
+   `lemma_load_restores` (see "Restore from snapshot"). (It first needed
+   `LoadedVmView::time_units`; that is gone since the views leave out
+   time.)
 3. **Replace the RPC calls with the mesh RPC wrapper**
    (`SNAPSHOT-SPEC-MESH-RPC.md`): `state_change` / `run_op` on the caller
    side (in `verus!` style, as on branch `system-proof/run-op-proof-attempt`)
@@ -1609,33 +1598,29 @@ important first.
 1. **Prove the contracts.** Every contract above has an unverified body
    (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as
    assumed until verified.
-2. **Next layer**: the controller
+2. **Next layer, deferred**: the controller
    (`VmController::handle_guest_snapshot_request`), which needs a decision
-   on the encoded `ProtobufMessage` (roadmap item 3). (`InitializedVm::load`
-   now has a contract.)
-3. **Partition's stale view after a clock restore**: the TSC set and LAPIC
-   advance change the partition outside the request protocol ("Restore from
-   snapshot"). (Specifying the clocks themselves is out of scope for now:
-   "Out of scope for now", guest time.)
-4. **Unit side**: for the production units, attach the `StateUnit` and
+   on relating the encoded `ProtobufMessage` to the worker's state (roadmap
+   item 3). Decided 2026-10-27: only the worker side (`LoadedVm`) for now;
+   the controller after the `LoadedVm` layer is verified.
+3. **Unit side**: for the production units, attach the `StateUnit` and
    request-loop contracts (blocked on async trait functions;
    `StateRequest::apply` no longer uses async closures; the blob layers,
    `SavedStateBlob` and `ProtobufSaveRestore`, are attached); the units not built on
    `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
    the PIT, see "Next steps (agreed)", item 5.
-5. **Other `ProtobufSaveRestore` implementations**: `ChipsetDeviceProxy`,
+4. **Other `ProtobufSaveRestore` implementations**: `ChipsetDeviceProxy`,
    `BoundVp`, `ErasedChipsetDevice` are trusted to meet its contract (the
    blanket impl for `SaveRestore` types is verified).
-6. **Quiesce path**: specified, except the time capture's content, which is
+5. **Quiesce path**: specified, except the time capture's content, which is
    out of scope for now (guest time, "Out of scope for now").
-7. **Pending proof**: `StateUnits::lemma_view_inv`.
-8. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
+6. **Pending proof**: `StateUnits::lemma_view_inv`.
+7. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
    trusted wrapper types' spec functions ("Convention TODOs").
-9. **Soundness review** of the mesh RPC wrapper (`mesh_rpc_verus`,
+8. **Soundness review** of the mesh RPC wrapper (`mesh_rpc_verus`,
    `src/mesh_rpc_t.rs`; the reply-ghost type argument). (The registry
    axioms are gone.)
-10. **Hard-coded `"partition"`** in `LoadedVm`'s view.
-11. **Unit removal during an operation**: a unit can be removed
+9. **Unit removal during an operation**: a unit can be removed
     (`UnitHandle`'s `Drop`) while a `StateUnits` operation runs; the specs
     of `stop`, `save`, `restore` (which say "same units") must allow it
     ("Where the halves come from", item 3).

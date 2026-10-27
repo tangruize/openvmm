@@ -971,13 +971,10 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
-            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
-            final(self)@.time_units == old(self)@.time_units,
-            final(self)@.clock_units == old(self)@.clock_units,
-            // Only the partition (TSCs, LAPIC timers) and the units that
-            // advance time (`AdvanceTime`) may change.
-            final(self)@.snapshot.units.remove_keys(old(self)@.time_units)
-                == old(self)@.snapshot.units.remove_keys(old(self)@.time_units),
+            // It changes only time (the partition's TSCs and LAPIC timers,
+            // VM time, the RTC), which the units' views leave out
+            // (`SavedStateBlobView::of`): the snapshot is unchanged.
+            final(self)@.snapshot == old(self)@.snapshot,
     ))]
     pub(super) async fn time_abi_restore(&mut self, input: RestoreTimeInput) -> anyhow::Result<()> {
         let state = self

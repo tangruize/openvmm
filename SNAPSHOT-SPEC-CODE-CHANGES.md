@@ -331,6 +331,14 @@ Baseline: upstream `nanvix/openvmm` commit
     `unsafe` only outside Verus (denies it under Verus), for
     `assume_specification`. Declarations of
     `MicrovmSnapshotBoundaryRequest` and `RecvError`.
+37. **The units' views leave out guest time** (Verus only, no runtime
+    change): `SavedStateBlobView::equal_except_time` (new) and the axioms
+    `axiom_of_injective` (now up to time) and `axiom_of_forgets_time`
+    (`vm/vmcore`); `LoadedVmView` loses `time_units` and `clock_units`;
+    `restore_from_snapshot`, `finish_snapshot_restore`,
+    `time_abi_restore`, `StateUnits::advance_time`, `InitializedVm::load`,
+    and `LoadedVm::restore` claim equality for every unit (no clock-unit
+    exclusions); `lemma_load_restores` is simplified.
 
 ### Planned: mesh RPC trusted spec
 

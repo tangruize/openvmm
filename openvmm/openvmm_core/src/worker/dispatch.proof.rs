@@ -53,29 +53,16 @@ pub struct ExRecvError(mesh::RecvError);
 impl LoadedVmView {
     /// `InitializedVm::load`'s contract for a restore follows from the VM it
     /// builds and `restore_from_snapshot`'s: `self` is the freshly built VM
-    /// (no unit's state recorded; clock units set if a time ABI restore is
-    /// pending), `after` the VM after `restore_from_snapshot` succeeded.
-    pub proof fn lemma_load_restores(
-        self,
-        state: SavedStateView,
-        pending: bool,
-        after: LoadedVmView,
-    )
+    /// (no unit's state recorded), `after` the VM after
+    /// `restore_from_snapshot` succeeded.
+    pub proof fn lemma_load_restores(self, state: SavedStateView, after: LoadedVmView)
         requires
             // The fresh VM.
             self.snapshot.units == Map::<Seq<char>, SavedStateBlobView>::empty(),
-            self.clock_units == (if pending { self.time_units } else { Set::empty() }),
             // `restore_from_snapshot`'s `Ok` result.
-            after.time_units == self.time_units,
-            after.snapshot.units.remove_keys(self.clock_units)
-                == self.snapshot.units.union_prefer_right(state.units).remove_keys(
-                self.clock_units,
-            ),
+            after.snapshot.units == self.snapshot.units.union_prefer_right(state.units),
         ensures
-            ({
-                let clock = if pending { after.time_units } else { Set::empty() };
-                after.snapshot.units.remove_keys(clock) == state.units.remove_keys(clock)
-            }),
+            after.snapshot.units == state.units,
     {
         assert(self.snapshot.units.union_prefer_right(state.units) =~= state.units);
     }

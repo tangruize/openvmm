@@ -211,8 +211,6 @@ impl LoadedVm {
             // untouched (`QuiesceInput` carries no ghost).
             final(self)@.snapshot == old(self)@.snapshot,
             final(self)@.recorded == old(self)@.recorded,
-            final(self)@.time_units == old(self)@.time_units,
-            final(self)@.clock_units == old(self)@.clock_units,
             final(self)@.runtime.running == old(self)@.runtime.running,
             // An active boundary stays active; a new one only on success.
             old(self)@.runtime.snapshot_boundary ==> final(self)@.runtime.snapshot_boundary,
@@ -313,8 +311,6 @@ impl LoadedVm {
             // Only the boundary changes (`ResumeInput` carries no ghost).
             final(self)@.snapshot == old(self)@.snapshot,
             final(self)@.recorded == old(self)@.recorded,
-            final(self)@.time_units == old(self)@.time_units,
-            final(self)@.clock_units == old(self)@.clock_units,
             final(self)@.runtime.running == old(self)@.runtime.running,
             result is Ok ==> !final(self)@.runtime.snapshot_boundary,
     ))]

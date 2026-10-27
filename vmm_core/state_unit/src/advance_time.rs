@@ -27,11 +27,10 @@ impl StateUnits {
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
-            final(self)@.units.dom() == old(self)@.units.dom(),
-            // Only the units that advance time may change.
-            forall|name: Seq<char>| #[trigger] old(self)@.units.contains_key(name)
-                && !old(self)@.advances_time.contains(name)
-                ==> final(self)@.units[name] == old(self)@.units[name],
+            // Advancing time changes only time, which the units' views
+            // leave out (`SavedStateBlobView::of`): nothing changes in the
+            // view.
+            final(self)@.units == old(self)@.units,
     ))]
     pub async fn advance_time(&mut self, duration: Duration) -> Result<(), StateTransitionError> {
         assert!(!self.running);

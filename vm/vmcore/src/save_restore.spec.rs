@@ -31,10 +31,16 @@ pub struct ExRestoreError(RestoreError);
 /// encodes, independent of its protobuf encoding. A blob that encodes
 /// `value: T` has view `SavedStateBlobView::of(value)`.
 ///
+/// The view forgets guest time, which is out of the spec's scope
+/// (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope for now"): for the saved-state
+/// types of the units that keep guest time (the partition's VPs: TSC and
+/// LAPIC timers; vmtime; the RTC's clock), values that differ only in their
+/// time fields have the same view. For other types it forgets nothing.
+///
 /// The trusted contract (`save_restore_t.rs`): `SavedStateBlob::new(value)`
 /// has view `of(value)`; a successful `parse::<T>()` returns a `value` with
-/// `of(value)` equal to the blob's view; and `of::<T>` is injective, so
-/// decoding returns exactly the value that was encoded.
+/// `of(value)` equal to the blob's view; and `of(a) == of(b)` exactly when
+/// `a` and `b` are equal except for time (`equal_except_time`).
 #[verifier::external_body]
 pub struct SavedStateBlobView {
     _private: (),
@@ -43,6 +49,13 @@ pub struct SavedStateBlobView {
 impl SavedStateBlobView {
     /// The view of a blob that encodes `value`, of saved-state type `T`.
     pub uninterp spec fn of<T>(value: T) -> SavedStateBlobView;
+
+    /// `a` and `b` differ at most in their time fields. Equality for a type
+    /// without time fields; for the time-keeping units' types, equality
+    /// except the TSC and LAPIC timer state (the partition's VPs), the VM
+    /// time and its stop time (vmtime), and the clock (the RTC). Trusted per
+    /// type.
+    pub uninterp spec fn equal_except_time<T>(a: T, b: T) -> bool;
 }
 
 impl View for SavedStateBlob {

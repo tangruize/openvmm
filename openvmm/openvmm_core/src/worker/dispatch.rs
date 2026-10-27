@@ -1755,9 +1755,8 @@ impl InitializedVm {
         ensures
             result matches Ok(vm) ==> {
                 &&& vm.wf()
-                // Loaded stopped, with no clock restore left pending.
+                // Loaded stopped.
                 &&& !vm@.runtime.running
-                &&& vm@.clock_units.is_empty()
                 &&& match saved_state {
                     // A fresh VM: no unit's state is recorded yet.
                     None => {
@@ -1766,15 +1765,9 @@ impl InitializedVm {
                     },
                     // Restored from `state`.
                     Some(state) => {
-                        // The units the clock restore changed, if there was
-                        // one (their restored state is not yet specified).
-                        let clock = if snapshot_restore@.clock_restore_pending {
-                            vm@.time_units
-                        } else {
-                            Set::empty()
-                        };
-                        // The other units have exactly the saved states.
-                        &&& vm@.snapshot.units.remove_keys(clock) == state@.units.remove_keys(clock)
+                        // The units have exactly the saved states (in the
+                        // view, which leaves out time).
+                        &&& vm@.snapshot.units == state@.units
                         // The saved inventory, if any, matches the VM's.
                         &&& state@.inventory.len() == 0 || state@.inventory == vm@.snapshot.inventory
                     },
@@ -4723,8 +4716,6 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
-            final(self)@.time_units == old(self)@.time_units,
-            final(self)@.clock_units == old(self)@.clock_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {
                 // Units with saved state take it; the others keep theirs.

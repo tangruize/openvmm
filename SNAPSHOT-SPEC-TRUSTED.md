@@ -36,7 +36,7 @@ only where a trusted item gives them meaning.
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
 | `LoadedVm::restore_from_snapshot`, `begin_snapshot_restore`, `finish_snapshot_restore` | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same (design doc, "Restore from snapshot"). |
 | `InitializedVm::load` | `openvmm/openvmm_core/src/worker/dispatch.rs` | Same (design doc, "Restore from snapshot"). Includes the fresh-VM facts: every unit's half collected, recording `Unknown`. |
-| `LoadedVm::time_abi_restore` | `openvmm/openvmm_core/src/worker/dispatch/time_abi.rs` | Same. Claims the clock restore changes only the partition and the units that advance time. |
+| `LoadedVm::time_abi_restore` | `openvmm/openvmm_core/src/worker/dispatch/time_abi.rs` | Same. Claims the clock restore changes only time (so nothing in the view). |
 | `StateUnits::advance_time` | `vmm_core/state_unit/src/advance_time.rs` | Same. |
 | `View for SnapshotRestore` (uninterpreted) | `openvmm/openvmm_core/src/worker/dispatch.spec.rs` | `clock_restore_pending` is `time_abi.is_some()` (`SnapshotRestore` has private fields, so Verus cannot see it). |
 
@@ -57,7 +57,8 @@ Protobuf encoding and decoding are not verified.
 | Item | What is trusted |
 |---|---|
 | `View for SavedStateBlob` (uninterpreted) | A blob's view is the typed value it encodes. |
-| **AXIOM** `SavedStateBlobView::axiom_of_injective` | `of::<T>` is injective: each saved-state type's protobuf encoding loses nothing, so decoding returns exactly the value encoded. Nothing is assumed across types. |
+| **AXIOM** `SavedStateBlobView::axiom_of_injective`, `axiom_of_forgets_time` | `of(a) == of(b)` exactly when `equal_except_time(a, b)`: each saved-state type's protobuf encoding loses nothing, and the view forgets only the time fields of the time-keeping units' saved states (guest time is out of scope). Nothing is assumed across types. |
+| `SavedStateBlobView::equal_except_time` (uninterpreted) | Equality for a type without time fields; for the partition's VP state, vmtime's and the RTC's saved state, equality except the TSC and LAPIC timer state, the VM time and its stop time, and the clock. Trusted per type. |
 | `assume_specification` for `SavedStateBlob::clone` | A clone encodes the same value: `result@ == blob@`. |
 | `assume_specification` for `SavedStateBlob::new` / `parse` | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Needs Verus patch 0003. |
 | Protobuf trait chain declared to Verus | `SavedStateRoot`, `DescribedProtobuf`, `Protobuf`, `DefaultEncoding`, the codec traits, `DescribeMessage`, `NoResources`, the encoders `TableEncoder` and `OneofEncoder` with their traits (`external_trait_specification` / `external_type_specification`, no methods). Verus checks the declared bounds against the real traits. |
