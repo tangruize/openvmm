@@ -11,8 +11,15 @@ use super::PartitionUnit;
 use super::PartitionUnitParams;
 use super::PartitionUnitRunner;
 use super::StopGuard;
+// The snapshot requests go through the mesh RPC wrapper, with placeholder
+// ghosts (`PartitionRequest`'s protocol is not yet specified).
+use mesh::error::RemoteError;
 use mesh::rpc::FailableRpc;
-use mesh::rpc::RpcSend;
+use mesh_rpc_verus::call;
+use mesh_rpc_verus::complete;
+use mesh_rpc_verus::split;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 /// Snapshot requests handled by the partition unit runner.
 pub(super) enum SnapshotRequest {
@@ -59,12 +66,15 @@ impl PartitionUnit {
         release_io: mesh::OneshotSender<()>,
         io_completed: mesh::OneshotReceiver<()>,
     ) -> anyhow::Result<StopGuard> {
-        self.req_send
-            .call_failable(
-                |rpc| PartitionRequest::Snapshot(SnapshotRequest::StopVpsAtIoBoundary(rpc)),
-                (release_io, io_completed),
-            )
-            .await?;
+        call(
+            &self.req_send,
+            |rpc| PartitionRequest::Snapshot(SnapshotRequest::StopVpsAtIoBoundary(rpc)),
+            (release_io, io_completed),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv_failable()
+        .await?;
         Ok(StopGuard(self.req_send.clone()))
     }
 
@@ -72,12 +82,15 @@ impl PartitionUnit {
     /// (`E_LAPIC_PERIODIC`, `E_LAPIC_TSC_DEADLINE`).
     #[cfg(guest_arch = "x86_64")]
     pub async fn check_one_shot_timers(&mut self) -> anyhow::Result<()> {
-        self.req_send
-            .call_failable(
-                |rpc| PartitionRequest::Snapshot(SnapshotRequest::CheckTimers(rpc)),
-                (),
-            )
-            .await?;
+        call(
+            &self.req_send,
+            |rpc| PartitionRequest::Snapshot(SnapshotRequest::CheckTimers(rpc)),
+            (),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv_failable()
+        .await?;
         Ok(())
     }
 
@@ -90,12 +103,15 @@ impl PartitionUnit {
         downtime_ns: u64,
         apic_hz: u64,
     ) -> anyhow::Result<()> {
-        self.req_send
-            .call_failable(
-                |rpc| PartitionRequest::Snapshot(SnapshotRequest::AdvanceLapic(rpc)),
-                (downtime_ns, apic_hz),
-            )
-            .await?;
+        call(
+            &self.req_send,
+            |rpc| PartitionRequest::Snapshot(SnapshotRequest::AdvanceLapic(rpc)),
+            (downtime_ns, apic_hz),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv_failable()
+        .await?;
         Ok(())
     }
 
@@ -104,13 +120,16 @@ impl PartitionUnit {
     /// a per-VP TSC write before it.
     #[cfg(guest_arch = "x86_64")]
     pub async fn omit_saved_tsc(&mut self) {
-        self.req_send
-            .call(
-                |rpc| PartitionRequest::Snapshot(SnapshotRequest::OmitSavedTsc(rpc)),
-                (),
-            )
-            .await
-            .unwrap();
+        call(
+            &self.req_send,
+            |rpc| PartitionRequest::Snapshot(SnapshotRequest::OmitSavedTsc(rpc)),
+            (),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv()
+        .await
+        .unwrap();
     }
 }
 
@@ -119,32 +138,43 @@ impl PartitionUnitRunner {
     pub(super) async fn handle_snapshot(&mut self, request: SnapshotRequest) {
         match request {
             SnapshotRequest::StopVpsAtIoBoundary(rpc) => {
-                rpc.handle_failable(async |(release_io, io_completed)| {
-                    // Keep the stop reference on failure too: a failed
-                    // boundary must not be restarted before teardown.
-                    self.vp_stop_count += 1;
-                    self.vp_set
-                        .stop_at_io_boundary(release_io, io_completed)
-                        .await
-                })
-                .await
+                let ((release_io, io_completed), rpc) = split::<_, _, ()>(rpc);
+                // Keep the stop reference on failure too: a failed
+                // boundary must not be restarted before teardown.
+                self.vp_stop_count += 1;
+                let r = self
+                    .vp_set
+                    .stop_at_io_boundary(release_io, io_completed)
+                    .await
+                    .map_err(RemoteError::new);
+                complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
             SnapshotRequest::CheckTimers(rpc) => {
-                rpc.handle_failable(async |()| self.vp_set.check_one_shot_timers().await)
+                let ((), rpc) = split::<_, _, ()>(rpc);
+                let r = self
+                    .vp_set
+                    .check_one_shot_timers()
                     .await
+                    .map_err(RemoteError::new);
+                complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
             SnapshotRequest::AdvanceLapic(rpc) => {
-                rpc.handle_failable(async |(downtime_ns, apic_hz)| {
-                    self.vp_set.advance_lapic_timers(downtime_ns, apic_hz).await
-                })
-                .await
+                let ((downtime_ns, apic_hz), rpc) = split::<_, _, ()>(rpc);
+                let r = self
+                    .vp_set
+                    .advance_lapic_timers(downtime_ns, apic_hz)
+                    .await
+                    .map_err(RemoteError::new);
+                complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
-            SnapshotRequest::OmitSavedTsc(rpc) => rpc.handle_sync(|()| {
+            SnapshotRequest::OmitSavedTsc(rpc) => {
+                let ((), rpc) = split::<_, _, ()>(rpc);
                 self.omit_saved_tsc = true;
-            }),
+                complete(rpc, (), Tracked::<()>::assume_new());
+            }
         }
     }
 }

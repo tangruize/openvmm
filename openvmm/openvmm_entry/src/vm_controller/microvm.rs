@@ -7,11 +7,12 @@ use super::VmController;
 use super::VmControllerEvent;
 use crate::microvm::MicrovmResources;
 use anyhow::Context;
-use mesh::rpc::RpcSend;
 use openvmm_defs::rpc::SnapshotQuiesceError;
 use openvmm_defs::rpc::VmRpc;
 use std::path::PathBuf;
 use std::time::Duration;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 /// MicroVM state owned by the VM controller.
 #[derive(Default)]
@@ -241,13 +242,18 @@ impl VmController {
             }
         }
 
-        let response = match self
-            .vm_rpc
-            .call(
-                VmRpc::QuiesceForSnapshot,
-                self.microvm.snapshot_quiesce_timeout,
-            )
-            .await
+        // Through the mesh RPC wrapper, with placeholder ghosts (`VmRpc`'s
+        // protocol is not yet specified).
+        let response = match mesh_rpc_verus::call(
+            &self.vm_rpc,
+            VmRpc::QuiesceForSnapshot,
+            self.microvm.snapshot_quiesce_timeout,
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv()
+        .await
+        .map(|(response, _ghost)| response)
         {
             Ok(Ok(response)) => response,
             Ok(Err(SnapshotQuiesceError::Rejected(error))) => {
@@ -514,13 +520,16 @@ impl VmController {
             error = error.as_ref() as &dyn std::error::Error,
             "microVM snapshot failed before commit; attempting rollback"
         );
-        match self
-            .vm_rpc
-            .call_failable(
-                VmRpc::ResumeAfterFailedSnapshot,
-                self.microvm.snapshot_quiesce_timeout,
-            )
-            .await
+        match mesh_rpc_verus::call(
+            &self.vm_rpc,
+            VmRpc::ResumeAfterFailedSnapshot,
+            self.microvm.snapshot_quiesce_timeout,
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv_failable()
+        .await
+        .map(|((), _ghost)| ())
         {
             Ok(()) => {
                 tracing::info!("microVM snapshot rollback succeeded; guest resumed");
@@ -537,10 +546,16 @@ impl VmController {
     }
 
     async fn release_snapshot_boundary_without_capture(&mut self) -> GuestSnapshotAction {
-        match self
-            .vm_rpc
-            .call_failable(VmRpc::ReleaseSnapshotBoundary, ())
-            .await
+        match mesh_rpc_verus::call(
+            &self.vm_rpc,
+            VmRpc::ReleaseSnapshotBoundary,
+            (),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv_failable()
+        .await
+        .map(|((), _ghost)| ())
         {
             Ok(()) => GuestSnapshotAction::Continue,
             Err(error) => {

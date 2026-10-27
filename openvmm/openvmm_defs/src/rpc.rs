@@ -18,6 +18,12 @@ use vm_resource::Resource;
 use vm_resource::kind::PciDeviceHandleKind;
 use vm_resource::kind::VmbusDeviceHandleKind;
 
+/// Verus specification of the VM worker's RPC channel.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("rpc.spec.rs");
+}
+
 #[derive(MeshPayload)]
 pub enum VmRpc {
     Save(FailableRpc<(), ProtobufMessage>),

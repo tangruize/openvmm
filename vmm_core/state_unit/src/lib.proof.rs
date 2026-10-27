@@ -9,7 +9,7 @@ use crate::State;
 use crate::StateRequest;
 use crate::StateUnits;
 use crate::Unit;
-use crate::mesh_rpc_t::*;
+use mesh_rpc_verus::*;
 use crate::mutex_t::MutexPredicate;
 use crate::UnitSnapshot;
 use mesh::error::RemoteError;

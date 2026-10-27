@@ -15,6 +15,7 @@ vmcore.workspace = true
 
 inspect = { workspace = true, features = ["defer"] }
 mesh.workspace = true
+mesh_rpc_verus.workspace = true
 pal_async.workspace = true
 
 anyhow.workspace = true

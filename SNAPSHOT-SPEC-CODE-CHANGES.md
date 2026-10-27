@@ -264,6 +264,29 @@ Baseline: upstream `nanvix/openvmm` commit
     `finish_snapshot_restore`, `time_abi_restore` keep `time_units`
     (`time_abi_restore` now states its frame with it); verified lemma
     `LoadedVmView::lemma_load_restores` (`dispatch.proof.rs`).
+31. **State requests through the mesh RPC wrapper** (runtime behavior
+    unchanged; `vmm_core/state_unit/src/lib.rs`): `call_unit` sends with
+    `mesh_rpc_t::call` and waits with `PendingCall::recv` instead of
+    `RpcSend::call`; `run_unit` and `run_async_unit` receive with
+    `mesh_rpc_t::recv_msg` instead of `recv.next()`; `StateRequest::apply`
+    replies with `mesh_rpc_t::split` / `complete` instead of `Rpc::handle` /
+    `handle_failable` (no async closures; errors converted with
+    `RemoteError::new`, as before). Placeholder ghosts throughout.
+32. **Mesh RPC wrapper as its own crate, used for `VmRpc` and
+    `PartitionRequest`** (runtime behavior unchanged): new crate
+    `mesh_rpc_verus` (`support/mesh/mesh_rpc_verus`; `state_unit`'s
+    `mesh_rpc_t.rs` moved there, and `state_unit` uses it as
+    `mesh_rpc_verus`), adding `PendingCall::recv_failable`. Placeholder
+    protocols (uninterpreted `request_ok`): `openvmm/openvmm_defs/src/rpc.spec.rs`
+    (`VmRpc`) and `vmm_core/src/partition_unit.spec.rs` (`PartitionRequest`).
+    Switched to the wrapper, both ends: `VmRpc`'s `QuiesceForSnapshot`,
+    `ResumeAfterFailedSnapshot`, `ReleaseSnapshotBoundary`
+    (`openvmm_entry/src/vm_controller/microvm.rs`, `openvmm_core`'s
+    `dispatch.rs`); `PartitionRequest`'s `StopVps` and `Snapshot`
+    requests (`vmm_core/src/partition_unit.rs`, `partition_unit/snapshot.rs`).
+    `vmm_core` is Verus-enabled (`[package.metadata.verus]`, `vstd`,
+    `build.rs` declares `verus_keep_ghost`). rustfmt reordered imports in
+    `dispatch/microvm.rs`, `restore.rs`, `time_abi.rs`.
 
 ### Planned: mesh RPC trusted spec
 

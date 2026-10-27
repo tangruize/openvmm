@@ -7,6 +7,11 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+#[expect(unused_imports)]
+use vstd::prelude::*;
+
 pub mod acpi_builder;
 pub mod cpuid;
 pub mod device_builder;

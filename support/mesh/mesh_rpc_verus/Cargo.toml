@@ -1,0 +1,20 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[package]
+name = "mesh_rpc_verus"
+edition.workspace = true
+rust-version.workspace = true
+
+[package.metadata.verus]
+verify = true
+
+[dependencies]
+mesh.workspace = true
+vstd.workspace = true
+
+[dev-dependencies]
+pal_async.workspace = true
+
+[lints]
+workspace = true

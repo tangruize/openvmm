@@ -74,6 +74,7 @@ guid = { workspace = true, features = ["getrandom"] }
 inspect.workspace = true
 inspect_proto.workspace = true
 mesh.workspace = true
+mesh_rpc_verus.workspace = true
 mesh_rpc.workspace = true
 mesh_process.workspace = true
 mesh_worker.workspace = true

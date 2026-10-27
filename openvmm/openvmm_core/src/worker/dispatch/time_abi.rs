@@ -8,8 +8,6 @@
 #![cfg(guest_arch = "x86_64")]
 
 use super::LoadedVm;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 use crate::partition::HvlitePartition;
 use anyhow::Context as _;
 use chipset_resources::microvm_time::RestoreTimeRecord;
@@ -54,6 +52,8 @@ use virt::time_abi::surface::SupportedCpuSurface;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// The name of the time ABI state unit.
 pub(super) const TIME_ABI_UNIT: &str = "time-abi";

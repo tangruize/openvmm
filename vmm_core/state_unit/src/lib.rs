@@ -37,8 +37,6 @@ mod advance_time;
 #[cfg(verus_keep_ghost)]
 pub mod device_unit;
 mod inventory;
-#[allow(dead_code)] // the RPC wrappers are for verified code, still to come
-mod mesh_rpc_t;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;
 pub mod quiesce;
@@ -63,7 +61,6 @@ pub mod spec {
     }
 }
 
-
 #[cfg(verus_keep_ghost)]
 use spec::UnitSnapshot;
 #[cfg(verus_keep_ghost)]
@@ -80,11 +77,11 @@ use inspect::InspectMut;
 use mesh::MeshPayload;
 use mesh::Receiver;
 use mesh::Sender;
+use mesh::error::RemoteError;
 use mesh::payload::Protobuf;
 use mesh::rpc::FailableRpc;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcError;
-use mesh::rpc::RpcSend;
 use pal_async::task::Spawn;
 use pal_async::task::Task;
 use std::collections::BTreeMap;
@@ -104,6 +101,8 @@ use tracing::Instrument;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 /// A state change request.
 #[derive(Debug, MeshPayload)]
@@ -184,7 +183,7 @@ pub trait StateUnit: InspectMut {
 
 /// Runs a simple unit that only needs to respond to state requests.
 pub async fn run_unit<T: StateUnit>(mut unit: T, mut recv: Receiver<StateRequest>) -> T {
-    while let Some(req) = recv.next().await {
+    while let Some((req, _ghost)) = mesh_rpc_verus::recv_msg(&mut recv).await {
         req.apply(&mut unit).await;
     }
     unit
@@ -196,7 +195,7 @@ pub async fn run_async_unit<T>(unit: T, mut recv: Receiver<StateRequest>) -> T
 where
     for<'a> &'a T: StateUnit,
 {
-    while let Some(req) = recv.next().await {
+    while let Some((req, _ghost)) = mesh_rpc_verus::recv_msg(&mut recv).await {
         req.apply_with_concurrent_inspects(&mut &unit, &mut recv)
             .await;
     }
@@ -256,31 +255,65 @@ impl StateRequest {
     }
 
     /// Runs this state request against `unit`.
+    ///
+    /// Replies through the mesh RPC wrapper (`mesh_rpc_verus::split`,
+    /// `complete`), with placeholder ghosts: the units answering here are
+    /// unverified. (Equivalent to `Rpc::handle` / `handle_failable`.)
     pub async fn apply(self, unit: &mut impl StateUnit) {
+        use mesh_rpc_verus::complete;
+        use mesh_rpc_verus::split;
         match self {
-            StateRequest::Start(rpc) => rpc.handle_failable(async |()| unit.start().await).await,
-            StateRequest::Stop(rpc) => rpc.handle(async |()| unit.stop().await).await,
+            StateRequest::Start(rpc) => {
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.start().await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
+            }
+            StateRequest::Stop(rpc) => {
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                unit.stop().await;
+                complete(rpc, (), no_reply_ghost());
+            }
             StateRequest::QuiesceInput(rpc) => {
-                rpc.handle_failable(async |()| unit.quiesce_input().await)
-                    .await
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.quiesce_input().await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
             }
             StateRequest::ResumeInput(rpc) => {
-                rpc.handle_failable(async |()| unit.resume_input().await)
-                    .await
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.resume_input().await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
             }
-            StateRequest::Reset(rpc) => rpc.handle_failable(async |()| unit.reset().await).await,
-            StateRequest::Save(rpc) => rpc.handle_failable(async |()| unit.save().await).await,
+            StateRequest::Reset(rpc) => {
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.reset().await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
+            }
+            StateRequest::Save(rpc) => {
+                let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.save().await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
+            }
             StateRequest::Restore(rpc) => {
-                rpc.handle_failable(async |buffer| unit.restore(buffer).await)
-                    .await
+                let (buffer, rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.restore(buffer).await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
             }
             StateRequest::AdvanceTime(rpc) => {
-                rpc.handle_failable(async |duration| unit.advance_time(duration).await)
-                    .await
+                let (duration, rpc) = split::<_, _, ReplyGhost>(rpc);
+                let r = unit.advance_time(duration).await.map_err(RemoteError::new);
+                complete(rpc, r, no_reply_ghost());
             }
             StateRequest::Inspect(req) => req.inspect(unit),
         }
     }
+}
+
+/// The ghost a unit's reply carries (`MeshProtocol::GhostOut`).
+type ReplyGhost = <StateRequest as mesh_rpc_verus::MeshProtocol>::GhostOut;
+
+/// A placeholder reply ghost, for unverified units.
+fn no_reply_ghost() -> Tracked<ReplyGhost> {
+    Tracked::assume_new()
 }
 
 /// A set of state units.
@@ -992,10 +1025,19 @@ async fn call_unit<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> Stat
     input: I,
 ) -> Result<R, UnitRecvError> {
     let start = Instant::now();
-    let r = send
-        .call(request, input)
-        .await
-        .map_err(|err| UnitRecvError { name, source: err });
+    // Through the mesh RPC wrapper, with placeholder ghosts: the halves are
+    // not yet passed (`run_op` is unverified).
+    let r = mesh_rpc_verus::call(
+        &send,
+        request,
+        input,
+        Tracked::assume_new(),
+        Ghost::assume_new(),
+    )
+    .recv()
+    .await
+    .map(|(r, _ghost)| r)
+    .map_err(|err| UnitRecvError { name, source: err });
     tracing::debug!(duration = ?Instant::now() - start, "device state change complete");
     r
 }

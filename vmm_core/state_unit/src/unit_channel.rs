@@ -4,9 +4,9 @@
 //! The channel of a new state unit, with the unit's FracGhost.
 
 use crate::StateRequest;
-use crate::mesh_rpc_t::*;
 use mesh::Receiver;
 use mesh::Sender;
+use mesh_rpc_verus::*;
 use vstd::prelude::*;
 
 verus! {

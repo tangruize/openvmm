@@ -33,14 +33,14 @@ use openvmm_defs::rpc::VmRpc;
 use openvmm_defs::worker::VmWorkerParameters;
 use std::sync::Arc;
 use std::time::Duration;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 use virtio::VirtioMmioDevice;
 use virtio::VirtioMmioInterruptMode;
 use virtio::resolve::ResolvedVirtioDevice;
 use vm_loader::InitialLoad;
 use vmcore::vm_task::VmTaskDriverSource;
 use vmm_core::partition_unit::StopGuard;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// The microVM part of the worker [`Manifest`]: the subset of
 /// [`MicrovmConfig`] that the worker consumes after validating the

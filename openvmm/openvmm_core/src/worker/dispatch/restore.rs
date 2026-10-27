@@ -7,8 +7,6 @@
 //! steps around applying the saved state, and the post-restore start sequence
 //! (input gate, readiness event, and VP release).
 
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 use super::LoadedVm;
 use anyhow::Context;
 use futures::FutureExt;
@@ -33,6 +31,8 @@ use std::io::Write as _;
 use std::time::Duration;
 use vm_resource::ResourceId;
 use vmm_core::partition_unit::StopGuard;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// Snapshot-restore inputs taken from the [`VmWorkerParameters`].
 pub(super) struct RestoreParameters {

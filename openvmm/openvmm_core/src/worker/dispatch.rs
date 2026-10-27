@@ -189,6 +189,8 @@ use vmotherboard::options::BaseChipsetManifest;
 use vmotherboard::options::VmChipsetCapabilities;
 #[cfg(all(windows, feature = "virt_whp"))]
 use vpci::bus::VpciBus;
+#[cfg(not(verus_keep_ghost))]
+use vstd::prelude::Tracked;
 use watchdog_core::platform::BaseWatchdogPlatform;
 use watchdog_core::platform::WatchdogCallback;
 use watchdog_core::platform::WatchdogPlatform;
@@ -4209,19 +4211,29 @@ impl LoadedVm {
                         rpc.handle_failable(async |()| self.save().await.map(ProtobufMessage::new))
                             .await
                     }
+                    // The snapshot requests reply through the mesh RPC
+                    // wrapper, with placeholder ghosts (`VmRpc`'s protocol is
+                    // not yet specified).
                     VmRpc::QuiesceForSnapshot(rpc) => {
-                        rpc.handle(async |timeout| self.quiesce_for_snapshot(timeout).await)
-                            .await;
+                        let (timeout, rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
+                        let r = self.quiesce_for_snapshot(timeout).await;
+                        mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ResumeAfterFailedSnapshot(rpc) => {
-                        rpc.handle_failable(async |timeout| {
-                            self.resume_after_failed_snapshot(timeout).await
-                        })
-                        .await;
+                        let (timeout, rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
+                        let r = self
+                            .resume_after_failed_snapshot(timeout)
+                            .await
+                            .map_err(RemoteError::new);
+                        mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ReleaseSnapshotBoundary(rpc) => {
-                        rpc.handle_failable(async |()| self.release_snapshot_boundary().await)
+                        let ((), rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
+                        let r = self
+                            .release_snapshot_boundary()
                             .await
+                            .map_err(RemoteError::new);
+                        mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::Nmi(rpc) => rpc.handle_sync(|vpindex| {
                         if vpindex < self.inner.processor_topology.vp_count() {

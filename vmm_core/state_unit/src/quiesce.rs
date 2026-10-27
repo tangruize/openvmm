@@ -15,9 +15,9 @@ use mesh::CancelContext;
 use mesh::rpc::FailableRpc;
 use std::time::Duration;
 use std::time::Instant;
+use thiserror::Error;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
-use thiserror::Error;
 
 /// A bounded quiesce failed and the VM must not be saved.
 #[derive(Debug, Error)]

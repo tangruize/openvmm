@@ -58,7 +58,7 @@ Protobuf encoding and decoding are not verified.
 | `assume_specification` for `SavedStateBlob::clone` | A clone encodes the same value: `result@ == blob@`. |
 | Contract of `SavedStateBlob::new` / `parse` (stated, **not yet attached**) | `new(data)@ == of(data)`; a successful `parse::<T>()` returns `value` with `of(value) == blob@` (`parse` checks the type URL). Not attachable yet: the `T: SavedStateRoot` bound needs the protobuf trait chain declared to Verus. To be attached with the unit side, through a local `encode`/`decode` trait. |
 
-## Mesh RPC (`vmm_core/state_unit/src/mesh_rpc_t.rs`)
+## Mesh RPC (`support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`)
 
 All functions are `external_body` wrappers around the real `mesh` API; their
 contracts are assumptions about mesh. See the file header, and
@@ -70,6 +70,8 @@ contracts are assumptions about mesh. See the file header, and
 | Replies | Each `Rpc`'s reply goes only to the `PendingCall` created with it; `complete` consumes the `Rpc`, so it is answered at most once. |
 | Failure | If the message or the `Rpc` is dropped, the caller gets `Err` and no ghost. |
 | `call` / `PendingCall::recv` | On `Ok`, the reply and its ghost satisfy the caller's expectation `post`; the caller had to establish `request_ok` for the message built by `f`. |
+| `PendingCall::recv_failable` | As `RpcSend::call_failable`: a remote `Err(e)` becomes `RpcError::Call(e)`; on `Ok(t)`, `post(Ok(t), gout)`. |
+| Protocols of `VmRpc` and `PartitionRequest` | None assumed: `request_ok` is uninterpreted (placeholders; `openvmm_defs/src/rpc.spec.rs`, `vmm_core/src/partition_unit.spec.rs`). Their unverified call sites pass placeholder ghosts. |
 | `recv_msg` | The received message and ghost satisfy `request_ok` for the channel's constant. |
 | `split`, `complete` | `split` returns the `Rpc`'s input and keeps its reply contract; `complete` requires the reply contract. |
 | Reply ghost type | `Rpc::reply_ok::<G>` is uninterpreted for every `G`; the only facts about it come from `call`, for `G = M::GhostOut`. Argument that a mismatched type cannot be used: file header. **Needs soundness review.** |

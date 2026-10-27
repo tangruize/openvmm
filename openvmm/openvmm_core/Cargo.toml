@@ -100,6 +100,7 @@ guid = { workspace = true, features = ["getrandom"] }
 inspect.workspace = true
 mesh_worker.workspace = true
 mesh.workspace = true
+mesh_rpc_verus.workspace = true
 pal_async.workspace = true
 range_map_vec.workspace = true
 sparse_mmap.workspace = true

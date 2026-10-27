@@ -6,6 +6,9 @@ name = "vmm_core"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 dump = ["hyperv_dump"]
 gdb = ["iced-x86", "virt_support_aarch64emu", "virt_support_x86emu"]
@@ -46,6 +49,8 @@ cache_topology.workspace = true
 closeable_mutex.workspace = true
 inspect = { workspace = true, features = ["std"] }
 mesh.workspace = true
+mesh_rpc_verus.workspace = true
+vstd.workspace = true
 pal_async.workspace = true
 
 anyhow.workspace = true

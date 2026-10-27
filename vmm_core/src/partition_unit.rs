@@ -7,6 +7,12 @@ mod debug;
 mod snapshot;
 mod vp_set;
 
+/// Verus specification of the partition unit's request channel.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("partition_unit.spec.rs");
+}
+
 pub use vp_set::Halt;
 pub use vp_set::RequestYield;
 pub use vp_set::RunCancelled;
@@ -47,6 +53,8 @@ use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 use vmm_core_defs::HaltReason;
 use vp_set::VpSet;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 
 /// The control point for managing a partition unit.
 pub struct PartitionUnit {
@@ -282,10 +290,18 @@ impl PartitionUnit {
     /// Temporarily stops the VPs, returning a guard that will resume them when
     /// dropped.
     pub async fn temporarily_stop_vps(&mut self) -> StopGuard {
-        self.req_send
-            .call(PartitionRequest::StopVps, ())
-            .await
-            .unwrap();
+        // Through the mesh RPC wrapper, with placeholder ghosts
+        // (`PartitionRequest`'s protocol is not yet specified).
+        mesh_rpc_verus::call(
+            &self.req_send,
+            PartitionRequest::StopVps,
+            (),
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv()
+        .await
+        .unwrap();
 
         StopGuard(self.req_send.clone())
     }
@@ -394,7 +410,9 @@ impl PartitionUnitRunner {
                         .await
                     }
                     PartitionRequest::StopVps(rpc) => {
-                        rpc.handle(async |()| self.stop_vps().await).await
+                        let ((), rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
+                        self.stop_vps().await;
+                        mesh_rpc_verus::complete(rpc, (), Tracked::<()>::assume_new());
                     }
                     PartitionRequest::Snapshot(req) => self.handle_snapshot(req).await,
                     PartitionRequest::StartVps => {

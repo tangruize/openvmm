@@ -81,7 +81,7 @@ Places that do not yet follow the conventions above:
 - **Trusted wrapper types** have spec functions besides a view: mesh
   `Sender`/`Receiver` (`constant()`, `attached()`), `Rpc` (`spec_input()`,
   `reply_ok()`), `PendingCall` (`reply_ok()`) in
-  `vmm_core/state_unit/src/mesh_rpc_t.rs`, and the mutex wrapper
+  `support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`, and the mutex wrapper
   (`vmm_core/state_unit/src/mutex_t.rs`). They describe what the trusted
   layer guarantees rather than an abstraction of the data; decide whether
   to keep them or recast them as views.
@@ -881,10 +881,11 @@ New trusted facts and assumptions:
 - Channel failures (a unit's task gone) do not happen for a registered unit:
   OpenVMM's `run_op` panics on them, and the ghost would be lost.
 
-Not yet done: the production unit side (`run_unit`, `StateRequest::apply`,
-each `StateUnit`) is blocked on async trait functions and async closures
-(gap 1); the verified unit `DeviceUnit` meets the protocol for devices
-implementing `StateUnitDevice` ("The verified unit").
+Not yet done: the production unit side (each `StateUnit`) is blocked on
+async trait functions (gap 1); `run_unit` and `StateRequest::apply` now use
+the mesh RPC wrapper, unverified, with placeholder ghosts. The verified unit
+`DeviceUnit` meets the protocol for devices implementing `StateUnitDevice`
+("The verified unit").
 `StateUnits::stop`/`save`/`restore` and `run_op` are not yet verified
 against the protocol.
 
@@ -1085,7 +1086,8 @@ Also expected on the Verus side:
 A standalone explanation, starting from the mental model (`thread::spawn`
 for RPC) and how to use it, is in `SNAPSHOT-SPEC-MESH-RPC.md`.
 
-Now in `vmm_core/state_unit/src/mesh_rpc_t.rs` (first drafted in
+Now in crate `mesh_rpc_verus` (`support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`;
+first a module of `state_unit`; first drafted in
 `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`, written against the
 real `mesh` crate; the prototype copy is kept for its example and lacks the
 attached ghosts).
@@ -1367,10 +1369,34 @@ concurrent per-pin writes into the PIC and IOAPIC.
    and `StateRequest::apply` on the unit side (without async closures).
    Needed for the proofs; the current direct mesh calls are correct but give
    Verus no contract and carry no ghosts.
-   *Status:* unit side done for the verified unit (`DeviceUnit`, Verus
-   only; "The verified unit"); the production unit side
-   (`ArcMutexChipsetDeviceUnit`, `StateRequest::apply`) and the caller
-   side (`StateUnits`) still call mesh directly.
+   *Status:* done (2026-10-27). Every state-unit request and reply goes
+   through the wrapper: the caller side (`call_unit`, used by `run_op`,
+   `start_with_rollback`, and `quiesce_for_save`) sends with `call` and
+   waits with `PendingCall::recv`; the unit side receives with `recv_msg`
+   (`run_unit`, `run_async_unit`) and replies with `split` / `complete`
+   (`StateRequest::apply`, rewritten without async closures; it behaves as
+   `Rpc::handle` / `handle_failable` did). Units with their own receive
+   loops (the chipset unit, among others) still receive with
+   `recv.next()` but reply through `apply`. In this unverified code the
+   ghosts are placeholders (`Tracked::assume_new()`), erased at runtime;
+   passing `StateUnits`' real halves comes with verifying `run_op`. The
+   verified unit (`DeviceUnit`) uses the wrapper with real ghosts.
+   Also done (generic change, 2026-10-27): the wrapper moved into its own
+   crate, `mesh_rpc_verus` (`support/mesh/mesh_rpc_verus`), with a
+   `call_failable` counterpart (`PendingCall::recv_failable`); the other
+   two message types on the snapshot and restore path use it for their
+   snapshot requests, both ends: `VmRpc` (controller to worker:
+   `QuiesceForSnapshot`, `ResumeAfterFailedSnapshot`,
+   `ReleaseSnapshotBoundary`) and `PartitionRequest` (`StopVps`;
+   `Snapshot`'s `StopVpsAtIoBoundary`, `CheckTimers`, `AdvanceLapic`,
+   `OmitSavedTsc`); `vmm_core` is now Verus-enabled for this. Their
+   protocols are placeholders (`request_ok` uninterpreted: verified code
+   can neither send them nor learn from them).
+   TODO, for whoever verifies those layers (quiesce and restore for
+   `PartitionRequest`, the controller for `VmRpc`): design their
+   protocols, that is, what each reply promises. This needs views that do
+   not exist yet (e.g. the partition's timer state for `CheckTimers`; the
+   worker's snapshot, seen from the controller, for `QuiesceForSnapshot`).
 4. **Consider a small source change to unit registration**: have
    registration hand each unit's `StateUnits` half back explicitly (through
    `&mut StateUnits`, or returned by the unit builder) instead of attaching

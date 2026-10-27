@@ -65,22 +65,30 @@ use vstd::prelude::*;
 
 verus! {
 
+#[cfg(verus_keep_ghost)]
+/// Declares `mesh::Sender` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub struct ExSender<T>(Sender<T>);
 
+#[cfg(verus_keep_ghost)]
+/// Declares `mesh::Receiver` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub struct ExReceiver<T>(Receiver<T>);
 
+#[cfg(verus_keep_ghost)]
+/// Declares `mesh::rpc::Rpc` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(I)]
 #[verifier::reject_recursive_types(R)]
 pub struct ExRpc<I, R>(Rpc<I, R>);
 
+#[cfg(verus_keep_ghost)]
+/// Declares `mesh::rpc::RpcError` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(E)]
@@ -108,7 +116,9 @@ pub trait MeshProtocol: Sized {
     spec fn request_ok(k: Self::Const, msg: Self, gin: Self::GhostIn) -> bool;
 }
 
+/// Spec functions of a `mesh::Sender`.
 pub trait SenderAdditionalSpecFns<M: MeshProtocol> {
+    /// The channel's constant.
     spec fn constant(&self) -> M::Const;
 
     /// The ghost attached to this sender, if not yet taken.
@@ -121,7 +131,9 @@ impl<M: MeshProtocol> SenderAdditionalSpecFns<M> for Sender<M> {
     uninterp spec fn attached(&self) -> Option<M::SenderGhost>;
 }
 
+/// Spec functions of a `mesh::Receiver`.
 pub trait ReceiverAdditionalSpecFns<M: MeshProtocol> {
+    /// The channel's constant.
     spec fn constant(&self) -> M::Const;
 
     /// The ghost attached to this receiver, if not yet taken.
@@ -134,6 +146,7 @@ impl<M: MeshProtocol> ReceiverAdditionalSpecFns<M> for Receiver<M> {
     uninterp spec fn attached(&self) -> Option<M::ReceiverGhost>;
 }
 
+/// Spec functions of a `mesh::rpc::Rpc`.
 pub trait RpcAdditionalSpecFns<I, R> {
     /// The request's input.
     spec fn spec_input(&self) -> I;
@@ -259,6 +272,25 @@ impl<M: MeshProtocol, R: 'static + Send> PendingCall<M, R> {
         match self.pending.await {
             Ok(r) => Ok((r, Tracked::assume_new())),
             Err(err) => Err(err),
+        }
+    }
+}
+
+impl<M: MeshProtocol, T: 'static + Send, E: 'static + Send> PendingCall<M, Result<T, E>> {
+    /// Waits for the reply of a call whose reply is a `Result`, as
+    /// `RpcSend::call_failable` does: a remote error becomes
+    /// `RpcError::Call`. On success, `Ok(t)` and its ghost satisfy the
+    /// caller's expectation. (On `RpcError::Call` the reply's ghost is
+    /// dropped.)
+    #[verifier::external_body]
+    pub async fn recv_failable(self) -> (result: Result<(T, Tracked<M::GhostOut>), RpcError<E>>)
+        ensures
+            result matches Ok((t, gout)) ==> self.reply_ok(Ok(t), gout@),
+    {
+        match self.pending.await {
+            Ok(Ok(t)) => Ok((t, Tracked::assume_new())),
+            Ok(Err(e)) => Err(RpcError::Call(e)),
+            Err(RpcError::Channel(e)) => Err(RpcError::Channel(e)),
         }
     }
 }

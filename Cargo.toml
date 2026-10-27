@@ -161,6 +161,7 @@ mesh_derive = { path = "support/mesh/mesh_derive" }
 mesh_node = { path = "support/mesh/mesh_node" }
 mesh_process = { path = "support/mesh/mesh_process" }
 mesh_protobuf = { path = "support/mesh/mesh_protobuf" }
+mesh_rpc_verus = { path = "support/mesh/mesh_rpc_verus" }
 mesh_remote = { path = "support/mesh/mesh_remote" }
 mesh_rpc = { path = "support/mesh/mesh_rpc" }
 mesh_tracing = { path = "support/mesh_tracing" }

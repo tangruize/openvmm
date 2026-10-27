@@ -17,17 +17,17 @@
 //! (`vmm_core/vmotherboard`).
 
 use crate::StateRequest;
-use crate::mesh_rpc_t::MeshProtocol;
-use crate::mesh_rpc_t::complete;
-use crate::mesh_rpc_t::recv_msg;
-use crate::mesh_rpc_t::split;
+use closeable_mutex::CloseableMutex;
+use closeable_mutex::LockInvariant;
 use futures::FutureExt;
 use futures::task::ArcWake;
 use futures::task::waker_ref;
 use inspect::InspectMut;
-use closeable_mutex::CloseableMutex;
-use closeable_mutex::LockInvariant;
 use mesh::error::RemoteError;
+use mesh_rpc_verus::MeshProtocol;
+use mesh_rpc_verus::complete;
+use mesh_rpc_verus::recv_msg;
+use mesh_rpc_verus::split;
 use std::sync::Arc;
 use vmcore::device_state::spec::DeviceGhost;
 use vmcore::device_state::spec::StateUnitDevice;
@@ -365,4 +365,3 @@ impl<T: StateUnitDevice + InspectMut + Send + 'static> DeviceUnit<T> {
         self.poll(&mut std::task::Context::from_waker(&waker));
     }
 }
-
