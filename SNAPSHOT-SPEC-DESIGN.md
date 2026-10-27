@@ -833,9 +833,18 @@ verified, including the three default bodies, against it); negative
 check: a default `advance_time` that drops the half fails. The ten
 production impls are converted (code change 39): each takes the ghost
 input, its bodies are `external_body`, and its `StateUnitSpec` is
-uninterpreted (listed in `SNAPSHOT-SPEC-TRUSTED.md`). Next: each unit's
-`StateUnitSpec` definition (where its share lives, its `wf`), and
-`run_unit` / `apply` passing the real halves.
+uninterpreted (listed in `SNAPSHOT-SPEC-TRUSTED.md`). `StateRequest::apply`,
+`run_unit`, and `run_unit_step` are verified (code change 40): `apply`
+passes each request's half to the unit's method and replies with what
+comes back; `Stop` assumes the unit runs (the trusted fact, as in
+`DeviceUnit::handle`). Negative checks, each failing: `Save` replying
+`Ok(None)`; `Stop` without the assumption; `Restore` replying `Ok`
+without restoring; `run_unit` without requiring its own channel.
+Only `KeeperUnit` and `TimeAbiUnit` run through `run_unit`. Next: the
+other request loops (the vmbus units' `run_async_unit`, and the own loops
+of `ArcMutexChipsetDeviceUnit`, the chipset unit, the line sets, the
+input distributor), which call `apply` without the half; and each unit's
+`StateUnitSpec` definition (where its share lives, its `wf`).
 `InspectMut` is declared without a contract: `apply`'s `Inspect` path
 (and `run_async_unit`'s concurrent inspects) can change a unit outside the
 contract, so `inspect_mut` needs one too (keeps `wf()`, `id()`,

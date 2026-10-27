@@ -62,6 +62,11 @@ pub mod spec {
     }
 }
 
+use mesh_rpc_verus::MeshProtocol;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::RpcAdditionalSpecFns;
 #[cfg(verus_keep_ghost)]
 pub use spec::StateUnitSpec;
 #[cfg(verus_keep_ghost)]
@@ -78,7 +83,8 @@ pub trait StateUnitSpec {}
 impl<T: ?Sized> StateUnitSpec for T {}
 #[cfg(verus_keep_ghost)]
 use vmcore::save_restore::spec::SavedStateBlobView;
-#[cfg(verus_keep_ghost)]
+// In both builds: `apply` and `run_unit` use its macros (`verus!`,
+// `proof!`, `proof_with!`), which erase their ghost code in normal builds.
 use vstd::prelude::*;
 
 use futures::FutureExt;
@@ -114,8 +120,6 @@ use tracing::Instrument;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
-use vstd::prelude::Ghost;
-use vstd::prelude::Tracked;
 
 /// A state change request.
 #[derive(Debug, MeshPayload)]
@@ -310,12 +314,63 @@ pub trait StateUnit: InspectMut + StateUnitSpec {
     }
 }
 
+verus! {
+
 /// Runs a simple unit that only needs to respond to state requests.
-pub async fn run_unit<T: StateUnit>(mut unit: T, mut recv: Receiver<StateRequest>) -> T {
-    while let Some((req, _ghost)) = mesh_rpc_verus::recv_msg(&mut recv).await {
-        req.apply(&mut unit).await;
+///
+/// Verus: `recv` is the unit's own channel (its constant is the id of the
+/// unit's FracGhost). The loop runs until every sender is gone, so it has
+/// no termination measure.
+#[verifier::exec_allows_no_decreases_clause]
+pub async fn run_unit<T: StateUnit>(unit: T, recv: Receiver<StateRequest>) -> (result: T)
+    requires
+        unit.wf(),
+        recv.constant() == unit.id(),
+    ensures
+        result.wf(),
+        result.id() == unit.id(),
+{
+    let mut unit = unit;
+    let mut recv = recv;
+    let ghost id = unit.id();
+    loop
+        invariant
+            unit.wf(),
+            unit.id() == id,
+            recv.constant() == id,
+    {
+        if !run_unit_step(&mut unit, &mut recv).await {
+            break;
+        }
     }
     unit
+}
+
+} // verus!
+
+/// Answers the next request on `recv`; returns false when every sender is
+/// gone. Verus: the request and the half it carries go to `apply`.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_spec(more =>
+    requires
+        old(unit).wf(),
+        old(recv).constant() == old(unit).id(),
+    ensures
+        final(unit).wf(),
+        final(unit).id() == old(unit).id(),
+        final(recv).constant() == old(recv).constant(),
+))]
+async fn run_unit_step<T: StateUnit>(unit: &mut T, recv: &mut Receiver<StateRequest>) -> bool {
+    // (`_gin` is the half; used only by Verus builds.)
+    let Some((req, _gin)) = mesh_rpc_verus::recv_msg(recv).await else {
+        return false;
+    };
+    let fut = {
+        proof_with! {_gin}
+        req.apply(unit)
+    };
+    fut.await;
+    true
 }
 
 /// Runs a state unit that can handle inspect requests while there is an active
@@ -385,64 +440,188 @@ impl StateRequest {
 
     /// Runs this state request against `unit`.
     ///
-    /// Replies through the mesh RPC wrapper (`mesh_rpc_verus::split`,
-    /// `complete`), with placeholder ghosts: the units answering here are
-    /// unverified. (Equivalent to `Rpc::handle` / `handle_failable`.)
+    /// Replies through the mesh RPC wrapper (`mesh_rpc_verus::split`, and
+    /// `reply`). Verus: `gin` is the half the request carries; each request
+    /// is answered by the request protocol, from `StateUnit`'s contract.
+    /// (Equivalent to `Rpc::handle` / `handle_failable`.)
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(gin): Tracked<Option<FracGhost<UnitSnapshot>>>
+        requires
+            old(unit).wf(),
+            StateRequest::request_ok(old(unit).id(), self, gin),
+        ensures
+            final(unit).wf(),
+            final(unit).id() == old(unit).id(),
+    ))]
     pub async fn apply(self, unit: &mut impl StateUnit) {
-        use mesh_rpc_verus::complete;
         use mesh_rpc_verus::split;
+        proof_decl! {
+            let tracked mut g = gin;
+        }
         match self {
             StateRequest::Start(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.start().await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.start()
+                };
+                let r = match fut.await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(anyhow_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::Stop(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                unit.stop().await;
-                complete(rpc, (), no_reply_ghost());
+                proof! {
+                    // TRUSTED: a unit receives `Stop` only while it runs
+                    // ("`StateUnits`' unit states are the units' real
+                    // states").
+                    assume(unit.running());
+                }
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.stop()
+                };
+                fut.await;
+                proof_with! {Tracked(g)}
+                reply(rpc, ());
             }
             StateRequest::QuiesceInput(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.quiesce_input().await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let r = match unit.quiesce_input().await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(anyhow_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::ResumeInput(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.resume_input().await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let r = match unit.resume_input().await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(anyhow_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::Reset(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.reset().await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.reset()
+                };
+                let r = match fut.await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(anyhow_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::Save(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.save().await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.save()
+                };
+                let r = match fut.await {
+                    Ok(blob) => Ok(blob),
+                    Err(err) => Err(save_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::Restore(rpc) => {
                 let (buffer, rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.restore(buffer).await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.restore(buffer)
+                };
+                let r = match fut.await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(restore_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
             StateRequest::AdvanceTime(rpc) => {
                 let (duration, rpc) = split::<_, _, ReplyGhost>(rpc);
-                let r = unit.advance_time(duration).await.map_err(RemoteError::new);
-                complete(rpc, r, no_reply_ghost());
+                let fut = {
+                    proof_with! {Tracked(&mut g)}
+                    unit.advance_time(duration)
+                };
+                let r = match fut.await {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err(anyhow_error(err)),
+                };
+                proof_with! {Tracked(g)}
+                reply(rpc, r);
             }
-            StateRequest::Inspect(req) => req.inspect(unit),
+            StateRequest::Inspect(req) => inspect_unit(req, unit),
         }
     }
 }
 
 /// The ghost a unit's reply carries (`MeshProtocol::GhostOut`).
-type ReplyGhost = <StateRequest as mesh_rpc_verus::MeshProtocol>::GhostOut;
+type ReplyGhost = <StateRequest as MeshProtocol>::GhostOut;
 
-/// A placeholder reply ghost, for unverified units.
-fn no_reply_ghost() -> Tracked<ReplyGhost> {
-    Tracked::assume_new()
+/// Answers `rpc` with `r` and the reply ghost `gout`.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_spec(
+    with Tracked(gout): Tracked<ReplyGhost>
+    requires
+        rpc.reply_ok(r, gout),
+))]
+fn reply<R: 'static + Send>(rpc: Rpc<(), R>, r: R) {
+    // The same call in every build; only the verification pass
+    // (`verus_keep_ghost_body`) has the ghost. (Its argument is what `verus!`
+    // makes of `Tracked(gout)`.)
+    #[cfg(verus_keep_ghost_body)]
+    mesh_rpc_verus::complete(
+        rpc,
+        r,
+        #[verifier::ghost_wrapper]
+        tracked_exec(
+            #[verifier::tracked_block_wrapped]
+            gout,
+        ),
+    );
+    #[cfg(not(verus_keep_ghost_body))]
+    mesh_rpc_verus::complete(rpc, r, Tracked::<ReplyGhost>::assume_new());
+}
+
+/// Inspects `unit`. Trusted: an inspect keeps the unit's `wf()`, `id()`, and
+/// `running()` (`InspectMut::inspect_mut` has no contract yet; see
+/// `SNAPSHOT-SPEC-TRUSTED.md`).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(
+    ensures
+        final(unit).wf() == old(unit).wf(),
+        final(unit).id() == old(unit).id(),
+        final(unit).running() == old(unit).running(),
+))]
+fn inspect_unit(req: inspect::Deferred, unit: &mut impl StateUnit) {
+    req.inspect(unit)
+}
+
+/// An error as a `RemoteError` (no contract).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+fn anyhow_error(err: anyhow::Error) -> RemoteError {
+    RemoteError::new(err)
+}
+
+/// A save error as a `RemoteError` (no contract).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+fn save_error(err: SaveError) -> RemoteError {
+    RemoteError::new(err)
+}
+
+/// A restore error as a `RemoteError` (no contract).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+fn restore_error(err: RestoreError) -> RemoteError {
+    RemoteError::new(err)
 }
 
 /// A set of state units.

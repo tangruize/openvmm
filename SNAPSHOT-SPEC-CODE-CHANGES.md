@@ -371,6 +371,18 @@ Baseline: upstream `nanvix/openvmm` commit
     `build.rs` declaring the `verus_keep_ghost` cfg, a cfg'd `vstd` import in
     `lib.rs`); vmm_core gains a `vmbus_ring` dependency (already in its
     dependency graph through `vmbus_channel`).
+40. **`StateRequest::apply` and `run_unit` verified** (`vmm_core/state_unit`,
+    `lib.rs`; same runtime behavior, `state_unit`'s tests pass): `apply`
+    takes the request's half as a ghost input (`with Tracked(gin)`) and
+    passes it to each `StateUnit` method (`proof_with!`); errors are
+    converted with `match` and three helpers (`anyhow_error`, `save_error`,
+    `restore_error`) instead of `map_err(RemoteError::new)`; replies go
+    through a new `reply` (ghost input, then `complete`); `Inspect` through
+    a new `inspect_unit`. `run_unit` is now in `verus!` syntax, its loop
+    calling a new `run_unit_step` (one `recv_msg` and `apply`).
+    `no_reply_ghost` is removed. `lib.rs` imports `vstd::prelude` in both
+    builds (for the macros); `build.rs` declares the
+    `verus_keep_ghost_body` cfg.
 
 ### Planned: mesh RPC trusted spec
 
