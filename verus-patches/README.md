@@ -11,6 +11,7 @@ To apply and rebuild (from the Verus checkout), in order:
 git apply /path/to/openvmm/verus-patches/0001-async-fn-unnamed-return-keeps-ensures.patch
 git apply /path/to/openvmm/verus-patches/0002-async-fn-ghost-params.patch
 git apply /path/to/openvmm/verus-patches/0003-external-trait-own-assoc-bounds-and-hrtb.patch
+git apply /path/to/openvmm/verus-patches/0004-async-fn-in-trait.patch
 cd source
 source ../tools/activate   # or put tools/vargo/target/release on PATH
 vargo build --release
@@ -170,3 +171,68 @@ failed. The full suite has not been run.
 **Found by.** Attaching the `SavedStateBlob::new` / `parse` contract
 (`vm/vmcore/src/save_restore_t.rs`).
 
+
+## 0004-async-fn-in-trait.patch
+
+Lets a trait declare an `async fn` with a contract, as `StateUnit` does
+(`vmm_core/state_unit/src/lib.rs`): its seven methods are all `async fn`,
+so no unit's `save` / `restore` could carry a contract.
+
+**Bug.** Verus rejects a trait (its own, or one declared with
+`external_trait_specification`) with an `async fn` method: "Verus does not
+yet support Opaque types in trait def" (`check_no_opaque_types_in_trait`,
+`rust_verify/src/verifier.rs`).
+
+**Cause.** rustc gives each `async fn` in a trait (and each `-> impl
+Trait` method) a hidden associated type, an RPITIT ("return-position impl
+Trait in trait") type: the trait declares it, bounded by `Future<Output =
+...>`, and each impl defines it as its method's opaque future type. The
+method returns a projection onto it. Verus did not translate these
+associated types: they have no name, are not items in HIR, and the method's
+return type is a projection, not the opaque type Verus expects of an
+`async fn`. So the check refused them.
+
+**Fix.** Translate RPITIT associated types like other associated types:
+
+- Name them `VERUS_RPITIT__<method>` (`rust_to_vir_base::assoc_item_name`,
+  used wherever an associated item's name was taken), the same in the trait
+  and in each impl.
+- The trait declares them with their bounds (`rust_to_vir_trait.rs`); each
+  impl defines them as its method's opaque type (`rust_to_vir_impl.rs`).
+  The impl gets no impl paths for the bounds: the compiler-generated future
+  meets them, and resolving them would reveal the opaque type before
+  Verus's erasure is set up (it panicked: "VerusErasureCtxt has not been
+  initialized").
+- An async method's return type may be the RPITIT projection
+  (`async_fn_output_typ`, `rust_to_vir_func.rs`); the method and its
+  specification stub are compared by their futures' output types.
+- The opaque types' declarations go before the associated-type impls in the
+  solver input (`verifier.rs`), which now refer to them.
+- The trait-conflict check leaves RPITIT types out (`trait_conflicts.rs`):
+  it cannot express opaque types, and they cannot make impls conflict.
+- The check now refuses only non-async methods returning `impl Trait`,
+  which are untested (`verifier.rs`).
+
+**Tests.** Six cases in `rust_verify_test/tests/async_functions.rs`, on a
+trait `Counter` with a `spec fn value` and an `async fn bump` with
+`requires` / `ensures`: a verified impl with a caller on the impl's type
+(`async_fn_in_trait_concrete_caller`) and a generic caller
+(`async_fn_in_trait_generic_caller`) pass; an impl that breaks the
+`ensures`, a false assertion after the call (concrete and generic), and a
+call that breaks the `requires` each fail as expected. Without the patch
+Verus refuses each trait with the error above, before verifying anything
+(not rerun without the patch).
+
+Also checked on `StateUnit` itself: declared with
+`external_trait_specification` and an `external_trait_extension` spec
+function, a contract on `save` holds for a generic caller and is enforced
+on a verified impl (a probe, not committed).
+
+**Test results.** With all four patches: `async_functions` 21 passed,
+`opaque_types` 23, `opaque_reveal` 24 (4 ignored), `adts_opaque` 10,
+`traits` 216 (2 ignored), `external_traits` 42, `assoc_type_impls` 45,
+`traits_dyn` 26, `external_fn_specification` 78 (3 ignored),
+`recursive_types` 28; 0 failed. The full suite has not been run.
+
+**Not covered.** Non-async `-> impl Trait` trait methods (still refused);
+`async fn` in a trait used through `dyn` (not object safe anyway).

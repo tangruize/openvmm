@@ -756,9 +756,14 @@ Concerns:
   `ChipsetDeviceProxy` (`workers/chipset_device_worker`), `BoundVp`
   (`vmm_core/src/partition_unit/vp_set.rs`), and `ErasedChipsetDevice`
   (`vm/chipset_device_resources`).
-- **`async fn` in traits** (Verus: "Opaque types in trait def") blocks
-  layer 3 on `StateUnit` itself. Options: Verus support, or contracts on each
-  unit's concrete implementation through wrapper functions.
+- **`async fn` in traits** (Verus: "Opaque types in trait def"): resolved
+  2026-10-27 by Verus patch 0004 (`verus-patches/README.md`). Checked with a
+  probe on `StateUnit` (not committed): declared with
+  `external_trait_specification` and an `external_trait_extension` spec
+  function, a contract on `save` holds for a generic caller and is enforced
+  on an impl inside `verus!`. An impl outside `verus!` is not checked, so
+  each production unit's impl must move into `verus!` (or be listed as
+  trusted).
 - **Async closures** in `StateRequest::apply` (`rpc.handle_failable(async
   |..| ..)`) block layer 4; `apply` would be rewritten without them (a
   source change).
@@ -937,8 +942,8 @@ New trusted facts and assumptions:
 - Channel failures (a unit's task gone) do not happen for a registered unit:
   OpenVMM's `run_op` panics on them, and the ghost would be lost.
 
-Not yet done: the production unit side (each `StateUnit`) is blocked on
-async trait functions (gap 1); `run_unit` and `StateRequest::apply` now use
+Not yet done: the production unit side (each `StateUnit`; async trait
+functions, gap 1, are supported since Verus patch 0004); `run_unit` and `StateRequest::apply` now use
 the mesh RPC wrapper, unverified, with placeholder ghosts. The verified unit
 `DeviceUnit` meets the protocol for devices implementing `StateUnitDevice`
 ("The verified unit").
@@ -1322,7 +1327,8 @@ What Stage 2 still needs, found by comparing the prototype with
 1. **Unsupported Verus features.** Both were checked against the patched
    Verus with small examples:
    - `async fn` in a trait: "does not yet support Opaque types in trait def".
-     `StateUnit` (`vmm_core/state_unit/src/lib.rs:110`) is such a trait.
+     `StateUnit` (`vmm_core/state_unit/src/lib.rs:145`) is such a trait.
+     Fixed by Verus patch 0004 (2026-10-27).
    - Async closures: "does not yet support coroutine closure types". The unit
      side answers each request with
      `rpc.handle_failable(async |()| unit.save().await)` (`lib.rs:224-245`).
@@ -1625,8 +1631,8 @@ important first.
    item 3). Decided 2026-10-27: only the worker side (`LoadedVm`) for now;
    the controller after the `LoadedVm` layer is verified.
 3. **Unit side**: for the production units, attach the `StateUnit` and
-   request-loop contracts (blocked on async trait functions;
-   `StateRequest::apply` no longer uses async closures; the blob layers,
+   request-loop contracts (async trait functions are supported since Verus
+   patch 0004; `StateRequest::apply` no longer uses async closures; the blob layers,
    `SavedStateBlob` and `ProtobufSaveRestore`, are attached); the units not built on
    `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
    the PIT, see "Next steps (agreed)", item 5.
