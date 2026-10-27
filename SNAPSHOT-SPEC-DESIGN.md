@@ -856,9 +856,30 @@ Design:
    `StateUnits` (`StateUnits::wf`). No registry axiom remains. One trusted
    fact remains for operations that lock the registry more than once (for
    their proofs): no unit is registered while an operation holds
-   `&mut StateUnits` (registration needs `&StateUnits`). Removal during an
-   operation is possible; the specs of those operations will have to allow
-   it (today the code ignores a removed unit's failure).
+   `&mut StateUnits` (registration needs `&StateUnits`).
+
+   **No unit is removed during an operation either** (checked 2026-10-27),
+   so the operations' contracts ("the same units") stand. The type allows
+   it: a `UnitHandle` removes its unit when dropped, through a weak pointer
+   to the registry, from any task. But in OpenVMM every unit handle (or
+   `SpawnedUnit`) is owned by `LoadedVm`'s state (`LoadedVmInner`: the
+   chipset devices and line sets, the partition unit, the vmbus server and
+   devices, vmtime, the time-ABI unit, the input distributor, and the
+   hot-plugged devices in `pcie_hotplug_devices` / `dynamic_vpci_devices`).
+   An operation holds `LoadedVm` exclusively (`&mut self`), so no handle can
+   be dropped while it runs; removals happen in `LoadedVm`'s own request
+   handlers (hot-unplug) or when `LoadedVm` is dropped, between operations.
+   (Had a removal happened during `LoadedVm::save`, the snapshot could hold
+   a removed unit's state while its inventory, read after the units' save,
+   omits it; restore would then reject it.) openhcl keeps its handles in
+   its own structures and was not checked.
+
+   *Proof hint:* the argument is ownership and borrowing, which a proof of
+   `StateUnits`' operations alone cannot see (removal is in `UnitHandle`'s
+   `Drop`, outside Verus' view). It may need removal (and registration) made
+   visible, for example through `StateUnits` or a ghost token held by each
+   handle and shared with `StateUnits`, or the argument made at the
+   `LoadedVm` level.
 4. Done: `LoadedVm::halves` is removed; `LoadedVm`'s view reads
    `state_units@`.
 
@@ -1620,8 +1641,3 @@ important first.
 8. **Soundness review** of the mesh RPC wrapper (`mesh_rpc_verus`,
    `src/mesh_rpc_t.rs`; the reply-ghost type argument). (The registry
    axioms are gone.)
-9. **Unit removal during an operation**: a unit can be removed
-    (`UnitHandle`'s `Drop`) while a `StateUnits` operation runs; the specs
-    of `stop`, `save`, `restore` (which say "same units") must allow it
-    ("Where the halves come from", item 3).
-
