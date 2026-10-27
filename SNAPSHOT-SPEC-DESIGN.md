@@ -1587,4 +1587,8 @@ important first.
    `src/mesh_rpc_t.rs`; the reply-ghost type argument). (The registry
    axioms are gone.)
 10. **Hard-coded `"partition"`** in `LoadedVm`'s view.
+11. **Unit removal during an operation**: a unit can be removed
+    (`UnitHandle`'s `Drop`) while a `StateUnits` operation runs; the specs
+    of `stop`, `save`, `restore` (which say "same units") must allow it
+    ("Where the halves come from", item 3).
 
