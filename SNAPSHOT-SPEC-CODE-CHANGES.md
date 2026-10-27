@@ -251,6 +251,12 @@ Baseline: upstream `nanvix/openvmm` commit
     (`pit/mod.proof.rs`), with trusted `pit/blob_t.rs`. `state_unit`: new
     `device_unit.rs` (`DeviceUnit<T>`, `cfg(verus_keep_ghost)`), dependency
     on `closeable_mutex`. `closeable_mutex`: `close_verified` takes `&Arc`.
+29. **Run loop for the verified unit** (Verus only, no runtime change):
+    `DeviceUnit` gains `poll_event` and `running`, a verified `poll`, and
+    the unverified `run`; `StateUnitDevice::poll_device` (the PIT's calls
+    its `poll`); `std::task::Context`'s Verus declaration moves from the
+    PIT to `vmcore`; `closeable_mutex` adds `lock_verified` and
+    `VerifiedOpenGuard` (with a runtime test).
 
 ### Planned: mesh RPC trusted spec
 

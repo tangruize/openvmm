@@ -77,6 +77,11 @@ pub trait DeviceGhost {
     ;
 }
 
+/// Declares `std::task::Context` to Verus, as an opaque type.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExContext<'a>(std::task::Context<'a>);
+
 /// A device that a verified state unit can drive: its state transitions as
 /// synchronous methods with contracts. Each keeps the device's invariant
 /// (`device_inv()`) and the rule (`DeviceGhostState::wf`), and its id.
@@ -108,6 +113,19 @@ pub trait StateUnitDevice: DeviceGhost + LockInvariant<Key = Loc> {
     /// Stops the device's own activity, while it still runs (the unit then
     /// records its state).
     fn stop_device(&mut self)
+        requires
+            old(self).device_inv(),
+            old(self).ghost().wf(old(self).id(), old(self).snapshot()),
+            old(self).ghost().running,
+        ensures
+            final(self).device_inv(),
+            final(self).ghost().wf(final(self).id(), final(self).snapshot()),
+            final(self).ghost().running,
+            final(self).id() == old(self).id(),
+    ;
+
+    /// Polls the running device (its timers and other asynchronous work).
+    fn poll_device(&mut self, cx: &mut std::task::Context<'_>)
         requires
             old(self).device_inv(),
             old(self).ghost().wf(old(self).id(), old(self).snapshot()),

@@ -9,11 +9,22 @@
 //! FracGhost work in its own proof blocks through `DeviceGhost::ghost_mut`
 //! (see "Design change: the FracGhost lives with the device" in
 //! `SNAPSHOT-SPEC-DESIGN.md`).
+//!
+//! Verified: `handle` (one request) and `poll` (one poll of the running
+//! device). Unverified glue: `run`, the loop that receives requests (with
+//! their ghosts, through `recv_msg`), answers `Inspect`, and polls the device
+//! while it runs. It follows `ArcMutexChipsetDeviceUnit::run`
+//! (`vmm_core/vmotherboard`).
 
 use crate::StateRequest;
 use crate::mesh_rpc_t::MeshProtocol;
 use crate::mesh_rpc_t::complete;
+use crate::mesh_rpc_t::recv_msg;
 use crate::mesh_rpc_t::split;
+use futures::FutureExt;
+use futures::task::ArcWake;
+use futures::task::waker_ref;
+use inspect::InspectMut;
 use closeable_mutex::CloseableMutex;
 use closeable_mutex::LockInvariant;
 use mesh::error::RemoteError;
@@ -24,6 +35,7 @@ use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 use vmcore::save_restore::spec::UnitSnapshot;
+use vmcore::slim_event::SlimEvent;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
@@ -34,8 +46,22 @@ verus! {
 #[verifier::reject_recursive_types(T)]
 pub struct DeviceUnit<T> {
     device: Arc<CloseableMutex<T>>,
+    /// Signaled when the device asks to be polled.
+    poll_event: Arc<PollEvent>,
+    /// Whether the unit is running (it polls the device only then).
+    running: bool,
     /// The id of the device's FracGhost (its unit channel's constant).
     id: Ghost<Loc>,
+}
+
+/// Wakes the unit to poll its device.
+#[verifier::external_body]
+struct PollEvent(SlimEvent);
+
+/// A new poll event.
+#[verifier::external_body]
+fn new_poll_event() -> Arc<PollEvent> {
+    Arc::new(PollEvent(SlimEvent::new()))
 }
 
 impl<T: StateUnitDevice> DeviceUnit<T> {
@@ -57,7 +83,29 @@ impl<T: StateUnitDevice> DeviceUnit<T> {
             unit.wf(),
             unit.id() == id@,
     {
-        DeviceUnit { device, id }
+        DeviceUnit { device, poll_event: new_poll_event(), running: false, id }
+    }
+
+    /// Polls the device, which must be running. Locks the device's mutex
+    /// without closing it: vCPUs may use the device meanwhile.
+    pub fn poll(&self, cx: &mut std::task::Context<'_>)
+        requires
+            self.wf(),
+    {
+        let mut g = self.device.lock_verified();
+        let d = g.borrow_mut();
+        proof {
+            d.lemma_lock_inv();
+            // TRUSTED: the unit polls only while the device runs (its
+            // `running` flag is the device's ghost `running`; the same fact
+            // as for `Stop`).
+            assume(d.ghost().running);
+        }
+        d.poll_device(cx);
+        proof {
+            d.lemma_lock_inv();
+        }
+        g.release();
     }
 
     /// Answers `msg`, which came with `gin`, by the request protocol.
@@ -248,3 +296,73 @@ fn restore_error(err: RestoreError) -> RemoteError {
 }
 
 } // verus!
+
+impl ArcWake for PollEvent {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        arc_self.0.signal();
+    }
+}
+
+impl<T: StateUnitDevice + InspectMut + Send + 'static> DeviceUnit<T> {
+    /// Runs the unit until every sender of `recv` is gone: answers each
+    /// request, and polls the device while running.
+    ///
+    /// Unverified glue: it passes each message and its ghost from
+    /// `recv_msg` (which ensures the request protocol) to `handle`
+    /// unchanged; `self.wf()` holds from `new` on. TRUSTED: `recv` is the
+    /// receiver of the unit's channel (its constant is `self.id()`).
+    pub async fn run(mut self, mut recv: mesh::Receiver<StateRequest>) -> Self {
+        loop {
+            enum Event {
+                Request(StateRequest, Tracked<Option<FracGhost<UnitSnapshot>>>),
+                Poll,
+            }
+
+            let running = self.running;
+            let poll_event = self.poll_event.clone();
+            let poll = async move {
+                if running {
+                    poll_event.0.wait().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            };
+
+            let event = futures::select! {
+                req = recv_msg(&mut recv).fuse() => match req {
+                    Some((msg, gin)) => Event::Request(msg, gin),
+                    None => break,
+                },
+                () = poll.fuse() => Event::Poll,
+            };
+
+            match event {
+                Event::Request(StateRequest::Inspect(req), _) => {
+                    req.inspect(&mut *self.device.lock());
+                }
+                Event::Request(msg, gin) => {
+                    let start = matches!(msg, StateRequest::Start(_));
+                    let stop = matches!(msg, StateRequest::Stop(_));
+                    self.handle(msg, gin);
+                    if start {
+                        self.running = true;
+                        // Let the device arm its timers.
+                        self.poll_now();
+                    }
+                    if stop {
+                        self.running = false;
+                    }
+                }
+                Event::Poll => self.poll_now(),
+            }
+        }
+        self
+    }
+
+    /// Polls the device, waking the unit when it asks to be polled again.
+    fn poll_now(&self) {
+        let waker = waker_ref(&self.poll_event);
+        self.poll(&mut std::task::Context::from_waker(&waker));
+    }
+}
+

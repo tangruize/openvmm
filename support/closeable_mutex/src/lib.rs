@@ -26,6 +26,7 @@ mod closeable_mutex_t;
 
 pub use closeable_mutex_t::LockInvariant;
 pub use closeable_mutex_t::VerifiedClosedGuard;
+pub use closeable_mutex_t::VerifiedOpenGuard;
 
 /// Verified examples of the trusted specification. Not production code.
 #[cfg(verus_keep_ghost)]
@@ -235,6 +236,15 @@ mod tests {
         // Dropped without release: the mutex stays closed.
         drop(CloseableMutex::close_verified(&x));
         assert!(x.lock_if_open().is_none());
+    }
+
+    #[test]
+    fn test_verified_open_guard() {
+        let x = Arc::new(CloseableMutex::new_verified(0));
+        let mut g = x.lock_verified();
+        *g.borrow_mut() = 5;
+        g.release();
+        assert_eq!(*x.lock(), 5);
     }
 
     #[test]

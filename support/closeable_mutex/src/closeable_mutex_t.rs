@@ -14,6 +14,11 @@
 //! - A [`VerifiedClosedGuard`] dropped without `release` leaves the mutex
 //!   closed, so later `lock` and `close` calls panic. This is safe, not
 //!   unsound: no one observes a value that breaks the invariant.
+//! - Likewise, verified code locks the mutex (without closing it) with
+//!   [`CloseableMutex::lock_verified`] and unlocks with
+//!   [`VerifiedOpenGuard::release`]. A [`VerifiedOpenGuard`] dropped without
+//!   `release` leaves the mutex locked: later lockers wait forever. Safe, not
+//!   unsound, for the same reason.
 //! - Unverified code uses `lock`, `lock_if_open`, and `close` as before.
 //!   ASSUMPTION: it keeps the invariant (for a device: it changes the device
 //!   only through methods whose contracts keep the device's `wf()`).
@@ -24,6 +29,7 @@
 
 use super::CloseableMutex;
 use super::ClosedGuard;
+use super::OpenGuard;
 use std::sync::Arc;
 use vstd::prelude::*;
 
@@ -86,6 +92,58 @@ impl<T: LockInvariant> CloseableMutex<T> {
     }
 }
 
+/// A locked [`CloseableMutex`], for verified code. Unlock it with
+/// [`VerifiedOpenGuard::release`].
+#[verifier::external_body]
+#[verifier::reject_recursive_types(T)]
+pub struct VerifiedOpenGuard<'a, T> {
+    /// `None` once released.
+    guard: Option<OpenGuard<'a, T>>,
+}
+
+impl<T: LockInvariant> CloseableMutex<T> {
+    /// Locks the mutex, for verified code. Panics if it is closed.
+    #[verifier::external_body]
+    pub fn lock_verified(&self) -> (g: VerifiedOpenGuard<'_, T>)
+        ensures
+            g.key() == self.key(),
+            g.value().key() == self.key(),
+            g.value().inv(),
+    {
+        VerifiedOpenGuard { guard: Some(self.lock()) }
+    }
+}
+
+impl<'a, T: LockInvariant> VerifiedOpenGuard<'a, T> {
+    /// The key of the mutex.
+    pub uninterp spec fn key(&self) -> T::Key;
+
+    /// The value in the mutex.
+    pub uninterp spec fn value(&self) -> T;
+
+    /// The value, to change; the guard holds what it is changed to.
+    #[verifier::external_body]
+    pub fn borrow_mut(&mut self) -> (r: &mut T)
+        ensures
+            *r == old(self).value(),
+            final(self).value() == *final(r),
+            final(self).key() == old(self).key(),
+    {
+        self.guard.as_mut().unwrap()
+    }
+
+    /// Unlocks the mutex; requires the invariant, and the key unchanged.
+    #[verifier::external_body]
+    pub fn release(self)
+        requires
+            self.value().inv(),
+            self.value().key() == self.key(),
+    {
+        let mut this = self;
+        drop(this.guard.take());
+    }
+}
+
 impl<T: LockInvariant> VerifiedClosedGuard<T> {
     /// The key of the mutex.
     pub uninterp spec fn key(&self) -> T::Key;
@@ -132,6 +190,15 @@ impl<T: LockInvariant> VerifiedClosedGuard<T> {
 impl<T> Drop for VerifiedClosedGuard<T> {
     fn drop(&mut self) {
         // Not released: keep the mutex closed (see the module comment).
+        if let Some(guard) = self.guard.take() {
+            std::mem::forget(guard);
+        }
+    }
+}
+
+impl<T> Drop for VerifiedOpenGuard<'_, T> {
+    fn drop(&mut self) {
+        // Not released: keep the mutex locked (see the module comment).
         if let Some(guard) = self.guard.take() {
             std::mem::forget(guard);
         }

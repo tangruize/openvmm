@@ -73,10 +73,6 @@ pub struct ExLineInterrupt(LineInterrupt);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub struct ExContext<'a>(std::task::Context<'a>);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
 pub struct ExIoResult(chipset_device::io::IoResult);
 
 /// The PIT, as driven by a verified state unit (`state_unit::device_unit`).
@@ -90,6 +86,10 @@ impl StateUnitDevice for PitDevice {
 
     fn stop_device(&mut self) {
         // The PIT has no activity of its own to stop.
+    }
+
+    fn poll_device(&mut self, cx: &mut std::task::Context<'_>) {
+        PitDevice::poll(self, cx);
     }
 
     fn reset_device(&mut self) {

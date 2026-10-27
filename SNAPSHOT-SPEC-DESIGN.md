@@ -619,15 +619,26 @@ Findings and open items:
 - `CloseableMutex::close_verified` now takes `&Arc` (vstd has no spec of
   `Arc::clone`; OpenVMM calls `self.device.clone().close()`).
 
+- **The run loop** (`DeviceUnit::run`, unverified glue, following
+  `ArcMutexChipsetDeviceUnit::run`): `futures::select!` between the next
+  request (`recv_msg`, which gives the message with its ghost and
+  `request_ok`) and the poll event while running. It answers `Inspect`
+  itself (through the unverified `lock()`), passes every other message
+  and its ghost unchanged to `handle`, sets its `running` flag after
+  `Start` / `Stop`, and polls once after `Start` so the device arms its
+  timers. Polling is verified (`DeviceUnit::poll`): it locks the mutex
+  without closing it (vCPUs keep using the device; closing would make
+  their accesses panic), through the new `CloseableMutex::lock_verified`
+  / `VerifiedOpenGuard::release`, and calls `StateUnitDevice::poll_device`
+  (new; requires running). `poll` assumes the device runs: the unit polls
+  only while its `running` flag is set, the same trusted fact as for
+  `Stop`. Negative check: `poll` without it fails.
+
 Not yet done:
 
-- **The run loop**: receiving with the RPC wrapper's `recv_msg` (which
-  gives `request_ok`), answering `Inspect`, and polling the device while
-  running (OpenVMM's loop uses `futures::select!` and `lock()`, so it stays
-  unverified glue around `handle`; polling needs a verified open `lock`
-  in the `CloseableMutex` spec, since closing during polling would make
-  vCPU accesses panic). It belongs in `vmm_core/vmotherboard`, which knows
-  `PollDevice`.
+- **Testing the run loop**: it compiles only in Verus builds (see "Normal
+  builds"), so it has not run; `cargo verus` type-checks it but runs no
+  tests.
 - **Wiring**: the chipset builder creates `ArcMutexChipsetDeviceUnit` for
   every device; the PIT would get a `DeviceUnit`, with its half handed
   over at creation (`PitDevice::new` still has placeholders), its mutex
