@@ -287,6 +287,7 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
+            final(self)@.time_units == old(self)@.time_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {
                 // The clock restore, if any, has run. (On an earlier error it
@@ -356,6 +357,7 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
+            final(self)@.time_units == old(self)@.time_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             final(self)@.clock_units.is_empty(),
             // Only the units the clock restore changes may change.

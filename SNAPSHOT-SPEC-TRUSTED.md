@@ -32,6 +32,7 @@ only where a trusted item gives them meaning.
 | `LoadedVm::quiesce_and_save`, `LoadedVm::capture_time_abi` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). `capture_time_abi`'s contract (the view is unchanged) is a claim about the VPs' timer check and the partition's time records. |
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
 | `LoadedVm::restore_from_snapshot`, `begin_snapshot_restore`, `finish_snapshot_restore` | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same (design doc, "Restore from snapshot"). |
+| `InitializedVm::load` | `openvmm/openvmm_core/src/worker/dispatch.rs` | Same (design doc, "Restore from snapshot"). Includes the fresh-VM facts: every unit's half collected, recording `Unknown`. |
 | `LoadedVm::time_abi_restore` | `openvmm/openvmm_core/src/worker/dispatch/time_abi.rs` | Same. Claims the clock restore changes only the partition and the units that advance time. |
 | `StateUnits::advance_time` | `vmm_core/state_unit/src/advance_time.rs` | Same. |
 | `View for SnapshotRestore` (uninterpreted) | `openvmm/openvmm_core/src/worker/dispatch.spec.rs` | `clock_restore_pending` is `time_abi.is_some()` (`SnapshotRestore` has private fields, so Verus cannot see it). |

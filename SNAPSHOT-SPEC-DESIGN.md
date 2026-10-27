@@ -327,9 +327,13 @@ time and the RTC) and holds the VPs stopped until the VM first starts.
 
 So after a time ABI restore, some units do not hold exactly their saved
 state: the partition and the units that advance time. The view names them:
-`LoadedVmView::clock_units` is `state_units@.advances_time` plus
-`"partition"` while a time ABI clock restore is pending
-(`SnapshotRestore`'s view, `clock_restore_pending`), and empty otherwise.
+`LoadedVmView::time_units` is `state_units@.advances_time` plus
+`"partition"`, and `LoadedVmView::clock_units` is `time_units` while a time
+ABI clock restore is pending (`SnapshotRestore`'s view,
+`clock_restore_pending`), and empty otherwise. (`time_units` was added for
+`InitializedVm::load`'s contract, which must name these units after the
+clock restore has run and `clock_units` is empty; every restore contract
+keeps it.)
 `StateUnitsView::advances_time` is new (the units registered with
 `advances_time()`; the ghost registry records the flag at collection).
 
@@ -340,9 +344,22 @@ Contracts (bodies `external_body`):
 | `restore_from_snapshot(saved)` | `wf`, stopped | `wf`; runtime and inventory unchanged; on `Ok`: `clock_units` empty, units outside the old `clock_units` are as `restore` leaves them (`old.units.union_prefer_right(saved@.units)`), and the saved inventory is empty or the VM's |
 | `begin_snapshot_restore` | `wf` | `wf`; view unchanged |
 | `finish_snapshot_restore` | `wf`, stopped | `wf`; runtime and inventory unchanged; `clock_units` empty; units outside the old `clock_units` unchanged |
-| `time_abi_restore` (`dispatch/time_abi.rs`) | `wf`, stopped | `wf`; runtime, inventory, `clock_units` unchanged; units outside `advances_time` + `"partition"` unchanged |
+| `time_abi_restore` (`dispatch/time_abi.rs`) | `wf`, stopped | `wf`; runtime, inventory, `time_units`, `clock_units` unchanged; units outside `time_units` unchanged |
 | `StateUnits::advance_time` (`vmm_core/state_unit/src/advance_time.rs`) | `wf`, stopped | `wf`; same units, inventory, `advances_time`; units outside `advances_time` unchanged |
-| `LoadedVm::restore` (added) | | `clock_units` unchanged |
+| `LoadedVm::restore` (added) | | `time_units` and `clock_units` unchanged |
+| `InitializedVm::load(saved, .., snapshot_restore)` (`dispatch.rs`) | | on `Ok(vm)`: `vm.wf()`; stopped; `clock_units` empty. With `saved` `None`: no unit recorded (`snapshot.units` empty), and no clock restore was pending. With `Some(state)`: outside the clock units (`time_units` if `snapshot_restore` had a clock restore pending, else none), the units have exactly `state@.units`; the saved inventory is empty or the VM's |
+
+`restore_from_snapshot`, `restore`, and `finish_snapshot_restore` also keep
+`time_units`.
+
+`load`'s contract follows from the fresh VM it builds and
+`restore_from_snapshot`'s: `LoadedVmView::lemma_load_restores`
+(`dispatch.proof.rs`, verified) derives it from "no unit recorded, clock
+units set if pending" and `restore_from_snapshot`'s `Ok` result (a fresh
+VM records nothing, so the union with the saved units is the saved units).
+Negative check: claiming the clock units also take their saved state
+fails. The fresh-VM facts themselves are part of `load`'s unproved body:
+`make_ids` collects every unit's half, recording `Unknown`.
 
 They compose: `begin` changes nothing, `restore` gives the union and keeps
 `clock_units`, and `finish` changes only `clock_units` and empties it. All
@@ -379,15 +396,27 @@ Concerns and TODOs:
 - **Not modelled**: the start guard (VPs held stopped until the first
   start), `restored_from_snapshot`, the restore packet's time fields, and
   profiling.
-- **Next layer up**: `InitializedVm::load(Some(saved_state))`
-  (`dispatch.rs:1824`) builds the `LoadedVm` (and collects the halves in
-  `make_ids`), then calls `restore_from_snapshot`. TODO: its contract.
+- **After `load`, units without saved state are not recorded.** They
+  still record `Unknown` (only units in `state@.units` are restored), so
+  `vm@.recorded` is false unless every unit had saved state, and
+  `LoadedVm::save` (which requires `recorded`) cannot be called until the
+  units are started and stopped again. Matches the code's use (a restored
+  VM is resumed before it is saved again), but worth confirming.
+- **Annotating `load` gives four Verus warnings** ("verus-related
+  attribute has no effect") on constants declared inside its body;
+  harmless.
+- **Next layer up**: the controller
+  (`VmController::handle_guest_snapshot_request` and the worker's restore
+  entry), which calls `load`.
 
 ### Design change: the FracGhost lives with the device
 
-Decided 2026-10-26. Done so far: the request protocol and `StateUnits`'
-view follow the rule (refactoring piece 1, below); the device side is not
-yet implemented.
+Decided 2026-10-26. Implemented (refactoring steps 1 to 5, below): the
+request protocol and `StateUnits`' view follow the rule; the PIT keeps its
+share in a shared ghost field (`DeviceGhost`); and a verified unit
+(`DeviceUnit`) drives it. Not yet: the PIT's code bodies proved, normal
+builds, and wiring the PIT to `DeviceUnit` (see "Next steps (agreed)",
+item 5).
 
 **Problem with the current placement.** The unit's half and its invariant
 ("while stopped, my half records my current snapshot") live in the unit's
@@ -505,14 +534,16 @@ paths, including its I/O handlers.
    three negative checks (breaking the invariant twice, changing the key)
    fail; a runtime test covers release and drop.
 4. *Done (contracts; handler bodies not yet proved).* The PIT
-   (`vm/devices/chipset/src/pit/`; spec in `mod.spec.rs`, declarations,
-   ghost steps, and examples in `mod.proof.rs`). See "The PIT" below.
-5. *Started.* The unit loop. Decided 2026-10-26: the shared chipset unit
+   (`vm/devices/chipset/src/pit/`; spec in `mod.spec.rs`; declarations, its
+   `StateUnitDevice` implementation, and examples in `mod.proof.rs`). See
+   "The PIT" below.
+5. *Done (Verus only; not yet wired or tested).* The unit loop. Decided 2026-10-26: the shared chipset unit
    (`ArcMutexChipsetDeviceUnit`, used by about 56 device types) stays as it
    is, trusted; a separate verified unit, `DeviceUnit<T>`
    (`vmm_core/state_unit/src/device_unit.rs`, Verus only for now), is for
-   devices that implement `StateUnitDevice` (for now, the PIT). See "The
-   verified unit" below.
+   devices that implement `StateUnitDevice` (for now, the PIT): verified
+   `handle` and `poll`, and the unverified run loop. See "The verified
+   unit" below.
 
 Alongside: a survey of cross-device changes (lines re-driven into the
 PIC/IOAPIC at restore, vmtime, `Halt`, the time-ABI writes to the
@@ -681,10 +712,10 @@ from the device up.
    `NoSavedState` if `omit_saved_state`, else `Saved(of(saved_state()))` of
    its device.
 4. **Request loop: `run_unit` / `StateRequest::apply`**. *Stated, not
-   attached.* The unit's task takes the receiver's half
-   (`take_receiver_ghost`) when it starts, keeps a ghost running/stopped
-   flag, and answers each request by the request protocol, keeping the
-   invariant "while stopped, my half records my current snapshot".
+   attached* for the production units. The unit answers each request by
+   the request protocol. Under "Design change: the FracGhost lives with the
+   device", the half lives in the device, not in the unit's task. *Done*
+   for the verified unit: `DeviceUnit::handle` ("The verified unit").
 
 Concerns:
 
@@ -850,8 +881,10 @@ New trusted facts and assumptions:
 - Channel failures (a unit's task gone) do not happen for a registered unit:
   OpenVMM's `run_op` panics on them, and the ghost would be lost.
 
-Not yet done: the real unit side (`run_unit`, `StateRequest::apply`, each
-`StateUnit`) is blocked on async trait functions and async closures (gap 1);
+Not yet done: the production unit side (`run_unit`, `StateRequest::apply`,
+each `StateUnit`) is blocked on async trait functions and async closures
+(gap 1); the verified unit `DeviceUnit` meets the protocol for devices
+implementing `StateUnitDevice` ("The verified unit").
 `StateUnits::stop`/`save`/`restore` and `run_op` are not yet verified
 against the protocol.
 
@@ -911,8 +944,9 @@ want to verify the save side up to the controller, layer by layer.
 The restore side has corresponding later layers:
 `LoadedVm::restore_from_snapshot` (`dispatch/restore.rs:308`: time-ABI
 preparation, `restore`, then guest-clock adjustment) and
-`InitializedVm::load(Some(saved_state))` (`dispatch.rs:1824`, which builds the
-`LoadedVm` and calls `restore_from_snapshot` at `dispatch.rs:3593`).
+`InitializedVm::load(Some(saved_state))` (`dispatch.rs`, which builds the
+`LoadedVm` and calls `restore_from_snapshot`). Both now have contracts
+("Restore from snapshot").
 
 ## Verification approach: fractional ghost ownership
 
@@ -1320,10 +1354,13 @@ concurrent per-pin writes into the PIC and IOAPIC.
    each verified device.
    *Status:* the probe is not done; the PIT uses the fallback, per-type
    trusted wrappers (`pit/blob_t.rs`).
-2. **`InitializedVm::load(Some(_))`** (`dispatch.rs:1824`): its contract. It
+2. **`InitializedVm::load(Some(_))`** (`dispatch.rs`): its contract. It
    builds the `LoadedVm` (collecting the halves in `make_ids`) and calls
    `restore_from_snapshot`.
-   *Status:* not started.
+   *Status:* done: contract stated (`external_body`), with the `None` case
+   too, and checked against `restore_from_snapshot`'s by
+   `lemma_load_restores` (see "Restore from snapshot"). Added
+   `LoadedVmView::time_units` for it.
 3. **Replace the RPC calls with the mesh RPC wrapper**
    (`SNAPSHOT-SPEC-MESH-RPC.md`): `state_change` / `run_op` on the caller
    side (in `verus!` style, as on branch `system-proof/run-op-proof-attempt`)
@@ -1378,16 +1415,18 @@ important first.
    (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as
    assumed until verified. The `run_op` proof attempt is on branch
    `system-proof/run-op-proof-attempt`.
-2. **Next layers**: `InitializedVm::load(Some(_))` (restore side), and the
-   controller (`VmController::handle_guest_snapshot_request`), which needs a
-   decision on the encoded `ProtobufMessage` (roadmap item 3).
+2. **Next layer**: the controller
+   (`VmController::handle_guest_snapshot_request`), which needs a decision
+   on the encoded `ProtobufMessage` (roadmap item 3). (`InitializedVm::load`
+   now has a contract.)
 3. **Clock restore**: specify the clock units' restored state, and fix the
    partition's stale view after the TSC set and LAPIC advance ("Restore from
    snapshot").
-4. **Unit side**: attach the blob, `StateUnit`, and request-loop contracts
-   (blocked on the `SavedStateRoot` trait chain, async trait functions, and
-   async closures); the units not built on `SaveRestore`; cross-unit
-   interrupt effects ("Unit-side contract").
+4. **Unit side**: for the production units, attach the blob, `StateUnit`,
+   and request-loop contracts (blocked on the `SavedStateRoot` trait chain,
+   async trait functions, and async closures); the units not built on
+   `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
+   the PIT, see "Next steps (agreed)", item 5.
 5. **`SavedStateBlob` `new`/`parse`**: attach their contract with the unit
    side (local `encode`/`decode` trait).
 6. **Quiesce path**: the time capture, and `quiesce_for_save`'s error cases

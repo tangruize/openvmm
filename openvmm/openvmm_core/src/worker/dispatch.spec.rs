@@ -19,11 +19,13 @@ pub struct LoadedVmView {
     /// stopped or restored since it was created); `snapshot` is complete
     /// only then.
     pub recorded: bool,
+    /// The units whose state a time ABI clock restore changes: the
+    /// partition (its TSCs and LAPIC timers are set) and the units that
+    /// advance time (they receive `AdvanceTime`).
+    pub time_units: Set<Seq<char>>,
     /// The units whose state a pending time ABI clock restore will change:
-    /// the partition (its TSCs and LAPIC timers are set) and the units that
-    /// advance time (they receive `AdvanceTime`). Empty unless the VM was
-    /// loaded for a time ABI restore that has not yet run
-    /// (`finish_snapshot_restore`).
+    /// `time_units` if the VM was loaded for a time ABI restore that has not
+    /// yet run (`finish_snapshot_restore`); else empty.
     pub clock_units: Set<Seq<char>>,
     /// The rest, which a snapshot does not capture.
     pub runtime: VmRuntime,
@@ -77,11 +79,13 @@ impl View for LoadedVm {
     /// FracGhost records a saved state.
     closed spec fn view(&self) -> LoadedVmView {
         let units = self.state_units@;
+        let time_units = units.advances_time.insert("partition"@);
         LoadedVmView {
             snapshot: SavedStateView { units: units.saved_units(), inventory: units.inventory },
             recorded: units.all_recorded(),
+            time_units,
             clock_units: if self.snapshot_restore@.clock_restore_pending {
-                units.advances_time.insert("partition"@)
+                time_units
             } else {
                 Set::empty()
             },

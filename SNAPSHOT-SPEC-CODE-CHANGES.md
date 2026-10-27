@@ -257,6 +257,13 @@ Baseline: upstream `nanvix/openvmm` commit
     its `poll`); `std::task::Context`'s Verus declaration moves from the
     PIT to `vmcore`; `closeable_mutex` adds `lock_verified` and
     `VerifiedOpenGuard` (with a runtime test).
+30. **`InitializedVm::load` contract** (Verus only, no runtime change):
+    contract (`external_body`) on `load` (`dispatch.rs`); declarations of
+    `InitializedVm` and `HaltReason`; `LoadedVmView::time_units` (new; used
+    by `clock_units`); `restore`, `restore_from_snapshot`,
+    `finish_snapshot_restore`, `time_abi_restore` keep `time_units`
+    (`time_abi_restore` now states its frame with it); verified lemma
+    `LoadedVmView::lemma_load_restores` (`dispatch.proof.rs`).
 
 ### Planned: mesh RPC trusted spec
 

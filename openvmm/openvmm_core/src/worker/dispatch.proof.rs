@@ -5,10 +5,13 @@
 // needed.
 
 use super::LoadedVmView;
+use crate::worker::dispatch::InitializedVm;
 use crate::worker::dispatch::LoadedVmInner;
 use crate::worker::dispatch::microvm::SnapshotBoundary;
 use crate::worker::dispatch::restore::SnapshotRestore;
 use openvmm_defs::worker::spec::SavedStateView;
+use vmcore::save_restore::spec::SavedStateBlobView;
+use vmm_core_defs::HaltReason;
 use vstd::prelude::*;
 
 verus! {
@@ -27,9 +30,46 @@ pub(in crate::worker::dispatch) struct ExSnapshotRestore(SnapshotRestore);
 #[verifier::external_body]
 pub(in crate::worker::dispatch) struct ExSnapshotBoundary(SnapshotBoundary);
 
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub(crate) struct ExInitializedVm(InitializedVm);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExHaltReason(HaltReason);
+
 // (`anyhow::Error` is declared in `state_unit`.)
 
 impl LoadedVmView {
+    /// `InitializedVm::load`'s contract for a restore follows from the VM it
+    /// builds and `restore_from_snapshot`'s: `self` is the freshly built VM
+    /// (no unit's state recorded; clock units set if a time ABI restore is
+    /// pending), `after` the VM after `restore_from_snapshot` succeeded.
+    pub proof fn lemma_load_restores(
+        self,
+        state: SavedStateView,
+        pending: bool,
+        after: LoadedVmView,
+    )
+        requires
+            // The fresh VM.
+            self.snapshot.units == Map::<Seq<char>, SavedStateBlobView>::empty(),
+            self.clock_units == (if pending { self.time_units } else { Set::empty() }),
+            // `restore_from_snapshot`'s `Ok` result.
+            after.time_units == self.time_units,
+            after.snapshot.units.remove_keys(self.clock_units)
+                == self.snapshot.units.union_prefer_right(state.units).remove_keys(
+                self.clock_units,
+            ),
+        ensures
+            ({
+                let clock = if pending { after.time_units } else { Set::empty() };
+                after.snapshot.units.remove_keys(clock) == state.units.remove_keys(clock)
+            }),
+    {
+        assert(self.snapshot.units.union_prefer_right(state.units) =~= state.units);
+    }
+
     /// Restoring a saved state into a VM with the same stateful units and the
     /// same inventory gives back the snapshot state the saved state holds.
     /// With `saved` from `LoadedVm::save`, this is the round trip: the VM's

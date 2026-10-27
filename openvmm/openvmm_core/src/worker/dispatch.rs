@@ -1748,6 +1748,37 @@ impl InitializedVm {
     ///
     // FUTURE: move more of this logic into new() so that more can be done
     //         outside the VM-PHU/live migration blackout window.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result matches Ok(vm) ==> {
+                &&& vm.wf()
+                // Loaded stopped, with no clock restore left pending.
+                &&& !vm@.runtime.running
+                &&& vm@.clock_units.is_empty()
+                &&& match saved_state {
+                    // A fresh VM: no unit's state is recorded yet.
+                    None => {
+                        &&& vm@.snapshot.units.is_empty()
+                        &&& !snapshot_restore@.clock_restore_pending
+                    },
+                    // Restored from `state`.
+                    Some(state) => {
+                        // The units the clock restore changed, if there was
+                        // one (their restored state is not yet specified).
+                        let clock = if snapshot_restore@.clock_restore_pending {
+                            vm@.time_units
+                        } else {
+                            Set::empty()
+                        };
+                        // The other units have exactly the saved states.
+                        &&& vm@.snapshot.units.remove_keys(clock) == state@.units.remove_keys(clock)
+                        // The saved inventory, if any, matches the VM's.
+                        &&& state@.inventory.len() == 0 || state@.inventory == vm@.snapshot.inventory
+                    },
+                }
+            },
+    ))]
     async fn load(
         self,
         saved_state: Option<SavedState>,
@@ -4680,6 +4711,7 @@ impl LoadedVm {
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
+            final(self)@.time_units == old(self)@.time_units,
             final(self)@.clock_units == old(self)@.clock_units,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {

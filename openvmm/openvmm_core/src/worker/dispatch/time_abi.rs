@@ -972,11 +972,12 @@ impl LoadedVm {
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.time_units == old(self)@.time_units,
             final(self)@.clock_units == old(self)@.clock_units,
             // Only the partition (TSCs, LAPIC timers) and the units that
             // advance time (`AdvanceTime`) may change.
-            final(self)@.snapshot.units.remove_keys(old(self).state_units@.advances_time.insert("partition"@))
-                == old(self)@.snapshot.units.remove_keys(old(self).state_units@.advances_time.insert("partition"@)),
+            final(self)@.snapshot.units.remove_keys(old(self)@.time_units)
+                == old(self)@.snapshot.units.remove_keys(old(self)@.time_units),
     ))]
     pub(super) async fn time_abi_restore(&mut self, input: RestoreTimeInput) -> anyhow::Result<()> {
         let state = self
