@@ -1439,8 +1439,7 @@ important first.
 
 1. **Prove the contracts.** Every contract above has an unverified body
    (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as
-   assumed until verified. The `run_op` proof attempt is on branch
-   `system-proof/run-op-proof-attempt`.
+   assumed until verified.
 2. **Next layer**: the controller
    (`VmController::handle_guest_snapshot_request`), which needs a decision
    on the encoded `ProtobufMessage` (roadmap item 3). (`InitializedVm::load`
@@ -1449,8 +1448,9 @@ important first.
    partition's stale view after the TSC set and LAPIC advance ("Restore from
    snapshot").
 4. **Unit side**: for the production units, attach the blob, `StateUnit`,
-   and request-loop contracts (blocked on the `SavedStateRoot` trait chain,
-   async trait functions, and async closures); the units not built on
+   and request-loop contracts (blocked on the `SavedStateRoot` trait chain
+   and async trait functions; `StateRequest::apply` no longer uses async
+   closures); the units not built on
    `SaveRestore`; cross-unit interrupt effects ("Unit-side contract"). For
    the PIT, see "Next steps (agreed)", item 5.
 5. **`SavedStateBlob` `new`/`parse`**: attach their contract with the unit
@@ -1460,7 +1460,8 @@ important first.
 7. **Pending proof**: `StateUnits::lemma_view_inv`.
 8. **Convention TODOs**: `SavedStateUnit`'s sequence helpers, and the
    trusted wrapper types' spec functions ("Convention TODOs").
-9. **Soundness review** of `mesh_rpc_t.rs` (the reply-ghost type argument)
+9. **Soundness review** of the mesh RPC wrapper (`mesh_rpc_verus`,
+   `src/mesh_rpc_t.rs`; the reply-ghost type argument)
    and of the registry axioms (`registry_t.rs`).
 10. **Hard-coded `"partition"`** in `LoadedVm`'s view.
 
