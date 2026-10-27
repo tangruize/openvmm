@@ -51,6 +51,19 @@ impl View for SavedStateBlob {
     uninterp spec fn view(&self) -> SavedStateBlobView;
 }
 
+/// What a state unit's FracGhost records: the unit's snapshotable state,
+/// that is, what its save returns. (Here, not in `state_unit`, so that
+/// devices, which hold their unit's FracGhost, can name it.)
+pub enum UnitSnapshot {
+    /// Not recorded: the unit has been neither stopped nor restored since it
+    /// was created. (In `StateUnits`' view, also a unit that is running.)
+    Unknown,
+    /// The unit has no saved state (its save returns `None`).
+    NoSavedState,
+    /// The unit's saved state.
+    Saved(SavedStateBlobView),
+}
+
 /// The contract of every `SaveRestore` implementation (the unit-side
 /// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`).
 /// `saved_state()` is the object's snapshotable state: what `save` returns.

@@ -116,6 +116,9 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`.
 
 | Item | What is assumed |
 |---|---|
+| PIT entry points meet their contracts | `vm/devices/chipset/src/pit/mod.rs`: `start_device`, `reset_device`, `poll`, `pio_read`, `pio_write`, `save_device`, `restore_device` are `external_body` until proved. |
+| PIT handlers called only while running | Their callers (vCPU port I/O dispatch, the unit's poll loop, `ChangeDeviceState::start`) are unverified; they are trusted to call them only when their preconditions hold (`wf()`, and running). |
+| PIT ghost placeholders at creation | `PitDevice::new` (unverified) fills `ghost` and `id` with `assume_new()`; until the creation hand-off is done, the PIT's ghost is not tied to its unit's channel. |
 | Stopped devices do not change | While the state units are stopped, no vCPU accesses a device: the partition unit (VPs) is stopped before the devices (stop order: dependants first) and stays stopped until `start`, and stopping it stops the vCPUs. (Not the `CloseableMutex`: a unit closes its device's mutex only during each operation.) Also, a stopped device has no activity of its own (its `stop` stops its timers and async work). To be replaced by a proof: see the design doc, "Design change: the FracGhost lives with the device". |
 
 ## Prototype only (`verus-patches/verus-rpc-prototype`, not part of OpenVMM)

@@ -3,6 +3,18 @@
 
 pub mod resolver;
 
+/// Verus specification of the PIT.
+#[cfg(verus_keep_ghost)]
+pub(crate) mod spec {
+    include!("mod.spec.rs");
+
+    /// Declarations supporting the spec. Inside `spec`, so that lemmas can
+    /// unfold its closed views.
+    pub(crate) mod proof {
+        include!("mod.proof.rs");
+    }
+}
+
 use bitfield_struct::bitfield;
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoError;
@@ -21,6 +33,8 @@ use vmcore::device_state::ChangeDeviceState;
 use vmcore::line_interrupt::LineInterrupt;
 use vmcore::vmtime::VmTime;
 use vmcore::vmtime::VmTimeAccess;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 #[rustfmt::skip]
 #[derive(Inspect)]
@@ -534,6 +548,7 @@ impl TimerState {
 }
 
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct PitDevice {
     // Runtime glue
     vmtime: VmTimeAccess,
@@ -550,6 +565,17 @@ pub struct PitDevice {
 
     // Volatile state
     last: VmTime,
+
+    /// Verus only (zero-sized): the device's share of its state unit's
+    /// FracGhost (the whole while running, one half while stopped), and
+    /// whether it runs.
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    ghost: Tracked<vmcore::device_state::spec::DeviceGhostState>,
+    /// Verus only: the id of the FracGhost (its unit channel's constant).
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    id: Ghost<vstd::resource::Loc>,
 }
 
 /// Channel 0 counts in a periodic mode, which the NVX time ABI forbids at
@@ -574,6 +600,12 @@ impl PitDevice {
             vmtime,
             dram_refresh: false,
             time_abi: false,
+            // TODO (Verus): the device should receive its unit's half here
+            // (see "Design change: the FracGhost lives with the device").
+            #[cfg(verus_keep_ghost)]
+            ghost: Tracked::assume_new(),
+            #[cfg(verus_keep_ghost)]
+            id: Ghost::assume_new(),
         }
     }
 
@@ -628,17 +660,13 @@ impl PitDevice {
 
 impl ChangeDeviceState for PitDevice {
     fn start(&mut self) {
-        self.evaluate(self.vmtime.now());
-        self.arm_wakeup();
+        self.start_device();
     }
 
     async fn stop(&mut self) {}
 
     async fn reset(&mut self) {
-        for timer in &mut self.timers {
-            timer.reset();
-        }
-        self.last = self.vmtime.now();
+        self.reset_device();
     }
 }
 
@@ -654,6 +682,88 @@ impl ChipsetDevice for PitDevice {
 
 impl PollDevice for PitDevice {
     fn poll_device(&mut self, cx: &mut Context<'_>) {
+        self.poll(cx);
+    }
+}
+
+impl PortIoIntercept for PitDevice {
+    fn io_read(&mut self, io_port: u16, data: &mut [u8]) -> IoResult {
+        self.pio_read(io_port, data)
+    }
+
+    fn io_write(&mut self, io_port: u16, data: &[u8]) -> IoResult {
+        self.pio_write(io_port, data)
+    }
+
+    fn get_static_regions(&mut self) -> &[(&str, RangeInclusive<u16>)] {
+        &[
+            ("main", PIT_TIMER_RANGE_START..=PIT_CONTROL_REGISTER),
+            ("port61", PIT_PORT61_REGISTER..=PIT_PORT61_REGISTER),
+        ]
+    }
+}
+
+// The device's entry points, with their contracts: every change to the
+// device's state goes through one of these (the trait implementations above
+// delegate to them) or through `SaveRestore::restore`. Each keeps `wf()`, so
+// a change while the device holds the whole FracGhost must update it. The
+// handlers run only while the device runs (the vCPUs and the poll loop are
+// stopped otherwise; their callers are unverified, so this precondition is
+// trusted for them).
+impl PitDevice {
+    /// `ChangeDeviceState::start`: catches the timers up to now and arms the
+    /// next wakeup.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self).ghost@.running,
+        ensures
+            final(self).wf(),
+            final(self).id == old(self).id,
+            final(self).ghost@.running,
+            final(self)@.time_abi == old(self)@.time_abi,
+    ))]
+    fn start_device(&mut self) {
+        self.evaluate(self.vmtime.now());
+        self.arm_wakeup();
+    }
+
+    /// `ChangeDeviceState::reset`, while stopped, holding the whole
+    /// FracGhost (lent with `Reset`).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self).ghost@.whole(),
+            !old(self).ghost@.running,
+        ensures
+            final(self).wf(),
+            final(self).id == old(self).id,
+            final(self).ghost@.whole(),
+            !final(self).ghost@.running,
+            final(self)@.time_abi == old(self)@.time_abi,
+    ))]
+    fn reset_device(&mut self) {
+        for timer in &mut self.timers {
+            timer.reset();
+        }
+        self.last = self.vmtime.now();
+    }
+
+    /// `PollDevice::poll_device`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self).ghost@.running,
+        ensures
+            final(self).wf(),
+            final(self).id == old(self).id,
+            final(self).ghost@.running,
+            final(self)@.time_abi == old(self)@.time_abi,
+    ))]
+    fn poll(&mut self, cx: &mut Context<'_>) {
         if let Poll::Ready(now) = self.vmtime.poll_timeout(cx) {
             self.evaluate(now);
             // Re-register the poll before arming the next wakeup rather than
@@ -663,10 +773,20 @@ impl PollDevice for PitDevice {
             self.arm_wakeup();
         }
     }
-}
 
-impl PortIoIntercept for PitDevice {
-    fn io_read(&mut self, io_port: u16, data: &mut [u8]) -> IoResult {
+    /// `PortIoIntercept::io_read`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self).ghost@.running,
+        ensures
+            final(self).wf(),
+            final(self).id == old(self).id,
+            final(self).ghost@.running,
+            final(self)@.time_abi == old(self)@.time_abi,
+    ))]
+    fn pio_read(&mut self, io_port: u16, data: &mut [u8]) -> IoResult {
         if data.len() != 1 {
             return IoResult::Err(IoError::InvalidAccessSize);
         }
@@ -697,7 +817,19 @@ impl PortIoIntercept for PitDevice {
         IoResult::Ok
     }
 
-    fn io_write(&mut self, io_port: u16, data: &[u8]) -> IoResult {
+    /// `PortIoIntercept::io_write`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            old(self).ghost@.running,
+        ensures
+            final(self).wf(),
+            final(self).id == old(self).id,
+            final(self).ghost@.running,
+            final(self)@.time_abi == old(self)@.time_abi,
+    ))]
+    fn pio_write(&mut self, io_port: u16, data: &[u8]) -> IoResult {
         let &[b] = data else {
             return IoResult::Err(IoError::InvalidAccessSize);
         };
@@ -746,13 +878,6 @@ impl PortIoIntercept for PitDevice {
         self.arm_wakeup();
         IoResult::Ok
     }
-
-    fn get_static_regions(&mut self) -> &[(&str, RangeInclusive<u16>)] {
-        &[
-            ("main", PIT_TIMER_RANGE_START..=PIT_CONTROL_REGISTER),
-            ("port61", PIT_PORT61_REGISTER..=PIT_PORT61_REGISTER),
-        ]
-    }
 }
 
 mod save_restore {
@@ -761,7 +886,7 @@ mod save_restore {
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
 
-    mod state {
+    pub(super) mod state {
         use mesh::payload::Protobuf;
         use vmcore::save_restore::SavedStateRoot;
         use vmcore::vmtime::VmTime;
@@ -828,6 +953,30 @@ mod save_restore {
         type SavedState = state::SavedState;
 
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
+            self.save_device()
+        }
+
+        fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
+            self.restore_device(state)
+        }
+    }
+
+    // `SaveRestore` for the PIT, with the PIT's contracts. (The generic
+    // `SaveRestore` contract says nothing of `wf()` or the FracGhost.)
+    impl PitDevice {
+        /// Saves the device; changes nothing in its view or its ghost.
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+            requires
+                old(self).wf(),
+            ensures
+                final(self).wf(),
+                final(self).id == old(self).id,
+                final(self).ghost == old(self).ghost,
+                final(self)@ == old(self)@,
+                result matches Ok(saved) ==> saved == old(self)@.saved_state(),
+        ))]
+        pub(in crate::pit) fn save_device(&mut self) -> Result<state::SavedState, SaveError> {
             self.check_time_abi()
                 .map_err(|err| SaveError::Other(err.into()))?;
             let Self {
@@ -836,6 +985,10 @@ mod save_restore {
                 dram_refresh: _,
                 time_abi: _,
                 last,
+                #[cfg(verus_keep_ghost)]
+                    ghost: _,
+                #[cfg(verus_keep_ghost)]
+                    id: _,
             } = self;
 
             Ok(state::SavedState {
@@ -879,7 +1032,26 @@ mod save_restore {
             })
         }
 
-        fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
+        /// Restores the stopped device, holding the whole FracGhost (lent
+        /// with `Restore`).
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+        #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+            requires
+                old(self).wf(),
+                old(self).ghost@.whole(),
+                !old(self).ghost@.running,
+            ensures
+                final(self).wf(),
+                final(self).id == old(self).id,
+                final(self).ghost@.whole(),
+                !final(self).ghost@.running,
+                final(self)@.time_abi == old(self)@.time_abi,
+                result is Ok ==> final(self)@.saved_state() == state,
+        ))]
+        pub(in crate::pit) fn restore_device(
+            &mut self,
+            state: state::SavedState,
+        ) -> Result<(), RestoreError> {
             let state::SavedState { timers, last } = state;
 
             for (timer, state) in self.timers.iter_mut().zip(timers) {

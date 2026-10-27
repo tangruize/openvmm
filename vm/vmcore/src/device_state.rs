@@ -8,6 +8,12 @@
 use std::future::Future;
 use std::time::Duration;
 
+/// Verus specification of a device's ghost state.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("device_state.spec.rs");
+}
+
 /// Trait for transitioning device state.
 pub trait ChangeDeviceState {
     /// Starts a device, allowing it to interact with the guest asynchronously.

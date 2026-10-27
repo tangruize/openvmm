@@ -6,6 +6,9 @@ name = "chipset"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 chipset_device.workspace = true
 chipset_device_resources.workspace = true
@@ -21,6 +24,7 @@ x86defs.workspace = true
 async-trait.workspace = true
 anyhow.workspace = true
 bitfield-struct.workspace = true
+closeable_mutex.workspace = true
 futures.workspace = true
 inspect_counters.workspace = true
 inspect.workspace = true
@@ -31,6 +35,7 @@ open_enum.workspace = true
 thiserror.workspace = true
 tracelimit.workspace = true
 tracing.workspace = true
+vstd.workspace = true
 
 [dev-dependencies]
 pal_async.workspace = true

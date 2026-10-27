@@ -231,6 +231,19 @@ Baseline: upstream `nanvix/openvmm` commit
     `lib.proof.rs` (example, Verus only), a runtime test, `build.rs` (declares
     the `verus_keep_ghost` cfg), and a `vstd` dependency with
     `[package.metadata.verus] verify = true`.
+27. **PIT spec** (`vm/devices/chipset`, `vm/vmcore`; no change to behavior):
+    new `vm/vmcore/src/device_state.spec.rs` (`DeviceGhostState`, trait
+    `DeviceGhost`), included as `device_state::spec`; Verus-only ghost
+    fields `ghost` (a `DeviceGhostState`) and `id` on `PitDevice` (with placeholders in
+    `new`, and in `save`'s destructuring); the bodies of `start`, `reset`,
+    `poll_device`, `io_read`, `io_write`, `save`, `restore` moved into
+    inherent methods with contracts (`start_device`, `reset_device`, `poll`,
+    `pio_read`, `pio_write`, `save_device`, `restore_device`), which the
+    trait methods call; `save_restore::state` is `pub(super)`; new
+    `pit/mod.spec.rs` and `pit/mod.proof.rs`; `build.rs`; dependencies on
+    `vstd` and `closeable_mutex`; `[package.metadata.verus] verify = true`.
+    `UnitSnapshot` moved from `state_unit` (`lib.spec.rs`) to `vmcore`
+    (`save_restore.spec.rs`); `state_unit` re-exports it.
 
 ### Planned: mesh RPC trusted spec
 

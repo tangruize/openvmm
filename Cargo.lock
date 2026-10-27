@@ -585,6 +585,7 @@ dependencies = [
  "chipset_device",
  "chipset_device_resources",
  "chipset_resources",
+ "closeable_mutex",
  "futures",
  "input_core",
  "inspect",
@@ -603,6 +604,7 @@ dependencies = [
  "tracing",
  "vm_resource",
  "vmcore",
+ "vstd",
  "x86defs",
 ]
 

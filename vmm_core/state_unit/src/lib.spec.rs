@@ -6,21 +6,10 @@
 use super::SavedStateUnit;
 use super::StateUnits;
 use vmcore::save_restore::spec::SavedStateBlobView;
+pub use vmcore::save_restore::spec::UnitSnapshot;
 use vstd::prelude::*;
 
 verus! {
-
-/// What a state unit's FracGhost records: the unit's snapshotable state,
-/// that is, what its save returns.
-pub enum UnitSnapshot {
-    /// Not recorded: the unit has been neither stopped nor restored since it
-    /// was created. (In `StateUnits`' view, also a unit that is running.)
-    Unknown,
-    /// The unit has no saved state (its save returns `None`).
-    NoSavedState,
-    /// The unit's saved state.
-    Saved(SavedStateBlobView),
-}
 
 /// The view of a `StateUnits`.
 ///

@@ -22,8 +22,8 @@
 //!   [`CloseableMutex::new_verified`]: its value satisfied the invariant, and
 //!   its key is that value's key.
 
-use super::ClosedGuard;
 use super::CloseableMutex;
+use super::ClosedGuard;
 use std::sync::Arc;
 use vstd::prelude::*;
 

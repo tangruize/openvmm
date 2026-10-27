@@ -504,14 +504,86 @@ paths, including its I/O handlers.
    `ExampleCounter` (`support/closeable_mutex/src/lib.proof.rs`) verifies;
    three negative checks (breaking the invariant twice, changing the key)
    fail; a runtime test covers release and drop.
-4. The PIT: its ghost field, `saved_state()`, `wf()`, and contracts on its
-   I/O handlers.
+4. *Done (contracts; handler bodies not yet proved).* The PIT
+   (`vm/devices/chipset/src/pit/`; spec in `mod.spec.rs`, declarations,
+   ghost steps, and examples in `mod.proof.rs`). See "The PIT" below.
 5. The unit loop: `ArcMutexChipsetDeviceUnit::run`, and
    `StateRequest::apply` without async closures.
 
 Alongside: a survey of cross-device changes (lines re-driven into the
 PIC/IOAPIC at restore, vmtime, `Halt`, the time-ABI writes to the
 partition), which need modelling.
+
+#### The PIT
+
+- **The shared ghost field** (`vm/vmcore/src/device_state.spec.rs`): a
+  device keeps one Verus-only field of type `DeviceGhostState` (`frac`, its
+  share of the FracGhost; `running`). `DeviceGhostState::wf(id, snapshot)`
+  is the rule, written once for every device: the FracGhost with id `id`,
+  whole or half, whole while running, and, unless `Unknown`, recording
+  `snapshot`. The trait `DeviceGhost` lets generic code reach the field:
+  spec functions `ghost()`, `id()`, `snapshot()`, `device_inv()` (the
+  device's own invariant), and `ghost_mut()`, which hands out the field as
+  a `&mut` and promises the device's state, id, and invariant unchanged.
+  The state unit then combines, splits, and updates the FracGhost in its
+  own proof blocks; devices write no ghost code of their own. (A probe
+  showed this also verifies with the device behind `dyn` and inside a
+  `CloseableMutex` of a `dyn` value; see step 5.)
+- **The PIT's fields** (Verus only, zero-sized): `ghost:
+  Tracked<DeviceGhostState>` and `id`. `UnitSnapshot` moved to
+  `vm/vmcore/src/save_restore.spec.rs` so that devices can name it.
+- **View** `PitDeviceView`: the three timers' states, `last`, `time_abi`.
+  Not in it: `vmtime`, the interrupt line, `dram_refresh` (flips on each
+  port-61 read; not saved), and the ghost field. `inv()`: three timers.
+  `saved_state()` is defined on the view, field by field;
+  `SaveRestoreSpecImpl::saved_state` is the view's; `snapshot()` is
+  `Saved(of(saved_state()))`. `wf()`: the view's invariant, and the ghost
+  field follows the rule for `snapshot()`. `LockInvariant`: key `id`,
+  invariant `wf()`.
+- **Entry points with contracts** (`external_body`: stated, not proved).
+  The trait methods delegate to inherent methods: `start_device`, `poll`,
+  `pio_read`, `pio_write` require `wf()` and running and keep both;
+  `reset_device` and `restore_device` require `wf()`, whole, and stopped,
+  and keep them; `restore_device` on `Ok` sets `saved_state()`;
+  `save_device` changes neither the view nor the ghost and returns
+  `saved_state()`. Proving a handler means updating the FracGhost after
+  each change (it holds the whole while running).
+- **Examples** (verified): `example_start`, `example_stop`,
+  `example_save`, `example_restore`, the PIT's unit answering each request
+  through `CloseableMutex::close_verified` / `release`, doing the ghost
+  work in its own proof blocks through `ghost_mut`, and meeting the request
+  protocol. `example_stop` assumes the device is running (the trusted fact
+  of "`StateUnits`' unit states are the units' real states"). Negative
+  checks, each failing: `Start` without the bound proof; `Stop` without
+  recording, without clearing `running`, or without the trusted fact;
+  `Save` without agreeing; `Restore` without taking the lent half.
+
+Findings and open items:
+
+- **The generic `SaveRestore` contract says nothing of `wf()` or the
+  ghost**, so a caller cannot know that `save` / `restore` keep them. The
+  PIT states this on `save_device` / `restore_device`; the generic unit
+  (step 5) needs it generically.
+- **Generic code and `dyn`.** The chipset unit holds its device as
+  `Arc<CloseableMutex<dyn DynDevice>>`. The probe showed `DeviceGhost`
+  works through `dyn`, with `LockInvariant` implemented for the `dyn` type
+  (its invariant: the rule, from `ghost()`, `id()`, `snapshot()`). Needed
+  for step 5: the `CloseableMutex` wrapper must accept unsized values
+  (specs comparing `&T`, since spec equality needs sized values), and the
+  device's own invariant must reach the `dyn` level (`device_inv()`).
+- **Creation**: `PitDevice::new` (unverified) fills the ghost fields with
+  placeholders (`assume_new`). The device should receive its unit's half
+  at creation, and its mutex should be made with `new_verified`.
+- **A recorded snapshot need not be saveable**: with the time ABI and
+  channel 0 periodic, `save` fails (`E_PIT_ACTIVE`), yet `Stop` records
+  `Saved(of(saved_state()))`, the state `save` would return if it
+  succeeded.
+- **`restore` on `Err`** leaves the timers and `last` changed; the unit
+  still returns a half recording the new snapshot, which the protocol
+  allows.
+- **Cross-device effects**: `restore`, `reset`, and the handlers drive the
+  interrupt line (`sync_interrupt`), and the handlers set vmtime timeouts;
+  not modelled.
 
 ### Unit-side contract
 
@@ -627,7 +699,8 @@ Design:
    The unit's run loop takes the receiver's half when it starts. A cloned
    sender carries none. Crates in between need no signature changes.
 2. **Initial value "not yet known".** The ghost value is a `UnitSnapshot`
-   (`vmm_core/state_unit/src/lib.spec.rs`): `Unknown`, `NoSavedState`, or
+   (`vm/vmcore/src/save_restore.spec.rs`, so that devices can name it):
+   `Unknown`, `NoSavedState`, or
    `Saved(SavedStateBlobView)`, starting `Unknown`. (`NoSavedState` is
    needed because a unit whose save returns `None` has a known state that
    is not a blob.) On `Stop`, the running unit, holding the whole, records
@@ -1205,6 +1278,9 @@ concurrent per-pin writes into the PIC and IOAPIC.
    `save` / `restore` and its I/O handlers against its `wf()`, and its
    request loop against the request protocol. This tests whether the
    unit-side obligations are tractable before more layers are added.
+   *Started:* the PIT's contracts, ghost steps, and verified examples are
+   in place ("The PIT", under "Design change: the FracGhost lives with the
+   device"); its handler bodies and the generic unit loop remain.
 
 ### Other open items
 
