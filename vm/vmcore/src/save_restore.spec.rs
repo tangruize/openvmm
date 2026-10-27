@@ -98,14 +98,25 @@ pub trait ExSaveRestore {
     /// The state `save` returns: the object's snapshotable state.
     spec fn saved_state(&self) -> Self::SavedState;
 
+    /// Well formed: what a valid object of this type satisfies (its view's
+    /// `inv()` and the properties of its other fields), defined by each
+    /// implementation that is specified. `save` and `restore` keep it.
+    spec fn device_wf(&self) -> bool;
+
     fn save(&mut self) -> (result: Result<Self::SavedState, SaveError>)
+        requires
+            old(self).device_wf(),
         ensures
+            final(self).device_wf(),
             final(self).saved_state() == old(self).saved_state(),
             result matches Ok(state) ==> state == old(self).saved_state(),
     ;
 
     fn restore(&mut self, state: Self::SavedState) -> (result: Result<(), RestoreError>)
+        requires
+            old(self).device_wf(),
         ensures
+            final(self).device_wf(),
             result is Ok ==> final(self).saved_state() == state,
     ;
 }
@@ -129,14 +140,24 @@ pub trait ExProtobufSaveRestore {
     /// The blob `save` returns: the object's snapshotable state, encoded.
     spec fn saved_blob(&self) -> SavedStateBlobView;
 
+    /// Well formed (for a `SaveRestore` type, its `device_wf()`). `save`
+    /// and `restore` keep it.
+    spec fn device_wf(&self) -> bool;
+
     fn save(&mut self) -> (result: Result<SavedStateBlob, SaveError>)
+        requires
+            old(self).device_wf(),
         ensures
+            final(self).device_wf(),
             final(self).saved_blob() == old(self).saved_blob(),
             result matches Ok(blob) ==> blob@ == old(self).saved_blob(),
     ;
 
     fn restore(&mut self, state: SavedStateBlob) -> (result: Result<(), RestoreError>)
+        requires
+            old(self).device_wf(),
         ensures
+            final(self).device_wf(),
             result is Ok ==> final(self).saved_blob() == state@,
     ;
 }

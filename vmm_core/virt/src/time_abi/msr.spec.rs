@@ -17,13 +17,13 @@ verus! {
 
 /// The invariant of `TimeAbiMsrs::tsc_invariant_control`'s atomic, whose
 /// key `k` is the id of the time-ABI unit's FracGhost: the share kept with
-/// the value follows the rule (`DeviceGhostState::wf`), so, once known, it
+/// the value follows the rule (`DeviceGhostState::follows_rule`), so, once known, it
 /// records the saved state the handler's `save` returns for that value.
 pub struct TscControlPred;
 
 impl AtomicInvariantPredicate<Loc, u64, DeviceGhostState> for TscControlPred {
     open spec fn atomic_inv(k: Loc, v: u64, g: DeviceGhostState) -> bool {
-        g.wf(k, UnitSnapshot::Saved(SavedStateBlobView::of(TimeAbiSavedState { tsc_invariant_control: v })))
+        g.follows_rule(k, UnitSnapshot::Saved(SavedStateBlobView::of(TimeAbiSavedState { tsc_invariant_control: v })))
     }
 }
 

@@ -16,7 +16,7 @@ verus! {
 /// share, once known, records `NoSavedState`.
 impl StateUnitSpec for LineSetUnit<'_> {
     closed spec fn wf(&self) -> bool {
-        self.1@.wf(self.id(), UnitSnapshot::NoSavedState)
+        self.1@.follows_rule(self.id(), UnitSnapshot::NoSavedState)
     }
 
     closed spec fn id(&self) -> Loc {

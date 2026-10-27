@@ -62,6 +62,11 @@ impl super::SaveRestoreSpecImpl for ExampleDevice {
     closed spec fn saved_state(&self) -> u64 {
         self.register
     }
+
+    /// Every value of the register is valid.
+    closed spec fn device_wf(&self) -> bool {
+        true
+    }
 }
 
 /// The blob of a `SaveRestore` object is its saved state, encoded.
@@ -70,6 +75,10 @@ impl<T: SaveRestore> super::ProtobufSaveRestoreSpecImpl for T where
  {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
         SavedStateBlobView::of(self.saved_state())
+    }
+
+    open spec fn device_wf(&self) -> bool {
+        super::SaveRestoreSpec::device_wf(self)
     }
 }
 

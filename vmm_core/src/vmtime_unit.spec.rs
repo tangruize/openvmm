@@ -18,7 +18,7 @@ verus! {
 /// (`VmTimeKeeperView::saved_blob`); its running flag is the keeper's.
 impl StateUnitSpec for KeeperUnit<'_> {
     closed spec fn wf(&self) -> bool {
-        &&& self.1@.wf(self.id(), UnitSnapshot::Saved(VmTimeKeeperView::saved_blob()))
+        &&& self.1@.follows_rule(self.id(), UnitSnapshot::Saved(VmTimeKeeperView::saved_blob()))
         &&& self.1@.running == (*self.0)@.running
     }
 

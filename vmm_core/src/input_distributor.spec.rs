@@ -18,7 +18,7 @@ verus! {
 impl StateUnitSpec for Inner {
     closed spec fn wf(&self) -> bool {
         &&& self.ghost@ is Some
-        &&& self.ghost@->Some_0.wf(self.id(), UnitSnapshot::NoSavedState)
+        &&& self.ghost@->Some_0.follows_rule(self.id(), UnitSnapshot::NoSavedState)
         &&& self.ghost@->Some_0.running == self.running
     }
 

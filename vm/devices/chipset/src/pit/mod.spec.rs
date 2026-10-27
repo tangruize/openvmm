@@ -93,6 +93,11 @@ impl SaveRestoreSpecImpl for PitDevice {
     closed spec fn saved_state(&self) -> SavedState {
         self@.saved_state()
     }
+
+    /// The PIT is well formed (`wf()`).
+    closed spec fn device_wf(&self) -> bool {
+        self.wf()
+    }
 }
 
 } // verus!

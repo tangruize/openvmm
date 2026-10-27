@@ -48,6 +48,12 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   spec functions of the view type (e.g. `StateUnitsView::all_recorded`).
   Spec functions used only by trusted axioms or lemmas are crate-private
   plumbing, not part of a type's spec.
+- **Trait-level well-formedness** follows the same convention: a trait
+  that generic code uses to reach a type's `wf()` names it `<role>_wf()`
+  (e.g. `device_wf()` on `SaveRestore`'s spec extension), or `wf()` where
+  no clash with the type's inherent `wf()` is possible (`StateUnitSpec::wf`
+  on units). A predicate that takes arguments is not called `wf` (e.g.
+  `DeviceGhostState::follows_rule(id, snapshot)`).
 - **Views are closed** unless they are a plain mapping of fields, so that
   their definitions do not flood every proof; lemmas unfold them where
   needed.
@@ -586,7 +592,7 @@ below as the record of the first device worked through.
 
 - **The shared ghost field** (`vm/vmcore/src/device_state.spec.rs`): a
   device keeps one Verus-only field of type `DeviceGhostState` (`frac`, its
-  share of the FracGhost; `running`). `DeviceGhostState::wf(id, snapshot)`
+  share of the FracGhost; `running`). `DeviceGhostState::follows_rule(id, snapshot)`
   is the rule, written once for every device: the FracGhost with id `id`,
   whole or half, whole while running, and, unless `Unknown`, recording
   `snapshot`. The trait `DeviceGhost` lets generic code reach the field:
@@ -1001,9 +1007,10 @@ visible in four crates.
   fn saved_blob(&self)`, for every `ProtobufSaveRestore` type (blanket),
   and through `DynDevice` (a supertrait) for devices seen as `dyn`.
 - The lock invariant (`LockInvariant for DeviceSlot<T>`): key =
-  (the share's id, `omit`); invariant: the share follows the rule
-  (`DeviceGhostState::wf`) for `snapshot()` = `omit ? NoSavedState :
-  Saved(device.saved_blob())`. (`CloseableMutex::key` is now declared for
+  (the share's id, `omit`); invariant: the device is well formed
+  (`device.device_wf()`), and the share follows the rule
+  (`DeviceGhostState::follows_rule`) for `snapshot()` = `omit ?
+  NoSavedState : Saved(device.saved_blob())`. (`CloseableMutex::key` is now declared for
   unsized values too.)
 - `DeviceSlot::new` (`external_body`): the creator-made FracGhost: it
   creates the unit's FracGhost (`Unknown`), keeps one half as the share,
@@ -1040,10 +1047,15 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
 
 **Open:**
 
-- **A device's own invariant** (the PIT's view `inv()`) was part of its
-  old lock invariant; the slot's invariant is generic and does not include
-  it, so lock holders no longer get it. A per-device hook (an invariant
-  spec fn in `DeviceSnapshot`, defaulting to true) would bring it back.
+- **A device's own well-formedness**: resolved 2026-10-27 (code change
+  45). `SaveRestore`'s spec extension declares a trait-level `device_wf()`
+  (the device's `wf()`, by the view / `wf()` convention: its view's
+  `inv()` and the properties of fields outside the view), which
+  `ProtobufSaveRestore` and `DeviceSnapshot` pass on; the slot's lock
+  invariant is `device.device_wf()` and the share rule, so every lock
+  holder gets it and must keep it; `save` and `restore` require and keep
+  it. Each device defines it when it is specified (the PIT: its `wf()`);
+  for the others it is unspecified, as their `saved_state()` is.
 - **The dispatch layer's obligation**: code that changes a device under
   its lock (the vCPU I/O dispatch, line sets, the unit's poll) must hold
   the whole share and update it (`Saved(device.saved_blob())` after the

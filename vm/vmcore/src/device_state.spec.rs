@@ -33,7 +33,7 @@ impl DeviceGhostState {
     /// id `id` and whose state is `snapshot`: the device holds the whole or
     /// one half of that FracGhost, the whole while running; and the
     /// FracGhost, unless still `Unknown`, records `snapshot`.
-    pub open spec fn wf(self, id: Loc, snapshot: UnitSnapshot) -> bool {
+    pub open spec fn follows_rule(self, id: Loc, snapshot: UnitSnapshot) -> bool {
         &&& self.frac.id() == id
         &&& (self.frac.frac() == 1real || self.frac.frac() == 0.5real)
         &&& self.running ==> self.whole()
@@ -53,11 +53,18 @@ impl DeviceGhostState {
 pub trait DeviceSnapshot {
     /// The blob the device's save returns.
     spec fn saved_blob(&self) -> SavedStateBlobView;
+
+    /// The device is well formed (its `device_wf()`).
+    spec fn device_wf(&self) -> bool;
 }
 
 impl<T: ProtobufSaveRestore> DeviceSnapshot for T {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
         ProtobufSaveRestoreSpec::saved_blob(self)
+    }
+
+    open spec fn device_wf(&self) -> bool {
+        ProtobufSaveRestoreSpec::device_wf(self)
     }
 }
 
@@ -73,10 +80,11 @@ impl<T: ?Sized + DeviceSnapshot> DeviceSlot<T> {
     }
 }
 
-/// The lock invariant of a chipset device's lock: the unit's share, kept in
-/// the slot, follows the rule (`DeviceGhostState::wf`) for the device's
-/// snapshot. The key is the share's id (the unit's channel constant) and
-/// whether the unit omits the saved state; every holder keeps it.
+/// The lock invariant of a chipset device's lock: the device is well formed
+/// (`device_wf()`), and the unit's share, kept in the slot, follows the rule
+/// (`DeviceGhostState::follows_rule`) for the device's snapshot. The key is
+/// the share's id (the unit's channel constant) and whether the unit omits
+/// the saved state; every holder keeps it.
 impl<T: ?Sized + DeviceSnapshot> LockInvariant for DeviceSlot<T> {
     type Key = (Loc, bool);
 
@@ -85,7 +93,8 @@ impl<T: ?Sized + DeviceSnapshot> LockInvariant for DeviceSlot<T> {
     }
 
     closed spec fn inv(&self) -> bool {
-        self.share@.wf(self.share@.frac.id(), self.snapshot())
+        &&& self.device.device_wf()
+        &&& self.share@.follows_rule(self.share@.frac.id(), self.snapshot())
     }
 }
 

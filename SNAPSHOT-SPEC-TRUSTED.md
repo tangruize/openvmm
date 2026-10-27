@@ -138,7 +138,7 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`.
 | Time-ABI half reaches `unit_channel_for` | `openvmm_core`: `partition_config` (`time_abi.rs`) and the unit's spawn (`dispatch.rs`), unverified | The half `TimeAbiMsrs::new` gives back is the one attached to the time-ABI unit's sender (`unit_channel_for`). |
 | `TimeAbiUnit::new` | `dispatch/time_abi.rs`, `external_body` | Its contract: `wf()`, `id()` is `msrs.key()`, not running. |
 | `InspectMut::inspect_mut` (no contract) | `lib.proof.rs` declares `InspectMut` and `Inspect` without methods; `inspect_unit` (`lib.rs`, `external_body`) states the assumption for `apply` | An inspect keeps a unit's `wf()`, `id()`, and `running()` (the `Inspect` request path in `apply` and `run_async_unit`'s concurrent inspects). Open: give `inspect_mut` a contract. |
-| Unverified `SaveRestore` implementations meet its contract | `vm/vmcore/src/save_restore.spec.rs` | The `SaveRestore` contract (`saved_state()`; `save` returns it and keeps it; `restore` sets it) is checked only for implementations that are verified (with `SaveRestoreSpecImpl`); all others, i.e. every device today, are trusted to meet it. |
+| Unverified `SaveRestore` implementations meet its contract | `vm/vmcore/src/save_restore.spec.rs` | The `SaveRestore` contract (`saved_state()`; `save` returns it and keeps it; `restore` sets it; both keep `device_wf()`) is checked only for implementations that are verified (with `SaveRestoreSpecImpl`); all others, i.e. every device today but the PIT, are trusted to meet it. |
 
 ## Assumed device facts
 

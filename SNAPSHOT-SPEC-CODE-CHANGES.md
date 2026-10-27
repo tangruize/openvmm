@@ -459,6 +459,17 @@ Baseline: upstream `nanvix/openvmm` commit
     walk-throughs, and the ghost clauses of its entry points' contracts
     removed; `vmm_core/state_unit/src/device_unit.rs` (`DeviceUnit`)
     removed.
+45. **Trait-level `device_wf()`; `DeviceGhostState::wf` renamed** (Verus
+    only, no runtime change; no normal-build code changes): `SaveRestore`'s
+    and `ProtobufSaveRestore`'s spec extensions (`vm/vmcore/src/save_restore.spec.rs`)
+    declare `device_wf()`, and their `save` / `restore` contracts require
+    and keep it; the blanket `ProtobufSaveRestoreSpecImpl` defines it as the
+    type's `SaveRestore` one, `ExampleDevice`'s is `true`, the PIT's is its
+    `wf()` (`pit/mod.spec.rs`); `DeviceSnapshot` gains `device_wf()`, and the
+    slot's lock invariant includes it. `DeviceGhostState::wf(id, snapshot)`
+    is renamed `follows_rule(id, snapshot)` (so that `wf` is always the
+    zero-argument convention); its callers in the units' spec files and
+    `TscControlPred` follow.
 
 ### Planned: mesh RPC trusted spec
 
