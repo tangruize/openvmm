@@ -244,6 +244,13 @@ Baseline: upstream `nanvix/openvmm` commit
     `vstd` and `closeable_mutex`; `[package.metadata.verus] verify = true`.
     `UnitSnapshot` moved from `state_unit` (`lib.spec.rs`) to `vmcore`
     (`save_restore.spec.rs`); `state_unit` re-exports it.
+28. **Verified device unit** (Verus only, no runtime change):
+    `vm/vmcore/src/device_state.spec.rs` adds trait `StateUnitDevice` and
+    `DeviceGhost::lemma_snapshot_known`; `vmcore` depends on
+    `closeable_mutex`. `chipset`: the PIT implements `StateUnitDevice`
+    (`pit/mod.proof.rs`), with trusted `pit/blob_t.rs`. `state_unit`: new
+    `device_unit.rs` (`DeviceUnit<T>`, `cfg(verus_keep_ghost)`), dependency
+    on `closeable_mutex`. `closeable_mutex`: `close_verified` takes `&Arc`.
 
 ### Planned: mesh RPC trusted spec
 

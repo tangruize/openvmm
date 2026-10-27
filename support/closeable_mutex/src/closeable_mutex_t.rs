@@ -76,13 +76,13 @@ impl<T: LockInvariant> CloseableMutex<T> {
 
     /// Closes the mutex, for verified code. Panics if it is already closed.
     #[verifier::external_body]
-    pub fn close_verified(m: Arc<Self>) -> (g: VerifiedClosedGuard<T>)
+    pub fn close_verified(m: &Arc<Self>) -> (g: VerifiedClosedGuard<T>)
         ensures
-            g.key() == (*m).key(),
-            g.value().key() == (*m).key(),
+            g.key() == (**m).key(),
+            g.value().key() == (**m).key(),
             g.value().inv(),
     {
-        VerifiedClosedGuard { guard: Some(m.close()) }
+        VerifiedClosedGuard { guard: Some(m.clone().close()) }
     }
 }
 

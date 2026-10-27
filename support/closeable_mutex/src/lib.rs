@@ -226,14 +226,14 @@ mod tests {
         let x = Arc::new(CloseableMutex::new_verified(0));
 
         // Released: the mutex is open again.
-        let mut g = CloseableMutex::close_verified(x.clone());
+        let mut g = CloseableMutex::close_verified(&x);
         *g.borrow_mut() = 5;
         assert!(x.lock_if_open().is_none());
         let x = g.release();
         assert_eq!(*x.lock(), 5);
 
         // Dropped without release: the mutex stays closed.
-        drop(CloseableMutex::close_verified(x.clone()));
+        drop(CloseableMutex::close_verified(&x));
         assert!(x.lock_if_open().is_none());
     }
 

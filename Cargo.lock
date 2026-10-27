@@ -8136,6 +8136,7 @@ name = "state_unit"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "closeable_mutex",
  "event-listener",
  "futures",
  "futures-concurrency",
@@ -10795,6 +10796,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "closeable_mutex",
  "futures",
  "futures-concurrency",
  "hvdef",

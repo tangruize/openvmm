@@ -15,6 +15,8 @@ use super::super::save_restore::state::SavedTimerState;
 use closeable_mutex::CloseableMutex;
 use closeable_mutex::LockInvariant;
 use vmcore::device_state::spec::DeviceGhost;
+use vmcore::device_state::spec::StateUnitDevice;
+use vmcore::save_restore::SavedStateBlob;
 use std::sync::Arc;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
@@ -77,6 +79,38 @@ pub struct ExContext<'a>(std::task::Context<'a>);
 #[verifier::external_body]
 pub struct ExIoResult(chipset_device::io::IoResult);
 
+/// The PIT, as driven by a verified state unit (`state_unit::device_unit`).
+impl StateUnitDevice for PitDevice {
+    proof fn lemma_lock_inv(&self) {
+    }
+
+    fn start_device(&mut self) {
+        PitDevice::start_device(self);
+    }
+
+    fn stop_device(&mut self) {
+        // The PIT has no activity of its own to stop.
+    }
+
+    fn reset_device(&mut self) {
+        PitDevice::reset_device(self);
+    }
+
+    fn save_blob(&mut self) -> (result: Result<SavedStateBlob, SaveError>) {
+        match self.save_device() {
+            Ok(state) => Ok(super::trusted::encode(state)),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn restore_blob(&mut self, blob: SavedStateBlob) -> (result: Result<(), RestoreError>) {
+        match super::trusted::decode(&blob) {
+            Ok(state) => self.restore_device(state),
+            Err(err) => Err(err),
+        }
+    }
+}
+
 // Examples: the PIT's state unit answering requests by the request
 // protocol, through the device's `CloseableMutex`, as the unit loop would
 // (step 5): the ghost work is in the unit's own proof blocks, through
@@ -93,7 +127,7 @@ pub(in crate::pit) fn example_start(
         (*r).key() == (*m).key(),
 {
     let Tracked(half) = half;
-    let mut g = CloseableMutex::close_verified(m);
+    let mut g = CloseableMutex::close_verified(&m);
     let d = g.borrow_mut();
     let ghost_field = d.ghost_mut();
     proof {
@@ -117,7 +151,7 @@ pub(in crate::pit) fn example_stop(m: Arc<CloseableMutex<PitDevice>>) -> (r: (
         r.1@.valid((*m).key(), 0.5real),
         !(r.1@@ is Unknown),
 {
-    let mut g = CloseableMutex::close_verified(m);
+    let mut g = CloseableMutex::close_verified(&m);
     let d = g.borrow_mut();
     // TRUSTED: a unit receives `Stop` only while it runs ("`StateUnits`'
     // unit states are the units' real states").
@@ -154,7 +188,7 @@ pub(in crate::pit) fn example_save(
         r.1 matches Ok(saved) ==> lent@@ == UnitSnapshot::Saved(SavedStateBlobView::of(saved)),
 {
     let Tracked(lent) = lent;
-    let mut g = CloseableMutex::close_verified(m);
+    let mut g = CloseableMutex::close_verified(&m);
     let d = g.borrow_mut();
     let ghost_field = d.ghost_mut();
     proof {
@@ -184,7 +218,7 @@ pub(in crate::pit) fn example_restore(
         r.1 is Ok ==> r.2@@ == UnitSnapshot::Saved(SavedStateBlobView::of(state)),
 {
     let Tracked(lent) = lent;
-    let mut g = CloseableMutex::close_verified(m);
+    let mut g = CloseableMutex::close_verified(&m);
     let d = g.borrow_mut();
     let ghost_field = d.ghost_mut();
     proof {

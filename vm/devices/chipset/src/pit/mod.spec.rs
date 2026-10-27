@@ -126,6 +126,9 @@ impl DeviceGhost for PitDevice {
         self@.inv()
     }
 
+    proof fn lemma_snapshot_known(&self) {
+    }
+
     fn ghost_mut(&mut self) -> (r: &mut Tracked<DeviceGhostState>) {
         &mut self.ghost
     }

@@ -36,7 +36,7 @@ pub(crate) fn example_increment(m: Arc<CloseableMutex<ExampleCounter>>) -> (r: A
     ensures
         (*r).key() == (*m).key(),
 {
-    let mut g = CloseableMutex::close_verified(m);
+    let mut g = CloseableMutex::close_verified(&m);
     let c = g.borrow_mut();
     if c.n < c.limit {
         c.n = c.n + 1;

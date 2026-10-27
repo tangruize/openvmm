@@ -13,6 +13,11 @@ pub(crate) mod spec {
     pub(crate) mod proof {
         include!("mod.proof.rs");
     }
+
+    /// Trusted encoding of the PIT's saved state.
+    pub(crate) mod trusted {
+        include!("blob_t.rs");
+    }
 }
 
 use bitfield_struct::bitfield;

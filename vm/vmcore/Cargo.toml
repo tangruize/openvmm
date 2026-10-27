@@ -10,6 +10,7 @@ rust-version.workspace = true
 verify = true
 
 [dependencies]
+closeable_mutex.workspace = true
 hvdef.workspace = true
 save_restore_derive.workspace = true
 vm_resource.workspace = true

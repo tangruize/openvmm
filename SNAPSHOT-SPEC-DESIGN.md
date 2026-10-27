@@ -507,8 +507,12 @@ paths, including its I/O handlers.
 4. *Done (contracts; handler bodies not yet proved).* The PIT
    (`vm/devices/chipset/src/pit/`; spec in `mod.spec.rs`, declarations,
    ghost steps, and examples in `mod.proof.rs`). See "The PIT" below.
-5. The unit loop: `ArcMutexChipsetDeviceUnit::run`, and
-   `StateRequest::apply` without async closures.
+5. *Started.* The unit loop. Decided 2026-10-26: the shared chipset unit
+   (`ArcMutexChipsetDeviceUnit`, used by about 56 device types) stays as it
+   is, trusted; a separate verified unit, `DeviceUnit<T>`
+   (`vmm_core/state_unit/src/device_unit.rs`, Verus only for now), is for
+   devices that implement `StateUnitDevice` (for now, the PIT). See "The
+   verified unit" below.
 
 Alongside: a survey of cross-device changes (lines re-driven into the
 PIC/IOAPIC at restore, vmtime, `Halt`, the time-ABI writes to the
@@ -584,6 +588,55 @@ Findings and open items:
 - **Cross-device effects**: `restore`, `reset`, and the handlers drive the
   interrupt line (`sync_interrupt`), and the handlers set vmtime timeouts;
   not modelled.
+
+#### The verified unit
+
+- **`StateUnitDevice`** (`vm/vmcore/src/device_state.spec.rs`): what a
+  verified unit needs from its device, as synchronous methods with
+  contracts (Verus does not support async trait methods):
+  `start_device`, `stop_device` (require running), `reset_device`,
+  `restore_blob` (require whole and stopped), and `save_blob` (changes
+  neither state nor ghost; on `Ok`, the snapshot is `Saved(blob@)`). Each
+  keeps `device_inv()`, the rule, and the id. Two lemmas each device
+  proves: `lemma_lock_inv` (its `CloseableMutex` invariant is
+  `device_inv()` plus the rule, and the key is its id) and, in
+  `DeviceGhost`, `lemma_snapshot_known` (its snapshot is never `Unknown`,
+  needed for `Stop`).
+- **The PIT implements it** (`pit/mod.proof.rs`, verified), with two
+  trusted per-type wrappers for the blob encoding (`pit/blob_t.rs`:
+  `encode`, `decode`), instances of the stated `SavedStateBlob::new` /
+  `parse` contract.
+- **`DeviceUnit<T>::handle(msg, gin)`** (verified, for any
+  `T: StateUnitDevice`): requires the request protocol (`request_ok`) for
+  `msg` and `gin`, and answers every request but `Inspect` by it, through
+  `CloseableMutex::close_verified` / `release` and the mesh RPC wrapper's
+  `split` / `complete`, doing the FracGhost work in its own proof blocks.
+  `Stop` assumes the device runs (the trusted fact). `AdvanceTime` returns
+  the lent half unchanged (`StateUnitDevice` devices keep no time).
+  Negative checks, each failing: `Start` without the bound proof; `Stop`
+  without recording or without the trusted fact; `Save` without agreeing,
+  or replying `Ok(None)`; `Restore` without recording the restored state.
+- `CloseableMutex::close_verified` now takes `&Arc` (vstd has no spec of
+  `Arc::clone`; OpenVMM calls `self.device.clone().close()`).
+
+Not yet done:
+
+- **The run loop**: receiving with the RPC wrapper's `recv_msg` (which
+  gives `request_ok`), answering `Inspect`, and polling the device while
+  running (OpenVMM's loop uses `futures::select!` and `lock()`, so it stays
+  unverified glue around `handle`; polling needs a verified open `lock`
+  in the `CloseableMutex` spec, since closing during polling would make
+  vCPU accesses panic). It belongs in `vmm_core/vmotherboard`, which knows
+  `PollDevice`.
+- **Wiring**: the chipset builder creates `ArcMutexChipsetDeviceUnit` for
+  every device; the PIT would get a `DeviceUnit`, with its half handed
+  over at creation (`PitDevice::new` still has placeholders), its mutex
+  created by `new_verified`, and the channel's constant as the id.
+- **Normal builds**: `DeviceUnit`, `DeviceGhost`, and the ghost types are
+  Verus-only (`cfg(verus_keep_ghost)`); production use needs them in
+  normal builds (as zero-sized ghost code).
+- `StateUnitDevice` has no `advance_time`, `quiesce_input`, or
+  `resume_input`; needed for devices that use them.
 
 ### Unit-side contract
 
