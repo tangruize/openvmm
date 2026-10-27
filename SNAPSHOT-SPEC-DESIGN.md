@@ -1318,15 +1318,22 @@ concurrent per-pin writes into the PIC and IOAPIC.
    and `Protobuf`'s codec traits with `for<'a>` bounds), so the contract can
    go on the real functions; otherwise use per-type trusted wrappers next to
    each verified device.
+   *Status:* the probe is not done; the PIT uses the fallback, per-type
+   trusted wrappers (`pit/blob_t.rs`).
 2. **`InitializedVm::load(Some(_))`** (`dispatch.rs:1824`): its contract. It
    builds the `LoadedVm` (collecting the halves in `make_ids`) and calls
    `restore_from_snapshot`.
+   *Status:* not started.
 3. **Replace the RPC calls with the mesh RPC wrapper**
    (`SNAPSHOT-SPEC-MESH-RPC.md`): `state_change` / `run_op` on the caller
    side (in `verus!` style, as on branch `system-proof/run-op-proof-attempt`)
    and `StateRequest::apply` on the unit side (without async closures).
    Needed for the proofs; the current direct mesh calls are correct but give
    Verus no contract and carry no ghosts.
+   *Status:* unit side done for the verified unit (`DeviceUnit`, Verus
+   only; "The verified unit"); the production unit side
+   (`ArcMutexChipsetDeviceUnit`, `StateRequest::apply`) and the caller
+   side (`StateUnits`) still call mesh directly.
 4. **Consider a small source change to unit registration**: have
    registration hand each unit's `StateUnits` half back explicitly (through
    `&mut StateUnits`, or returned by the unit builder) instead of attaching
@@ -1335,6 +1342,7 @@ concurrent per-pin writes into the PIC and IOAPIC.
    lock invariant, at the cost of changing the registration API and its
    callers (the chipset builder, `vmbus_unit`, `partition_unit`, vmtime,
    time-abi).
+   *Status:* not done.
 5. **Validate on one unit first: the PIT, end to end**, with the FracGhost
    living with the device ("Design change: the FracGhost lives with the
    device"): tie its `saved_state()` to its real fields, keep its half in
@@ -1342,9 +1350,24 @@ concurrent per-pin writes into the PIC and IOAPIC.
    `save` / `restore` and its I/O handlers against its `wf()`, and its
    request loop against the request protocol. This tests whether the
    unit-side obligations are tractable before more layers are added.
-   *Started:* the PIT's contracts, ghost steps, and verified examples are
-   in place ("The PIT", under "Design change: the FracGhost lives with the
-   device"); its handler bodies and the generic unit loop remain.
+   *Status:* done: the PIT's spec and contracts, the shared ghost field
+   (`DeviceGhost`), its `StateUnitDevice` implementation, and the verified
+   unit (`DeviceUnit::handle`, `poll`) with its run loop ("The PIT" and
+   "The verified unit", under "Design change: the FracGhost lives with
+   the device"). This answers the step's purpose for the spec design: the
+   design verifies at the unit level, and checking it changed the spec
+   (the frame missing from the generic `SaveRestore` contract,
+   `lemma_snapshot_known`, `DeviceGhost` for generic and `dyn` code, the
+   separate verified unit, locking without closing for polling).
+   TODO, kept here because a proof may still require a spec change:
+   - **Prove the PIT's code bodies** (handlers, `poll`, `start`, `reset`,
+     `save` / `restore`; now `external_body`). Possible spec changes:
+     `restore` changes the timers before it can fail; the handlers depend
+     on `vmtime`, whose state is not in the PIT's view; Verus's overflow
+     checks in the timer arithmetic.
+   - Normal-build support, so `DeviceUnit` can run and be tested.
+   - Wiring the PIT to `DeviceUnit` in the chipset builder, with its half
+     handed over at creation.
 
 ### Other open items
 
