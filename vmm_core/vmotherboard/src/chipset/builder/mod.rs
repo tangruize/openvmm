@@ -70,9 +70,9 @@ impl ChipsetDevices {
         units: &StateUnits,
         name: impl Into<Arc<str>>,
         f: impl AsyncFnOnce(&mut (dyn RegisterMmioIntercept + Send)) -> anyhow::Result<T>,
-    ) -> anyhow::Result<(DynamicDeviceUnit, Arc<CloseableMutex<T>>)> {
+    ) -> anyhow::Result<(DynamicDeviceUnit, Arc<vmcore::device_state::DeviceMutex<T>>)> {
         let name = name.into();
-        let arc_builder = Arc::<CloseableMutex<T>>::new_cyclic_builder();
+        let arc_builder = Arc::<vmcore::device_state::DeviceMutex<T>>::new_cyclic_builder();
         let device = f(
             &mut super::backing::arc_mutex::services::register_mmio_for_device(
                 name.clone(),
@@ -81,17 +81,23 @@ impl ChipsetDevices {
             ),
         )
         .await?;
-        let device = arc_builder.build(CloseableMutex::new(device));
+        let device = arc_builder.build(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            device,
+        )));
         let advances_time = device.lock().advances_time();
         let device_unit = ArcMutexChipsetDeviceUnit::new(device.clone(), false);
         let mut builder = units.add(name).dependency_of(self.chipset_unit());
         if advances_time {
             builder = builder.advances_time();
         }
+        // The device predates its unit's channel and keeps its share in
+        // its lock; the other half goes to the sender (`unit_channel_for`).
         let unit = builder
-            .spawn(driver_source.simple(), |recv| async move {
-                device_unit.run(recv).await
-            })
+            .spawn_with_channel(
+                driver_source.simple(),
+                state_unit::unit_channel_for(),
+                |recv| async move { device_unit.run(recv).await },
+            )
             .context("name in use")?;
 
         Ok((DynamicDeviceUnit(unit), device))
@@ -149,7 +155,7 @@ impl<'a> ChipsetBuilder<'a> {
         vmtime_unit: &'a UnitHandle,
         trace_unknown_pio: bool,
         trace_unknown_mmio: bool,
-        fallback_mmio_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+        fallback_mmio_device: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     ) -> Self {
         let (send, chipset_recv) = state_unit::unit_channel();
         let chipset_unit = units.add("chipset").build(send).unwrap();
@@ -199,7 +205,7 @@ impl<'a> ChipsetBuilder<'a> {
         bus_id: BusIdPci,
         bdf: (u8, u8, u8),
         name: Arc<str>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) {
         self.inner
             .lock()
@@ -248,7 +254,7 @@ impl<'a> ChipsetBuilder<'a> {
         &self,
         bus_id_port: BusIdPcieDownstreamPort,
         name: Arc<str>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) {
         self.inner
             .lock()
@@ -267,7 +273,7 @@ impl<'a> ChipsetBuilder<'a> {
         bus_id_enumerator: BusIdPcieEnumerator,
         devfn: u8,
         name: Arc<str>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) {
         self.inner
             .lock()

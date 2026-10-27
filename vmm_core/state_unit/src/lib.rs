@@ -34,8 +34,6 @@
 #![cfg_attr(verus_keep_ghost, deny(unsafe_code))]
 
 mod advance_time;
-#[cfg(verus_keep_ghost)]
-pub mod device_unit;
 mod inventory;
 #[allow(dead_code)] // `acquire` and `release` are for verified code, still to come
 mod mutex_t;

@@ -3207,10 +3207,14 @@ async fn new_underhill_vm(
                 Some(untrusted_mmio_ranges)
             };
 
-        Some(Arc::new(CloseableMutex::new(FallbackMmioDevice {
-            mmio_ranges: untrusted_mmio_ranges,
-            mshv_hvcall,
-        })) as _)
+        Some(
+            Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                FallbackMmioDevice {
+                    mmio_ranges: untrusted_mmio_ranges,
+                    mshv_hvcall,
+                },
+            ))) as _,
+        )
     } else {
         None
     };

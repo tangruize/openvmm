@@ -432,6 +432,33 @@ Baseline: upstream `nanvix/openvmm` commit
     `vm/vmcore/src/vmtime_t.rs` (`SavedState::axiom_all_time`); the keeper's
     method contracts keep their `running` clauses, `save` ensures its
     result's view is `saved_blob()`.
+44. **Chipset devices' shares in their locks; the PIT folded in** (Verus
+    only, no runtime change; design doc, "Chipset devices: the share in the
+    device's lock", option B): `vm/vmcore/src/device_state.rs` gains
+    `DeviceSlot<T>` (the device and, Verus only, its unit's share and
+    `omit`; `Deref` / `DerefMut` to the device), `DeviceMutex<T>`
+    (= `CloseableMutex<DeviceSlot<T>>`), and the `DeviceSnapshot` stand-in;
+    `device_state.spec.rs` gains `DeviceSnapshot` and the slot's
+    `LockInvariant`, and loses `DeviceGhost`, `StateUnitDevice`, and
+    `ExContext` (moved to the PIT). `closeable_mutex_t.rs`: `key()` for
+    unsized values. Every device lock is created as
+    `CloseableMutex::new(DeviceSlot::new(dev))` and named
+    `DeviceMutex<..>`: vmotherboard (about 10 files), `vmm_core`'s
+    `device_builder.rs`, `vpci` (`bus.rs`, `device.rs`; tests),
+    `vpci_client`'s tests, `chipset_arc_mutex_device` (now depends on
+    vmcore), `chipset_device_fuzz` (depends on vmcore; `&mut **locked_dev`),
+    `openvmm_core`'s `dispatch.rs`, OpenHCL's `underhill_core/src/worker.rs`
+    (fallback MMIO device). `ArcMutexChipsetDeviceUnit` is `verus_verify`,
+    its `new` has a contract (`external_body`), its `StateUnitSpec` is
+    defined; `DynDevice` gains `DeviceSnapshot` as a supertrait; its two
+    spawn sites use `spawn_with_channel(.., unit_channel_for(), ..)`;
+    `state_unit.proof.rs` declares `ChipsetDevice`, `ChangeDeviceState`,
+    `VmmChipsetDevice`, `DynDevice`, `PollEvent`. The PIT: Verus-only
+    `ghost` / `id` fields, its `DeviceGhost` / `LockInvariant` /
+    `StateUnitDevice` impls, `PitDeviceView::snapshot`, the `example_*`
+    walk-throughs, and the ghost clauses of its entry points' contracts
+    removed; `vmm_core/state_unit/src/device_unit.rs` (`DeviceUnit`)
+    removed.
 
 ### Planned: mesh RPC trusted spec
 

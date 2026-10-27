@@ -84,10 +84,12 @@ impl super::MemoryAccess for BusWrapper {
     }
 }
 
-fn make_noop_device() -> Arc<CloseableMutex<NoopDevice>> {
-    Arc::new(CloseableMutex::new(NoopDevice {
-        tdisp_interface: new_null_tdisp_interface("vpci-unit-test"),
-    }))
+fn make_noop_device() -> Arc<vmcore::device_state::DeviceMutex<NoopDevice>> {
+    Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+        NoopDevice {
+            tdisp_interface: new_null_tdisp_interface("vpci-unit-test"),
+        },
+    )))
 }
 
 #[async_test]

@@ -1032,7 +1032,7 @@ struct LoadedVmInner {
     #[cfg(guest_arch = "x86_64")]
     ioapic_iommu_rid: Option<u16>,
     pcie_host_bridges: Vec<PcieHostBridge>,
-    pcie_root_complexes: Vec<Arc<closeable_mutex::CloseableMutex<GenericPcieRootComplex>>>,
+    pcie_root_complexes: Vec<Arc<vmcore::device_state::DeviceMutex<GenericPcieRootComplex>>>,
     /// Sources for SRAT generic-initiator entries, one per
     /// [`PcieGenericInitiatorConfig`](openvmm_defs::config::PcieGenericInitiatorConfig).
     /// Each holds the port's live bus-range handle, read at ACPI-build time
@@ -1041,7 +1041,7 @@ struct LoadedVmInner {
     pcie_hotplug_devices: Vec<(
         String,
         vmotherboard::DynamicDeviceUnit,
-        Arc<closeable_mutex::CloseableMutex<chipset_device_resources::ErasedChipsetDevice>>,
+        Arc<vmcore::device_state::DeviceMutex<chipset_device_resources::ErasedChipsetDevice>>,
     )>,
     dynamic_vpci_devices: Vec<DynamicVpciDeviceEntry>,
 }
@@ -4411,7 +4411,7 @@ impl LoadedVm {
 
                             // Wrap the device as a GenericPciBusDevice for the port.
                             // Keep a strong Arc to the device so the Weak stays valid.
-                            let weak_dev: std::sync::Weak<closeable_mutex::CloseableMutex<dyn chipset_device::ChipsetDevice>> = Arc::downgrade(&(device.clone() as Arc<closeable_mutex::CloseableMutex<dyn chipset_device::ChipsetDevice>>));
+                            let weak_dev: std::sync::Weak<vmcore::device_state::DeviceMutex<dyn chipset_device::ChipsetDevice>> = Arc::downgrade(&(device.clone() as Arc<vmcore::device_state::DeviceMutex<dyn chipset_device::ChipsetDevice>>));
                             let bus_device = Box::new(WeakMutexPciBusDevice(weak_dev));
 
                             self.inner.pcie_hotplug_devices.push((port_name.clone(), unit, device));
@@ -4986,10 +4986,10 @@ mesh_worker::register_workers! {
     chipset_device_worker::worker::RemoteChipsetDeviceWorker<OpenVmmRemoteDynamicResolvers>
 }
 
-/// Wrapper around `Weak<CloseableMutex<dyn ChipsetDevice>>` that implements
+/// Wrapper around `Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>` that implements
 /// [`GenericPciBusDevice`] for PCIe hotplug devices.
 struct WeakMutexPciBusDevice(
-    std::sync::Weak<closeable_mutex::CloseableMutex<dyn chipset_device::ChipsetDevice>>,
+    std::sync::Weak<vmcore::device_state::DeviceMutex<dyn chipset_device::ChipsetDevice>>,
 );
 
 impl pci_bus::GenericPciBusDevice for WeakMutexPciBusDevice {

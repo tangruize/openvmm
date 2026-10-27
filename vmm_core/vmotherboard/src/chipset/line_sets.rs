@@ -3,7 +3,6 @@
 
 use chipset_device::ChipsetDevice;
 use chipset_device_resources::LineSetId;
-use closeable_mutex::CloseableMutex;
 use inspect::InspectMut;
 #[cfg(verus_keep_ghost)]
 use mesh_rpc_verus::ReceiverAdditionalSpecFns;
@@ -147,11 +146,11 @@ impl StateUnit for LineSetUnit<'_> {
 }
 
 pub struct LineSetTargetDevice<T> {
-    device: Arc<CloseableMutex<T>>,
+    device: Arc<vmcore::device_state::DeviceMutex<T>>,
 }
 
 impl<T: ChipsetDevice> LineSetTargetDevice<T> {
-    pub fn new(device: Arc<CloseableMutex<T>>) -> Self {
+    pub fn new(device: Arc<vmcore::device_state::DeviceMutex<T>>) -> Self {
         Self { device }
     }
 }

@@ -619,6 +619,7 @@ dependencies = [
  "range_map_vec",
  "thiserror 2.0.16",
  "tracing",
+ "vmcore",
 ]
 
 [[package]]
@@ -643,6 +644,7 @@ dependencies = [
  "parking_lot",
  "range_map_vec",
  "tracing",
+ "vmcore",
 ]
 
 [[package]]

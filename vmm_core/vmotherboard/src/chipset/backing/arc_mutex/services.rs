@@ -16,7 +16,6 @@ use crate::chipset::line_sets::LineSetTargetDevice;
 use chipset_device::ChipsetDevice;
 use chipset_device::mmio::RegisterMmioIntercept;
 use chipset_device_resources::LineSetId;
-use closeable_mutex::CloseableMutex;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::sync::Weak;
@@ -26,10 +25,10 @@ use vmcore::line_interrupt::NewLineError;
 use vmcore::vmtime::VmTimeSource;
 
 /// The concrete instance of [`ChipsetServices`] offered to devices when using
-/// the `Weak<CloseableMutex<..>>` [`Chipset`](crate::Chipset) API.
+/// the `Weak<vmcore::device_state::DeviceMutex<..>>` [`Chipset`](crate::Chipset) API.
 pub struct ArcMutexChipsetServices<'a, 'b> {
     builder: &'a ChipsetBuilder<'b>,
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     dev_name: Arc<str>,
     line_set_dependencies: Vec<LineSetId>,
     line_set_targets: Vec<(LineSetId, RangeInclusive<u32>, u32)>,
@@ -57,7 +56,7 @@ impl<T: VmmChipsetDevice> ArcMutexChipsetServicesFinalize<T> for ArcMutexChipset
 
     fn finalize(
         self,
-        device: &Arc<CloseableMutex<T>>,
+        device: &Arc<vmcore::device_state::DeviceMutex<T>>,
         dev_name: Arc<str>,
     ) -> Result<(), Self::Error> {
         if let Some(err) = self.line_error {
@@ -137,10 +136,14 @@ impl<T: VmmChipsetDevice> ArcMutexChipsetServicesFinalize<T> for ArcMutexChipset
         }
 
         let device = ArcMutexChipsetDeviceUnit::new(device.clone(), self.omit_saved_state);
+        // The device predates its unit's channel and keeps its share in
+        // its lock; the other half goes to the sender (`unit_channel_for`).
         let unit = builder
-            .spawn(self.builder.driver_source.simple(), |recv| async move {
-                device.run(recv).await
-            })
+            .spawn_with_channel(
+                self.builder.driver_source.simple(),
+                state_unit::unit_channel_for(),
+                |recv| async move { device.run(recv).await },
+            )
             .map_err(FinalizeError::NameInUse)?;
 
         inner.arc_mutex_device_units.push(unit);
@@ -151,7 +154,7 @@ impl<T: VmmChipsetDevice> ArcMutexChipsetServicesFinalize<T> for ArcMutexChipset
 impl<'a, 'b> ArcMutexChipsetServices<'a, 'b> {
     pub fn new(
         builder: &'a ChipsetBuilder<'b>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         dev_name: Arc<str>,
     ) -> Self {
         Self {
@@ -250,7 +253,7 @@ impl<'a, 'b> ArcMutexChipsetServices<'a, 'b> {
 
 pub(crate) fn register_mmio_for_device(
     dev_name: Arc<str>,
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ranges: IoRanges<u64>,
 ) -> impl RegisterMmioIntercept {
     DeviceRangeMapper {
@@ -267,14 +270,13 @@ mod device_range {
     use chipset_device::mmio::RegisterMmioIntercept;
     use chipset_device::pio::ControlPortIoIntercept;
     use chipset_device::pio::RegisterPortIoIntercept;
-    use closeable_mutex::CloseableMutex;
     use std::sync::Arc;
     use std::sync::Weak;
 
     /// A concrete type which implements [`RegisterMmioIntercept`] or
     /// [`RegisterPortIoIntercept`] (depending on whether T is u64 or u16)
     pub struct DeviceRangeMapper<T> {
-        pub(super) dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        pub(super) dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         pub(super) dev_name: Arc<str>,
         pub(super) ranges: IoRanges<T>,
     }
@@ -286,7 +288,7 @@ mod device_range {
         region_name: Arc<str>,
         len: T,
         addr: Option<T>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         dev_name: Arc<str>,
     }
 

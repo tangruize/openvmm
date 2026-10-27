@@ -565,17 +565,6 @@ pub struct PitDevice {
 
     // Volatile state
     last: VmTime,
-
-    /// Verus only (zero-sized): the device's share of its state unit's
-    /// FracGhost (the whole while running, one half while stopped), and
-    /// whether it runs.
-    #[cfg(verus_keep_ghost)]
-    #[inspect(skip)]
-    ghost: Tracked<vmcore::device_state::spec::DeviceGhostState>,
-    /// Verus only: the id of the FracGhost (its unit channel's constant).
-    #[cfg(verus_keep_ghost)]
-    #[inspect(skip)]
-    id: Ghost<vstd::resource::Loc>,
 }
 
 /// Channel 0 counts in a periodic mode, which the NVX time ABI forbids at
@@ -600,12 +589,6 @@ impl PitDevice {
             vmtime,
             dram_refresh: false,
             time_abi: false,
-            // TODO (Verus): the device should receive its unit's half here
-            // (see "Design change: the FracGhost lives with the device").
-            #[cfg(verus_keep_ghost)]
-            ghost: Tracked::assume_new(),
-            #[cfg(verus_keep_ghost)]
-            id: Ghost::assume_new(),
         }
     }
 
@@ -705,11 +688,10 @@ impl PortIoIntercept for PitDevice {
 
 // The device's entry points, with their contracts: every change to the
 // device's state goes through one of these (the trait implementations above
-// delegate to them) or through `SaveRestore::restore`. Each keeps `wf()`, so
-// a change while the device holds the whole FracGhost must update it. The
-// handlers run only while the device runs (the vCPUs and the poll loop are
-// stopped otherwise; their callers are unverified, so this precondition is
-// trusted for them).
+// delegate to them) or through `SaveRestore::restore`. Each keeps `wf()`.
+// (The unit's share of its FracGhost is kept with the device in its lock,
+// `vmcore::device_state::DeviceSlot`, not in the device: the code that calls
+// these under the lock keeps the share in step with the device's snapshot.)
 impl PitDevice {
     /// `ChangeDeviceState::start`: catches the timers up to now and arms the
     /// next wakeup.
@@ -717,11 +699,8 @@ impl PitDevice {
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
             old(self).wf(),
-            old(self).ghost@.running,
         ensures
             final(self).wf(),
-            final(self).id == old(self).id,
-            final(self).ghost@.running,
             final(self)@.time_abi == old(self)@.time_abi,
     ))]
     fn start_device(&mut self) {
@@ -729,19 +708,13 @@ impl PitDevice {
         self.arm_wakeup();
     }
 
-    /// `ChangeDeviceState::reset`, while stopped, holding the whole
-    /// FracGhost (lent with `Reset`).
+    /// `ChangeDeviceState::reset`, while stopped.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
             old(self).wf(),
-            old(self).ghost@.whole(),
-            !old(self).ghost@.running,
         ensures
             final(self).wf(),
-            final(self).id == old(self).id,
-            final(self).ghost@.whole(),
-            !final(self).ghost@.running,
             final(self)@.time_abi == old(self)@.time_abi,
     ))]
     fn reset_device(&mut self) {
@@ -756,11 +729,8 @@ impl PitDevice {
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
             old(self).wf(),
-            old(self).ghost@.running,
         ensures
             final(self).wf(),
-            final(self).id == old(self).id,
-            final(self).ghost@.running,
             final(self)@.time_abi == old(self)@.time_abi,
     ))]
     fn poll(&mut self, cx: &mut Context<'_>) {
@@ -779,11 +749,8 @@ impl PitDevice {
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
             old(self).wf(),
-            old(self).ghost@.running,
         ensures
             final(self).wf(),
-            final(self).id == old(self).id,
-            final(self).ghost@.running,
             final(self)@.time_abi == old(self)@.time_abi,
     ))]
     fn pio_read(&mut self, io_port: u16, data: &mut [u8]) -> IoResult {
@@ -822,11 +789,8 @@ impl PitDevice {
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
             old(self).wf(),
-            old(self).ghost@.running,
         ensures
             final(self).wf(),
-            final(self).id == old(self).id,
-            final(self).ghost@.running,
             final(self)@.time_abi == old(self)@.time_abi,
     ))]
     fn pio_write(&mut self, io_port: u16, data: &[u8]) -> IoResult {
@@ -962,17 +926,15 @@ mod save_restore {
     }
 
     // `SaveRestore` for the PIT, with the PIT's contracts. (The generic
-    // `SaveRestore` contract says nothing of `wf()` or the FracGhost.)
+    // `SaveRestore` contract says nothing of `wf()`.)
     impl PitDevice {
-        /// Saves the device; changes nothing in its view or its ghost.
+        /// Saves the device; changes nothing in its view.
         #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         #[cfg_attr(verus_keep_ghost, verus_spec(result =>
             requires
                 old(self).wf(),
             ensures
                 final(self).wf(),
-                final(self).id == old(self).id,
-                final(self).ghost == old(self).ghost,
                 final(self)@ == old(self)@,
                 result matches Ok(saved) ==> saved == old(self)@.saved_state(),
         ))]
@@ -985,10 +947,6 @@ mod save_restore {
                 dram_refresh: _,
                 time_abi: _,
                 last,
-                #[cfg(verus_keep_ghost)]
-                    ghost: _,
-                #[cfg(verus_keep_ghost)]
-                    id: _,
             } = self;
 
             Ok(state::SavedState {
@@ -1032,19 +990,13 @@ mod save_restore {
             })
         }
 
-        /// Restores the stopped device, holding the whole FracGhost (lent
-        /// with `Restore`).
+        /// Restores the stopped device.
         #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         #[cfg_attr(verus_keep_ghost, verus_spec(result =>
             requires
                 old(self).wf(),
-                old(self).ghost@.whole(),
-                !old(self).ghost@.running,
             ensures
                 final(self).wf(),
-                final(self).id == old(self).id,
-                final(self).ghost@.whole(),
-                !final(self).ghost@.running,
                 final(self)@.time_abi == old(self)@.time_abi,
                 result is Ok ==> final(self)@.saved_state() == state,
         ))]

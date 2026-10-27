@@ -11,6 +11,7 @@ chipset_device.workspace = true
 
 arc_cyclic_builder.workspace = true
 closeable_mutex.workspace = true
+vmcore.workspace = true
 range_map_vec.workspace = true
 
 parking_lot.workspace = true

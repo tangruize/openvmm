@@ -22,7 +22,6 @@ use chipset_device_resources::ConfigureChipsetDevice;
 use chipset_device_resources::GPE0_LINE_SET;
 use chipset_device_resources::IRQ_LINE_SET;
 use chipset_device_resources::ResolveChipsetDeviceHandleParams;
-use closeable_mutex::CloseableMutex;
 use framebuffer::Framebuffer;
 use framebuffer::FramebufferDevice;
 use framebuffer::FramebufferLocalControl;
@@ -89,7 +88,7 @@ pub struct BaseChipsetBuilder<'a> {
     pci_device_handles: Vec<LegacyPciChipsetDeviceHandle>,
     isa_dma_handle: Option<Resource<IsaDmaControllerHandleKind>>,
     expected_manifest: Option<options::BaseChipsetManifest>,
-    fallback_mmio_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+    fallback_mmio_device: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     flags: BaseChipsetBuilderFlags,
 }
 
@@ -187,7 +186,7 @@ impl<'a> BaseChipsetBuilder<'a> {
     /// address range.
     pub fn with_fallback_mmio_device(
         mut self,
-        fallback_mmio_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+        fallback_mmio_device: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     ) -> Self {
         self.fallback_mmio_device = fallback_mmio_device;
         self
@@ -660,14 +659,15 @@ mod weak_mutex_pci {
     use chipset_device::pci::ByteEnabledDwordWrite;
     use chipset_device::pci::PciConfigAccessType;
     use chipset_device::pci::PciConfigAddress;
-    use closeable_mutex::CloseableMutex;
     use pci_bus::GenericPciBusDevice;
     use std::sync::Arc;
     use std::sync::Weak;
 
-    /// Wrapper around `Weak<CloseableMutex<dyn ChipsetDevice>>` that implements
+    /// Wrapper around `Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>` that implements
     /// [`GenericPciBusDevice`]
-    pub struct WeakMutexPciDeviceWrapper(Weak<CloseableMutex<dyn ChipsetDevice>>);
+    pub struct WeakMutexPciDeviceWrapper(
+        Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
+    );
 
     impl GenericPciBusDevice for WeakMutexPciDeviceWrapper {
         fn pci_cfg_read(
@@ -730,14 +730,14 @@ mod weak_mutex_pci {
     }
 
     // wiring to enable using the generic PCI bus alongside the Arc+CloseableMutex device infra
-    impl RegisterWeakMutexPci for Arc<CloseableMutex<pci_bus::GenericPciBus>> {
+    impl RegisterWeakMutexPci for Arc<vmcore::device_state::DeviceMutex<pci_bus::GenericPciBus>> {
         fn add_pci_device(
             &mut self,
             bus: u8,
             device: u8,
             function: u8,
             name: Arc<str>,
-            dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+            dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         ) -> Result<(), PciConflict> {
             self.lock()
                 .add_pci_device(
@@ -756,14 +756,16 @@ mod weak_mutex_pci {
     }
 
     // wiring to enable using the PIIX4 PCI bus alongside the Arc+CloseableMutex device infra
-    impl RegisterWeakMutexPci for Arc<CloseableMutex<chipset_legacy::piix4_pci_bus::Piix4PciBus>> {
+    impl RegisterWeakMutexPci
+        for Arc<vmcore::device_state::DeviceMutex<chipset_legacy::piix4_pci_bus::Piix4PciBus>>
+    {
         fn add_pci_device(
             &mut self,
             bus: u8,
             device: u8,
             function: u8,
             name: Arc<str>,
-            dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+            dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         ) -> Result<(), PciConflict> {
             self.lock()
                 .as_pci_bus()
@@ -783,12 +785,14 @@ mod weak_mutex_pci {
     }
 
     // wiring to enable using the generic PCIe root port alongside the Arc+CloseableMutex device infra
-    impl RegisterWeakMutexPcie for Arc<CloseableMutex<pcie::root::GenericPcieRootComplex>> {
+    impl RegisterWeakMutexPcie
+        for Arc<vmcore::device_state::DeviceMutex<pcie::root::GenericPcieRootComplex>>
+    {
         fn add_pcie_device(
             &mut self,
             port_devfn: u8,
             name: Arc<str>,
-            dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+            dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         ) -> Result<(), PcieConflict> {
             self.lock()
                 .add_pcie_device(
@@ -810,7 +814,7 @@ mod weak_mutex_pci {
             &mut self,
             devfn: u8,
             name: Arc<str>,
-            dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+            dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         ) -> Result<(), PcieConflict> {
             self.lock()
                 .add_rciep(
@@ -826,12 +830,14 @@ mod weak_mutex_pci {
     }
 
     // wiring to enable using the PCIe switch alongside the Arc+CloseableMutex device infra
-    impl RegisterWeakMutexPcie for Arc<CloseableMutex<pcie::switch::GenericPcieSwitch>> {
+    impl RegisterWeakMutexPcie
+        for Arc<vmcore::device_state::DeviceMutex<pcie::switch::GenericPcieSwitch>>
+    {
         fn add_pcie_device(
             &mut self,
             port_devfn: u8,
             name: Arc<str>,
-            dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+            dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         ) -> Result<(), PcieConflict> {
             self.lock()
                 .add_pcie_device(port_devfn, &name, Box::new(WeakMutexPciDeviceWrapper(dev)))
@@ -854,7 +860,7 @@ mod weak_mutex_pci {
 ))]
 pub struct ArcMutexIsaDmaChannel {
     channel_num: u8,
-    dma: Arc<CloseableMutex<dma::DmaController>>,
+    dma: Arc<vmcore::device_state::DeviceMutex<dma::DmaController>>,
 }
 
 #[cfg(any(
@@ -863,7 +869,10 @@ pub struct ArcMutexIsaDmaChannel {
     feature = "dev_winbond_super_io_and_floppy_stub"
 ))]
 impl ArcMutexIsaDmaChannel {
-    pub fn new(dma: Arc<CloseableMutex<dma::DmaController>>, channel_num: u8) -> Self {
+    pub fn new(
+        dma: Arc<vmcore::device_state::DeviceMutex<dma::DmaController>>,
+        channel_num: u8,
+    ) -> Self {
         Self { dma, channel_num }
     }
 }

@@ -3,7 +3,7 @@
 
 //! VMM-agnostic infrastructure to wire up
 //! [`ChipsetDevice`](chipset_device::ChipsetDevice) instances using
-//! `Arc<CloseableMutex<dyn ChipsetDevice>>` to communicate with the backing chipset.
+//! `Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>` to communicate with the backing chipset.
 //!
 //! NOTE: this crate is no longer used by OpenVMM/OpenHCL, and only remains
 //! in-tree to support testing devices.

@@ -65,10 +65,13 @@ pub struct VerifiedClosedGuard<T> {
     guard: Option<ClosedGuard<T>>,
 }
 
-impl<T: LockInvariant> CloseableMutex<T> {
-    /// The key of the value, the same on every acquisition.
+impl<T: ?Sized + LockInvariant> CloseableMutex<T> {
+    /// The key of the value, the same on every acquisition. (Also for an
+    /// unsized value, such as a device seen through a trait object.)
     pub uninterp spec fn key(&self) -> T::Key;
+}
 
+impl<T: LockInvariant> CloseableMutex<T> {
     /// Creates a mutex holding `value`, with `value`'s key.
     #[verifier::external_body]
     pub fn new_verified(value: T) -> (m: Self)

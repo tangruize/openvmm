@@ -24,7 +24,6 @@ use chipset_device::pci::ByteEnabledDwordRead;
 use chipset_device::pci::ByteEnabledDwordWrite;
 use chipset_device::pio::ControlPortIoIntercept;
 use chipset_device::pio::RegisterPortIoIntercept;
-use closeable_mutex::CloseableMutex;
 use parking_lot::RwLock;
 use range_map_vec::RangeMap;
 use std::cell::Cell;
@@ -35,8 +34,17 @@ use std::task::Context;
 use std::task::Poll;
 use std::task::Waker;
 
-type InterceptRanges<U> =
-    Arc<RwLock<RangeMap<U, (Box<str>, Weak<CloseableMutex<dyn ChipsetDevice>>)>>>;
+type InterceptRanges<U> = Arc<
+    RwLock<
+        RangeMap<
+            U,
+            (
+                Box<str>,
+                Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
+            ),
+        >,
+    >,
+>;
 
 /// A chipset for fuzz-testing devices.
 ///
@@ -46,11 +54,11 @@ type InterceptRanges<U> =
 /// Resilient against runtime remapping of intercept regions.
 #[derive(Default)]
 pub struct FuzzChipset {
-    devices: Vec<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+    devices: Vec<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     mmio_ranges: InterceptRanges<u64>,
     pio_ranges: InterceptRanges<u16>,
-    pci_devices: BTreeMap<(u8, u8, u8), Weak<CloseableMutex<dyn ChipsetDevice>>>,
-    poll_devices: Vec<Weak<CloseableMutex<dyn ChipsetDevice>>>,
+    pci_devices: BTreeMap<(u8, u8, u8), Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
+    poll_devices: Vec<Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     max_defer_poll_count: usize,
 }
 
@@ -92,7 +100,7 @@ impl FuzzChipset {
         let result = match result {
             IoResult::Ok => Ok(()),
             IoResult::Err(e) => Err(e),
-            IoResult::Defer(t) => self.defer_read_now_or_never(&mut *locked_dev, t, data),
+            IoResult::Defer(t) => self.defer_read_now_or_never(&mut **locked_dev, t, data),
         };
         match result {
             Ok(()) => {}
@@ -117,7 +125,7 @@ impl FuzzChipset {
             IoResult::Ok => {}
             IoResult::Err(_) => {}
             IoResult::Defer(t) => {
-                let _ = self.defer_write_now_or_never(&mut *locked_dev, t);
+                let _ = self.defer_write_now_or_never(&mut **locked_dev, t);
             }
         }
         Some(())
@@ -137,7 +145,7 @@ impl FuzzChipset {
         let result = match result {
             IoResult::Ok => Ok(()),
             IoResult::Err(e) => Err(e),
-            IoResult::Defer(t) => self.defer_read_now_or_never(&mut *locked_dev, t, data),
+            IoResult::Defer(t) => self.defer_read_now_or_never(&mut **locked_dev, t, data),
         };
         match result {
             Ok(()) => {}
@@ -162,7 +170,7 @@ impl FuzzChipset {
             IoResult::Ok => {}
             IoResult::Err(_) => {}
             IoResult::Defer(t) => {
-                let _ = self.defer_write_now_or_never(&mut *locked_dev, t);
+                let _ = self.defer_write_now_or_never(&mut **locked_dev, t);
             }
         }
         Some(())
@@ -184,7 +192,7 @@ impl FuzzChipset {
         let result = match result {
             IoResult::Ok => Ok(()),
             IoResult::Err(e) => Err(e),
-            IoResult::Defer(t) => self.defer_read_now_or_never(&mut *locked_dev, t, data),
+            IoResult::Defer(t) => self.defer_read_now_or_never(&mut **locked_dev, t, data),
         };
         match result {
             Ok(()) => data.copy_from_slice(&value.to_ne_bytes()[..data.len()]),
@@ -207,7 +215,7 @@ impl FuzzChipset {
             IoResult::Ok => {}
             IoResult::Err(_) => {}
             IoResult::Defer(t) => {
-                let _ = self.defer_write_now_or_never(&mut *locked_dev, t);
+                let _ = self.defer_write_now_or_never(&mut **locked_dev, t);
             }
         }
         Some(())
@@ -423,7 +431,7 @@ pub enum ChipsetAction {
 
 /// A concrete type which implements [`RegisterMmioIntercept`]
 pub struct FuzzRegisterIntercept<U> {
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     map: InterceptRanges<U>,
 }
 
@@ -434,7 +442,7 @@ struct FuzzControlIntercept<U> {
     region_name: Box<str>,
     len: U,
     addr: Option<U>,
-    io: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    io: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 macro_rules! impl_intercept {
@@ -516,7 +524,7 @@ impl_intercept!(
 /// Implementation of [`ChipsetServices`] associated with [`FuzzChipset`]
 pub struct FuzzChipsetServicesImpl<'a> {
     vm_chipset: &'a mut FuzzChipset,
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     took_mmio: Cell<bool>,
     took_pio: Cell<bool>,
     took_pci: Cell<bool>,
@@ -526,7 +534,7 @@ pub struct FuzzChipsetServicesImpl<'a> {
 impl<'a> FuzzChipsetServicesImpl<'a> {
     pub fn new(
         vm_chipset: &'a mut FuzzChipset,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) -> Self {
         Self {
             vm_chipset,
@@ -572,7 +580,7 @@ impl ChipsetServices for FuzzChipsetServicesImpl<'_> {
 }
 
 impl<T: ChipsetDevice> ArcMutexChipsetServicesFinalize<T> for FuzzChipsetServicesImpl<'_> {
-    fn finalize(self, dev: &Arc<CloseableMutex<T>>, _name: Arc<str>) {
+    fn finalize(self, dev: &Arc<vmcore::device_state::DeviceMutex<T>>, _name: Arc<str>) {
         self.vm_chipset.devices.push(dev.clone());
     }
 }

@@ -13,18 +13,27 @@ use chipset_device::ChipsetDevice;
 use chipset_device::io::IoResult;
 use chipset_device::mmio::ControlMmioIntercept;
 use chipset_device::mmio::RegisterMmioIntercept;
-use closeable_mutex::CloseableMutex;
 use parking_lot::RwLock;
 use range_map_vec::RangeMap;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::Weak;
 
-type MmioRanges = Arc<RwLock<RangeMap<u64, (Box<str>, Weak<CloseableMutex<dyn ChipsetDevice>>)>>>;
+type MmioRanges = Arc<
+    RwLock<
+        RangeMap<
+            u64,
+            (
+                Box<str>,
+                Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
+            ),
+        >,
+    >,
+>;
 
 /// A concrete type which implements [`RegisterMmioIntercept`]
 pub struct TestMmioRangeMapper {
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     map: MmioRanges,
 }
 
@@ -35,7 +44,7 @@ struct TestDeviceRange {
     region_name: Box<str>,
     len: u64,
     addr: Option<u64>,
-    io: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    io: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 impl RegisterMmioIntercept for TestMmioRangeMapper {
@@ -147,7 +156,7 @@ impl TestChipset {
 /// Implementation of [`ChipsetServices`] associated with [`TestChipset`]
 pub struct TestChipsetServicesImpl<'a> {
     vm_chipset: &'a TestChipset,
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     took_mmio: Cell<bool>,
 }
 
@@ -169,7 +178,7 @@ impl ChipsetServices for TestChipsetServicesImpl<'_> {
 }
 
 impl<T> ArcMutexChipsetServicesFinalize<T> for TestChipsetServicesImpl<'_> {
-    fn finalize(self, _dev: &Arc<CloseableMutex<T>>, _name: Arc<str>) {}
+    fn finalize(self, _dev: &Arc<vmcore::device_state::DeviceMutex<T>>, _name: Arc<str>) {}
 }
 
 impl MmioInterceptServices for TestChipsetServicesImpl<'_> {
@@ -247,8 +256,9 @@ mod tests {
             }
         });
 
-        let sample_dev: Arc<CloseableMutex<sample_dev::SampleDevice>> = devices_builder
-            .try_add(|services| sample_dev::SampleDevice::new(&mut services.register_mmio()))?;
+        let sample_dev: Arc<vmcore::device_state::DeviceMutex<sample_dev::SampleDevice>> =
+            devices_builder
+                .try_add(|services| sample_dev::SampleDevice::new(&mut services.register_mmio()))?;
 
         // give it a go
         assert!(vm_chipset.mmio_read(10, &mut []).is_some());

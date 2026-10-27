@@ -27,7 +27,7 @@ struct IoRangesInner<T> {
     // Starts off a `Some(Vec::new())`, and then set to `None` as part of
     // Chipset finalization
     static_registration_conflicts: Option<Vec<IoRangeConflict<T>>>,
-    fallback_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+    fallback_device: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +60,7 @@ struct RangeEntry {
     region_name: Arc<str>,
     dev_name: Arc<str>,
     #[inspect(rename = "device_is_init", with = "|x| x.upgrade().is_some()")]
-    dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     read_count: SharedCounter,
     write_count: SharedCounter,
 }
@@ -73,7 +73,7 @@ pub struct IoRanges<T> {
 impl<T: RangeKey> IoRanges<T> {
     pub fn new(
         trace_on_unknown: bool,
-        fallback_device: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+        fallback_device: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     ) -> Self {
         Self {
             inner: Arc::new(RwLock::new(IoRangesInner {
@@ -91,7 +91,7 @@ impl<T: RangeKey> IoRanges<T> {
         start: T,
         end: T,
         region_name: Arc<str>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         dev_name: Arc<str>,
     ) -> Result<(), IoRangeConflict<T>> {
         let mut inner = self.inner.write();
@@ -135,7 +135,8 @@ impl<T: RangeKey> IoRanges<T> {
     }
 
     pub fn lookup(&self, addr: T, is_read: bool) -> LookupResult {
-        static UNKNOWN_DEVICE: OnceLock<Arc<CloseableMutex<dyn ChipsetDevice>>> = OnceLock::new();
+        static UNKNOWN_DEVICE: OnceLock<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>> =
+            OnceLock::new();
         static UNKNOWN_DEVICE_NAME: OnceLock<Arc<str>> = OnceLock::new();
         static UNKNOWN_RANGE: OnceLock<Arc<str>> = OnceLock::new();
 
@@ -157,11 +158,11 @@ impl<T: RangeKey> IoRanges<T> {
                         inner.fallback_device.clone().unwrap_or_else(|| {
                             UNKNOWN_DEVICE
                         .get_or_init(|| {
-                            Arc::new(CloseableMutex::new(missing_dev::MissingDev::from_manifest(
+                            Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(missing_dev::MissingDev::from_manifest(
                                 missing_dev::MissingDevManifest::new(),
                                 &mut chipset_device::mmio::ExternallyManagedMmioIntercepts,
                                 &mut chipset_device::pio::ExternallyManagedPortIoIntercepts,
-                            )))
+                            ))))
                         })
                         .clone()
                         }),
@@ -201,7 +202,7 @@ impl<T: RangeKey> IoRanges<T> {
 }
 
 pub struct LookupResult {
-    pub dev: Arc<CloseableMutex<dyn ChipsetDevice>>,
+    pub dev: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     pub dev_name: Arc<str>,
     pub trace: Option<Arc<str>>,
     pub debug_break: bool,

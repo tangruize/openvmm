@@ -7,11 +7,89 @@
 
 use std::future::Future;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// Verus specification of a device's ghost state.
 #[cfg(verus_keep_ghost)]
 pub mod spec {
     include!("device_state.spec.rs");
+}
+
+/// What a chipset device's lock needs of the device (see
+/// `spec::DeviceSnapshot`). Empty in normal builds.
+#[cfg(verus_keep_ghost)]
+pub use spec::DeviceSnapshot;
+
+/// What a chipset device's lock needs of the device (see
+/// `spec::DeviceSnapshot`). Empty in normal builds.
+#[cfg(not(verus_keep_ghost))]
+pub trait DeviceSnapshot {}
+
+#[cfg(not(verus_keep_ghost))]
+impl<T: ?Sized> DeviceSnapshot for T {}
+
+/// A chipset device in its lock (a [`DeviceMutex`]): the device and, in
+/// Verus builds, its state unit's share of its FracGhost, kept with the
+/// device's state so that whoever changes the device under the lock can
+/// update the share in the same step (see "Chipset devices: the share in
+/// the device's lock" in `SNAPSHOT-SPEC-DESIGN.md`). Normal builds hold just
+/// the device. Dereferences to the device.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+pub struct DeviceSlot<T: ?Sized> {
+    /// The unit's share (Verus only).
+    #[cfg(verus_keep_ghost)]
+    share: Tracked<spec::DeviceGhostState>,
+    /// Whether the unit omits the device's saved state (Verus only).
+    #[cfg(verus_keep_ghost)]
+    omit: Ghost<bool>,
+    device: T,
+}
+
+/// A chipset device's lock.
+pub type DeviceMutex<T> = closeable_mutex::CloseableMutex<DeviceSlot<T>>;
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<T: DeviceSnapshot> DeviceSlot<T> {
+    /// `device` in a slot. Verus: it creates the unit's FracGhost (value
+    /// `Unknown`), keeps one half as the slot's share, and gives the other
+    /// back in `half`, for `StateUnits` (registered with
+    /// `state_unit::unit_channel_for`). `omit` is whether the unit will omit
+    /// the device's saved state.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(slot =>
+        with
+            Ghost(omit): Ghost<bool>,
+            Tracked(half): Tracked<&mut Option<vstd::resource::frac::FracGhost<crate::save_restore::spec::UnitSnapshot>>>,
+        ensures
+            closeable_mutex::LockInvariant::inv(&slot),
+            closeable_mutex::LockInvariant::key(&slot).1 == omit,
+            *final(half) matches Some(h) && h.valid(closeable_mutex::LockInvariant::key(&slot).0, 0.5real)
+                && h@ is Unknown,
+    ))]
+    pub fn new(device: T) -> Self {
+        Self {
+            #[cfg(verus_keep_ghost)]
+            share: Tracked::assume_new(),
+            #[cfg(verus_keep_ghost)]
+            omit: Ghost::assume_new(),
+            device,
+        }
+    }
+}
+
+impl<T: ?Sized> std::ops::Deref for DeviceSlot<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.device
+    }
+}
+
+impl<T: ?Sized> std::ops::DerefMut for DeviceSlot<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.device
+    }
 }
 
 /// Trait for transitioning device state.

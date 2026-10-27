@@ -45,7 +45,7 @@ pub struct DynamicVpciDevice {
     pci_unit: DynamicDeviceUnit,
     vpci_unit: DynamicDeviceUnit,
     eject: vpci::bus::VpciBusEject,
-    vpci_bus: Arc<closeable_mutex::CloseableMutex<vpci::bus::VpciBus>>,
+    vpci_bus: Arc<vmcore::device_state::DeviceMutex<vpci::bus::VpciBus>>,
 }
 
 impl DynamicVpciDevice {
@@ -257,7 +257,7 @@ pub async fn resolve_and_add_pci_device(
     device_builder: ArcMutexChipsetDeviceBuilder<'_, '_, ErasedChipsetDevice>,
     ctx: PciDeviceResolveContext<'_>,
     dma_target: &DmaTarget,
-) -> anyhow::Result<Arc<closeable_mutex::CloseableMutex<ErasedChipsetDevice>>> {
+) -> anyhow::Result<Arc<vmcore::device_state::DeviceMutex<ErasedChipsetDevice>>> {
     let device = device_builder
         .try_add_async(async |services| {
             ctx.resolver

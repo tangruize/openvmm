@@ -3,7 +3,8 @@
 
 use crate::VmmChipsetDevice;
 use async_trait::async_trait;
-use closeable_mutex::CloseableMutex;
+#[cfg(verus_keep_ghost)]
+use closeable_mutex::LockInvariant;
 use futures::FutureExt;
 use futures::task::ArcWake;
 use futures::task::waker_ref;
@@ -40,8 +41,11 @@ mod proof {
     include!("state_unit.proof.rs");
 }
 
+/// The state unit of a chipset device. Its share of its FracGhost is kept
+/// with the device, in the device's lock (`vmcore::device_state::DeviceSlot`).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct ArcMutexChipsetDeviceUnit {
-    device: Arc<CloseableMutex<dyn DynDevice>>,
+    device: Arc<vmcore::device_state::DeviceMutex<dyn DynDevice>>,
     poll_event: Arc<PollEvent>,
     running: bool,
     omit_saved_state: bool,
@@ -54,8 +58,10 @@ impl InspectMut for ArcMutexChipsetDeviceUnit {
 }
 
 /// Object-safe trait for the subset of [`VmmChipsetDevice`] that we use here.
+/// (`DeviceSnapshot`: in Verus builds, the device's saved blob, which its
+/// lock's invariant names.)
 #[async_trait]
-trait DynDevice: InspectMut + Send {
+trait DynDevice: InspectMut + Send + vmcore::device_state::DeviceSnapshot {
     async fn start(&mut self) -> anyhow::Result<()>;
     async fn stop(&mut self);
     async fn quiesce_input(&mut self) -> anyhow::Result<()>;
@@ -114,9 +120,21 @@ impl ArcWake for PollEvent {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl ArcMutexChipsetDeviceUnit {
+    /// The unit of `device`, whose lock keeps the unit's share
+    /// (`DeviceSlot::new`); `omit_saved_state` must match the lock's.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        requires
+            (*device).key().1 == omit_saved_state,
+        ensures
+            unit.wf(),
+            unit.id() == (*device).key().0,
+            !unit.running(),
+    ))]
     pub fn new(
-        device: Arc<CloseableMutex<impl 'static + VmmChipsetDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<impl 'static + VmmChipsetDevice>>,
         omit_saved_state: bool,
     ) -> Self {
         Self {

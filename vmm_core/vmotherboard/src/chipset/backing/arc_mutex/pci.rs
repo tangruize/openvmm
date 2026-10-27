@@ -9,13 +9,12 @@ use crate::chipset::PciConflictReason;
 use crate::chipset::PcieConflict;
 use crate::chipset::PcieConflictReason;
 use chipset_device::ChipsetDevice;
-use closeable_mutex::CloseableMutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Weak;
 
 /// An abstraction over a PCI bus implementation that is able to route accesses
-/// to `Weak<CloseableMutex<dyn ChipsetDevice>>` devices.
+/// to `Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>` devices.
 pub trait RegisterWeakMutexPci: Send {
     /// Try to add a PCI device to the bus, reporting any conflicts.
     fn add_pci_device(
@@ -24,14 +23,14 @@ pub trait RegisterWeakMutexPci: Send {
         device: u8,
         function: u8,
         name: Arc<str>,
-        dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) -> Result<(), PciConflict>;
 }
 
 pub struct WeakMutexPciEntry {
     pub bdf: (u8, u8, u8),
     pub name: Arc<str>,
-    pub dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    pub dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 #[derive(Default)]
@@ -74,7 +73,7 @@ impl BusResolverWeakMutexPci {
 }
 
 /// An abstraction over an upstream PCIe enumerator implementation that
-/// is able to route accesses to `Weak<CloseableMutex<dyn ChipsetDevice>>`
+/// is able to route accesses to `Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>`
 /// devices via downstream ports.
 pub trait RegisterWeakMutexPcie: Send {
     /// Try to add a PCIe device to the enumerator at the specified port devfn,
@@ -83,7 +82,7 @@ pub trait RegisterWeakMutexPcie: Send {
         &mut self,
         port_devfn: u8,
         name: Arc<str>,
-        device: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        device: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) -> Result<(), PcieConflict>;
 
     /// Enumerate the downstream ports.
@@ -98,7 +97,7 @@ pub trait RegisterWeakMutexPcie: Send {
         &mut self,
         _devfn: u8,
         name: Arc<str>,
-        _device_handle: Weak<CloseableMutex<dyn ChipsetDevice>>,
+        _device_handle: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     ) -> Result<(), PcieConflict> {
         Err(PcieConflict {
             conflict_dev: name,
@@ -110,14 +109,14 @@ pub trait RegisterWeakMutexPcie: Send {
 pub struct WeakMutexPcieDeviceEntry {
     pub bus_id_port: BusIdPcieDownstreamPort,
     pub name: Arc<str>,
-    pub dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    pub dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 pub struct WeakMutexPcieRciepEntry {
     pub bus_id_enumerator: BusIdPcieEnumerator,
     pub devfn: u8,
     pub name: Arc<str>,
-    pub dev: Weak<CloseableMutex<dyn ChipsetDevice>>,
+    pub dev: Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 #[derive(Default)]

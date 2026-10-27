@@ -18,7 +18,6 @@ use crate::DebugEventHandler;
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoError;
 use chipset_device::io::IoResult;
-use closeable_mutex::CloseableMutex;
 use cvm_tracing::CVM_CONFIDENTIAL;
 use inspect::Inspect;
 use std::future::poll_fn;
@@ -34,9 +33,9 @@ pub struct Chipset {
     pio_ranges: IoRanges<u16>,
 
     #[inspect(rename = "has_pic", with = "Option::is_some")]
-    pic: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+    pic: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
     #[inspect(rename = "has_eoi_handler", with = "Option::is_some")]
-    eoi_handler: Option<Arc<CloseableMutex<dyn ChipsetDevice>>>,
+    eoi_handler: Option<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>>,
 
     #[inspect(skip)]
     debug_event_handler: Arc<dyn DebugEventHandler>,

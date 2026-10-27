@@ -11,7 +11,6 @@ use chipset_device::mmio::ControlMmioIntercept;
 use chipset_device::pci::ByteEnabledDwordRead;
 use chipset_device::pci::ByteEnabledDwordWrite;
 use chipset_device::pci::PciConfigByteEnable;
-use closeable_mutex::CloseableMutex;
 use guestmem::AccessError;
 use guestmem::MemoryRead;
 use guid::Guid;
@@ -1315,7 +1314,7 @@ pub struct VpciChannel {
 
     // The underlying device.
     #[inspect(skip)]
-    device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+    device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 
     // State.
     bars_set: bool,
@@ -1424,7 +1423,7 @@ impl VpciConfigSpaceOffset {
 impl VpciChannel {
     /// Create New VPCI Channel
     pub(crate) fn new(
-        device: &Arc<CloseableMutex<dyn ChipsetDevice>>,
+        device: &Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         instance_id: Guid,
         config_space: VpciConfigSpace,
         msi_mapper: VpciInterruptMapper,
@@ -1624,7 +1623,7 @@ mod tests {
 
     fn connected_device(
         driver: &impl SpawnDriver,
-        device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         msi_mapper: Arc<TestVpciInterruptController>,
     ) -> MockVpciGuestDevice {
         let (host, guest) = connected_queues(16384);
@@ -2006,14 +2005,16 @@ mod tests {
             type0_sub_system_id: 0x1,
         };
 
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                Vec::new(),
-                Vec::new(),
-                DeviceBars::new(),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    Vec::new(),
+                    Vec::new(),
+                    DeviceBars::new(),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci.clone(), msi_controller);
         let base_address = 0x140000000;
         guest_driver.start_device(base_address).await;
@@ -2032,14 +2033,16 @@ mod tests {
             type0_sub_vendor_id: 0x456,
             type0_sub_system_id: 0x1,
         };
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                Vec::new(),
-                Vec::new(),
-                DeviceBars::new(),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    Vec::new(),
+                    Vec::new(),
+                    DeviceBars::new(),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci, msi_controller);
         guest_driver.start_device(0x140000000).await;
 
@@ -2081,14 +2084,16 @@ mod tests {
             type0_sub_vendor_id: 0x456,
             type0_sub_system_id: 0x1,
         };
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                Vec::new(),
-                Vec::new(),
-                DeviceBars::new(),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    Vec::new(),
+                    Vec::new(),
+                    DeviceBars::new(),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci.clone(), msi_controller);
         guest_driver.protocol_version = protocol::ProtocolVersion(0x00020000);
         let base_address = 0x140000000;
@@ -2114,14 +2119,16 @@ mod tests {
         let msi_controller = TestVpciInterruptController::new();
         msi_conn.connect(msi_controller.signal_msi());
 
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                vec![Box::new(msix_capability)],
-                Vec::new(),
-                DeviceBars::new(),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    vec![Box::new(msix_capability)],
+                    Vec::new(),
+                    DeviceBars::new(),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci.clone(), msi_controller);
         let base_address = 0x120000000;
         guest_driver.start_device(base_address).await;
@@ -2141,14 +2148,16 @@ mod tests {
             type0_sub_system_id: 0x1,
         };
 
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                Vec::new(),
-                Vec::new(),
-                DeviceBars::new().bar0(0x1000, BarMemoryKind::Dummy),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    Vec::new(),
+                    Vec::new(),
+                    DeviceBars::new().bar0(0x1000, BarMemoryKind::Dummy),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci.clone(), msi_controller);
 
         let base_address = 0x80000000;
@@ -2537,14 +2546,16 @@ mod tests {
             type0_sub_system_id: 0x1,
         };
 
-        let pci = Arc::new(CloseableMutex::new(NullDevice {
-            config_space: ConfigSpaceType0Emulator::new(
-                pci_config,
-                Vec::new(),
-                Vec::new(),
-                DeviceBars::new(),
-            ),
-        }));
+        let pci = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            NullDevice {
+                config_space: ConfigSpaceType0Emulator::new(
+                    pci_config,
+                    Vec::new(),
+                    Vec::new(),
+                    DeviceBars::new(),
+                ),
+            },
+        )));
         let mut guest_driver = connected_device(&driver, pci.clone(), msi_controller);
         let base_address = 0x1000000;
         guest_driver.start_device(base_address).await;

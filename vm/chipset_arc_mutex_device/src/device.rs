@@ -69,21 +69,21 @@ pub struct AddDeviceError {
 
 /// Additional trait implemented by Arc + CloseableMutex [`ChipsetServices`] that gives
 /// the services an opportunity to perform any chipset-specific wiring of the
-/// constructed `Arc<CloseableMutex<T: ChipsetDevice>>`.
+/// constructed `Arc<vmcore::device_state::DeviceMutex<T: ChipsetDevice>>`.
 ///
 /// This is a separate trait from [`ChipsetServices`] because it is specific to
 /// the ArcMutex infrastructure.
 pub trait ArcMutexChipsetServicesFinalize<T> {
     /// Called to finish wiring up the device after it has been completely
     /// constructed.
-    fn finalize(self, dev: &Arc<CloseableMutex<T>>, name: Arc<str>);
+    fn finalize(self, dev: &Arc<vmcore::device_state::DeviceMutex<T>>, name: Arc<str>);
 }
 
 /// A builder to streamline the construction of `Arc + CloseableMutex` wrapped
 /// [`ChipsetDevice`] instances.
 pub struct ArcMutexChipsetDeviceBuilder<S, T> {
     services: S,
-    arc_builder: ArcCyclicBuilder<CloseableMutex<T>>,
+    arc_builder: ArcCyclicBuilder<vmcore::device_state::DeviceMutex<T>>,
 
     dev_name: Arc<str>,
 
@@ -99,9 +99,13 @@ where
     /// Create a new [`ArcMutexChipsetDeviceBuilder`]
     pub fn new(
         name: Arc<str>,
-        new_device_services: impl FnOnce(Weak<CloseableMutex<dyn ChipsetDevice>>, Arc<str>) -> S,
+        new_device_services: impl FnOnce(
+            Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
+            Arc<str>,
+        ) -> S,
     ) -> ArcMutexChipsetDeviceBuilder<S, T> {
-        let arc_builder: ArcCyclicBuilder<CloseableMutex<T>> = Arc::new_cyclic_builder();
+        let arc_builder: ArcCyclicBuilder<vmcore::device_state::DeviceMutex<T>> =
+            Arc::new_cyclic_builder();
         let services = (new_device_services)(arc_builder.weak(), name.clone());
 
         ArcMutexChipsetDeviceBuilder {
@@ -132,7 +136,7 @@ where
     fn inner_add(
         mut self,
         typed_dev: Result<T, AddDeviceError>,
-    ) -> Result<Arc<CloseableMutex<T>>, AddDeviceError> {
+    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError> {
         let mut typed_dev = typed_dev?;
 
         /// Cut down on boilerplate required to wire up devices to services,
@@ -221,7 +225,11 @@ where
             }
         }
 
-        let dev = self.arc_builder.build(CloseableMutex::new(typed_dev));
+        let dev =
+            self.arc_builder
+                .build(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                    typed_dev,
+                )));
 
         // Now ask the services to finish wiring up the device.
         self.services.finalize(&dev, self.dev_name);
@@ -239,7 +247,10 @@ where
     /// corresponding `ChipsetDevice::supports_` method.
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
     #[expect(clippy::should_implement_trait)]
-    pub fn add<F>(mut self, f: F) -> Result<Arc<CloseableMutex<T>>, AddDeviceError>
+    pub fn add<F>(
+        mut self,
+        f: F,
+    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: FnOnce(&mut S) -> T,
     {
@@ -249,7 +260,10 @@ where
 
     /// Just like [`add`](Self::add), except async.
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
-    pub async fn add_async<F>(mut self, f: F) -> Result<Arc<CloseableMutex<T>>, AddDeviceError>
+    pub async fn add_async<F>(
+        mut self,
+        f: F,
+    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: AsyncFnOnce(&mut S) -> T,
     {
@@ -259,7 +273,10 @@ where
 
     /// Just like [`add`](Self::add), except fallible.
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
-    pub fn try_add<F, E>(mut self, f: F) -> Result<Arc<CloseableMutex<T>>, AddDeviceError>
+    pub fn try_add<F, E>(
+        mut self,
+        f: F,
+    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: FnOnce(&mut S) -> Result<T, E>,
         E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
@@ -278,7 +295,7 @@ where
     pub async fn try_add_async<F, E>(
         mut self,
         f: F,
-    ) -> Result<Arc<CloseableMutex<T>>, AddDeviceError>
+    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: AsyncFnOnce(&mut S) -> Result<T, E>,
         E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>,

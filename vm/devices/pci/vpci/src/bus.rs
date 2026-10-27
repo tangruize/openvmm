@@ -19,7 +19,6 @@ use chipset_device::pci::ByteEnabledDwordWrite;
 use chipset_device::pci::PciConfigAddress;
 use chipset_device::pci::PciConfigByteEnable;
 use chipset_device::poll_device::PollDevice;
-use closeable_mutex::CloseableMutex;
 use guid::Guid;
 use hvdef::HV_PAGE_SIZE;
 use inspect::InspectMut;
@@ -112,7 +111,7 @@ impl VpciBusEject {
 #[derive(InspectMut)]
 pub struct VpciBusDevice {
     #[inspect(skip)]
-    device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+    device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
     config_space_offset: VpciConfigSpaceOffset,
     #[inspect(with = "|&x| u32::from(x)")]
     current_slot: SlotNumber,
@@ -149,7 +148,7 @@ impl VpciBusDevice {
     /// communications.
     pub fn new(
         config: VpciBusConfig,
-        device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         register_mmio: &mut dyn RegisterMmioIntercept,
         msi_controller: VpciInterruptMapper,
     ) -> Result<(Self, VpciChannel), NotPciDevice> {
@@ -193,7 +192,7 @@ impl VpciBus {
     pub async fn new(
         driver_source: &VmTaskDriverSource,
         config: VpciBusConfig,
-        device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         register_mmio: &mut dyn RegisterMmioIntercept,
         vmbus: &dyn vmbus_channel::bus::ParentBus,
         msi_controller: VpciInterruptMapper,
@@ -214,7 +213,7 @@ impl VpciBus {
     /// the bus as a state unit.
     pub fn new_unoffered(
         config: VpciBusConfig,
-        device: Arc<CloseableMutex<dyn ChipsetDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
         register_mmio: &mut dyn RegisterMmioIntercept,
         msi_controller: VpciInterruptMapper,
     ) -> Result<(Self, PendingVpciBusOffer), NotPciDevice> {
@@ -270,7 +269,7 @@ impl PendingVpciBusOffer {
     /// offered, has been offered, or has been revoked.
     pub async fn offer_registered(
         self,
-        bus: &Arc<CloseableMutex<VpciBus>>,
+        bus: &Arc<vmcore::device_state::DeviceMutex<VpciBus>>,
         driver_source: &VmTaskDriverSource,
         vmbus: &dyn vmbus_channel::bus::ParentBus,
         started: bool,
@@ -492,11 +491,11 @@ impl VpciBusDevice {
 }
 
 struct PciBusCfgAccessCallbackView<'a> {
-    device: &'a mut Arc<CloseableMutex<dyn ChipsetDevice>>,
+    device: &'a mut Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>,
 }
 
 impl<'a> PciBusCfgAccessCallbackView<'a> {
-    fn new(device: &'a mut Arc<CloseableMutex<dyn ChipsetDevice>>) -> Self {
+    fn new(device: &'a mut Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>) -> Self {
         Self { device }
     }
 }
@@ -597,15 +596,17 @@ mod tests {
     }
 
     struct VpciTestRig {
-        bus: Arc<CloseableMutex<VpciBusDevice>>,
-        device: Arc<CloseableMutex<DeferWriteDevice>>,
+        bus: Arc<vmcore::device_state::DeviceMutex<VpciBusDevice>>,
+        device: Arc<vmcore::device_state::DeviceMutex<DeferWriteDevice>>,
     }
 
     impl VpciTestRig {
         fn new() -> Self {
             let msi_controller = TestVpciInterruptController::new();
-            let device: Arc<CloseableMutex<DeferWriteDevice>> =
-                Arc::new(CloseableMutex::new(DeferWriteDevice::new()));
+            let device: Arc<vmcore::device_state::DeviceMutex<DeferWriteDevice>> =
+                Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                    DeferWriteDevice::new(),
+                )));
 
             let (bus, _channel) = VpciBusDevice::new(
                 VpciBusConfig {
@@ -619,7 +620,9 @@ mod tests {
             )
             .unwrap();
 
-            let bus = Arc::new(CloseableMutex::new(bus));
+            let bus = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                bus,
+            )));
             bus.lock().config_space_offset().set(BASE_ADDR);
 
             Self { bus, device }
@@ -717,8 +720,10 @@ mod tests {
         const OFFSET_CMD_REG: u64 = 4;
 
         let msi_controller = TestVpciInterruptController::new();
-        let device: Arc<CloseableMutex<DeferWriteDevice>> =
-            Arc::new(CloseableMutex::new(DeferWriteDevice::new()));
+        let device: Arc<vmcore::device_state::DeviceMutex<DeferWriteDevice>> =
+            Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                DeferWriteDevice::new(),
+            )));
 
         let (bus, _channel) = VpciBusDevice::new(
             VpciBusConfig {
@@ -732,7 +737,9 @@ mod tests {
         )
         .unwrap();
 
-        let bus = Arc::new(CloseableMutex::new(bus));
+        let bus = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            bus,
+        )));
 
         // Set the MMIO base so that the address decoding in mmio_write works.
         bus.lock().config_space_offset().set(BASE_ADDR);
@@ -819,8 +826,10 @@ mod tests {
         const WRITE_OFFSET: u64 = 5;
 
         let msi_controller = TestVpciInterruptController::new();
-        let device: Arc<CloseableMutex<DeferWriteDevice>> =
-            Arc::new(CloseableMutex::new(DeferWriteDevice::new()));
+        let device: Arc<vmcore::device_state::DeviceMutex<DeferWriteDevice>> =
+            Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+                DeferWriteDevice::new(),
+            )));
 
         let (bus, _channel) = VpciBusDevice::new(
             VpciBusConfig {
@@ -834,7 +843,9 @@ mod tests {
         )
         .unwrap();
 
-        let bus = Arc::new(CloseableMutex::new(bus));
+        let bus = Arc::new(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
+            bus,
+        )));
         bus.lock().config_space_offset().set(BASE_ADDR);
 
         device.lock().start_deferring_reads(0x5566_7788);

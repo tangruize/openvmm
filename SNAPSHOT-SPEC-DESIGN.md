@@ -579,6 +579,11 @@ partition), which need modelling.
 
 #### The PIT
 
+*Superseded 2026-10-27* ("Chipset devices: the share in the device's
+lock"): the PIT's ghost field, `DeviceGhost`, and its lock invariant are
+retired; its view, `saved_state()`, and entry-point contracts stay. Kept
+below as the record of the first device worked through.
+
 - **The shared ghost field** (`vm/vmcore/src/device_state.spec.rs`): a
   device keeps one Verus-only field of type `DeviceGhostState` (`frac`, its
   share of the FracGhost; `running`). `DeviceGhostState::wf(id, snapshot)`
@@ -649,6 +654,11 @@ Findings and open items:
   not modelled.
 
 #### The verified unit
+
+*Superseded 2026-10-27*: `StateUnitDevice` and `DeviceUnit` are retired;
+the PIT runs behind `ArcMutexChipsetDeviceUnit`, whose share is kept in the
+device's lock ("Chipset devices: the share in the device's lock"). Kept
+below as the record.
 
 - **`StateUnitDevice`** (`vm/vmcore/src/device_state.spec.rs`): what a
   verified unit needs from its device, as synchronous methods with
@@ -882,8 +892,9 @@ with ghost (`vstd::atomic_ghost::AtomicU64`), whose invariant
 atomic's key (as `DeviceUnit`'s is its mutex's key). The VP write path
 must change the value and the share together, which needs the whole,
 that is, the unit running (as for the PIT's handlers). Still
-uninterpreted: `ArcMutexChipsetDeviceUnit` (shares in each device, inside
-the `CloseableMutex`), the vmbus units, `PartitionUnitRunner`.
+uninterpreted: the vmbus units, `PartitionUnitRunner`.
+(`ArcMutexChipsetDeviceUnit`: see "Chipset devices: the share in the
+device's lock".)
 
 Proof hint (time-ABI): `TimeAbiMsrs::load_control` / `store_control` now
 reach the inner `PAtomicU64` (`.patomic`) with a made-up permission
@@ -941,6 +952,108 @@ a generic caller, and negative checks.
   on every other path that changes its state (for the partition: the VPs; for vmbus: the
   channels; for vmtime: the timer updates; for the chipset units: the
   devices' I/O handlers, as for the PIT).
+
+### Chipset devices: the share in the device's lock
+
+Decided 2026-10-27 (user): option B below. Every chipset device's unit
+keeps its share of its FracGhost *in the device's lock, next to the
+device*, in a generic wrapper. The PIT is folded into this: it is one of
+the devices behind the shared chipset unit (`ArcMutexChipsetDeviceUnit`),
+and its own unit machinery is retired.
+
+**The problem.** About 56 device types sit behind one shared unit,
+`ArcMutexChipsetDeviceUnit`, each in an `Arc<CloseableMutex<..>>` that its
+unit and the vCPUs (port and MMIO I/O), the line sets, vPCI and PCIe all
+lock. Under the rule ("Design change: the FracGhost lives with the
+device"), the unit's share must live where every one of those changes can
+update it, that is, inside the lock.
+
+**The two options considered:**
+
+| | A: a ghost field in every device (the PIT's earlier way) | B: the share in a wrapper inside the lock (chosen) |
+|---|---|---|
+| What the lock holds | the device, which carries its share | `DeviceSlot<T> { share, omit, device: T }` (`share`, `omit`: Verus only) |
+| Where each device's snapshot is defined | in each of the ~56 device types | once, from `ProtobufSaveRestore`'s contract, which every device has: `omit ? NoSavedState : Saved(device.saved_blob())` |
+| What a device must prove for snapshots | its `SaveRestore` contract, plus ghost updates in every handler that changes it | only its `SaveRestore` contract (`save` returns `saved_blob()`, `restore` sets it) |
+| Where "a stopped device does not change" is enforced | in every device's handlers | once, in the code that calls into devices under the lock: it can change a device only while holding the whole share, that is, while the unit runs |
+| Code changes | ~56 device files in many crates, each crate Verus-enabled, plus the object-safe `DynDevice` | a type change in about 15 files (see below), mechanical; devices untouched |
+| Runtime | unchanged | unchanged (normal builds: the wrapper holds just the device) |
+
+Why B: (1) it states exactly the high-level property and no more: the
+snapshot proof needs that `save` returns the device's saved state, that
+`restore` sets it, and that nothing changes a stopped device; the first two
+are the existing `SaveRestore` contract, the third is enforced at the one
+place that calls into devices. A adds per-device ghost bookkeeping that
+proves nothing more. (2) It verifies the same code: every device's `save` /
+`restore` must still meet its contract, and every call into a device must
+still happen while its unit runs; neither is trusted. (3) It is the smaller
+change, in one layer instead of 56 devices. Its cost is the type change
+visible in four crates.
+
+**The spec** (`vm/vmcore/src/device_state.rs`, `device_state.spec.rs`):
+
+- `DeviceSlot<T: ?Sized>`: the device (last field, so the slot coerces to
+  `DeviceSlot<dyn ChipsetDevice>` and the like), and, Verus only, `share:
+  Tracked<DeviceGhostState>` and `omit: Ghost<bool>`. Dereferences to the
+  device (`Deref` / `DerefMut`), so calls through a guard are unchanged.
+  `DeviceMutex<T>` = `CloseableMutex<DeviceSlot<T>>`.
+- `DeviceSnapshot` (Verus only; an empty stand-in in normal builds): `spec
+  fn saved_blob(&self)`, for every `ProtobufSaveRestore` type (blanket),
+  and through `DynDevice` (a supertrait) for devices seen as `dyn`.
+- The lock invariant (`LockInvariant for DeviceSlot<T>`): key =
+  (the share's id, `omit`); invariant: the share follows the rule
+  (`DeviceGhostState::wf`) for `snapshot()` = `omit ? NoSavedState :
+  Saved(device.saved_blob())`. (`CloseableMutex::key` is now declared for
+  unsized values too.)
+- `DeviceSlot::new` (`external_body`): the creator-made FracGhost: it
+  creates the unit's FracGhost (`Unknown`), keeps one half as the share,
+  and gives the other back (ghost out-parameter) for
+  `state_unit::unit_channel_for`; `omit` is a ghost input.
+- `ArcMutexChipsetDeviceUnit`'s `StateUnitSpec`
+  (`backing/arc_mutex/state_unit.spec.rs`): `id()` = the lock's key's id,
+  `wf()` = the key's `omit` part equals the unit's `omit_saved_state` (so
+  the lock's snapshot and the unit's `save` agree), `running()` = its
+  `running` field. `ArcMutexChipsetDeviceUnit::new` (`external_body`):
+  requires the key's `omit` part to match. Its two spawn sites use
+  `spawn_with_channel(.., unit_channel_for(), ..)`.
+
+**The type change** (code change 44): every place that names a device's
+lock: vmotherboard (builder, MMIO/PIO/PCI dispatch, services, line sets,
+base chipset, the unit), `vmm_core/src/device_builder.rs`, `vpci` (the
+devices behind a vPCI bus, and the bus itself), `chipset_arc_mutex_device`
+(the test chipset, whose devices also go to vPCI), the fuzzer,
+`openvmm_core`'s `dispatch.rs`, and OpenHCL's fallback MMIO device.
+Constructors become `CloseableMutex::new(DeviceSlot::new(dev))`.
+
+**The PIT, folded in.** Retired: `DeviceGhost` and `StateUnitDevice`
+(`vm/vmcore/src/device_state.spec.rs`), `DeviceUnit`
+(`vmm_core/state_unit/src/device_unit.rs`, removed), the PIT's Verus-only
+`ghost` and `id` fields and its constructor's placeholders, its
+`DeviceGhost` and `LockInvariant` impls, `PitDeviceView::snapshot`, its
+`StateUnitDevice` impl and the four `example_*` protocol walk-throughs
+(`pit/mod.proof.rs`). Kept: its view, `saved_state()`, `SaveRestoreSpecImpl`,
+`wf()` (now the view's invariant only), and its entry points' contracts
+(without the ghost clauses). What the PIT work found stays: the Verus
+patches (0001 to 0005), the `SavedStateBlob` contract, and the
+`CloseableMutex` spec. `StateUnitDevice` was a per-device copy of what the
+`StateUnit` trait contract now says once for every unit.
+
+**Open:**
+
+- **A device's own invariant** (the PIT's view `inv()`) was part of its
+  old lock invariant; the slot's invariant is generic and does not include
+  it, so lock holders no longer get it. A per-device hook (an invariant
+  spec fn in `DeviceSnapshot`, defaulting to true) would bring it back.
+- **The dispatch layer's obligation**: code that changes a device under
+  its lock (the vCPU I/O dispatch, line sets, the unit's poll) must hold
+  the whole share and update it (`Saved(device.saved_blob())` after the
+  call); it is unverified today ("Unverified `lock`, `lock_if_open`,
+  `close`" in `SNAPSHOT-SPEC-TRUSTED.md`).
+- **`Deref` / `DerefMut`** give unverified code the device without the
+  share; covered by the same trusted assumption.
+- **The half reaching `unit_channel_for`**: the builder (unverified) is
+  trusted to pass `DeviceSlot::new`'s other half to the unit's sender, and
+  the right `omit`.
 
 ### Where the halves come from
 
@@ -1154,76 +1267,99 @@ preparation, `restore`, then guest-clock adjustment) and
 `LoadedVm` and calls `restore_from_snapshot`). Both now have contracts
 ("Restore from snapshot").
 
+## Executable code changes (normal builds)
+
+Every change to code that a normal (non-Verus) build compiles: code,
+data types, signatures, and dependencies. Changes that exist only in Verus
+builds (`cfg(verus_keep_ghost)` items, spec and proof files, ghost fields,
+`verus_spec` attributes) are not listed. Each row names its entry in
+`SNAPSHOT-SPEC-CODE-CHANGES.md` ("CC n"). Unless a row says otherwise, the
+change preserves behavior: same results, same order of effects.
+
+**Data types and public signatures**
+
+| CC | Where | Change |
+|---|---|---|
+| 9 | `vmm_core/state_unit` | `StateUnits`' registry lock: `Arc<parking_lot::Mutex<Inner>>` becomes `Arc<InnerMutex>` (`mutex_t::Mutex`, wrapping `parking_lot::Mutex<Option<Inner>>`); also `UnitHandle::inner`, `StateUnitsInspector::inner` |
+| 27 | `vm/devices/chipset` (PIT) | `save_restore::state` becomes `pub(super)` |
+| 38 | `vmm_core/state_unit` | `StateUnit` gains the supertrait `StateUnitSpec` (in normal builds an empty trait implemented for every type, so no impl changes) |
+| 43 | `vmm_core/state_unit` | new `unit_channel_for()` (normal builds: `mesh::channel()`) and `UnitBuilder::spawn_with_channel` (`spawn` now calls it with `unit_channel()`) |
+| 43 | `vmm_core/virt` | `TimeAbiMsrs`: `derive(Debug, Default)` becomes `cfg_attr(not(verus_keep_ghost), derive(..))` (same in normal builds) |
+| 43 | `openvmm_core` | `TimeAbiUnit::new` (new constructor) |
+| 42 | `vmm_core/vmotherboard`, `vmm_core` | new constructors `LineSetUnit::new`, `ChipsetUnit::new`, `KeeperUnit::new` (each also takes the unit's receiver, unused in normal builds) |
+| 44 | vmcore and every device lock | new `vmcore::device_state::DeviceSlot<T>` (normal builds: holds just the device; `Deref` / `DerefMut` to it), `DeviceMutex<T>` = `CloseableMutex<DeviceSlot<T>>`, `DeviceSnapshot` (empty trait for every type). **Every chipset device's lock changes type** from `CloseableMutex<T>` to `CloseableMutex<DeviceSlot<T>>`, including in public APIs: vmotherboard's device builder (`add`, `add_async`, `try_add`, `try_add_async` return `Arc<DeviceMutex<T>>`), `ArcMutexChipsetServicesFinalize::finalize`, `add_dyn_device`, the PCI/PCIe registration traits, `ArcMutexChipsetDeviceUnit::new`; `vpci`'s bus and device APIs (`VpciBus::new_unoffered`, `offer_registered`, ...); `chipset_arc_mutex_device`'s builder and test chipset; `vmm_core::device_builder`; `openvmm_core`'s `dispatch.rs` (PCIe root complexes, erased devices, hotplug) |
+| 44 | `vmm_core/vmotherboard` | the private `DynDevice` trait gains the supertrait `DeviceSnapshot` |
+
+**Code**
+
+| CC | Where | Change |
+|---|---|---|
+| 1 | `openvmm_core` | `LoadedVm::restore_from_snapshot` extracted from `make_ids` |
+| 11 | `vmm_core/state_unit` | `UnitBuilder::spawn` creates the channel with `unit_channel()` (normal builds: `mesh::channel()`) |
+| 16 | `vmm_core/state_unit` | `run_op` and helpers restructured: `state_change` an `async fn`, new `call_unit`, `wait_then_change`, `join_all_timed`; loops over keys with `get_mut` instead of `iter_mut().filter`; `get` instead of `get_key_value` in `restore` |
+| 23 | `openvmm_core` | `LoadedVm::quiesce_for_snapshot` split (new `quiesce_and_save`) |
+| 27 | `vm/devices/chipset` (PIT) | the bodies of `start`, `reset`, `poll_device`, `io_read`, `io_write`, `save`, `restore` moved into inherent methods, which the trait methods call |
+| 31 | `vmm_core/state_unit` | state requests sent and answered through the mesh RPC wrapper (`call`, `recv`, `recv_msg`, `split`, `complete`) instead of `mesh`'s own calls; `StateRequest::apply` without async closures |
+| 32 | `mesh_rpc_verus` (new crate), `openvmm_entry`, `openvmm_core`, `vmm_core` | the wrapper moved into its own crate; `VmRpc`'s snapshot requests and `PartitionRequest`'s `StopVps` / `Snapshot` use it (new `PendingCall::recv_failable`) |
+| 34 | `vm/vmcore` | `ProtobufSaveRestore`'s blanket impl: `match` instead of `map` and `?` |
+| 35 | `vmm_core/state_unit` | new `registry.rs` (`Inner::insert_unit`, `remove_unit`), called by `UnitBuilder::build` and `UnitHandle::remove_if` instead of the map's `insert` / `remove` |
+| 40 | `vmm_core/state_unit` | `StateRequest::apply`: errors converted with `match` and `anyhow_error` / `save_error` / `restore_error` instead of `map_err(RemoteError::new)`; replies through new `reply`; `Inspect` through new `inspect_unit`; `run_unit` is a `loop` calling new `run_unit_step`; `no_reply_ghost` removed |
+| 41 | `vmm_core/state_unit`, `vmm_core/vmotherboard` | new `handle_request`; the chipset unit's and each line set's task call `run_unit` instead of their own `recv` / `apply` loop (same requests, same order); `ArcMutexChipsetDeviceUnit::run` restructured: its `select!` in new `next_event`, which receives with `recv_msg` instead of `state_change.next()`, its poll in new `poll_now`; its two spawn sites await `run` inside an `async` block |
+| 42 | `vmm_core/vmotherboard`, `vmm_core` | the line sets', chipset unit's, and time keeper's tasks construct their units with the new constructors |
+| 43 | `vmm_core/virt` | `TimeAbiMsrs`: the MSR value's loads and stores go through `load_control` / `store_control` (normal builds: the same `Relaxed` load and store) |
+| 43 | `openvmm_core` | the time-ABI unit is spawned with `spawn_with_channel(.., unit_channel_for(), ..)`, awaiting `run_unit` inside an `async` block |
+| 44 | about 15 files (see CC 44) | every device lock created as `CloseableMutex::new(DeviceSlot::new(dev))`; the fuzzer passes `&mut **locked_dev` (one more dereference); OpenHCL's fallback MMIO device wrapped; the chipset device unit's two spawn sites use `spawn_with_channel(.., unit_channel_for(), ..)` |
+
+**Dependencies and build**
+
+| CC | Where | Change |
+|---|---|---|
+| 2, 4, 8, 26, 27, 32, 39, 43 | `openvmm_defs`, `openvmm_core`, `openvmm_entry`, `vmcore`, `state_unit`, `closeable_mutex`, `chipset`, `vmm_core`, `vmotherboard`, `virt` | Verus-enabled: `vstd` dependency, `build.rs` declaring the `verus_keep_ghost` cfg (and `verus_keep_ghost_body` in `state_unit`), `[package.metadata.verus]` |
+| 39 | `vmm_core` | new dependency `vmbus_ring` (already in its dependency graph) |
+| 41 | `vmm_core/vmotherboard` | new dependency `mesh_rpc_verus` |
+| 44 | `chipset_arc_mutex_device`, `chipset_device_fuzz` | new dependency `vmcore` (no cycle) |
+| 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
+| 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
+
 ## Recipe: verifying another device
 
-Worked out on the PIT ("The PIT" and "The verified unit", under "Design
-change: the FracGhost lives with the device"); the PIT's files are the
-example to copy: `vm/devices/chipset/src/pit/mod.rs` (ghost fields, entry
-points), `mod.spec.rs` (view, `saved_state()`, `wf()`, the trait impls),
-`mod.proof.rs` (declarations, `StateUnitDevice`, examples).
-
-What the PIT needed, as a checklist for each further chipset device. Items
-1 to 7 are spec work; 8 and 9 come with wiring and proofs.
+Updated 2026-10-27 for "Chipset devices: the share in the device's lock".
+A chipset device's unit and its share are generic now
+(`ArcMutexChipsetDeviceUnit`, `DeviceSlot`); what is left per device is its
+device-level spec. The PIT's files are the example: `pit/mod.spec.rs`
+(view, `saved_state()`, `wf()`), `pit/mod.proof.rs` (declarations), and
+`pit/mod.rs` (entry points).
 
 1. **Crate setup** (once per crate): `[package.metadata.verus] verify =
-   true`, `vstd` and `closeable_mutex` dependencies, `build.rs` declaring
-   the `verus_keep_ghost` cfg, a Verus-only `use vstd::prelude::*`.
+   true`, `vstd` dependency, `build.rs` declaring the `verus_keep_ghost`
+   cfg, a Verus-only `use vstd::prelude::*`.
 2. **Declare the device's types to Verus** (`external_type_specification`):
-   its state types with their fields visible (for the view), and its
-   runtime glue as opaque types (`VmTimeAccess`, `LineInterrupt`, ...); its
-   saved-state types (the root and the types inside it) with their fields
-   visible, so that `saved_state()` can be written. Types already declared
-   elsewhere (for example `VmTime` in the PIT's proof file) should move to
-   their own crate's spec once a second device needs them.
+   its state types with their fields visible (for the view), its runtime
+   glue as opaque types, and its saved-state types with their fields
+   visible.
 3. **View and `saved_state()`**: a view of the snapshotable state (and the
-   static configuration that affects `save` / `restore`), its `inv()`, and
-   `saved_state()` on the view, field by field;
-   `SaveRestoreSpecImpl::saved_state` is the view's. The view leaves out
-   state that is not saved (like the PIT's `dram_refresh`); say so.
-4. **Ghost fields and `wf()`**: Verus-only fields `ghost:
-   Tracked<DeviceGhostState>` and `id: Ghost<Loc>` (placeholders in the
-   constructor until the creation hand-off), and `wf()` = the view's
-   invariant and `ghost.wf(id, snapshot)`.
-5. **`DeviceGhost`, `LockInvariant`, `StateUnitDevice`**: `snapshot()` is
-   `Saved(of(saved_state()))`; `lemma_snapshot_known` and `lemma_lock_inv`
-   are usually empty proofs. `save_blob` / `restore_blob` call
-   `SavedStateBlob::new` / `parse` directly (works for any derived struct
-   or enum saved-state root; no per-device blob code).
-6. **Entry points with contracts**: move the bodies of the device's trait
-   methods (I/O handlers such as `PortIoIntercept` / `MmioIntercept`,
-   `PollDevice`, `ChangeDeviceState`, `SaveRestore`) into inherent methods
-   with contracts, and let the trait methods call them (Verus cannot add
-   contracts to a foreign trait's impl methods). Handlers and `poll`
-   require `wf()` and running; `reset` / `restore` require `wf()`, whole,
-   and stopped; `save` keeps the view and the ghost.
-7. **Device-specific gaps** to check for each device:
-   - activity of its own to stop (`stop_device` doing work), `advance_time`
-     (`advances_time()` true, like the RTC), or `quiesce_input` /
-     `resume_input`: `StateUnitDevice` has no `advance_time` or input
-     methods yet, and `DeviceUnit` treats `AdvanceTime` as a no-op;
-   - cross-device effects: interrupt lines it drives (into the PIC /
-     IOAPIC), vmtime timers, `Halt`: not modelled;
-   - `restore` that changes state before failing, or normalizes the saved
-     state: the contracts allow the first; the second breaks `restore`'s
-     "sets `saved_state()`" contract;
-   - a saved-state root using the derive's `transparent` or `prost` mode:
-     needs those encoders declared.
-8. **Wiring** (not yet done for the PIT): the device receives its unit's
-   FracGhost half at creation, its mutex is created with `new_verified`,
-   and it is driven by `DeviceUnit` instead of the shared chipset unit;
-   needs the ghost types in normal builds.
-9. **Proofs** (proof phase): remove `external_body` from the entry points;
-   each change must update the FracGhost (it holds the whole while
-   running); the external functions they call (vmtime, interrupt lines,
-   logging) need specs or rewrites.
+   configuration that affects `save` / `restore`), its `inv()`, and
+   `saved_state()` on the view; `SaveRestoreSpecImpl::saved_state` is the
+   view's. Say what the view leaves out (state that is not saved).
+4. **`SaveRestore`'s contract**: `save` returns `saved_state()` and keeps
+   it; a successful `restore(s)` sets it to `s`. The snapshot follows
+   (`ProtobufSaveRestore`'s blanket impl, `DeviceSnapshot`); no per-device
+   ghost.
+5. **Entry points with contracts**, where needed: inherent methods holding
+   the trait methods' bodies (Verus cannot add contracts to a foreign
+   trait's impl methods), keeping `wf()`.
+6. **Device-specific gaps**: activity of its own to stop; `advance_time`
+   (like the RTC) or `quiesce_input` / `resume_input`; cross-device effects
+   (interrupt lines it drives, vmtime timers); a `restore` that normalizes
+   the saved state (breaks "sets `saved_state()`"); saved-state roots using
+   the derive's `transparent` or `prost` mode.
+7. **Proofs** (proof phase): remove `external_body`.
 
-Not needed per device: the blob contract (`SavedStateBlob::new` / `parse`)
-and `ProtobufSaveRestore`'s blanket impl, which are generic.
+Not needed per device: the unit, the share, the lock invariant, the blob
+contract, and `ProtobufSaveRestore`'s blanket impl, which are generic.
 
-Units that are not chipset devices (the partition, vmtime, time-abi, vmbus
-devices) have their own unit types and saved state, not built on
-`SaveRestore` for some; each needs its own snapshot definition and unit
-contract ("Unit-side contract").
+Units that are not chipset devices have their own `StateUnitSpec` ("Production
+units: the contract on `StateUnit`").
 
 ## Verification approach: fractional ghost ownership
 
