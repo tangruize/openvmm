@@ -2287,6 +2287,21 @@ concurrent per-pin writes into the PIC and IOAPIC.
 A summary of the other open items recorded in the sections above, most
 important first.
 
+- **virtio-mmio: `save` takes the captured device state** (found
+  2026-10-27; to discuss with the user next). `stop` captures the inner
+  virtio device's private state; `save` moves it out
+  (`TransportRestore::take_device_state`, `captured.take()`), so a second
+  `save` fails ("device state was not captured"); `start` and reset clear
+  it (commit `6bf6fe22d`). So `save` either changes the view (if the view
+  holds the capture) or returns something the view does not determine (if
+  not): virtio-mmio cannot meet `SaveRestore`'s contract as the code
+  stands. Options: A, `save` clones the capture (executable change: a
+  second `save` before `start` returns the same state instead of failing;
+  one blob copy per save); B, keep `take` and trust virtio-mmio's
+  `SaveRestore`; C, weaken the generic contract. Recommended: A. Separate,
+  later: the inner devices' state (the virtio device task's stop/start
+  protocol; net, console, fs, block) is its own layer.
+
 - **A clean design document** (requested 2026-10-27, user; to write once
   the design settles, as it may still be refactored): a fresh document,
   separate from this working log, stating clearly the device-level spec
