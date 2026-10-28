@@ -1291,7 +1291,30 @@ is every line low, as `restore` treats it; and an IOAPIC entry with an
 interrupt pending reads as delivered (`restore` delivers it,
 `IrqEntry::evaluate`; the IOAPIC itself never keeps one). So `restore(s)`
 then `save` gives back `s`'s meaning, and the generic contract needs no
-per-device normalization. The
+per-device normalization.
+
+**Which time fields to leave out** (decided 2026-10-28, user). Leave a
+time field out of a saved-state view only when one of these holds; keep
+every other time value (an ordinary stored field, which `save` copies and
+`restore` sets: keeping it is provable and makes the spec more precise):
+
+- (a) **the view cannot determine it**: `save` reads it from a clock at
+  save time;
+- (b) **the time-ABI restore changes it after `restore`**: its unit's
+  `advance_time` moves it forward by the downtime
+  (`LoadedVm::finish_snapshot_restore` → `time_abi_restore`,
+  `state_units.advance_time`). Keeping it would make
+  `restore_from_snapshot`'s contract ("the units are as `restore` leaves
+  them") false. Only units whose devices keep guest-visible time of their
+  own get the advance (`ChangeDeviceState::advances_time`).
+
+| Unit | Time field | Where `save` gets it; changed after `restore`? | In the view? |
+|---|---|---|---|
+| RTC | `clock_time_millis` | read from the UTC clock at save (`saved_clock_time`); advanced by the RTC's `advance_time` | **no**: (a) and (b) |
+| RTC | `time_valid` | stored; part of the clock's state (`restore` reads an absent value as `true`) | no: with the clock |
+| PIT | `last` (the VM time up to which the timers were evaluated) | stored field, copied; not changed (the PIT has no `advance_time`: its deadlines follow VM time) | **yes** |
+| vmtime | `vmtime` (the VM time at stop), `stop_host_time` | stored at `stop`, copied by `save`; **advanced** by the keeper's `advance_time` after a time-ABI restore | **no**: (b). Its saved-state view is `()` |
+| partition (VPs) | the TSCs, the LAPIC timers | read from the hypervisor at save; the LAPIC timers advanced after a time-ABI restore (`advance_lapic_timers`) | no: (a) and (b) (when the VP layer is specified) | The
 trusted encode/decode contract (`save_restore_t.rs`) says a blob is
 determined by its saved state's view (`of(v) == of_view::<T>(v@)`) and
 that `of_view` is injective, i.e. a blob's view is the meaning of the saved
@@ -1357,9 +1380,8 @@ same reason).
   left out. Its unit (`PartitionUnitRunner`) is uninterpreted, so nothing
   depends on it yet; its real view (without time) comes with the
   partition's spec.
-- **The PIT's `last`** (a `VmTime`, the time up to which the timers were
-  evaluated) is in its saved-state view. Is it guest time, to be left out
-  like the RTC's clock? To decide with the time scope.
+- **The PIT's `last`**: resolved 2026-10-28 (user): kept in the view (a
+  stored field; see "Which time fields to leave out" above).
 
 ### The partition runner's construction order
 
