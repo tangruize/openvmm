@@ -6,6 +6,7 @@ This directory holds two kinds of patch:
 |---|---|---|
 | `0001`–`0005` (`*.patch` without a prefix) | **Verus**, commit `426d8b0` | local fixes to Verus needed by the snapshot specification work |
 | `openvmm-0001-virtio-save-keeps-captured-device-state.patch` | **OpenVMM `origin/main`** (`7a2b21747`) | a change to OpenVMM's own Rust code, for OpenVMM developers to review; this branch already contains it (see "OpenVMM patches" below) |
+| `openvmm-0002-virtio-restore-sets-captured-device-state.patch` | **OpenVMM `origin/main` with `openvmm-0001` applied** | a second change to the same code; this branch already contains it |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -389,4 +390,46 @@ calls it). Checked on `main`: builds, rustfmt clean, `cargo test -p virtio`
 140 passed. On this branch the same change is in
 `transport/core/restore.rs` (the file was later split; the method is
 `captured_device_state` there).
+
+### openvmm-0002-virtio-restore-sets-captured-device-state.patch
+
+Apply after `openvmm-0001`.
+
+**Two slots.** A virtio device's private state lives in its device task.
+The transport moves it between the task and the saved state through two
+slots:
+
+| Slot | Filled by | Used by |
+|---|---|---|
+| captured | `stop`: the task hands its state over | `save` |
+| staged (restored) | `restore`: the state to restore | the next `start`: handed to the task |
+
+**Behavior before.** `restore(D)` filled only the staged slot. So a `save`
+after `restore(D)` and before the next `start` did not see `D`:
+
+| Before the `restore(D)` | `save` right after it returned |
+|---|---|
+| a fresh VM, or a reset (as in OpenVMM's flows: the microVM restores into a fresh VM; `PulseSaveRestore` does save, reset, restore) | an error: "device state was not captured" |
+| a `stop` of a running device, with no reset (no OpenVMM flow does this today) | the device's state from **before** the restore, next to the restored queues and features |
+
+A `start` after the restore was, and is, correct: it hands `D` to the
+device task.
+
+**Fix.** `restore` also puts `D` in the captured slot (one line in
+`restore_common`, `transport/core.rs`). The next `start` or reset clears it,
+as before.
+
+**Effect.** A `save` after `restore(D)` and before the next `start` returns
+`D`. Nothing else changes. Cost: one copy of the private-state blob per
+`restore`.
+
+**Why.** The snapshot specification states that after a successful
+`restore(state)`, the device saves `state`.
+
+**Scope.** Every virtio device (net, console, fs, block, ...) on both the
+MMIO and the PCI transport: the change is in their shared transport code.
+
+**Checked** on `main` with `openvmm-0001` applied: builds, rustfmt clean,
+`cargo test -p virtio` 140 passed. On this branch the same change is in
+`TransportRestore::stage` (`transport/core/restore.rs`).
 

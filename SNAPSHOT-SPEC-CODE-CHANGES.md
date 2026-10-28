@@ -657,6 +657,24 @@ Baseline: upstream `nanvix/openvmm` commit
     Checked: `cargo test -p virtio` 141 passed on this branch, 140 on
     `main`.
 
+53. **virtio transports: `restore` sets the captured device state too**
+    (executable change in `vm/devices/virtio/virtio`, **behavior changes in
+    one case**; decided 2026-10-28, user; design doc, "Executable code
+    changes"). `TransportRestore::stage` (called by `restore_common`) also
+    sets `captured = Some(Ok(device_state.clone()))`, so the device's
+    private state `D` restored by `restore(D)` is in both slots: staged
+    (for the next `start`) and captured (for `save`). Scope: every virtio
+    device on both the MMIO and the PCI transport. Before: a `save` after
+    `restore(D)` and before the next `start` failed ("device state was not
+    captured") after a fresh VM or a reset (OpenVMM's flows), and returned
+    the pre-restore state after a `stop` without a reset (no OpenVMM flow
+    today). Now it returns `D`; `start` and reset are unchanged. Reason:
+    `SaveRestore`'s contract (after `restore(state)`, the device saves
+    `state`). Same change against `origin/main` + `openvmm-0001`:
+    `verus-patches/openvmm-0002-virtio-restore-sets-captured-device-state.patch`.
+    Checked: `cargo test -p virtio` 141 passed on this branch, 140 on
+    `main`.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

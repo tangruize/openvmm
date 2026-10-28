@@ -43,7 +43,8 @@ use vmcore::save_restore::SavedStateBlob;
 pub(crate) struct TransportRestore {
     /// Validates restored private state; see VirtioDevice::device_state_validator.
     validator: DeviceStateValidator,
-    /// Private state captured by the last `stop()`, read by `save()`.
+    /// Private state captured by the last `stop()` or staged by the last
+    /// `restore()`, read by `save()`.
     captured: Option<Result<Option<SavedStateBlob>, SaveError>>,
     /// Private state restored by `restore_common()`, handed to the next start.
     restored: DeviceRestoreState,
@@ -79,8 +80,10 @@ impl TransportRestore {
         std::mem::replace(&mut self.restored, DeviceRestoreState::NotRestored)
     }
 
-    /// Stages restored private state for the next start.
+    /// Stages restored private state for the next start. It is also the
+    /// captured state, so a save before the next start returns it.
     pub(super) fn stage(&mut self, device_state: Option<SavedStateBlob>) {
+        self.captured = Some(Ok(device_state.clone()));
         self.restored = DeviceRestoreState::Restored(device_state);
     }
 
