@@ -78,25 +78,44 @@ pub enum UnitSnapshot {
     Saved(SavedStateBlobView),
 }
 
+impl UnitSnapshot {
+    /// The snapshot of a unit whose save returns `blob`: `Saved(b)` for a
+    /// saved state `b`, `NoSavedState` for none.
+    pub open spec fn from_saved(blob: Option<SavedStateBlobView>) -> UnitSnapshot {
+        match blob {
+            Some(b) => UnitSnapshot::Saved(b),
+            None => UnitSnapshot::NoSavedState,
+        }
+    }
+}
+
+/// What `SaveRestore`'s contract needs of an object: a view. Every
+/// `SaveRestore` type has one (the trait's supertrait, in Verus builds).
+/// A specified device's view is its snapshotable state; a device not yet
+/// specified has the placeholder view `()`.
+pub trait SaveRestoreView: View {}
+
+impl<T: View + ?Sized> SaveRestoreView for T {}
+
 /// The contract of every `SaveRestore` implementation (the unit-side
-/// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`).
-/// `saved_state()` is the object's snapshotable state: what `save` returns.
-/// `save` does not change it; a successful `restore(state)` sets it to
-/// `state`.
+/// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`). `save`
+/// does not change the object's view, and returns a saved state that
+/// encodes to the view's blob (`blob_of(view)`); after a successful
+/// `restore(state)`, the view's blob is the encoding of `state`.
 ///
-/// Given through `SaveRestoreSpec`, so that the trait itself and its
-/// implementations are unchanged. An implementation defines `saved_state`
-/// by implementing `SaveRestoreSpecImpl`; unverified implementations are
-/// trusted to meet the contract.
+/// `blob_of` is defined by each specified implementation (in
+/// `SaveRestoreSpecImpl`); unverified implementations are trusted to meet
+/// the contract.
 #[verifier::external_trait_specification]
 #[verifier::external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)]
-pub trait ExSaveRestore {
+pub trait ExSaveRestore: SaveRestoreView {
     type ExternalTraitSpecificationFor: SaveRestore;
 
     type SavedState;
 
-    /// The state `save` returns: the object's snapshotable state.
-    spec fn saved_state(&self) -> Self::SavedState;
+    /// The saved state of an object with view `view`, encoded: the blob of
+    /// what its `save` returns.
+    spec fn blob_of(view: <Self as View>::V) -> SavedStateBlobView;
 
     /// Well formed: what a valid object of this type satisfies (its view's
     /// `inv()` and the properties of its other fields), defined by each
@@ -108,8 +127,8 @@ pub trait ExSaveRestore {
             old(self).device_wf(),
         ensures
             final(self).device_wf(),
-            final(self).saved_state() == old(self).saved_state(),
-            result matches Ok(state) ==> state == old(self).saved_state(),
+            final(self)@ == old(self)@,
+            result matches Ok(state) ==> SavedStateBlobView::of(state) == Self::blob_of(old(self)@),
     ;
 
     fn restore(&mut self, state: Self::SavedState) -> (result: Result<(), RestoreError>)
@@ -117,7 +136,7 @@ pub trait ExSaveRestore {
             old(self).device_wf(),
         ensures
             final(self).device_wf(),
-            result is Ok ==> final(self).saved_state() == state,
+            result is Ok ==> Self::blob_of(final(self)@) == SavedStateBlobView::of(state),
     ;
 }
 
@@ -128,7 +147,7 @@ pub trait ExSaveRestore {
 ///
 /// Given through `ProtobufSaveRestoreSpec`, as for `SaveRestore`. The
 /// blanket implementation for `SaveRestore` types is verified against it,
-/// with `saved_blob()` the encoding of `saved_state()`
+/// with `saved_blob()` the blob of the object's view (`blob_of(self@)`)
 /// (`save_restore.proof.rs`); the other implementations
 /// (`ChipsetDeviceProxy`, `BoundVp`, `ErasedChipsetDevice`) are trusted to
 /// meet it.

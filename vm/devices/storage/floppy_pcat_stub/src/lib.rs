@@ -8,6 +8,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use arrayvec::ArrayVec;
 use bitfield_struct::bitfield;
 use chipset_device::ChipsetDevice;
@@ -635,6 +639,9 @@ mod save_restore {
             }
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExStubFloppyDiskController, StubFloppyDiskController);
 
     impl SaveRestore for StubFloppyDiskController {
         type SavedState = state::SavedState;

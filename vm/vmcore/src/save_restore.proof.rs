@@ -3,13 +3,14 @@
 
 // Examples supporting `save_restore.spec.rs`; no human review needed.
 
+use super::SaveRestoreSpec;
+use super::SavedStateBlobView;
+use crate::save_restore::NoSavedState;
 use crate::save_restore::RestoreError;
 use crate::save_restore::SaveError;
 use crate::save_restore::SaveRestore;
-use crate::save_restore::SavedStateRoot;
-use super::SaveRestoreSpec;
-use super::SavedStateBlobView;
 use crate::save_restore::SavedStateBlob;
+use crate::save_restore::SavedStateRoot;
 use mesh::payload::Protobuf;
 use vstd::prelude::*;
 
@@ -26,6 +27,36 @@ pub(crate) enum ExampleEnumState {
 }
 
 verus! {
+
+/// The saved state of a device that saves nothing.
+#[verifier::external_type_specification]
+pub struct ExNoSavedState(NoSavedState);
+
+// `inspect`'s traits, declared to Verus here, in a crate every user of them
+// depends on (`StateUnit` and `VmbusDevice` have `InspectMut` as a
+// supertrait; units reached through `&X` get it from `Inspect`).
+
+#[verifier::external_trait_specification]
+pub trait ExInspectMut {
+    type ExternalTraitSpecificationFor: inspect::InspectMut;
+}
+
+#[verifier::external_trait_specification]
+pub trait ExInspect {
+    type ExternalTraitSpecificationFor: inspect::Inspect;
+}
+
+/// Declares `anyhow::Error` to Verus, as an opaque type.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExAnyhowError(anyhow::Error);
+
+/// Declares `inspect::Deferred` (a deferred inspect request) to Verus, as an
+/// opaque type.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExDeferred(inspect::Deferred);
+
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -58,9 +89,18 @@ impl SaveRestore for ExampleDevice {
     }
 }
 
-impl super::SaveRestoreSpecImpl for ExampleDevice {
-    closed spec fn saved_state(&self) -> u64 {
+/// The example's view is its register.
+impl View for ExampleDevice {
+    type V = u64;
+
+    closed spec fn view(&self) -> u64 {
         self.register
+    }
+}
+
+impl super::SaveRestoreSpecImpl for ExampleDevice {
+    closed spec fn blob_of(view: u64) -> SavedStateBlobView {
+        SavedStateBlobView::of(view)
     }
 
     /// Every value of the register is valid.
@@ -69,16 +109,16 @@ impl super::SaveRestoreSpecImpl for ExampleDevice {
     }
 }
 
-/// The blob of a `SaveRestore` object is its saved state, encoded.
+/// The blob of a `SaveRestore` object is its view's.
 impl<T: SaveRestore> super::ProtobufSaveRestoreSpecImpl for T where
     T::SavedState: 'static + Send + SavedStateRoot,
  {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
-        SavedStateBlobView::of(self.saved_state())
+        T::blob_of(self@)
     }
 
     open spec fn device_wf(&self) -> bool {
-        super::SaveRestoreSpec::device_wf(self)
+        SaveRestoreSpec::device_wf(self)
     }
 }
 

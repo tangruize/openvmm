@@ -6,7 +6,11 @@ name = "amd_iommu"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 bitfield-struct.workspace = true
 chipset_device.workspace = true
 guestmem.workspace = true

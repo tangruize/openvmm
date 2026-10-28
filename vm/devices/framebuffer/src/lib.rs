@@ -21,6 +21,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use anyhow::Context;
 use chipset_device::ChipsetDevice;
 use guestmem::GuestMemory;
@@ -335,6 +339,9 @@ impl ChangeDeviceState for FramebufferDevice {
 }
 
 impl ChipsetDevice for FramebufferDevice {}
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExFramebufferDevice, FramebufferDevice);
 
 impl SaveRestore for FramebufferDevice {
     type SavedState = SavedState;

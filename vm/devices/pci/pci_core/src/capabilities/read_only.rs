@@ -100,6 +100,9 @@ mod save_restore {
     use vmcore::save_restore::SaveRestore;
 
     // This is a noop impl, as the capability is (by definition) read only.
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExReadOnlyCapability<T>, ReadOnlyCapability<T>);
+
     impl<T> SaveRestore for ReadOnlyCapability<T> {
         type SavedState = NoSavedState;
 

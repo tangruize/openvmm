@@ -403,6 +403,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExPciIsaBridge, PciIsaBridge);
+
     impl SaveRestore for PciIsaBridge {
         type SavedState = state::SavedState;
 

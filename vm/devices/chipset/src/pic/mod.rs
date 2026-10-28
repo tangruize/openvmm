@@ -680,6 +680,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExDualPic, DualPic);
+
     impl SaveRestore for DualPic {
         type SavedState = state::SavedState;
 

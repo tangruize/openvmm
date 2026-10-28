@@ -5,6 +5,10 @@
 
 //! CXL specification definitions.
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod component_registers;
 pub mod pci_registers;
 pub mod spec;

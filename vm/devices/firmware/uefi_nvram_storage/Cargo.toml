@@ -12,7 +12,11 @@ default = []
 inspect = ["dep:inspect", "uefi_specs/inspect"]
 save_restore = ["inspect", "dep:mesh_protobuf", "dep:vmcore", "guid/mesh"]
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 guid = { workspace = true, features = ["getrandom"] }
 inspect = { workspace = true, optional = true }
 mesh_protobuf = { workspace = true, optional = true }

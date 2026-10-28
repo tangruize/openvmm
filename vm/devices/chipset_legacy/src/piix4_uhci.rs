@@ -105,6 +105,9 @@ mod save_restore {
     use vmcore::save_restore::SaveRestore;
 
     // This is a stub device, with no saved state
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExPiix4UsbUhciStub, Piix4UsbUhciStub);
+
     impl SaveRestore for Piix4UsbUhciStub {
         type SavedState = NoSavedState;
 

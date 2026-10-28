@@ -12,6 +12,8 @@ use state_unit::InspectConcurrently;
 use state_unit::NameInUse;
 use state_unit::SpawnedUnit;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
 use state_unit::StateUnits;
 use state_unit::UnitBuilder;
 use state_unit::UnitHandle;
@@ -151,9 +153,46 @@ impl StateUnit for VmbusServerUnit {
 
 /// A type wrapping a [`ChannelHandle`] and implementing [`StateUnit`].
 #[must_use]
-#[derive(Debug, Inspect)]
+#[derive(Inspect)]
+#[cfg_attr(not(verus_keep_ghost), derive(Debug))]
 #[inspect(transparent)]
-pub struct ChannelUnit<T: ?Sized>(ChannelHandle<T>);
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::reject_recursive_types(T))]
+pub struct ChannelUnit<T: ?Sized>(
+    ChannelHandle<T>,
+    /// Whether the unit runs (Verus only). Its share of its FracGhost is
+    /// kept by the channel's task (`vmbus_channel`).
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    Ghost<bool>,
+);
+
+// The derived `Debug`, without the ghost field (which has no `Debug`).
+#[cfg(verus_keep_ghost)]
+impl<T: ?Sized + std::fmt::Debug> std::fmt::Debug for ChannelUnit<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ChannelUnit").field(&self.0).finish()
+    }
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<T: 'static + VmbusDevice + ?Sized> ChannelUnit<T> {
+    /// The unit of the channel `handle` (stopped).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        ensures
+            unit.wf(),
+            unit.id() == handle.id(),
+            !unit.running(),
+    ))]
+    fn new(handle: ChannelHandle<T>) -> Self {
+        Self(
+            handle,
+            #[cfg(verus_keep_ghost)]
+            Ghost::assume_new(),
+        )
+    }
+}
 
 /// Offers a channel, creates a unit for it, and adds it to `state_units`.
 pub async fn offer_channel_unit<T: 'static + VmbusDevice>(
@@ -168,7 +207,11 @@ pub async fn offer_channel_unit<T: 'static + VmbusDevice>(
     let unit = state_units
         .add(name)
         .depends_on(vmbus.unit.handle())
-        .spawn(driver, |recv| run_async_unit(ChannelUnit(handle), recv))?;
+        // The channel's task keeps the unit's share; the other half goes to
+        // the unit's sender (`unit_channel_for`).
+        .spawn_with_channel(driver, state_unit::unit_channel_for(), |recv| {
+            run_async_unit(ChannelUnit::new(handle), recv)
+        })?;
     Ok(unit)
 }
 
@@ -233,8 +276,43 @@ impl<T: 'static + VmbusDevice + ?Sized> StateUnit for ChannelUnit<T> {
 
 /// A type wrapping a [`ChannelHandle`] and implementing [`StateUnit`].
 #[must_use]
-#[derive(Debug)]
-pub struct SimpleChannelUnit<T: SimpleVmbusDevice>(SimpleDeviceHandle<T>);
+#[cfg_attr(not(verus_keep_ghost), derive(Debug))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::reject_recursive_types(T))]
+pub struct SimpleChannelUnit<T: SimpleVmbusDevice>(
+    SimpleDeviceHandle<T>,
+    /// Whether the unit runs (Verus only). Its share of its FracGhost is
+    /// kept by the channel's task (`vmbus_channel`).
+    #[cfg(verus_keep_ghost)]
+    Ghost<bool>,
+);
+
+// The derived `Debug`, without the ghost field (which has no `Debug`).
+#[cfg(verus_keep_ghost)]
+impl<T: SimpleVmbusDevice + std::fmt::Debug> std::fmt::Debug for SimpleChannelUnit<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SimpleChannelUnit").field(&self.0).finish()
+    }
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<T: SimpleVmbusDevice> SimpleChannelUnit<T> {
+    /// The unit of the channel `handle` (stopped).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
+        ensures
+            unit.wf(),
+            unit.id() == handle.id(),
+            !unit.running(),
+    ))]
+    fn new(handle: SimpleDeviceHandle<T>) -> Self {
+        Self(
+            handle,
+            #[cfg(verus_keep_ghost)]
+            Ghost::assume_new(),
+        )
+    }
+}
 
 /// Offers a simple vmbus device, creates a unit for it, and adds it to `state_units`.
 pub async fn offer_simple_device_unit<T: SimpleVmbusDevice>(
@@ -259,9 +337,13 @@ pub async fn offer_simple_device_unit<T: SimpleVmbusDevice>(
     let unit = state_units
         .add(name)
         .depends_on(vmbus.unit.handle())
-        .spawn(driver_source.simple(), |recv| {
-            run_async_unit(SimpleChannelUnit(handle), recv)
-        })?;
+        // The channel's task keeps the unit's share; the other half goes to
+        // the unit's sender (`unit_channel_for`).
+        .spawn_with_channel(
+            driver_source.simple(),
+            state_unit::unit_channel_for(),
+            |recv| run_async_unit(SimpleChannelUnit::new(handle), recv),
+        )?;
     Ok(unit)
 }
 
@@ -348,8 +430,12 @@ pub async fn offer_vmbus_device_handle_unit(
     let unit = state_units
         .add(name)
         .depends_on(vmbus.unit.handle())
-        .spawn(driver_source.simple(), |recv| {
-            run_async_unit(ChannelUnit(handle), recv)
-        })?;
+        // The channel's task keeps the unit's share; the other half goes to
+        // the unit's sender (`unit_channel_for`).
+        .spawn_with_channel(
+            driver_source.simple(),
+            state_unit::unit_channel_for(),
+            |recv| run_async_unit(ChannelUnit::new(handle), recv),
+        )?;
     Ok(unit)
 }

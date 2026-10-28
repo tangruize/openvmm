@@ -39,8 +39,25 @@ use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 use vmcore::save_restore::SavedStateRoot;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::vm_task::VmTaskDriver;
 use vmcore::vm_task::VmTaskDriverSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
+/// Verus specification of a simple device's handle.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("simple.spec.rs");
+
+    /// Declarations supporting the spec.
+    mod proof {
+        include!("simple.proof.rs");
+    }
+}
 
 /// A trait implemented by a simple vmbus device with no subchannels.
 #[async_trait]
@@ -309,6 +326,15 @@ pub enum InitialDeviceState {
 
 /// Offers a new channel, returning a typed handle to get back the original
 /// channel when it's revoked.
+/// Verus: as `offer_channel`, the other half of the unit's FracGhost
+/// (value `Unknown`) is given back in `half`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    with Tracked(half): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+    ensures
+        result matches Ok(handle) ==> *final(half) matches Some(h) && h.valid(handle.id(), 0.5real)
+            && h@ is Unknown,
+))]
 pub async fn offer_simple_device<T: 'static + SimpleVmbusDevice>(
     driver_source: &VmTaskDriverSource,
     bus: &(impl ParentBus + ?Sized),
@@ -329,40 +355,88 @@ pub async fn offer_simple_device<T: 'static + SimpleVmbusDevice>(
 #[must_use]
 #[derive(Debug, Inspect)]
 #[inspect(transparent)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::reject_recursive_types(T))]
 pub struct SimpleDeviceHandle<T: SimpleVmbusDevice>(ChannelHandle<SimpleDeviceWrapper<T>>);
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: SimpleVmbusDevice> SimpleDeviceHandle<T> {
     /// An inspector of this device's channel, separate from its handle.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn inspector(&self) -> crate::channel::ChannelInspector {
         self.0.inspector()
     }
 
     /// Revokes the device, returning it if the VMBus server is still running.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn revoke(self) -> Option<T> {
         self.0.revoke().await.map(|x| x.into_inner())
     }
 
     /// Starts the device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) is None,
+    ))]
     pub fn start(&self) {
         self.0.start()
     }
 
     /// Stops the device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) is None,
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+    ))]
     pub async fn stop(&self) {
         self.0.stop().await
     }
 
     /// Resets a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real),
+    ))]
     pub async fn reset(&self) {
         self.0.reset().await
     }
 
     /// Saves a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+        ensures
+            *final(g) == *old(g),
+            result matches Ok(Some(blob)) ==> old(g)->Some_0@ == UnitSnapshot::Saved(blob@),
+            result matches Ok(None) ==> old(g)->Some_0@ == UnitSnapshot::NoSavedState,
+    ))]
     pub async fn save(&self) -> anyhow::Result<Option<SavedStateBlob>> {
         self.0.save().await
     }
 
     /// Restores a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real)
+                && (result is Ok ==> h@ == UnitSnapshot::Saved(state@)),
+    ))]
     pub async fn restore(&self, state: SavedStateBlob) -> anyhow::Result<()> {
         self.0.restore(state).await
     }

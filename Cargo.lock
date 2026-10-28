@@ -103,6 +103,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -719,6 +720,7 @@ dependencies = [
  "tracing",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -1262,6 +1264,7 @@ dependencies = [
  "tracing",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -2173,6 +2176,7 @@ dependencies = [
  "tracing",
  "vm_topology",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -2289,6 +2293,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -2304,6 +2309,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -2471,6 +2477,7 @@ dependencies = [
  "video_core",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -2949,6 +2956,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -3412,6 +3420,7 @@ dependencies = [
  "ucs2 0.0.0",
  "uefi_nvram_storage",
  "vmcore",
+ "vstd",
  "wchar",
  "zerocopy",
 ]
@@ -3859,6 +3868,7 @@ dependencies = [
  "tracing",
  "tracing_helpers",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -4112,6 +4122,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "x86defs",
  "zerocopy",
 ]
@@ -4962,6 +4973,7 @@ dependencies = [
  "pci_core",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -6567,6 +6579,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -6587,6 +6600,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -6633,6 +6647,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -8052,6 +8067,7 @@ dependencies = [
  "tracelimit",
  "tracing",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -9074,6 +9090,7 @@ dependencies = [
  "ucs2 0.0.0",
  "uefi_specs",
  "vmcore",
+ "vstd",
  "wchar",
  "zerocopy",
 ]
@@ -9693,6 +9710,7 @@ dependencies = [
  "vfio_sys",
  "vm_resource",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -9740,6 +9758,7 @@ dependencies = [
  "tracing",
  "video_core",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -10170,6 +10189,7 @@ dependencies = [
  "virtio_spec",
  "vm_resource",
  "vmcore",
+ "vstd",
  "zerocopy",
 ]
 
@@ -10534,6 +10554,7 @@ dependencies = [
  "guid",
  "inspect",
  "mesh",
+ "mesh_rpc_verus",
  "pal_async",
  "pal_event",
  "parking_lot",
@@ -10545,6 +10566,7 @@ dependencies = [
  "vmbus_core",
  "vmbus_ring",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]
@@ -11295,6 +11317,7 @@ dependencies = [
  "vmbus_ring",
  "vmcore",
  "vpci_protocol",
+ "vstd",
  "zerocopy",
 ]
 
@@ -11515,6 +11538,7 @@ dependencies = [
  "tracing",
  "vm_resource",
  "vmcore",
+ "vstd",
  "watchdog_vmgs_format",
 ]
 

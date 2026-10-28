@@ -9,6 +9,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoResult;
 use chipset_device::mmio::ControlMmioIntercept;
@@ -137,6 +141,9 @@ impl ChipsetDevice for MissingDev {
         if self.pci.is_some() { Some(self) } else { None }
     }
 }
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExMissingDev, MissingDev);
 
 impl SaveRestore for MissingDev {
     // This device should be constructed with `omit_saved_state`.

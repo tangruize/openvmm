@@ -6,7 +6,11 @@ name = "vfio_assigned_device"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [target.'cfg(target_os = "linux")'.dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 guestmem.workspace = true
 inspect.workspace = true

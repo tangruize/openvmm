@@ -872,6 +872,9 @@ mod saved_state {
     use super::*;
     use vmcore::save_restore::SaveRestore;
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExVirtioPciDevice, VirtioPciDevice);
+
     impl SaveRestore for VirtioPciDevice {
         type SavedState = state::SavedState;
 
@@ -934,6 +937,9 @@ mod saved_state {
             Ok(())
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExVirtioPciCfgCapability, VirtioPciCfgCapability);
 
     impl SaveRestore for VirtioPciCfgCapability {
         type SavedState = state::CfgCapSavedState;

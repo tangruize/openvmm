@@ -295,6 +295,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExCxlPortDvsecExtendedCapability, CxlPortDvsecExtendedCapability);
+
     impl SaveRestore for CxlPortDvsecExtendedCapability {
         type SavedState = state::SavedState;
 

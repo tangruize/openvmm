@@ -6,7 +6,11 @@ name = "vga"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 framebuffer.workspace = true
 pci_core.workspace = true

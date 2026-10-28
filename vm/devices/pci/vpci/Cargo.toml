@@ -6,7 +6,11 @@ name = "vpci"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 pci_core.workspace = true
 tdisp.workspace = true
 vpci_protocol.workspace = true

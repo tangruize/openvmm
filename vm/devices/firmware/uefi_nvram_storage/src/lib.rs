@@ -6,6 +6,10 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub use uefi_specs::uefi::time::EFI_TIME;
 
 pub mod in_memory;
@@ -237,6 +241,9 @@ mod save_restore {
             (**self).next_variable(name_vendor).await
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExBox, Box<dyn VmmNvramStorage<SavedState = NvramSavedState>>);
 
     impl SaveRestore for Box<dyn VmmNvramStorage<SavedState = NvramSavedState>> {
         type SavedState = NvramSavedState;

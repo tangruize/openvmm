@@ -521,6 +521,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExI8042Device, I8042Device);
+
     impl SaveRestore for I8042Device {
         type SavedState = state::SavedState;
 

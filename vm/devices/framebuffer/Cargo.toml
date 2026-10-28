@@ -6,7 +6,11 @@ name = "framebuffer"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 video_core.workspace = true
 vm_resource.workspace = true
 

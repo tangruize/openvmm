@@ -901,6 +901,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExGenericPcieRootComplex, GenericPcieRootComplex);
+
     impl SaveRestore for GenericPcieRootComplex {
         type SavedState = state::SavedState;
 

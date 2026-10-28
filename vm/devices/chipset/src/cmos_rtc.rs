@@ -978,6 +978,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExRtc, Rtc);
+
     impl SaveRestore for Rtc {
         type SavedState = state::SavedState;
 

@@ -16,6 +16,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod storage_backend;
 
 use cvm_tracing::CVM_ALLOWED;
@@ -466,6 +470,9 @@ mod save_restore {
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExHclCompatNvram<S>, HclCompatNvram<S>);
 
     impl<S: StorageBackend> SaveRestore for HclCompatNvram<S> {
         type SavedState = <in_memory::InMemoryNvram as SaveRestore>::SavedState;

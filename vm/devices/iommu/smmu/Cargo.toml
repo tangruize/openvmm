@@ -6,7 +6,11 @@ name = "smmu"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 guestmem.workspace = true
 iommu_common.workspace = true

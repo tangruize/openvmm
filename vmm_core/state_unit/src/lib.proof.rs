@@ -48,9 +48,7 @@ pub(crate) struct ExUnitRecvError(crate::UnitRecvError);
 #[verifier::external_body]
 pub struct ExStateTransitionError(crate::StateTransitionError);
 
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExAnyhowError(anyhow::Error);
+// (`anyhow::Error` is declared in vmcore, `save_restore.proof.rs`.)
 
 #[verifier::external_type_specification]
 pub struct ExSavedStateUnit(crate::SavedStateUnit);
@@ -63,21 +61,8 @@ pub struct ExQuiesceForSaveError(crate::quiesce::QuiesceForSaveError);
 #[verifier::external_body]
 pub struct ExSensitivityLevel(inspect::SensitivityLevel);
 
-/// `StateUnit`'s supertrait, declared to Verus (no methods: inspection is
-/// not part of the contract; see "Production units" in
-/// `SNAPSHOT-SPEC-DESIGN.md`).
-#[verifier::external_trait_specification]
-pub trait ExInspectMut {
-    type ExternalTraitSpecificationFor: inspect::InspectMut;
-}
-
-/// `inspect::Inspect`, declared to Verus: units implemented for `&X` (the
-/// vmbus units) get `InspectMut` from `Inspect` for `X` (inspect's blanket
-/// impl for `&T`).
-#[verifier::external_trait_specification]
-pub trait ExInspect {
-    type ExternalTraitSpecificationFor: inspect::Inspect;
-}
+// (`inspect::InspectMut` and `inspect::Inspect` are declared in vmcore,
+// `save_restore.proof.rs`.)
 
 /// `InspectConcurrently`, declared to Verus (no methods).
 #[verifier::external_trait_specification]
@@ -103,13 +88,8 @@ pub(crate) struct ExInnerPred(InnerPred);
 #[verifier::external_type_specification]
 pub struct ExStateRequest(StateRequest);
 
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExRemoteError(RemoteError);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExDeferred(inspect::Deferred);
+// (`mesh::error::RemoteError` is declared in `mesh_rpc_verus`, and
+// `inspect::Deferred` in vmcore.)
 
 /// The ghosts that travel on a state unit's channel. The channel's constant is
 /// the id of the unit's FracGhost.

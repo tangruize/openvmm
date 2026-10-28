@@ -28,6 +28,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use self::floppy_sizes::FloppyImageType;
 use self::protocol::FLOPPY_TOTAL_CYLINDERS;
 use self::protocol::FloppyCommand;
@@ -2135,6 +2139,9 @@ mod save_restore {
             }
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExFloppyDiskController, FloppyDiskController);
 
     impl SaveRestore for FloppyDiskController {
         type SavedState = state::SavedState;

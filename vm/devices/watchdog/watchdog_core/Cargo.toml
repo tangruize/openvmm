@@ -6,7 +6,11 @@ name = "watchdog_core"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 cvm_tracing.workspace = true
 watchdog_vmgs_format.workspace = true
 

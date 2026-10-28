@@ -433,6 +433,9 @@ mod save_restore {
     #[error("wrong number of redirection entries")]
     struct WrongNumberOfRedirectionEntries;
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExIoApicDevice, IoApicDevice);
+
     impl SaveRestore for IoApicDevice {
         type SavedState = state::SavedState;
 

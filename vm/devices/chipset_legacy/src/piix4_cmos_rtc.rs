@@ -184,6 +184,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExPiix4CmosRtc, Piix4CmosRtc);
+
     impl SaveRestore for Piix4CmosRtc {
         type SavedState = state::SavedState;
 

@@ -17,6 +17,10 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 mod emu;
 mod non_linear;
 mod render;
@@ -159,6 +163,9 @@ impl PortIoIntercept for VgaDevice {
         ]
     }
 }
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExVgaDevice, VgaDevice);
 
 impl SaveRestore for VgaDevice {
     type SavedState = SavedStateNotSupported;

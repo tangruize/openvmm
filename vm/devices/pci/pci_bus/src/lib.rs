@@ -16,6 +16,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use bitfield_struct::bitfield;
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoError;
@@ -586,6 +590,9 @@ mod save_restore {
         #[error("saved address contained non-dword aligned register bits")]
         AddressNotDwordAligned,
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExGenericPciBus, GenericPciBus);
 
     impl SaveRestore for GenericPciBus {
         type SavedState = state::SavedState;

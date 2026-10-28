@@ -555,6 +555,9 @@ mod save_restore {
         MismatchedTableLengths(usize, usize),
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExMsixCapability, MsixCapability);
+
     impl SaveRestore for MsixCapability {
         type SavedState = state::SavedState;
 

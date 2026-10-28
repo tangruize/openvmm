@@ -330,6 +330,9 @@ mod save_restore {
         InvalidMultipleMessageEnable(u8),
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExMsiCapability, MsiCapability);
+
     impl SaveRestore for MsiCapability {
         type SavedState = state::SavedState;
 

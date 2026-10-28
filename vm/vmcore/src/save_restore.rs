@@ -79,9 +79,74 @@ use mesh::payload::protofile::MessageDescription;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
+/// What `SaveRestore`'s contract needs of an object: in Verus builds, a
+/// view (see `spec::SaveRestoreView`). Empty in normal builds.
+#[cfg(not(verus_keep_ghost))]
+pub trait SaveRestoreView {}
+
+#[cfg(not(verus_keep_ghost))]
+impl<T: ?Sized> SaveRestoreView for T {}
+
+#[cfg(verus_keep_ghost)]
+pub use spec::SaveRestoreView;
+
+/// Verus builds: declares the `SaveRestore` type `$t` to Verus (as the
+/// opaque type `$ex`) and gives it the placeholder view `()`, for a device
+/// whose save/restore is not yet specified (`SaveRestore` needs a view).
+/// For a generic type, name its parameters on `$ex`, e.g.
+/// `placeholder_view!(pub ExFoo<T>, Foo<T>)`. Expands to nothing in normal
+/// builds.
+#[macro_export]
+macro_rules! placeholder_view {
+    (external [$($gen:tt)*] $t:ty) => {
+        // Outside `verus!`, so external to Verus: only rustc needs it.
+        #[cfg(verus_keep_ghost)]
+        impl<$($gen)*> ::vstd::prelude::View for $t {
+            type V = ();
+
+            fn view(&self) {}
+        }
+    };
+    ($vis:vis $ex:ident < $($lt:lifetime,)* $($g:ident),+ >, $t:ty) => {
+        #[cfg(verus_keep_ghost)]
+        ::vstd::prelude::verus! {
+            /// Verus: the type, declared as opaque (placeholder view).
+            #[verifier::external_type_specification]
+            #[verifier::external_body]
+            $(#[verifier::reject_recursive_types($g)])+
+            $vis struct $ex<$($lt,)* $($g),+>($t);
+
+            impl<$($lt,)* $($g),+> ::vstd::prelude::View for $t {
+                type V = ();
+
+                open spec fn view(&self) -> () {
+                    ()
+                }
+            }
+        }
+    };
+    ($vis:vis $ex:ident, $t:ty) => {
+        #[cfg(verus_keep_ghost)]
+        ::vstd::prelude::verus! {
+            /// Verus: the type, declared as opaque (placeholder view).
+            #[verifier::external_type_specification]
+            #[verifier::external_body]
+            $vis struct $ex($t);
+
+            impl ::vstd::prelude::View for $t {
+                type V = ();
+
+                open spec fn view(&self) -> () {
+                    ()
+                }
+            }
+        }
+    };
+}
+
 /// Implemented by objects which can be saved/restored with an associated
 /// type that can be serialized as a protobuf message.
-pub trait SaveRestore {
+pub trait SaveRestore: SaveRestoreView {
     /// The concrete saved state type.
     type SavedState;
 

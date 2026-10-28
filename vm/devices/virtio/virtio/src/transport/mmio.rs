@@ -471,6 +471,9 @@ mod saved_state {
     use super::*;
     use vmcore::save_restore::SaveRestore;
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExVirtioMmioDevice, VirtioMmioDevice);
+
     impl SaveRestore for VirtioMmioDevice {
         type SavedState = state::SavedState;
 

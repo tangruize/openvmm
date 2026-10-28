@@ -6,12 +6,17 @@ name = "vmbus_channel"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 vmbus_core.workspace = true
 vmbus_ring.workspace = true
 
 guestmem.workspace = true
 vmcore.workspace = true
+mesh_rpc_verus.workspace = true
+vstd.workspace = true
 vm_resource.workspace = true
 
 inspect.workspace = true

@@ -1750,6 +1750,9 @@ mod save_restore {
         InvalidCap(String),
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExConfigSpaceType0Emulator, ConfigSpaceType0Emulator);
+
     impl SaveRestore for ConfigSpaceType0Emulator {
         type SavedState = state::SavedState;
 
@@ -1881,6 +1884,9 @@ mod save_restore {
             Ok(())
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExConfigSpaceType1Emulator, ConfigSpaceType1Emulator);
 
     impl SaveRestore for ConfigSpaceType1Emulator {
         type SavedState = state::SavedState;

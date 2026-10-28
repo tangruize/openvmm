@@ -12,6 +12,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod spec;
 
 use chipset_device::ChipsetDevice;
@@ -1630,6 +1634,9 @@ impl vmcore::device_state::ChangeDeviceState for AmdIommuDevice {
         *state = AmdIommuState::default();
     }
 }
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExAmdIommuDevice, AmdIommuDevice);
 
 impl vmcore::save_restore::SaveRestore for AmdIommuDevice {
     type SavedState = vmcore::save_restore::SavedStateNotSupported;

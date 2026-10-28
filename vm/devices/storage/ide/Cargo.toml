@@ -6,7 +6,11 @@ name = "ide"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 disk_backend.workspace = true
 ide_resources.workspace = true

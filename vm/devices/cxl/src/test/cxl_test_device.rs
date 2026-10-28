@@ -468,6 +468,9 @@ impl PciConfigSpace for CxlTestDevice {
     }
 }
 
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExCxlTestDevice, CxlTestDevice);
+
 impl SaveRestore for CxlTestDevice {
     type SavedState = SavedStateNotSupported;
 

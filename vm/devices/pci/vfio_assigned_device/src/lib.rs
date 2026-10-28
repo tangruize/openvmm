@@ -14,6 +14,10 @@
 
 #![cfg(target_os = "linux")]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod iommufd_nesting;
 pub mod manager;
 pub mod resolver;
@@ -1767,6 +1771,9 @@ impl MmioIntercept for VfioAssignedPciDevice {
         IoResult::Ok
     }
 }
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExVfioAssignedPciDevice, VfioAssignedPciDevice);
 
 impl SaveRestore for VfioAssignedPciDevice {
     type SavedState = SavedStateNotSupported;

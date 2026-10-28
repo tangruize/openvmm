@@ -7,6 +7,10 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod i440bx_host_pci_bridge;
 pub mod piix4_cmos_rtc;
 pub mod piix4_pci_bus;

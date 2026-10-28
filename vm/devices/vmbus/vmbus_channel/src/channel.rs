@@ -44,12 +44,54 @@ use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 use vmcore::slim_event::SlimEvent;
 
+/// Verus specification of the channel task's share and the channel's
+/// internal state requests.
+#[cfg(verus_keep_ghost)]
+#[allow(missing_docs)] // the traits Verus generates for `VmbusDevice`'s spec extension
+pub mod spec {
+    include!("channel.spec.rs");
+
+    /// Declarations supporting the spec.
+    mod proof {
+        include!("channel.proof.rs");
+    }
+}
+
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::MeshProtocol;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
+
 /// An error when opening a channel.
 pub type ChannelOpenError = anyhow::Error;
 
+/// Converts a boxed value into a `Box<dyn Any>` (for [`ChannelHandle::revoke`]
+/// to get back a device's concrete type). Implemented for every sized
+/// `'static` type.
+///
+/// (A supertrait of [`VmbusDevice`] in place of `Any` itself: Verus does not
+/// accept trait objects of a trait whose supertrait has an unsized blanket
+/// impl, as `Any` does; see `SNAPSHOT-SPEC-DESIGN.md`, "The vmbus units".)
+pub trait IntoAny {
+    /// `self`, as a `Box<dyn Any>`.
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+impl<T: Any> IntoAny for T {
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
 /// Trait implemented by VMBus devices.
 #[async_trait]
-pub trait VmbusDevice: Send + Any + InspectMut {
+pub trait VmbusDevice: Send + 'static + IntoAny + InspectMut {
     /// The offer parameters.
     fn offer(&self) -> OfferParams;
 
@@ -203,17 +245,35 @@ impl std::fmt::Debug for GenericChannelHandle {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl GenericChannelHandle {
     /// Revokes the channel, returning it if the VMBus server is still running.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn revoke(self) -> Option<Box<dyn VmbusDevice>> {
         drop(self.state_req);
         Some(self.task.await)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) is None,
+    ))]
     pub fn start(&self) {
         self.state_req.send(StateRequest::Start);
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) is None,
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+    ))]
     pub async fn stop(&self) {
         self.state_req
             .call(StateRequest::Stop, ())
@@ -221,6 +281,14 @@ impl GenericChannelHandle {
             .expect("critical channel failure")
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real),
+    ))]
     pub async fn reset(&self) {
         self.state_req
             .call(StateRequest::Reset, ())
@@ -228,6 +296,16 @@ impl GenericChannelHandle {
             .expect("critical channel failure")
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+        ensures
+            *final(g) == *old(g),
+            result matches Ok(Some(blob)) ==> old(g)->Some_0@ == UnitSnapshot::Saved(blob@),
+            result matches Ok(None) ==> old(g)->Some_0@ == UnitSnapshot::NoSavedState,
+    ))]
     pub async fn save(&self) -> anyhow::Result<Option<SavedStateBlob>> {
         self.state_req
             .call(StateRequest::Save, ())
@@ -236,6 +314,15 @@ impl GenericChannelHandle {
             .map_err(|err| err.into())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real)
+                && (result is Ok ==> h@ == UnitSnapshot::Saved(buffer@)),
+    ))]
     pub async fn restore(&self, buffer: SavedStateBlob) -> anyhow::Result<()> {
         self.state_req
             .call(StateRequest::Restore, buffer)
@@ -279,7 +366,7 @@ impl<T: ?Sized> ChannelHandle<T> {
 impl<T: 'static + VmbusDevice> ChannelHandle<T> {
     /// Revokes the channel, returning it if the VMBus server is still running.
     pub async fn revoke(self) -> Option<T> {
-        let device = self.0.revoke().await? as Box<dyn Any>;
+        let device = self.0.revoke().await?.into_any();
         Some(
             *device
                 .downcast()
@@ -295,33 +382,87 @@ impl ChannelHandle<dyn VmbusDevice> {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: 'static + VmbusDevice + ?Sized> ChannelHandle<T> {
     /// Starts the device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) is None,
+    ))]
     pub fn start(&self) {
         self.0.start()
     }
 
     /// Stops the device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) is None,
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+    ))]
     pub async fn stop(&self) {
         self.0.stop().await
     }
 
     /// Resets a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real),
+    ))]
     pub async fn reset(&self) {
         self.0.reset().await
     }
 
     /// Saves a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real) && !(h@ is Unknown),
+        ensures
+            *final(g) == *old(g),
+            result matches Ok(Some(blob)) ==> old(g)->Some_0@ == UnitSnapshot::Saved(blob@),
+            result matches Ok(None) ==> old(g)->Some_0@ == UnitSnapshot::NoSavedState,
+    ))]
     pub async fn save(&self) -> anyhow::Result<Option<SavedStateBlob>> {
         self.0.save().await
     }
 
     /// Restores a stopped device.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+        requires
+            *old(g) matches Some(h) && h.valid(self.id(), 0.5real),
+        ensures
+            *final(g) matches Some(h) && h.valid(self.id(), 0.5real)
+                && (result is Ok ==> h@ == UnitSnapshot::Saved(buffer@)),
+    ))]
     pub async fn restore(&self, buffer: SavedStateBlob) -> anyhow::Result<()> {
         self.0.restore(buffer).await
     }
 }
 
+/// Verus: it creates the channel unit's FracGhost (value `Unknown`); the
+/// channel's task keeps one half as its share, and the other is given back in
+/// `half`, for `StateUnits` (registered with `state_unit::unit_channel_for`).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    with Tracked(half): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+    ensures
+        result matches Ok(handle) ==> *final(half) matches Some(h) && h.valid(handle.id(), 0.5real)
+            && h@ is Unknown,
+))]
 async fn offer_generic(
     driver: &impl Spawn,
     bus: &(impl ParentBus + ?Sized),
@@ -460,6 +601,194 @@ struct Device {
     subchannel_enable_recv: mesh::Receiver<u16>,
 }
 
+// The channel task's state-request handling and its loop, with their
+// contracts (Verus).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl Device {
+    /// Verus: the task holds `share`, its share of the channel unit's
+    /// FracGhost, with its device (`keeps_share`), and passes it to
+    /// `handle_state_request` for each state request; `state_req_recv` is the
+    /// channel's internal channel, whose constant is the share's id.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(share): Tracked<vmcore::device_state::spec::DeviceGhostState>
+        requires
+            self.keeps_share(share, &*old(channel)),
+            state_req_recv.constant() == share.frac.id(),
+    ))]
+    /// Runs a VMBus channel, taking requests from `open_recv`.
+    async fn run_channel(
+        self,
+        bus: &dyn ParentBus,
+        channel: &mut dyn VmbusDevice,
+        state_req_recv: mesh::Receiver<StateRequest>,
+    ) {
+        // (`self` rebound: Verus does not support a `mut self` parameter.)
+        let mut this = self;
+        enum Event {
+            Request(usize, Option<ChannelRequest>),
+            EnableSubchannels(u16),
+            StateRequest(Result<StateRequest, RecvError>),
+        }
+
+        let mut state_req_recv = pin!(futures::stream::unfold(state_req_recv, async |mut recv| {
+            Some((recv.recv().await, recv))
+        }));
+
+        let map_request = |(idx, req)| Event::Request(idx, req);
+        loop {
+            let mut s = select(
+                (&mut this.requests).map(map_request),
+                select(
+                    (&mut this.subchannel_enable_recv).map(Event::EnableSubchannels),
+                    (&mut state_req_recv).map(Event::StateRequest),
+                ),
+            );
+            if let Some(event) = s.next().await {
+                match event {
+                    Event::Request(idx, Some(request)) => {
+                        this.handle_channel_request(idx, request, channel).await;
+                    }
+                    Event::Request(_idx, None) => continue,
+                    Event::EnableSubchannels(count) => {
+                        let offer = channel.offer();
+                        let _ = this.enable_channels(bus, &offer, count as usize + 1).await;
+                    }
+                    Event::StateRequest(Ok(request)) => {
+                        this.handle_state_request(request, channel, bus).await;
+                    }
+                    Event::StateRequest(Err(_)) => {
+                        // Revoke.
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Revoke all subchannels before the primary channel, so that the
+        // guest sees the rescind for every subchannel before the rescind for
+        // the primary. Issuing `Revoke` RPCs concurrently and awaiting them
+        // all via `join_all` lets `vmbus_server` rescind the subchannels in
+        // any order, but guarantees they have all been emitted before the
+        // primary's sender is dropped below.
+        let subchannel_senders = this.server_requests.split_off(1);
+        join_all(
+            subchannel_senders
+                .into_iter()
+                .map(|s| s.call(ChannelServerRequest::Revoke, ())),
+        )
+        .await;
+
+        // Revoke the primary channel by dropping its sender.
+        drop(this.server_requests);
+        // Wait for the revokes to finish.
+        // When vmbus (sub)channels are closed, `self.requests` ends up with stale
+        // channels i.e. (self.requests.value.is_none()) that are not getting cleaned
+        // up. Waiting on those channels never completes here. Workaround the issue by
+        // only waiting on `valid` channels.
+        // TODO: The original issue should be fixed and the code here should be reverted
+        //       to wait for all (i.e. while self.requests.next().await.is_some() {})
+        for recv in this.requests.iter_mut() {
+            if recv.value().is_some() {
+                while recv.next().await.is_some() {}
+            }
+        }
+
+        for subchannel_idx in (0..this.open.len()).rev() {
+            if this.open[subchannel_idx] {
+                channel.close(subchannel_idx as u16).await;
+            }
+        }
+    }
+
+    /// Verus: `gin` is the half the request carries, `share` the task's
+    /// share; the request is answered by the internal protocol
+    /// (`StateRequest`'s `request_ok`), keeping `keeps_share`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with
+            Tracked(gin): Tracked<Option<FracGhost<UnitSnapshot>>>,
+            Tracked(share): Tracked<&mut vmcore::device_state::spec::DeviceGhostState>,
+        requires
+            old(self).keeps_share(*old(share), &*old(channel)),
+            StateRequest::request_ok(old(share).frac.id(), request, gin),
+        ensures
+            final(self).keeps_share(*final(share), &*final(channel)),
+            final(share).frac.id() == old(share).frac.id(),
+    ))]
+    // (Not in Verus builds: tracing's macro rewrites the body around the
+    // contract above.)
+    #[cfg_attr(not(verus_keep_ghost), instrument(level = "debug", skip_all, fields(?request)))]
+    async fn handle_state_request(
+        &mut self,
+        request: StateRequest,
+        channel: &mut dyn VmbusDevice,
+        bus: &dyn ParentBus,
+    ) {
+        match request {
+            StateRequest::Start => {
+                channel.start();
+                if let DeviceState::Stopped(pending_messages) =
+                    std::mem::replace(&mut self.state, DeviceState::Running)
+                {
+                    for (channel_idx, request) in pending_messages.into_iter() {
+                        self.handle_channel_request(channel_idx, request, channel)
+                            .await;
+                    }
+                }
+            }
+            StateRequest::Stop(rpc) => {
+                if matches!(self.state, DeviceState::Running) {
+                    self.state = DeviceState::Stopped(Vec::new());
+                    rpc.handle(async |()| {
+                        channel.stop().await;
+                    })
+                    .await;
+                } else {
+                    rpc.complete(());
+                }
+            }
+            StateRequest::Reset(rpc) => {
+                if let DeviceState::Stopped(pending_messages) = &mut self.state {
+                    pending_messages.clear();
+                }
+                rpc.complete(());
+            }
+            StateRequest::Save(rpc) => {
+                rpc.handle_failable(async |()| {
+                    if let Some(channel) = channel.supports_save_restore() {
+                        channel.save().await.map(Some)
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .await;
+            }
+            StateRequest::Restore(rpc) => {
+                rpc.handle_failable(async |buffer| {
+                    let channel = channel
+                        .supports_save_restore()
+                        .context("saved state not supported")?;
+                    let control = RestoreControl {
+                        device: &mut *self,
+                        offer: channel.offer(),
+                        bus,
+                    };
+                    channel
+                        .restore(control, buffer)
+                        .await
+                        .map_err(anyhow::Error::from)?;
+                    anyhow::Ok(())
+                })
+                .await;
+            }
+            StateRequest::Inspect(deferred) => {
+                deferred.inspect(&mut *channel);
+            }
+        }
+    }
+}
+
 impl Device {
     fn new(
         request_recv: mesh::Receiver<ChannelRequest>,
@@ -482,89 +811,6 @@ impl Device {
             events,
             gpadl_map,
             subchannel_enable_recv,
-        }
-    }
-
-    /// Runs a VMBus channel, taking requests from `open_recv`.
-    async fn run_channel(
-        mut self,
-        bus: &dyn ParentBus,
-        channel: &mut dyn VmbusDevice,
-        state_req_recv: mesh::Receiver<StateRequest>,
-    ) {
-        enum Event {
-            Request(usize, Option<ChannelRequest>),
-            EnableSubchannels(u16),
-            StateRequest(Result<StateRequest, RecvError>),
-        }
-
-        let mut state_req_recv = pin!(futures::stream::unfold(state_req_recv, async |mut recv| {
-            Some((recv.recv().await, recv))
-        }));
-
-        let map_request = |(idx, req)| Event::Request(idx, req);
-        loop {
-            let mut s = select(
-                (&mut self.requests).map(map_request),
-                select(
-                    (&mut self.subchannel_enable_recv).map(Event::EnableSubchannels),
-                    (&mut state_req_recv).map(Event::StateRequest),
-                ),
-            );
-            if let Some(event) = s.next().await {
-                match event {
-                    Event::Request(idx, Some(request)) => {
-                        self.handle_channel_request(idx, request, channel).await;
-                    }
-                    Event::Request(_idx, None) => continue,
-                    Event::EnableSubchannels(count) => {
-                        let offer = channel.offer();
-                        let _ = self.enable_channels(bus, &offer, count as usize + 1).await;
-                    }
-                    Event::StateRequest(Ok(request)) => {
-                        self.handle_state_request(request, channel, bus).await;
-                    }
-                    Event::StateRequest(Err(_)) => {
-                        // Revoke.
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Revoke all subchannels before the primary channel, so that the
-        // guest sees the rescind for every subchannel before the rescind for
-        // the primary. Issuing `Revoke` RPCs concurrently and awaiting them
-        // all via `join_all` lets `vmbus_server` rescind the subchannels in
-        // any order, but guarantees they have all been emitted before the
-        // primary's sender is dropped below.
-        let subchannel_senders = self.server_requests.split_off(1);
-        join_all(
-            subchannel_senders
-                .into_iter()
-                .map(|s| s.call(ChannelServerRequest::Revoke, ())),
-        )
-        .await;
-
-        // Revoke the primary channel by dropping its sender.
-        drop(self.server_requests);
-        // Wait for the revokes to finish.
-        // When vmbus (sub)channels are closed, `self.requests` ends up with stale
-        // channels i.e. (self.requests.value.is_none()) that are not getting cleaned
-        // up. Waiting on those channels never completes here. Workaround the issue by
-        // only waiting on `valid` channels.
-        // TODO: The original issue should be fixed and the code here should be reverted
-        //       to wait for all (i.e. while self.requests.next().await.is_some() {})
-        for recv in self.requests.iter_mut() {
-            if recv.value().is_some() {
-                while recv.next().await.is_some() {}
-            }
-        }
-
-        for subchannel_idx in (0..self.open.len()).rev() {
-            if self.open[subchannel_idx] {
-                channel.close(subchannel_idx as u16).await;
-            }
         }
     }
 
@@ -709,76 +955,6 @@ impl Device {
         }
     }
 
-    #[instrument(level = "debug", skip_all, fields(?request))]
-    async fn handle_state_request(
-        &mut self,
-        request: StateRequest,
-        channel: &mut dyn VmbusDevice,
-        bus: &dyn ParentBus,
-    ) {
-        match request {
-            StateRequest::Start => {
-                channel.start();
-                if let DeviceState::Stopped(pending_messages) =
-                    std::mem::replace(&mut self.state, DeviceState::Running)
-                {
-                    for (channel_idx, request) in pending_messages.into_iter() {
-                        self.handle_channel_request(channel_idx, request, channel)
-                            .await;
-                    }
-                }
-            }
-            StateRequest::Stop(rpc) => {
-                if matches!(self.state, DeviceState::Running) {
-                    self.state = DeviceState::Stopped(Vec::new());
-                    rpc.handle(async |()| {
-                        channel.stop().await;
-                    })
-                    .await;
-                } else {
-                    rpc.complete(());
-                }
-            }
-            StateRequest::Reset(rpc) => {
-                if let DeviceState::Stopped(pending_messages) = &mut self.state {
-                    pending_messages.clear();
-                }
-                rpc.complete(());
-            }
-            StateRequest::Save(rpc) => {
-                rpc.handle_failable(async |()| {
-                    if let Some(channel) = channel.supports_save_restore() {
-                        channel.save().await.map(Some)
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .await;
-            }
-            StateRequest::Restore(rpc) => {
-                rpc.handle_failable(async |buffer| {
-                    let channel = channel
-                        .supports_save_restore()
-                        .context("saved state not supported")?;
-                    let control = RestoreControl {
-                        device: &mut *self,
-                        offer: channel.offer(),
-                        bus,
-                    };
-                    channel
-                        .restore(control, buffer)
-                        .await
-                        .map_err(anyhow::Error::from)?;
-                    anyhow::Ok(())
-                })
-                .await;
-            }
-            StateRequest::Inspect(deferred) => {
-                deferred.inspect(&mut *channel);
-            }
-        }
-    }
-
     async fn enable_channels(
         &mut self,
         bus: &dyn ParentBus,
@@ -871,6 +1047,16 @@ impl Device {
 
 /// Offers a new channel, returning a typed handle to get back the original
 /// channel when it's revoked.
+/// Verus: it creates the channel unit's FracGhost (value `Unknown`); the
+/// channel's task keeps one half as its share, and the other is given back in
+/// `half`, for `StateUnits` (registered with `state_unit::unit_channel_for`).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    with Tracked(half): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+    ensures
+        result matches Ok(handle) ==> *final(half) matches Some(h) && h.valid(handle.id(), 0.5real)
+            && h@ is Unknown,
+))]
 pub async fn offer_channel<T: 'static + VmbusDevice>(
     driver: &impl Spawn,
     bus: &(impl ParentBus + ?Sized),
@@ -881,6 +1067,16 @@ pub async fn offer_channel<T: 'static + VmbusDevice>(
 }
 
 /// Offers a new channel with the type erased.
+/// Verus: it creates the channel unit's FracGhost (value `Unknown`); the
+/// channel's task keeps one half as its share, and the other is given back in
+/// `half`, for `StateUnits` (registered with `state_unit::unit_channel_for`).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(result =>
+    with Tracked(half): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
+    ensures
+        result matches Ok(handle) ==> *final(half) matches Some(h) && h.valid(handle.id(), 0.5real)
+            && h@ is Unknown,
+))]
 pub async fn offer_generic_channel(
     driver: &impl Spawn,
     bus: &(impl ParentBus + ?Sized),

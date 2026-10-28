@@ -732,18 +732,17 @@ Moved to its own section: "Recipe: verifying another device".
 What a state unit must do for the request protocol to hold, layer by layer,
 from the device up.
 
-1. **Device: `SaveRestore`** (`vm/vmcore`). *Attached.* Each implementation
-   has a spec function `saved_state()`, its snapshotable state: what `save`
-   returns. `save` does not change it and returns it; a successful
-   `restore(state)` sets it to `state`. Given in
+1. **Device: `SaveRestore`** (`vm/vmcore`). *Attached.* Stated on the
+   device's view (see "`SaveRestore`'s contract on views"): `save` keeps
+   the view (`final(self)@ == old(self)@`) and returns a state whose blob
+   is `blob_of(old(self)@)`; a successful `restore(state)` makes
+   `blob_of(final(self)@)` the blob of `state`. `blob_of(view)` is a spec
+   function each specified implementation defines. Given in
    `vm/vmcore/src/save_restore.spec.rs` with `external_trait_specification`
    and `external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)`
-   (vstd's pattern for `Iterator`), so the trait and its many
-   implementations are unchanged; a verified implementation defines
-   `saved_state` by implementing `SaveRestoreSpecImpl`. Example:
-   `ExampleDevice` (`save_restore.proof.rs`) verifies; injecting a `restore`
-   that ignores its state, or a `save` that returns another value, each
-   fails.
+   (vstd's pattern for `Iterator`); the view comes from the trait's
+   Verus-only supertrait `SaveRestoreView: View`. Example: `ExampleDevice`
+   (`save_restore.proof.rs`) verifies.
 2. **Blob: `ProtobufSaveRestore`** (blanket impl for `SaveRestore` types).
    *Attached and verified* (2026-10-27): `external_trait_specification` +
    `external_trait_extension(ProtobufSaveRestoreSpec via
@@ -751,12 +750,12 @@ from the device up.
    with `saved_blob()` the encoded snapshotable state; the blanket impl
    (`save_restore.rs`, now `verus_verify`, its bodies rewritten without the
    closure and `?`) is verified against it, with `saved_blob() ==
-   of(saved_state())` (`save_restore.proof.rs`). Negative check: a
+   blob_of(self@)` (`save_restore.proof.rs`). Negative check: a
    `restore` that ignores the decoded state fails. The other
    implementations (`ChipsetDeviceProxy`, `BoundVp`,
    `ErasedChipsetDevice`) are trusted to meet it. `save` returns a blob with view
-   `of(old.saved_state())`; a successful `restore(blob)` leaves
-   `of(saved_state()) == blob@`. Follows from layer 1 and the `SavedStateBlob`
+   `blob_of(old@)`; a successful `restore(blob)` leaves
+   `blob_of(self@) == blob@`. Follows from layer 1 and the `SavedStateBlob`
    contract.
 3. **State unit: `StateUnit`** (async trait, `vmm_core/state_unit`).
    *Stated, not attached.* Through the unit's `UnitSnapshot`: `save` returns
@@ -765,7 +764,7 @@ from the device up.
    `Saved(blob@)`; `stop` leaves the unit stopped with its state stable;
    `reset` and `advance_time` may change it. For a chipset device
    (`ArcMutexChipsetDeviceUnit`, `vmm_core/vmotherboard`), the snapshot is
-   `NoSavedState` if `omit_saved_state`, else `Saved(of(saved_state()))` of
+   `NoSavedState` if `omit_saved_state`, else `Saved(blob_of(device@))` of
    its device.
 4. **Request loop: `run_unit` / `StateRequest::apply`**. *Stated, not
    attached* for the production units. The unit answers each request by
@@ -799,17 +798,17 @@ Concerns:
 - **`run_async_unit`** handles concurrent `Inspect` requests while a state
   change runs, with the unit as `&T`: interior mutability, and the
   assumption that inspects do not change saved state.
-- **`saved_state()` is a spec function on the trait**, alongside each
-  implementation's view (if any). Open question: whether a device's view
-  should be its saved state, or `saved_state()` derived from its view.
-- **Deterministic `save`**: the contract makes `save`'s result a function
-  of the state (`saved_state()`). A device whose saved state includes
-  something else (time, counters that `save` itself advances) must model it
-  in `saved_state`, or does not meet the contract.
-- **`restore(s)` then `saved_state() == s`**: a device that normalizes or
-  only partly restores a saved state does not meet the contract as stated.
+- **The device's blob is a function of its view** (`blob_of(view)`),
+  resolved 2026-10-27: the view is the device's snapshotable state.
+- **Deterministic `save`**: the contract makes `save`'s result (its blob)
+  a function of the view. A device whose saved state includes something
+  else (time, counters that `save` itself advances) must model it in its
+  view, or does not meet the contract.
+- **`restore(s)` then `blob_of(self@)` is `s`'s blob**: a device that
+  normalizes or only partly restores a saved state does not meet the
+  contract as stated.
 - **`save` takes `&mut self`** (e.g. `WrappedVp::save` flushes async
-  requests); the contract says `saved_state()` is unchanged.
+  requests); the contract says the view is unchanged.
 - **Devices behind `CloseableMutex`**: while running, vCPUs change them
   outside the unit's task (the ghost goes stale, which is fine); while
   stopped, they are kept unchanged by the stop order (vCPUs stop first),
@@ -1022,12 +1021,107 @@ inspector; after `start` completes, an inspect goes to the unit.
 **Spec.** `run_async_unit` and `apply_with_concurrent_inspects` have the
 contracts of `run_unit` and `apply` (`external_body`).
 
-**Open: where the vmbus units' shares live.** By the rule, with their
-state, that is, in the owning tasks; the proxies hold no share and pass
-the halves over their internal channels, whose protocols (a
-`MeshProtocol` for each internal request type) mirror the outer request
-protocol. This needs `vmbus_server`, `vmbus_channel` (and `vmbus_relay`)
-Verus-enabled. Until then their `StateUnitSpec`s stay uninterpreted.
+**Where the vmbus units' shares live** (plan agreed 2026-10-27): with their
+state, in the owning tasks; the proxies hold no share and pass the halves
+over their internal channels, whose protocols mirror the outer request
+protocol. One FracGhost per unit; the outer channel (`StateUnits` to the
+proxy, from `unit_channel_for`) and the inner one (the proxy to the owning
+task) both have its id as their constant. The owning task's creator
+creates the FracGhost (creator-made). Inside the owning tasks, only the
+state-request handler and the task's invariant are specified; the
+guest-traffic handlers are proof-phase work. OpenHCL's relay
+(`vmbus_relay`) is out of scope (OpenHCL is not on the verified microVM
+path). Done for the channels (`vmbus_channel`, code change 47); the server
+(`vmbus_server`) is next.
+
+**The channels (`vmbus_channel`, code change 47).**
+
+- *The device's spec*: `VmbusDevice`'s spec extension (`channel.spec.rs`)
+  declares `saved_blob()` (`None` if the device does not support
+  save/restore) and `device_wf()`, defined per device when it is specified
+  (none is yet); `UnitSnapshot::from_saved` (vmcore) turns `saved_blob()`
+  into the device's snapshot.
+- *The internal protocol*: `MeshProtocol for StateRequest` (the channel's
+  private request type), the outer protocol request by request (`Start`
+  gives the half, no reply; `Stop` returns a known half; `Save` lends;
+  `Restore` / `Reset` give one and get one back; `Inspect` none).
+  `request_ok` is closed (`StateRequest` is private).
+- *The task*: `Device` (the task's state) is opaque to Verus (private fields
+  of undeclared types), with an uninterpreted view `DeviceView { running }`
+  (trusted: `state is DeviceState::Running`, the task handles the guest's
+  requests only then, and queues them otherwise). The task's share is a
+  tracked value it owns, threaded through its loop and handler (with its
+  state: the one task owns both `Device` and the device).
+  `Device::keeps_share(share, channel)`: the share follows the rule for
+  `from_saved(channel.saved_blob())`, the device is `device_wf()`, and
+  while running the task holds the whole share.
+  `Device::handle_state_request` takes the request's half and the share as
+  ghost inputs, answers by the internal protocol, and keeps `keeps_share`
+  (`external_body`; its `Stop` relies on the trusted fact that `Stop`
+  arrives only while running, as `apply`'s does).
+- *The handles*: `GenericChannelHandle`, `ChannelHandle<T>`,
+  `SimpleDeviceHandle<T>` have `id()` (the internal channel's constant) and
+  contracts on `start`, `stop`, `reset`, `save`, `restore`, with the half
+  as a ghost input, mirroring the outer protocol (`external_body`).
+  `GenericChannelHandle::id` and `ChannelHandle::id` are uninterpreted,
+  trusted to be the internal sender's constant (the types are opaque:
+  `GenericChannelHandle` holds a `pal_async` `Task`, an alias of an
+  `async_task` type; `ChannelHandle`'s `PhantomData<fn() -> Box<T>>` is a
+  function-pointer type, which Verus does not support);
+  `SimpleDeviceHandle::id` is `self.0.id()`.
+- *Creation*: `offer_channel`, `offer_generic_channel`, `offer_simple_device`
+  (and the private `offer_generic`) create the FracGhost (`Unknown`) and give
+  back the other half (ghost out-parameter), with the handle's id
+  (`external_body`).
+- *The units* (`vmm_core`): `ChannelUnit<T>` and `SimpleChannelUnit<T>` gain
+  a Verus-only `running` field; `StateUnitSpec`: `id()` = the handle's,
+  `running()` = the field, `wf()` = `true` (a proxy has no state of its own
+  to relate); spawned with `spawn_with_channel(.., unit_channel_for(), ..)`.
+
+**`VmbusDevice`'s `Any` supertrait** (decided 2026-10-27, user: option A).
+Verus refuses `dyn` of a trait whose supertrait has an unsized blanket impl
+(rust-lang/rust#57893), as `Any` does (`impl<T: 'static + ?Sized> Any for
+T`); the channel task holds its device as `&mut dyn VmbusDevice`, so the
+task's spec could not name its device. Options:
+
+| | How | Cost |
+|---|---|---|
+| A (chosen) | replace the `Any` supertrait with `IntoAny` (`fn into_any(self: Box<Self>) -> Box<dyn Any>`), implemented by a blanket impl for every **sized** `T: Any`; `revoke` calls `.into_any()` | an executable change in `vmbus_channel` only; implementors unchanged (the blanket covers them); same runtime behavior |
+| B | patch Verus to exempt `Any` from the check (#57893's unsoundness needs associated types, which `Any` has none of) | a change to a verifier soundness check, its argument trusted |
+
+Why behavior is unchanged: before, `revoke` upcast `Box<dyn VmbusDevice>`
+to `Box<dyn Any>` (trait upcasting); now it calls `into_any`, which, through
+the device's vtable, runs `IntoAny::into_any` for the device's concrete
+type and returns the same `Box` as `Box<dyn Any>`; in both, the `dyn Any`'s
+type is the device's concrete type, so the downcast gives the same result.
+The `'static` bound that `Any` implied is written out on `VmbusDevice`.
+Every implementor (`netvsp`'s `Nic`, `storvsp`'s `StorageDevice`,
+`SimpleDeviceWrapper`, two `vmbus_server` test devices) is a sized
+`'static` type, so the blanket impl covers it. Covered by `netvsp`'s tests,
+which revoke a `ChannelHandle<Nic>` and unwrap the downcast.
+
+**Open (channels; parked: VMBus is out of scope for the microVM, see
+"Out of scope for now"):**
+
+- **A channel's task starts running.** `Device::new` sets `state:
+  DeviceState::Running`, so a new channel's task handles the guest's
+  requests before its unit's first `Start`, while, by the rule, the unit is
+  stopped (holding one half). `keeps_share`'s "while running, the whole
+  share" fails from creation until the first `Start`. (In practice the
+  vmbus server, a dependency, starts first, so the guest can reach the
+  channel in that window.) Either the task starts stopped (an executable
+  change: the guest's requests are queued until the first `Start`, then
+  replayed, as after every `Stop`), or this is a trusted fact. To decide.
+  (`offer_simple_device` with `InitialDeviceState::Stopped` leaves the
+  device stopped, but its task still starts `Running`.)
+- **`Device::run_channel`'s contract** (done): Verus does not support a
+  `mut self` parameter, so the signature takes `self` and the body rebinds
+  it (`let mut this = self;`, an executable change, code change 47). With
+  the task's share as a ghost input: requires `self.keeps_share(share,
+  channel)` and `state_req_recv.constant() == share.frac.id()`; the body is
+  `external_body`.
+- **No vmbus device's `saved_blob()` / `device_wf()` is defined yet**
+  (`netvsp`, `storvsp`, the simple devices): device-level spec, per device.
 
 ### Chipset devices: the share in the device's lock
 
@@ -1136,6 +1230,123 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
 - **The half reaching `unit_channel_for`**: the builder (unverified) is
   trusted to pass `DeviceSlot::new`'s other half to the unit's sender, and
   the right `omit`.
+
+### `SaveRestore`'s contract on views
+
+Decided 2026-10-27 (user): state `SaveRestore`'s contract on the device's
+view, once, on the trait (option A below). Replaces the contract over
+`saved_state()`, the typed saved state, which compared saved states with
+`==`: a saved state holding a `Vec` (portb, the IOAPIC, virtio-mmio) cannot
+be built in spec, and two `Vec`s with equal views are not provably `==`, so
+`save` could never meet it. Comparisons are between views.
+
+**The contract** (`save_restore.spec.rs`):
+
+```
+spec fn blob_of(view: <Self as View>::V) -> SavedStateBlobView;  // per device
+save:    final(self)@ == old(self)@
+         result matches Ok(s) ==> of(s) == Self::blob_of(old(self)@)
+restore: result is Ok ==> Self::blob_of(final(self)@) == of(state)
+(both require and keep device_wf())
+```
+
+`blob_of` makes the blob a function of the view, so a `save` that keeps
+the view keeps the blob (the blanket `ProtobufSaveRestore` impl verifies
+with no proof hints). Each device's own contracts say more on its view
+(the PIT's `save_device`: the result is `old(self)@.saved_state()`).
+
+**Where the view comes from.** `SaveRestore` gets the supertrait
+`SaveRestoreView`: in Verus builds `SaveRestoreView: View` (blanket for
+every `T: View`); in normal builds an empty trait implemented for every
+type (code change 49). The spec cannot add the bound itself: an
+`external_trait_specification` cannot add bounds the real trait lacks, nor
+give implementations an associated type (both tried).
+
+**Options considered:**
+
+| Option | What | Outcome |
+|---|---|---|
+| A (chosen) | `View` as `SaveRestore`'s (Verus-only) supertrait; the contract on `self@` | every `SaveRestore` type compiled in Verus runs needs a view; the ~10 microVM devices get real views, the others placeholders |
+| B | no supertrait; the generic contract blob-only, views only in each device's own contracts | rejected: "save keeps the view" said per device instead of once |
+| predicate `is_saved_state(&self, state)` | judge a saved state on views | rejected: needs a `forall` to say `save` keeps it, and `choose` to define the blob |
+| `SavedStateBlobView` as the typed saved state | | rejected: a blob is not interpretable |
+| trusted "`Vec`s with equal views are `==`" | | rejected: compare views instead |
+
+**Placeholder views.** Every `impl SaveRestore for X` compiled when Verus
+runs (the 12 verified crates and their dependencies) needs `X: View`: 63
+impls in 27 crates, found by the compiler. The microVM's devices get real
+views; the others get the placeholder view `()` from vmcore's
+`placeholder_view!` macro, a line before the impl:
+
+- `placeholder_view!(pub ExX, X)` (or `ExX<T>, X<T>` for a generic type)
+  declares `X` to Verus as an opaque type and gives it the view `()`.
+- `placeholder_view!(external[FDC: Bound] X<FDC>)` gives `X` the view `()`
+  in a plain Rust impl outside `verus!` (so external to Verus), without
+  declaring `X` to Verus; used
+  where declaring `X` would need its bounds' traits declared too
+  (`chipset_legacy`'s `Winbond83977FloppySioDevice`). Verus never sees `X`'s
+  `SaveRestore` impl (it is outside `verus!`), so it needs no view there.
+
+A placeholder makes `final(self)@ == old(self)@` trivially true: the
+contract says nothing about that device, as before (its `blob_of` is
+unspecified). A placeholder is replaced by a real view when the device is
+specified. Not in the 12 crates' dependency graph, so untouched: the other
+16 crates with `SaveRestore` impls (e.g. `underhill_core`, `nvme`,
+`tpm_device`).
+
+Verus-enabled for this (code change 49), 22 crates: `amd_iommu`,
+`chipset_legacy`, `cxl_spec`, `firmware_pcat`, `floppy`,
+`floppy_pcat_stub`, `framebuffer`, `generation_id`,
+`hcl_compat_uefi_nvram_storage`, `ide`, `intel_vtd`, `missing_dev`,
+`pci_bus`, `pci_core`, `pcie`, `smmu`, `uefi_nvram_storage`,
+`vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core`. Their
+vstd import is `use vstd::prelude::verus as _;`, not the glob: the glob's
+`int` type turned a closure parameter named `int` into a pattern
+(`vfio_assigned_device`).
+
+**Still to do (portb, the IOAPIC, virtio-mmio):** their saved states hold
+`Vec`s, so `blob_of` cannot be `of(value)`; it needs the blob of a saved
+state given the saved state's view, and the per-type protobuf fact that a
+saved state's blob depends only on its view (trusted: `of` is the encoding
+abstraction). To design with the first of them.
+
+### The microVM's units: what is specified
+
+Decided 2026-10-27 (user): after VMBus went out of scope, specify the
+microVM's units. The units are fixed: `openvmm_defs/src/microvm.rs` checks
+the microVM's chipset-device inventory exactly (`ioapic`, `microvm-portb`,
+`microvm-shutdown`, `microvm-snapshot-request`, `pic`, `pit`), the RTC
+comes from the fixed chipset (`with_generic_cmos_rtc: true`, line 1991), and the tests' machine contracts list the
+saved inventory (`openvmm_helpers/src/snapshot/microvm.rs`, e.g. line
+2650). One unit per virtio-mmio device (net, console, fs, sandbox blocks),
+each a chipset device `VirtioMmioDevice` wrapping the virtio device.
+
+A chipset device's unit is `ArcMutexChipsetDeviceUnit` (its spec is
+generic, through `DeviceSlot`); what remains per device is its view and
+its `SaveRestoreSpecImpl` (`blob_of(view)`, `device_wf()`) and, so that the
+device's `save` / `restore` are checked rather than trusted, its
+`SaveRestore` impl inside Verus.
+
+| Unit | Unit's spec | Device's view, `blob_of` / `device_wf` | Device's `save` / `restore` |
+|---|---|---|---|
+| `vmtime` | done (`KeeperUnit`) | n/a | n/a |
+| `time-abi` | done (`TimeAbiUnit`) | n/a | n/a |
+| `input` | done | n/a (no state) | n/a |
+| `chipset` | done (`ChipsetUnit`) | n/a (no state) | n/a |
+| `lines/*` | done (`LineSetUnit`) | n/a (no state) | n/a |
+| `partition` | **uninterpreted** (`PartitionUnitRunner`) | n/a (VPs: hypervisor state, trusted) | n/a |
+| `pit` | done (generic) | done (`PitDeviceView`; `of(view.saved_state())`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
+| `microvm-shutdown` | done (generic) | done: view `()`, `of(NoSavedState)`, `true` | **verified** (impl is `verus_verify`) |
+| `microvm-snapshot-request` | done (generic) | done: view `()`, `of(NoSavedState)`, `true` | **verified** (impl is `verus_verify`) |
+| `microvm-portb` | done (generic) | **open** (placeholder view): saved state holds `Vec<u8>`s | open |
+| `pic` | done (generic) | open (placeholder view; `DualPic`, fixed-size fields) | open |
+| `ioapic` | done (generic) | **open** (placeholder view): saved state holds `Vec`s | open |
+| `rtc` | done (generic) | open (placeholder view; `Rtc`, `[u8; 256]`, a clock: time fields) | open |
+| virtio-mmio | done (generic) | **open** (placeholder view): `VirtioMmioDevice`'s saved state holds a `Vec` and the inner device's `SavedStateBlob` | open |
+
+**Saved states that hold a `Vec`**: resolved 2026-10-27 by stating the
+contract on views ("`SaveRestore`'s contract on views"); the blob of such a
+state is still to design (same section, "Still to do").
 
 ### Where the halves come from
 
@@ -1374,6 +1585,8 @@ change preserves behavior: same results, same order of effects.
 | 46 | `vmm_core/state_unit` | new public trait `InspectConcurrently`; **`run_async_unit`'s bound changes** from `for<'a> &'a T: StateUnit` to `T: StateUnit + InspectConcurrently`; **`StateRequest::apply_with_concurrent_inspects`'s signature changes** from `(self, unit: &mut &T, recv)` to `(self, unit: &mut T, inspector: &impl Inspect, recv)` |
 | 46 | `vmbus_server`, `vmbus_channel`, `vmbus_relay` | new public types `VmbusServerInspector`, `ChannelInspector`, `HostVmbusTransportInspector`, and methods `VmbusServer::inspector`, `ChannelHandle::inspector`, `SimpleDeviceHandle::inspector`, `HostVmbusTransport::inspector` |
 | 46 | `vmm_core` (`vmbus_unit.rs`), `underhill_core` (`vmbus_relay_unit.rs`) | `VmbusServerUnit`, `ChannelUnit<T>`, `SimpleChannelUnit<T>`, `VmbusRelayUnit` implement `StateUnit` for `X` instead of `&X`, and newly `InspectMut` and `InspectConcurrently` |
+| 47 | `vmbus_channel` | **`VmbusDevice`'s supertraits change** from `Send + Any + InspectMut` to `Send + 'static + IntoAny + InspectMut`; new public trait `IntoAny` (`fn into_any(self: Box<Self>) -> Box<dyn Any>`), with a blanket impl for every sized `T: Any` (returns `self`) |
+| 47 | `vmm_core` (`vmbus_unit.rs`) | `ChannelUnit<T>`, `SimpleChannelUnit<T>`: a Verus-only tuple field (normal builds: unchanged); `derive(Debug)` becomes `cfg_attr(not(verus_keep_ghost), derive(Debug))` (normal builds: unchanged; Verus builds: a hand-written `Debug` with the derived output and bounds); new private constructors `ChannelUnit::new`, `SimpleChannelUnit::new` |
 
 **Code**
 
@@ -1395,6 +1608,13 @@ change preserves behavior: same results, same order of effects.
 | 43 | `openvmm_core` | the time-ABI unit is spawned with `spawn_with_channel(.., unit_channel_for(), ..)`, awaiting `run_unit` inside an `async` block |
 | 44 | about 15 files (see CC 44) | every device lock created as `CloseableMutex::new(DeviceSlot::new(dev))`; the fuzzer passes `&mut **locked_dev` (one more dereference); OpenHCL's fallback MMIO device wrapped; the chipset device unit's two spawn sites use `spawn_with_channel(.., unit_channel_for(), ..)` |
 | 46 | `vmm_core/state_unit` | `run_async_unit` takes the unit's inspector once and passes the unit as `&mut`; `apply_with_concurrent_inspects` sends inspects that arrive during a state change to the inspector instead of to the unit (for every production user, the inspector sends the same `Inspect` request to the same task, through a clone of the same sender; same queue, same order; see "The vmbus units") |
+| 47 | `vmbus_channel` | `ChannelHandle::revoke` gets the device back with `.into_any()` instead of the `as Box<dyn Any>` upcast (same `Box`, same concrete type, same downcast; see "The vmbus units") |
+| 47 | `vmbus_channel` | `Device::run_channel` and `Device::handle_state_request` moved into their own `impl Device` block (bodies unchanged); `handle_state_request`'s `#[instrument]` applied only in normal builds (`cfg_attr(not(verus_keep_ghost), instrument(..))`; normal builds: unchanged) |
+| 47 | `vmbus_channel` | `Device::run_channel` takes `self` instead of `mut self`; the body starts with `let mut this = self;` and uses `this` (Verus does not support a `mut self` parameter; private method, same behavior) |
+| 47 | `vmm_core` (`vmbus_unit.rs`) | `offer_channel_unit`, `offer_simple_device_unit`, `offer_vmbus_device_handle_unit` spawn with `spawn_with_channel(.., unit_channel_for(), ..)` instead of `spawn(..)`, and build their units with `new` (normal builds: `unit_channel_for()` and `unit_channel()` are both `mesh::channel()`, so the same channel) |
+| 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
+| 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
+| 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
 
 **Dependencies and build**
 
@@ -1405,6 +1625,8 @@ change preserves behavior: same results, same order of effects.
 | 41 | `vmm_core/vmotherboard` | new dependency `mesh_rpc_verus` |
 | 44 | `chipset_arc_mutex_device`, `chipset_device_fuzz` | new dependency `vmcore` (no cycle) |
 | 46 | `vmm_core/state_unit` | dev-dependency (tests only): `inspect` with the `initiate` feature, for the new test |
+| 47 | `vmbus_channel` | Verus-enabled: `[package.metadata.verus]`, dependencies `vstd` and `mesh_rpc_verus`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `vstd` import in `lib.rs` |
+| 49 | `amd_iommu`, `chipset_legacy`, `cxl_spec`, `firmware_pcat`, `floppy`, `floppy_pcat_stub`, `framebuffer`, `generation_id`, `hcl_compat_uefi_nvram_storage`, `ide`, `intel_vtd`, `missing_dev`, `pci_bus`, `pci_core`, `pcie`, `smmu`, `uefi_nvram_storage`, `vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (for `vfio_assigned_device`, in its Linux-only dependencies), new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus as _;` in `lib.rs` |
 | 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
 | 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
 
@@ -1414,31 +1636,34 @@ Updated 2026-10-27 for "Chipset devices: the share in the device's lock".
 A chipset device's unit and its share are generic now
 (`ArcMutexChipsetDeviceUnit`, `DeviceSlot`); what is left per device is its
 device-level spec. The PIT's files are the example: `pit/mod.spec.rs`
-(view, `saved_state()`, `wf()`), `pit/mod.proof.rs` (declarations), and
+(view, `blob_of`, `wf()`), `pit/mod.proof.rs` (declarations), and
 `pit/mod.rs` (entry points).
 
 1. **Crate setup** (once per crate): `[package.metadata.verus] verify =
    true`, `vstd` dependency, `build.rs` declaring the `verus_keep_ghost`
-   cfg, a Verus-only `use vstd::prelude::*`.
+   cfg, a Verus-only vstd import (`use vstd::prelude::verus as _;` if the
+   glob would clash). Most device crates in the verified graph already
+   have this (code change 49).
 2. **Declare the device's types to Verus** (`external_type_specification`):
    its state types with their fields visible (for the view), its runtime
    glue as opaque types, and its saved-state types with their fields
    visible.
-3. **View and `saved_state()`**: a view of the snapshotable state (and the
+3. **View and `blob_of`**: a view of the snapshotable state (and the
    configuration that affects `save` / `restore`), its `inv()`, and
-   `saved_state()` on the view; `SaveRestoreSpecImpl::saved_state` is the
-   view's. Say what the view leaves out (state that is not saved).
-4. **`SaveRestore`'s contract**: `save` returns `saved_state()` and keeps
-   it; a successful `restore(s)` sets it to `s`. The snapshot follows
-   (`ProtobufSaveRestore`'s blanket impl, `DeviceSnapshot`); no per-device
-   ghost.
+   `SaveRestoreSpecImpl::blob_of(view)`, the blob of the saved state of a
+   device with that view. Replace the device's `placeholder_view!` line.
+   Say what the view leaves out (state that is not saved).
+4. **`SaveRestore`'s contract**: `save` keeps the view and returns a state
+   with blob `blob_of(view)`; a successful `restore(s)` makes
+   `blob_of(view)` `s`'s blob. The snapshot follows (`ProtobufSaveRestore`'s
+   blanket impl, `DeviceSnapshot`); no per-device ghost.
 5. **Entry points with contracts**, where needed: inherent methods holding
    the trait methods' bodies (Verus cannot add contracts to a foreign
    trait's impl methods), keeping `wf()`.
 6. **Device-specific gaps**: activity of its own to stop; `advance_time`
    (like the RTC) or `quiesce_input` / `resume_input`; cross-device effects
    (interrupt lines it drives, vmtime timers); a `restore` that normalizes
-   the saved state (breaks "sets `saved_state()`"); saved-state roots using
+   the saved state (breaks "`blob_of(view)` is `s`'s blob"); saved-state roots using
    the derive's `transparent` or `prost` mode.
 7. **Proofs** (proof phase): remove `external_body`.
 
@@ -1760,6 +1985,19 @@ What Stage 2 still needs, found by comparing the prototype with
 
 ## Out of scope for now
 
+- **VMBus** (decided 2026-10-27, user): the microVM has no VMBus. Its load
+  path sets `with_hv = false` (`openvmm_entry/src/lib.rs:1381`), and VMBus
+  exists only with it (`lib.rs:2244`: `vmbus: (with_hv &&
+  !opt.no_vmbus).then_some(..)`); the microVM also refuses VMBus serial
+  (`microvm/config.rs:146`). So the vmbus server, the channels, the vmbus
+  devices behind them (`netvsp`, `storvsp`, the 11 simple devices), and
+  OpenHCL's relay are not on the microVM snapshot path. The spec written so
+  far stays (code changes 46, 47; "The vmbus units"); the remaining vmbus
+  items are parked: the vmbus server's share, a channel task starting
+  `Running` (open item 1 there), and the vmbus devices' views and
+  `saved_blob()` (`netvsp`, `storvsp`, `SimpleDeviceWrapper` and the simple
+  devices, with `task_control`'s view).
+
 - **Guest RAM.** It has no in-memory Rust structure (it is a file-backed
   mapping). RAM will be removed from the spec rather than left unverified.
 - **Protobuf encoding/decoding** of `SavedState` (`ProtobufMessage`). Each
@@ -1988,6 +2226,17 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 A summary of the other open items recorded in the sections above, most
 important first.
+
+- **`cargo xtask fmt` lint failures from earlier spec work** (found
+  2026-10-27, not caused by code change 49): `closeable_mutex` reported
+  unused in `vmm_core/state_unit`, `vmm_core`, `openvmm_core`,
+  `vm/devices/chipset`, `vm/chipset_device_fuzz` (used only in Verus
+  builds?); `vmbus_ring` unused in `vmm_core`; unjustified
+  `expect(unsafe_code)` in `vmm_core/state_unit/src/lib.rs:43` and
+  `openvmm/openvmm_defs/src/rpc.rs:29`; copyright headers in the root
+  `Cargo.toml` and `rust-toolchain.toml`; the vendored
+  `verus-patches/verus_builtin_macros/Cargo.toml` not workspaced. To fix
+  before upstreaming.
 
 1. **Prove the contracts.** Every contract above has an unverified body
    (`external_body`); they are listed in `SNAPSHOT-SPEC-TRUSTED.md` as

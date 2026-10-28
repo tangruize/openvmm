@@ -11,6 +11,10 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 pub mod platform;
 pub mod resources;
 use inspect::Inspect;
@@ -251,6 +255,9 @@ mod save_restore {
             pub configured_count: u32,
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExWatchdogServices, WatchdogServices);
 
     impl SaveRestore for WatchdogServices {
         type SavedState = state::SavedState;

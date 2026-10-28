@@ -220,6 +220,9 @@ mod save_restore {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExInMemoryNvram, InMemoryNvram);
+
     impl SaveRestore for InMemoryNvram {
         type SavedState = state::SavedState;
 

@@ -12,6 +12,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 mod bios_boot_order;
 mod default_cmos_values;
 mod root_cpu_data;
@@ -1108,6 +1112,9 @@ mod save_restore {
             pub genid: <GenerationId as SaveRestore>::SavedState,
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExPcatBiosDevice, PcatBiosDevice);
 
     impl SaveRestore for PcatBiosDevice {
         type SavedState = state::SavedState;

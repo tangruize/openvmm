@@ -5,6 +5,10 @@
 
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 use guestmem::GuestMemory;
 use inspect::InspectMut;
 use mesh::RecvError;
@@ -155,6 +159,9 @@ mod save_restore {
             pub ptr: [Option<u32>; 2],
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExGenerationId, GenerationId);
 
     impl SaveRestore for GenerationId {
         type SavedState = state::SavedState;

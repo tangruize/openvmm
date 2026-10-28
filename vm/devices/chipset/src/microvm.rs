@@ -5,6 +5,17 @@
 
 pub mod resolver;
 
+/// Verus specification of the microVM chipset devices.
+#[cfg(verus_keep_ghost)]
+pub(crate) mod spec {
+    include!("microvm.spec.rs");
+
+    /// Declarations supporting the spec.
+    pub(crate) mod proof {
+        include!("microvm.proof.rs");
+    }
+}
+
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoError;
 use chipset_device::io::IoResult;
@@ -41,6 +52,8 @@ use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SaveRestore;
 use vmcore::save_restore::SavedStateRoot;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 const DATA_PORT: u16 = 0xe9;
 const STATUS_PORT: u16 = 0xea;
@@ -592,6 +605,9 @@ impl PortIoIntercept for MicrovmPortb {
     }
 }
 
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExMicrovmPortb, MicrovmPortb);
+
 impl SaveRestore for MicrovmPortb {
     type SavedState = MicrovmPortbSavedState;
 
@@ -689,6 +705,7 @@ impl PortIoIntercept for MicrovmShutdown {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl SaveRestore for MicrovmShutdown {
     type SavedState = NoSavedState;
 
@@ -696,7 +713,7 @@ impl SaveRestore for MicrovmShutdown {
         Ok(NoSavedState)
     }
 
-    fn restore(&mut self, NoSavedState: Self::SavedState) -> Result<(), RestoreError> {
+    fn restore(&mut self, _state: Self::SavedState) -> Result<(), RestoreError> {
         Ok(())
     }
 }
@@ -869,6 +886,7 @@ impl PortIoIntercept for MicrovmSnapshotRequest {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl SaveRestore for MicrovmSnapshotRequest {
     type SavedState = NoSavedState;
 
@@ -876,7 +894,7 @@ impl SaveRestore for MicrovmSnapshotRequest {
         Ok(NoSavedState)
     }
 
-    fn restore(&mut self, NoSavedState: Self::SavedState) -> Result<(), RestoreError> {
+    fn restore(&mut self, _state: Self::SavedState) -> Result<(), RestoreError> {
         Ok(())
     }
 }

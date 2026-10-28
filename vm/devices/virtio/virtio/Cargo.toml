@@ -6,7 +6,11 @@ name = "virtio"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 device_emulators.workspace = true
 pci_core.workspace = true
 pci_resources.workspace = true

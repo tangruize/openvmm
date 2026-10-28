@@ -6,6 +6,10 @@
 #![cfg_attr(not(test), forbid(unsafe_code))]
 #![expect(missing_docs)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 mod common;
 pub mod device;
 pub mod in_order;

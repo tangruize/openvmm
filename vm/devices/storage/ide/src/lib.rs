@@ -30,6 +30,10 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus as _;
+
 mod drive;
 mod protocol;
 
@@ -1607,6 +1611,9 @@ mod save_restore {
             pub drive1: Option<SavedDriveState>,
         }
     }
+
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExIdeDevice, IdeDevice);
 
     impl SaveRestore for IdeDevice {
         type SavedState = state::SavedState;

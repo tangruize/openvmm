@@ -492,6 +492,77 @@ Baseline: upstream `nanvix/openvmm` commit
     implements `StateUnitSpec` for `X` (still uninterpreted). New test
     `tests/concurrent_inspect.rs`; `state_unit`'s dev-dependency on
     `inspect` enables `initiate`.
+47. **The vmbus channels keep their units' shares; `VmbusDevice` without
+    `Any`** (executable change in `vmbus_channel` and `vmm_core`, behavior
+    unchanged; design doc, "The vmbus units"): `vmbus_channel` is
+    Verus-enabled (`[package.metadata.verus]`, `vstd`, `mesh_rpc_verus`,
+    `build.rs`, `lib.rs` import). `VmbusDevice: Send + 'static + IntoAny +
+    InspectMut` (was `Send + Any + InspectMut`); new `IntoAny` with a blanket
+    impl for sized `T: Any`; `ChannelHandle::revoke` uses `.into_any()`.
+    New `channel.spec.rs` (`VmbusDevice`'s spec extension: `saved_blob`,
+    `device_wf`; `MeshProtocol for StateRequest`; `View for Device`;
+    `Device::keeps_share`; `GenericChannelHandle::id`, `ChannelHandle::id`,
+    uninterpreted), `channel.proof.rs` (declarations: `IntoAny`, `Any`,
+    `StateRequest`, `Device`, `ParentBus`, `Spawn`, `GenericChannelHandle`,
+    `ChannelHandle`), `simple.spec.rs` (`SimpleDeviceHandle::id`),
+    `simple.proof.rs` (`RingMem`, `GpadlRingMem`, `SimpleVmbusDevice`,
+    `SimpleDeviceWrapper`, `VmTaskDriverSource`, `InitialDeviceState`).
+    Contracts (`external_body`): the handles' `start` / `stop` / `reset` /
+    `save` / `restore` (ghost input), `offer_generic`, `offer_channel`,
+    `offer_generic_channel`, `offer_simple_device` (ghost out-parameter),
+    `Device::handle_state_request`, `Device::run_channel` (ghost
+    inputs); `revoke` / `inspector` are `external_body` / `external` in the
+    `verus_verify` blocks. `run_channel` takes `self` (was `mut self`,
+    which Verus does not support) and rebinds it, `let mut this = self;`,
+    with `self` renamed `this` in the body. `run_channel` and `handle_state_request` moved into their own
+    `impl Device` block; `handle_state_request`'s `#[instrument]` only in
+    normal builds. `SimpleDeviceHandle` is `verus_verify`. vmcore:
+    `UnitSnapshot::from_saved`; declarations of `InspectMut`, `Inspect`,
+    `Deferred`, `anyhow::Error` moved here from `state_unit`;
+    `mesh_rpc_verus`: `RemoteError`'s declaration moved here; `vmm_core`'s
+    declarations of `VmbusDevice`, `SimpleVmbusDevice`, `RingMem`,
+    `GpadlRingMem`, `Any` moved to `vmbus_channel`. `vmm_core`:
+    `ChannelUnit` / `SimpleChannelUnit` gain a Verus-only `running` field
+    and `new`, are `verus_verify` (`Debug` derived only in normal builds,
+    hand-written in Verus builds), their `StateUnitSpec`s are defined, and
+    their three offer functions spawn with
+    `spawn_with_channel(.., unit_channel_for(), ..)`.
+
+48. **The microVM's shutdown and snapshot-request devices specified and
+    verified** (one executable change in `chipset`, behavior unchanged;
+    design doc, "The microVM's units: what is specified"): new
+    `chipset/src/microvm.spec.rs` (`SaveRestoreSpecImpl` for
+    `MicrovmShutdown` and `MicrovmSnapshotRequest`: saved state
+    `NoSavedState`, `device_wf()` true) and `microvm.proof.rs` (both
+    devices declared as opaque types); a cfg'd `spec` module and `vstd`
+    import in `microvm.rs`. Both devices' `SaveRestore` impls are
+    `verus_verify` and verify against the trait's contract. Their
+    `restore` takes `_state` instead of the pattern `NoSavedState`
+    (executable; Verus allows only identifier parameters). vmcore:
+    `NoSavedState` declared to Verus (`save_restore.proof.rs`). VMBus
+    recorded as out of scope for the microVM (design doc, "Out of scope for
+    now").
+
+49. **`SaveRestore`'s contract on views** (executable change in `vmcore`
+    and 22 device crates' setup, behavior unchanged; design doc,
+    "`SaveRestore`'s contract on views"): `SaveRestore` gains the
+    supertrait `SaveRestoreView` (normal builds: an empty trait implemented
+    for every type; Verus builds: `View`). The contract
+    (`save_restore.spec.rs`) is stated on the view: `save` keeps
+    `self@` and returns a state whose blob is `blob_of(old(self)@)`; a
+    successful `restore(state)` makes `blob_of(final(self)@)` `state`'s
+    blob; `spec fn blob_of(view)` replaces `spec fn saved_state()`. The
+    blanket `ProtobufSaveRestore` impl's `saved_blob()` is
+    `blob_of(self@)` and still verifies. `ExampleDevice` has a view.
+    The PIT's `blob_of` is `of(view.saved_state())`; the shutdown and
+    snapshot-request ports have view `()` and blob `of(NoSavedState)`
+    (their impls still verify). New macro `vmcore::placeholder_view!`
+    (nothing in normal builds), and a placeholder line before each of the
+    59 other `impl SaveRestore for X` in the crates Verus compiles (in
+    `chipset`, `openvmm_core`, `vmm_core`, and 22 newly Verus-enabled
+    crates: `[package.metadata.verus]`, `vstd`, `build.rs`, a cfg'd
+    `use vstd::prelude::verus as _;`). `chipset_legacy`'s
+    `Winbond83977FloppySioDevice` uses the macro's `external` form.
 
 ### Planned: mesh RPC trusted spec
 

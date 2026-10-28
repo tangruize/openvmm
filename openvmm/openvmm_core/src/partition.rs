@@ -316,6 +316,9 @@ impl VmPartition for WrappedPartition {
     }
 }
 
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExWrappedPartition, WrappedPartition);
+
 impl SaveRestore for WrappedPartition {
     type SavedState = VmSavedState;
 
@@ -398,6 +401,9 @@ impl<T: Processor> Processor for WrappedVp<'_, T> {
         self.0.vtl_inspectable(vtl)
     }
 }
+
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExWrappedVp<'a, T>, WrappedVp<'a, T>);
 
 impl<T: Processor> SaveRestore for WrappedVp<'_, T> {
     type SavedState = VpSavedState;

@@ -6,7 +6,11 @@ name = "pci_core"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 guestmem.workspace = true
 pal_event.workspace = true

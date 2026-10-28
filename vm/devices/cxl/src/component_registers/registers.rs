@@ -457,6 +457,9 @@ mod save_restore {
         InvalidRegister(String),
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExCxlComponentRegisters, CxlComponentRegisters);
+
     impl SaveRestore for CxlComponentRegisters {
         type SavedState = state::SavedState;
 

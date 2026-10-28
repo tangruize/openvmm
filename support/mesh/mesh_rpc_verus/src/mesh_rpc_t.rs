@@ -73,6 +73,13 @@ verus! {
 pub struct ExSender<T>(Sender<T>);
 
 #[cfg(verus_keep_ghost)]
+/// Declares `mesh::error::RemoteError` (an `Rpc`'s remote error) to Verus,
+/// as an opaque type.
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRemoteError(mesh::error::RemoteError);
+
+#[cfg(verus_keep_ghost)]
 /// Declares `mesh::Receiver` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]

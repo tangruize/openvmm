@@ -334,6 +334,9 @@ impl ChangeDeviceState for VpciBus {
     }
 }
 
+// Placeholder view (save/restore not yet specified).
+vmcore::placeholder_view!(pub ExVpciBus, VpciBus);
+
 impl SaveRestore for VpciBus {
     // TODO: support saved state
     type SavedState = NoSavedState;

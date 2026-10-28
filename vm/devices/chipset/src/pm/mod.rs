@@ -659,6 +659,9 @@ mod saved_state {
         }
     }
 
+    // Placeholder view (save/restore not yet specified).
+    vmcore::placeholder_view!(pub ExPowerManagementDevice, PowerManagementDevice);
+
     impl SaveRestore for PowerManagementDevice {
         type SavedState = state::SavedState;
 

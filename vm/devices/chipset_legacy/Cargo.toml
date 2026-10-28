@@ -6,7 +6,11 @@ name = "chipset_legacy"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
+vstd.workspace = true
 chipset_device.workspace = true
 chipset.workspace = true
 chipset_device_resources.workspace = true

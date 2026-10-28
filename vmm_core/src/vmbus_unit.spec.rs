@@ -25,26 +25,42 @@ impl StateUnitSpec for VmbusServerUnit {
     uninterp spec fn running(&self) -> bool;
 }
 
-/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
-/// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// A channel's unit is a proxy: its share of its FracGhost is kept by the
+/// channel's task with the device (`vmbus_channel`'s `Device::keeps_share`),
+/// and the unit passes the halves through its handle, over the channel's
+/// internal channel. Its id is that channel's (the handle's `id()`); its
+/// running flag is its own; it has no state of its own to relate (`wf`).
 impl<T: 'static + VmbusDevice + ?Sized> StateUnitSpec for ChannelUnit<T> {
-    uninterp spec fn wf(&self) -> bool;
+    closed spec fn wf(&self) -> bool {
+        true
+    }
 
-    uninterp spec fn id(&self) -> Loc;
+    closed spec fn id(&self) -> Loc {
+        self.0.id()
+    }
 
-    uninterp spec fn running(&self) -> bool;
+    closed spec fn running(&self) -> bool {
+        self.1@
+    }
 }
 
-/// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
-/// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// A channel's unit is a proxy: its share of its FracGhost is kept by the
+/// channel's task with the device (`vmbus_channel`'s `Device::keeps_share`),
+/// and the unit passes the halves through its handle, over the channel's
+/// internal channel. Its id is that channel's (the handle's `id()`); its
+/// running flag is its own; it has no state of its own to relate (`wf`).
 impl<T: SimpleVmbusDevice> StateUnitSpec for SimpleChannelUnit<T> {
-    uninterp spec fn wf(&self) -> bool;
+    closed spec fn wf(&self) -> bool {
+        true
+    }
 
-    uninterp spec fn id(&self) -> Loc;
+    closed spec fn id(&self) -> Loc {
+        self.0.id()
+    }
 
-    uninterp spec fn running(&self) -> bool;
+    closed spec fn running(&self) -> bool {
+        self.1@
+    }
 }
 
 } // verus!
