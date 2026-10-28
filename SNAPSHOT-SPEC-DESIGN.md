@@ -1399,6 +1399,43 @@ returning the verified async fn's future directly from the unverified
 closure crashes Verus ("`VerusErasureCtxt` has not been initialized"), as
 for the chipset device unit's spawn sites (code change 41).
 
+### The input distributor's initial share
+
+Decided 2026-10-28 (user), code change 57. The input distributor's unit
+keeps its share of its FracGhost in `Inner`'s Verus-only field `ghost`
+(`Tracked<Option<DeviceGhostState>>`): `None` until `InputDistributor::run`
+takes the unit's half from the unit's channel.
+
+**Before:** `InputDistributor::new` (unverified) built `Inner` with
+`ghost: Tracked::assume_new()`, a ghost value made from nothing (any
+value, not necessarily `None`), relying on `run` to overwrite it.
+
+**Why not the partition's fix** ("The partition runner's construction
+order": build the runner inside its task): the distributor must exist
+before its unit is spawned, because its users need it then: `dispatch.rs`
+hands `input_distributor.client()` to the
+device resolvers before `spawn`, and takes the input channel back after the
+unit is removed (`into_inner`). And unlike the partition, the order "take
+the share, then handle requests" is already inside a function in Verus
+(`InputDistributor::run`, contract stated, body to prove), not in an
+unverified closure. Only the made-up ghost was left.
+
+**The change:**
+
+| | Before | After |
+|---|---|---|
+| who builds `Inner` | a struct literal in `InputDistributor::new` | `Inner::new()` (new), called from `InputDistributor::new` at the same point |
+| `Inner`'s fields | `running: false`, two empty forwarders, and (Verus) `ghost: Tracked::assume_new()` | the same `running` and forwarders, and (Verus) `ghost: Inner::no_share()`, which is `Tracked(None)` |
+| verified | nothing (`new` is outside Verus) | `Inner::new()` is verified: ensures `!running` and `ghost@ is None`; `Inner::no_share()` is verified (a Verus-only helper in a `verus!` block, since `Tracked(None)` must be built in `verus!` syntax) |
+
+`Forwarder::new` is declared to Verus (`verus_verify(external_body)`, no
+contract needed). Normal builds: `Inner::new()` builds the same `Inner`
+as the old literal, at the same point, so behavior is unchanged.
+
+**What is left to prove:** `InputDistributor::run` takes the half from the
+channel into `ghost` before any `StateRequest::apply` (its body,
+`external_body` for now).
+
 ### The microVM's units: what is specified
 
 Decided 2026-10-27 (user): after VMBus went out of scope, specify the
@@ -1707,6 +1744,7 @@ change preserves behavior: same results, same order of effects.
 | 54 | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | `TransportRestore`'s validator (a `Box<dyn Fn>`) is wrapped in a new private struct `Validator(DeviceStateValidator)`: built with `Validator(device.device_state_validator())`, called as `(self.restore.validator.0)(..)`. Same validator, same calls (Verus cannot declare a `Box<dyn Fn>`, so as a direct field it would hide `TransportRestore`'s other fields) |
 | 55 | `vmm_core` (`partition_unit.rs`) | `PartitionUnitRunner`'s `topology` field is wrapped in a new private struct `Topology(ProcessorTopology)`: built with `Topology(..)` (also in a test), read as `self.topology.0` (its `vp_count` and its inspect field). Same topology, same uses (Verus cannot declare `ProcessorTopology`: its generic bound needs `AsRef`, which uses an unstable marker). (The two Verus-only lines this change added to the unit's task closure are gone with code change 56.) |
 | **56** | `vmm_core` (`partition_unit.rs`) | **The partition unit's runner is built inside the unit's task, after its channel exists, instead of before `spawn`** (see "The partition runner's construction order" below). `PartitionUnit::new` now computes the runner's parts (`RunnerParts`: the partition, the VP set, the halt and request receivers, the client notifier, the topology, and with `gdb` the debugger state) where it built the runner, in the same order and with the same error (`MissingGuestMemory`); the task (`run_partition_unit`, new) assembles the runner from them (`PartitionUnitRunner::new`, new) and runs it. New private struct `RunnerParts`, functions `PartitionUnitRunner::new` and `run_partition_unit`; the spawn closure is `\|recv\| async move { run_partition_unit(parts, recv).await }`. Same behavior |
+| **57** | `vmm_core` (`input_distributor.rs`) | **The input distributor's `Inner` is built by a new function `Inner::new()`** instead of a struct literal inside `InputDistributor::new` (see "The input distributor's initial share" below). Same fields, same values (`running: false`, two empty forwarders); in Verus builds the share starts as `None` (a new Verus-only helper `Inner::no_share()`), not as a placeholder. `Forwarder::new` gets a cfg'd `verus_verify(external_body)` attribute. Same behavior |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |

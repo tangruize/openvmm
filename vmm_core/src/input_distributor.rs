@@ -74,14 +74,7 @@ impl InputDistributor {
     pub fn new(input: mesh::Receiver<InputData>) -> Self {
         let (client_send, client_recv) = mesh::channel();
         Self {
-            inner: Inner {
-                running: false,
-                keyboard: Forwarder::new(),
-                mouse: Forwarder::new(),
-                // A placeholder: `run` replaces it with the unit's share.
-                #[cfg(verus_keep_ghost)]
-                ghost: Tracked::assume_new(),
-            },
+            inner: Inner::new(),
             recv: input,
             client: InputDistributorClient { send: client_send },
             client_recv,
@@ -236,6 +229,43 @@ struct Inner {
 }
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
+impl Inner {
+    /// A stopped `Inner` with empty forwarders and no share yet (`None`;
+    /// `InputDistributor::run` takes the unit's half from its channel before
+    /// handling any request).
+    #[cfg_attr(verus_keep_ghost, verus_spec(inner =>
+        ensures
+            !inner.running,
+            inner.ghost@ is None,
+    ))]
+    fn new() -> Self {
+        Self {
+            running: false,
+            keyboard: Forwarder::new(),
+            mouse: Forwarder::new(),
+            #[cfg(verus_keep_ghost)]
+            ghost: Inner::no_share(),
+        }
+    }
+}
+
+// Verus only: the share `Inner` starts with.
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl Inner {
+    /// No share yet.
+    fn no_share() -> (share: Tracked<Option<DeviceGhostState>>)
+        ensures
+            share@ is None,
+    {
+        Tracked(None)
+    }
+}
+
+} // verus!
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl StateUnit for Inner {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>))]
@@ -306,6 +336,7 @@ pub struct AddSinkError {
 }
 
 impl<T: 'static + Send> Forwarder<T> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn new() -> Self {
         Self { sinks: Vec::new() }
     }

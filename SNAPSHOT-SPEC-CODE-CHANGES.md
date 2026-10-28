@@ -742,6 +742,18 @@ Baseline: upstream `nanvix/openvmm` commit
     The `async` block works around a Verus crash when an unverified
     closure returns a verified async fn's future directly.
 
+57. **The input distributor's share starts as `None`** (executable change
+    in `vmm_core`, behavior unchanged; decided 2026-10-28, user; design
+    doc, "The input distributor's initial share"). `InputDistributor::new`
+    builds `Inner` with the new `Inner::new()` (verified: `!running`,
+    `ghost@ is None`) instead of a struct literal with the placeholder
+    `Tracked::assume_new()`; the Verus-only `Inner::no_share()` (verified,
+    in a `verus!` block) gives `Tracked(None)`. `Forwarder::new` gets a
+    cfg'd `verus_verify(external_body)`. Not built inside the task like
+    the partition runner (code change 56): the distributor's client is
+    handed out before `spawn`. The order "take the share, then handle
+    requests" is in `InputDistributor::run` (in Verus, body to prove).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
