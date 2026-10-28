@@ -45,6 +45,10 @@ use std::os::fd::AsRawFd;
 use std::sync::Arc;
 use vmcore::line_interrupt::LineInterrupt;
 use vmcore::save_restore::RestoreError;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 /// The driver bound of the MMIO transport constructors. On Linux the driver
 /// must also wait for the accelerated `INTERRUPT_ACK` doorbell.
@@ -375,8 +379,31 @@ impl MmioTransport {
         state
     }
 
+    /// Returns the interrupt status.
+    ///
+    /// Verus (TRUSTED boundary, `external_body`): the result is
+    /// `interrupt_status()`, the status the guest sees (in the shared-status
+    /// mode, the word in guest memory).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result == self.interrupt_status(),
+    ))]
     pub(super) fn read_interrupt_status(&self) -> u32 {
         self.lock_interrupt_state().read_status()
+    }
+
+    /// Restores the saved interrupt status.
+    ///
+    /// Verus (TRUSTED boundary, `external_body`): on success the status is
+    /// `status`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result is Ok ==> final(self).interrupt_status() == status,
+    ))]
+    pub(super) fn restore_interrupt_status(&mut self, status: u32) -> Result<(), RestoreError> {
+        self.interrupt_state.lock().restore_status(status)
     }
 
     pub(super) fn reset_interrupt_state(&self) {

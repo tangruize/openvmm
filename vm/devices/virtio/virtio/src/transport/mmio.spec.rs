@@ -104,11 +104,17 @@ impl View for QueueData {
 }
 
 impl MmioTransport {
-    /// The interrupt status register (TRUSTED: uninterpreted). It is in
-    /// `interrupt_state`, behind a lock shared with the device task's
-    /// interrupt closures and the acknowledgement worker, and in the
-    /// accelerated mode in guest memory (`shared_status`); see the design
-    /// doc, "Open TODOs" (the virtio-MMIO interrupt-state protocol).
+    /// The interrupt status the guest sees (TRUSTED boundary:
+    /// uninterpreted). In the shared-status mode (the microVM's) it is a
+    /// 32-bit word in guest memory at `status_gpa`, which the device sets
+    /// and the guest reads and clears directly; in the legacy modes, the
+    /// `status` field behind `interrupt_state`'s lock. The trusted
+    /// contracts of `read_interrupt_status` and `restore_interrupt_status`
+    /// (`transport/mmio/interrupt.rs`) say how `save` reads it and
+    /// `restore` sets it; otherwise only the guest (while
+    /// its VPs run) and the device task's interrupts (while the device runs)
+    /// change it. See the design doc, "virtio-MMIO's interrupt status: the
+    /// guest-memory boundary".
     pub uninterp spec fn interrupt_status(&self) -> u32;
 }
 

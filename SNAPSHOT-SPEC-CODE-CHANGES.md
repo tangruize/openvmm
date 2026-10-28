@@ -754,6 +754,19 @@ Baseline: upstream `nanvix/openvmm` commit
     handed out before `spawn`. The order "take the share, then handle
     requests" is in `InputDistributor::run` (in Verus, body to prove).
 
+58. **virtio-MMIO's interrupt status: a guest-memory boundary** (small
+    executable changes in `virtio`, behavior unchanged; decided
+    2026-10-28, user; design doc, "virtio-MMIO's interrupt status: the
+    guest-memory boundary"). The microVM's virtio-MMIO devices use the
+    shared-status interrupt mode, where the status is a word in guest
+    memory. `MmioTransport::interrupt_status()` (uninterpreted) is that
+    value, with trusted contracts (`external_body`) on
+    `read_interrupt_status` (returns it) and the new
+    `restore_interrupt_status` (sets it on `Ok`). Executable: `restore`'s
+    inline block (lock, `restore_status`) moved into
+    `restore_interrupt_status`, so that it can carry a contract. The lock protocol for the legacy modes (not the
+    microVM's) stays a TODO, now with the acknowledgement-worker race.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

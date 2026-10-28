@@ -524,10 +524,7 @@ mod saved_state {
             )?;
 
             // Restore MMIO-specific interrupt state.
-            {
-                let mut is = self.mmio.interrupt_state.lock();
-                is.restore_status(state.interrupt_status)?;
-            }
+            self.mmio.restore_interrupt_status(state.interrupt_status)?;
 
             Ok(())
         }

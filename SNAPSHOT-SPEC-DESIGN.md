@@ -1458,6 +1458,53 @@ as the old literal, at the same point, so behavior is unchanged.
 channel into `ghost` before any `StateRequest::apply` (its body,
 `external_body` for now).
 
+### virtio-MMIO's interrupt status: the guest-memory boundary
+
+Decided 2026-10-28 (user), code change 58.
+
+**Where the status lives.** A virtio-MMIO transport is created in one of
+three interrupt modes (`VirtioMmioInterruptMode`, chosen by its creator;
+the accelerated acknowledgements are automatic on Linux when available):
+
+| Mode | The status is | Its writers |
+|---|---|---|
+| `Legacy` (the default) | `InterruptState.status`, a field in OpenVMM's memory behind a lock | the transport (guest acknowledgement writes, `restore`, reset), the device task's interrupt closures |
+| `Legacy` with accelerated acknowledgements | the same | the same, and the acknowledgement worker task |
+| `SharedStatus { status_gpa }` | a 32-bit word **in guest memory** at `status_gpa` (`SharedInterruptStatus`), which the device sets and the guest's driver reads and clears directly, without trapping into OpenVMM | the device (through `SharedInterruptStatus::update`, a compare-and-swap loop on the word), and the guest |
+
+**The microVM always uses `SharedStatus`** (`dispatch/microvm.rs`,
+`microvm_virtio_status_gpa`). So for the microVM the interrupt status is a
+word of guest memory.
+
+**The boundary.** Rather than ignore that word (guest RAM is otherwise
+out of scope), the spec treats it as one abstract value,
+`MmioTransport::interrupt_status()` (uninterpreted), with trusted contracts
+on the two transport functions that decide what `save` returns and what
+`restore` leaves:
+
+| Function | Trusted contract | Used by |
+|---|---|---|
+| `read_interrupt_status(&self)` | returns `interrupt_status()` | `save`, guest reads of `INTERRUPT_STATUS` |
+| `restore_interrupt_status(&mut self, s)` (new) | on `Ok`, `interrupt_status() == s` | `restore` |
+
+(`reset_interrupt_state`, which `restore` calls first, needs no contract:
+`restore_interrupt_status` sets the final status after it.)
+
+Also trusted: otherwise only the guest (while its VPs run) and the device
+task's interrupts (while the device runs) change it, so it is stable while
+the VM is stopped. With these, virtio-MMIO's `save` and `restore` can be
+proved against the view (which holds `interrupt_status()`); what is trusted
+is only the guest-memory access (`GuestMemory`, in
+`SharedInterruptStatus::update`) and that the guest does not run while
+stopped. The same contracts hold in the legacy modes (the value is then
+the locked field), but there they are a stand-in for the lock protocol
+(TODO in "Other open items").
+
+**Code change (58):** `restore`'s inline block (lock the interrupt state,
+`restore_status`) moved into the new `MmioTransport::restore_interrupt_status`
+(same calls, same lock, same order), so that it can carry a contract: a
+contract can only be attached to a function. Behavior unchanged.
+
 ### The microVM's units: what is specified
 
 Decided 2026-10-27 (user): after VMBus went out of scope, specify the
@@ -1491,7 +1538,7 @@ device's `save` / `restore` are checked rather than trusted, its
 | `pic` | done (generic) | done (`DualPicView`: two PICs' registers and roles; `view.saved_state()`, without `primary`; `wf()`: ICW2's low bits zero, the first PIC primary) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `ioapic` | done (generic) | done (`IoApicView`: ID, index, entries' bits, line levels; its saved state's view is the state's meaning: empty `line_levels` as all low, pending interrupts delivered; `saved_view` delivers pending interrupts; `wf()`: one level per entry) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `rtc` | done (generic) | done (`RtcView`: `addr`, CMOS bytes, the transaction mask; its saved state's view is the same, without the time fields `clock_time_millis` and `time_valid`; `wf()`: no transaction) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
-| virtio-mmio | done (generic) | done (`VirtioMmioView`: the transport's saved registers, feature banks, queues' configuration and progress, the inner device's captured private state, the interrupt status; also its saved state's view; `saved_view` keeps all, with the private state to save; `wf()`: two feature banks). **Trusted accessor** (TODO below): the interrupt status | contract on the trait impl (`verus_verify`, bodies `external_body`); needs code changes 52 and 53 |
+| virtio-mmio | done (generic) | done (`VirtioMmioView`: the transport's saved registers, feature banks, queues' configuration and progress, the inner device's captured private state, the interrupt status; also its saved state's view; `saved_view` keeps all, with the private state to save; `wf()`: two feature banks). **Trusted boundary**: the interrupt status (a guest-memory word in the microVM; see "virtio-MMIO's interrupt status: the guest-memory boundary") | contract on the trait impl (`verus_verify`, bodies `external_body`); needs code changes 52 and 53; the interrupt status through the guest-memory boundary (code change 58) |
 
 **Saved states that hold a `Vec`**: resolved 2026-10-27 by comparing saved
 states by their views ("`SaveRestore`'s contract on views"): a saved
@@ -1767,6 +1814,7 @@ change preserves behavior: same results, same order of effects.
 | 55 | `vmm_core` (`partition_unit.rs`) | `PartitionUnitRunner`'s `topology` field is wrapped in a new private struct `Topology(ProcessorTopology)`: built with `Topology(..)` (also in a test), read as `self.topology.0` (its `vp_count` and its inspect field). Same topology, same uses (Verus cannot declare `ProcessorTopology`: its generic bound needs `AsRef`, which uses an unstable marker). (The two Verus-only lines this change added to the unit's task closure are gone with code change 56.) |
 | **56** | `vmm_core` (`partition_unit.rs`) | **The partition unit's runner is built inside the unit's task, after its channel exists, instead of before `spawn`** (see "The partition runner's construction order" below). `PartitionUnit::new` now computes the runner's parts (`RunnerParts`: the partition, the VP set, the halt and request receivers, the client notifier, the topology, and with `gdb` the debugger state) where it built the runner, in the same order and with the same error (`MissingGuestMemory`); the task (`run_partition_unit`, new) assembles the runner from them (`PartitionUnitRunner::new`, new) and runs it. New private struct `RunnerParts`, functions `PartitionUnitRunner::new` and `run_partition_unit`; the spawn closure is `\|recv\| async move { run_partition_unit(parts, recv).await }`. Same behavior |
 | **57** | `vmm_core` (`input_distributor.rs`) | **The input distributor's `Inner` is built by a new function `Inner::new()`** instead of a struct literal inside `InputDistributor::new` (see "The input distributor's initial share" below). Same fields, same values (`running: false`, two empty forwarders); in Verus builds the share starts as `None` (a new Verus-only helper `Inner::no_share()`), not as a placeholder. `Forwarder::new` gets a cfg'd `verus_verify(external_body)` attribute. Same behavior |
+| 58 | `vm/devices/virtio/virtio` (`transport/mmio.rs`, `transport/mmio/interrupt.rs`) | `restore`'s inline interrupt-status block (lock, `restore_status`) moved into a new `MmioTransport::restore_interrupt_status(&mut self, status)` (same lock, same call, same order), so that it can carry a contract. Trusted boundary contracts on it and `read_interrupt_status` (see "virtio-MMIO's interrupt status: the guest-memory boundary"). Same behavior |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
@@ -2415,34 +2463,20 @@ important first.
   requests after stopping the VPs, so the halt reason is settled at
   `stop`.
 
-- **TODO, not done: the virtio-MMIO interrupt-state protocol** (2026-10-28,
-  user). The interrupt status is in `MmioTransport::interrupt_state`, an
-  `Arc<parking_lot::Mutex<InterruptState>>` with three concurrent writers:
-  the transport (guest register writes, `restore`), the device task
-  through the queue and configuration interrupt closures
-  (`Interrupt::from_fn`, `transport/mmio.rs`), and the acknowledgement
-  worker (accelerated mode, `transport/mmio/interrupt.rs`); in the
-  accelerated mode the status is also in guest memory (`shared_status`;
-  guest RAM is out of scope). For now virtio-MMIO's view reads it through
-  an uninterpreted accessor, `MmioTransport::interrupt_status()`
-  (TRUSTED).
-
-  **Why this one is still trusted** (unlike `TransportRestore::captured()`
-  and the feature and status bits, which are now defined; see the next
-  item):
-
-  | | `captured()`, feature / status bits | `interrupt_status()` |
-  |---|---|---|
-  | where the value is | in the device's own fields | behind `Arc<Mutex<..>>`, shared with two other threads; in the accelerated mode, in guest memory |
-  | why it was opaque | a field type Verus could not declare (`Box<dyn Fn>`), or bits private to another crate | a view may only read the device's own state; a lock's contents belong to whoever holds the lock, and other threads change them |
-  | what fixed / would fix it | a small wrapper struct; an accessor in the owning crate | a ghost protocol: who may change the status and when (like the units' FracGhost shares), passed through the interrupt closures; and a decision on guest memory (out of scope) |
-  | size | a few lines each (done) | a design of its own (this TODO) |
-
-  Design to write: a FracGhost-style protocol for the status
-  (the transport's half and the lock's, the writers' updates while
-  running, the transport's whole while stopped, like the units' shares),
-  including ghost state passed through the interrupt closures; and what
-  the accelerated mode's guest-memory status means for the view.
+- **TODO, not done: the virtio-MMIO interrupt-state lock protocol, for the
+  legacy modes (not used by the microVM).** In the legacy interrupt modes
+  the status is `InterruptState.status`, behind
+  `Arc<parking_lot::Mutex<InterruptState>>`, written by the transport, the
+  device task's interrupt closures, and (legacy with accelerated acks, on
+  Linux) the acknowledgement worker. To verify it: a lock with an
+  invariant (an executable type change, as for `StateUnits`, code change
+  9) and a FracGhost share for the status (the lock's half and the
+  transport's, the transport's half in the lock while the device runs),
+  with ghost state through the interrupt closures. Also to check there: a
+  guest acknowledgement written just before `stop` may be handled by the
+  acknowledgement worker after `stop`, changing the status of a stopped
+  device. The microVM uses the shared-status mode ("virtio-MMIO's
+  interrupt status: the guest-memory boundary"), so neither applies to it.
 - **virtio-MMIO's other accessors**: resolved 2026-10-28 (user), now
   defined, not trusted. `TransportRestore::captured()` is a closed spec
   function on the real field (`transport/core/restore.rs`): the validator,
