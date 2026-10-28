@@ -11,10 +11,11 @@
 // - `new(value)` gives a blob whose view is `SavedStateBlobView::of(value)`.
 // - A successful `parse::<T>()` returns a `value` whose `of(value)` is the
 //   blob's view. (`parse::<T>` fails unless the blob's type URL is `T`'s.)
-// - `of::<T>` identifies exactly the values that are equal except for time
-//   (`equal_except_time`): each saved-state type's protobuf encoding loses
-//   nothing, so decoding returns the value that was encoded, and the view
-//   forgets only guest time, which is out of the spec's scope.
+// - `of(value)` is `of_view::<T>(value@)`: a blob is determined by the
+//   saved state's view, which keeps every field but guest time (out of the
+//   spec's scope; each saved-state type's view is reviewed for this).
+// - `of_view::<T>` is injective: each saved-state type's protobuf encoding
+//   loses nothing, so decoding returns a value with the view encoded.
 // - A clone encodes the same value.
 //
 // Nothing is assumed across types: `of::<T>(a)` and `of::<U>(b)` are
@@ -181,21 +182,20 @@ pub assume_specification[ <SavedStateBlob as Clone>::clone ](blob: &SavedStateBl
 ;
 
 impl SavedStateBlobView {
-    /// AXIOM: encoding a saved-state value loses nothing but time.
+    /// AXIOM: a saved state's blob is determined by its view.
     #[verifier::external_body]
-    pub broadcast proof fn axiom_of_injective<T>(a: T, b: T)
+    pub broadcast proof fn axiom_of_is_of_view<T: SavedStateRoot + View>(value: T)
         ensures
-            #[trigger] SavedStateBlobView::of(a) == #[trigger] SavedStateBlobView::of(b)
-                ==> SavedStateBlobView::equal_except_time(a, b),
+            #[trigger] SavedStateBlobView::of(value) == SavedStateBlobView::of_view::<T>(value@),
     {
     }
 
-    /// AXIOM: the view forgets time.
+    /// AXIOM: encoding loses nothing of the view.
     #[verifier::external_body]
-    pub broadcast proof fn axiom_of_forgets_time<T>(a: T, b: T)
+    pub broadcast proof fn axiom_of_view_injective<T: View>(a: T::V, b: T::V)
         ensures
-            #[trigger] SavedStateBlobView::equal_except_time(a, b)
-                ==> SavedStateBlobView::of(a) == SavedStateBlobView::of(b),
+            #[trigger] SavedStateBlobView::of_view::<T>(a)
+                == #[trigger] SavedStateBlobView::of_view::<T>(b) ==> a == b,
     {
     }
 }

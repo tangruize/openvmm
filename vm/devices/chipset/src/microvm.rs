@@ -607,6 +607,7 @@ impl PortIoIntercept for MicrovmPortb {
 
 // Placeholder view (save/restore not yet specified).
 vmcore::placeholder_view!(pub ExMicrovmPortb, MicrovmPortb);
+vmcore::placeholder_view!(saved MicrovmPortbSavedState);
 
 impl SaveRestore for MicrovmPortb {
     type SavedState = MicrovmPortbSavedState;

@@ -1752,6 +1752,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExConfigSpaceType0Emulator, ConfigSpaceType0Emulator);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for ConfigSpaceType0Emulator {
         type SavedState = state::SavedState;

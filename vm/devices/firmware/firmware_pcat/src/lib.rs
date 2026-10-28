@@ -1115,6 +1115,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExPcatBiosDevice, PcatBiosDevice);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for PcatBiosDevice {
         type SavedState = state::SavedState;

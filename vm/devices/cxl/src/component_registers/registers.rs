@@ -459,6 +459,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExCxlComponentRegisters, CxlComponentRegisters);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for CxlComponentRegisters {
         type SavedState = state::SavedState;

@@ -93,11 +93,25 @@ pub use spec::SaveRestoreView;
 /// Verus builds: declares the `SaveRestore` type `$t` to Verus (as the
 /// opaque type `$ex`) and gives it the placeholder view `()`, for a device
 /// whose save/restore is not yet specified (`SaveRestore` needs a view).
-/// For a generic type, name its parameters on `$ex`, e.g.
+/// `placeholder_view!(saved T)` gives the saved-state type `T` of such a
+/// device a placeholder view, also outside Verus (`SaveRestore::SavedState`
+/// needs a view). For a generic type, name its parameters on `$ex`, e.g.
 /// `placeholder_view!(pub ExFoo<T>, Foo<T>)`. Expands to nothing in normal
 /// builds.
 #[macro_export]
 macro_rules! placeholder_view {
+    (saved $t:ty) => {
+        // Outside `verus!`, so external to Verus: only rustc needs it (the
+        // device's `SaveRestore` impl, outside `verus!`, names the type).
+        #[cfg(verus_keep_ghost)]
+        impl ::vstd::prelude::View for $t {
+            type V = $t;
+
+            fn view(&self) -> $t {
+                unreachable!()
+            }
+        }
+    };
     (external [$($gen:tt)*] $t:ty) => {
         // Outside `verus!`, so external to Verus: only rustc needs it.
         #[cfg(verus_keep_ghost)]
@@ -148,7 +162,7 @@ macro_rules! placeholder_view {
 /// type that can be serialized as a protobuf message.
 pub trait SaveRestore: SaveRestoreView {
     /// The concrete saved state type.
-    type SavedState;
+    type SavedState: SaveRestoreView;
 
     /// Saves the object's state.
     fn save(&mut self) -> Result<Self::SavedState, SaveError>;
@@ -158,6 +172,15 @@ pub trait SaveRestore: SaveRestoreView {
 
 /// Convenience type for objects that do not support being saved.
 pub enum SavedStateNotSupported {}
+
+// Verus builds: `SaveRestore::SavedState` needs a view; no values, so an
+// empty one. Outside `verus!` (only rustc needs it).
+#[cfg(verus_keep_ghost)]
+impl View for SavedStateNotSupported {
+    type V = ();
+
+    fn view(&self) {}
+}
 
 impl DefaultEncoding for SavedStateNotSupported {
     type Encoding = ImpossibleField;
@@ -213,6 +236,12 @@ impl SavedStateBlob {
     pub fn encoded_len(&self) -> usize {
         self.0.value_len()
     }
+}
+
+// The blanket impl below relates a saved state's blob to its view.
+#[cfg(verus_keep_ghost)]
+verus! {
+    broadcast use spec::SavedStateBlobView::axiom_of_is_of_view;
 }
 
 // Verified against `ProtobufSaveRestore`'s contract

@@ -14,8 +14,9 @@ verus! {
 ///
 /// Its saved state (`SavedState`: the VM time it stopped at and the host
 /// time it stopped at) is all time, which is out of the spec's scope, so
-/// the view has only the running flag, and every saved state the keeper
-/// returns has the same blob view, `saved_blob()`.
+/// the view has only the running flag, the saved state's view is `()`, and
+/// every saved state the keeper returns has the same blob view,
+/// `saved_blob()`.
 pub struct VmTimeKeeperView {
     /// Whether VM time runs (between `start` and `stop`).
     pub running: bool,
@@ -23,10 +24,19 @@ pub struct VmTimeKeeperView {
 
 impl VmTimeKeeperView {
     /// The view of the keeper's saved-state blob: the same for every
-    /// `SavedState`, since a blob's view forgets time
-    /// (`SavedState::axiom_all_time`, `vmtime_t.rs`).
+    /// `SavedState`, whose view is `()`.
     pub open spec fn saved_blob() -> SavedStateBlobView {
-        SavedStateBlobView::of(arbitrary::<SavedState>())
+        SavedStateBlobView::of_view::<SavedState>(())
+    }
+}
+
+/// vmtime's saved state is all time (`vmtime`, `stop_host_time`), which is
+/// out of the spec's scope: its view is empty.
+impl View for SavedState {
+    type V = ();
+
+    open spec fn view(&self) -> () {
+        ()
     }
 }
 

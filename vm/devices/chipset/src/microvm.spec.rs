@@ -7,7 +7,6 @@ use super::MicrovmShutdown;
 use super::MicrovmSnapshotRequest;
 use vmcore::save_restore::NoSavedState;
 use vmcore::save_restore::spec::SaveRestoreSpecImpl;
-use vmcore::save_restore::spec::SavedStateBlobView;
 use vstd::prelude::*;
 
 verus! {
@@ -23,8 +22,8 @@ impl View for MicrovmShutdown {
 }
 
 impl SaveRestoreSpecImpl for MicrovmShutdown {
-    open spec fn blob_of(view: ()) -> SavedStateBlobView {
-        SavedStateBlobView::of(NoSavedState)
+    open spec fn saved_view(view: ()) -> NoSavedState {
+        NoSavedState
     }
 
     open spec fn device_wf(&self) -> bool {
@@ -44,8 +43,8 @@ impl View for MicrovmSnapshotRequest {
 }
 
 impl SaveRestoreSpecImpl for MicrovmSnapshotRequest {
-    open spec fn blob_of(view: ()) -> SavedStateBlobView {
-        SavedStateBlobView::of(NoSavedState)
+    open spec fn saved_view(view: ()) -> NoSavedState {
+        NoSavedState
     }
 
     open spec fn device_wf(&self) -> bool {

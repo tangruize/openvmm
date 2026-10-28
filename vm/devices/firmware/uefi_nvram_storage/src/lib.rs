@@ -244,6 +244,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExBox, Box<dyn VmmNvramStorage<SavedState = NvramSavedState>>);
+    vmcore::placeholder_view!(saved NvramSavedState);
 
     impl SaveRestore for Box<dyn VmmNvramStorage<SavedState = NvramSavedState>> {
         type SavedState = NvramSavedState;

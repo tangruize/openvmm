@@ -1094,6 +1094,7 @@ impl ChangeDeviceState for SmmuDevice {
 
 // Placeholder view (save/restore not yet specified).
 vmcore::placeholder_view!(pub ExSmmuDevice, SmmuDevice);
+vmcore::placeholder_view!(saved state::SavedState);
 
 impl SaveRestore for SmmuDevice {
     type SavedState = state::SavedState;

@@ -27,20 +27,22 @@ pub struct ExSaveError(SaveError);
 #[verifier::external_body]
 pub struct ExRestoreError(RestoreError);
 
-/// The abstract value of a saved-state blob: the typed saved state it
-/// encodes, independent of its protobuf encoding. A blob that encodes
-/// `value: T` has view `SavedStateBlobView::of(value)`.
+/// The abstract value of a saved-state blob: the view of the typed saved
+/// state it encodes, independent of its protobuf encoding. A blob that
+/// encodes `value: T` has view `SavedStateBlobView::of(value)`, which is
+/// `of_view::<T>(value@)`: a blob is determined by the saved state's view.
 ///
-/// The view forgets guest time, which is out of the spec's scope
-/// (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope for now"): for the saved-state
-/// types of the units that keep guest time (the partition's VPs: TSC and
-/// LAPIC timers; vmtime; the RTC's clock), values that differ only in their
-/// time fields have the same view. For other types it forgets nothing.
+/// A saved-state type's view keeps every field except guest time, which is
+/// out of the spec's scope (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope for
+/// now"): the time-keeping units' time fields (the partition's VPs: TSC
+/// and LAPIC timers; vmtime; the RTC's clock) are not in their saved
+/// states' views. Each saved-state type's view is reviewed for this (in its
+/// `.spec.rs`); a type not yet specified has its identity view.
 ///
 /// The trusted contract (`save_restore_t.rs`): `SavedStateBlob::new(value)`
 /// has view `of(value)`; a successful `parse::<T>()` returns a `value` with
-/// `of(value)` equal to the blob's view; and `of(a) == of(b)` exactly when
-/// `a` and `b` are equal except for time (`equal_except_time`).
+/// `of(value)` equal to the blob's view; `of(value)` is
+/// `of_view::<T>(value@)`; and `of_view::<T>` is injective.
 #[verifier::external_body]
 pub struct SavedStateBlobView {
     _private: (),
@@ -50,12 +52,9 @@ impl SavedStateBlobView {
     /// The view of a blob that encodes `value`, of saved-state type `T`.
     pub uninterp spec fn of<T>(value: T) -> SavedStateBlobView;
 
-    /// `a` and `b` differ at most in their time fields. Equality for a type
-    /// without time fields; for the time-keeping units' types, equality
-    /// except the TSC and LAPIC timer state (the partition's VPs), the VM
-    /// time and its stop time (vmtime), and the clock (the RTC). Trusted per
-    /// type.
-    pub uninterp spec fn equal_except_time<T>(a: T, b: T) -> bool;
+    /// The view of a blob that encodes a saved state of type `T` whose view
+    /// is `view`.
+    pub uninterp spec fn of_view<T: View>(view: T::V) -> SavedStateBlobView;
 }
 
 impl View for SavedStateBlob {
@@ -89,21 +88,24 @@ impl UnitSnapshot {
     }
 }
 
-/// What `SaveRestore`'s contract needs of an object: a view. Every
-/// `SaveRestore` type has one (the trait's supertrait, in Verus builds).
-/// A specified device's view is its snapshotable state; a device not yet
-/// specified has the placeholder view `()`.
+/// What `SaveRestore`'s contract needs of an object and of its saved
+/// state: a view. Every `SaveRestore` type and every saved-state type has
+/// one (the trait's supertrait and `SavedState`'s bound, in Verus builds).
+/// A specified device's view is its abstract state; a device not yet
+/// specified has the placeholder view `()`. A saved-state type's view is
+/// its fields without time; one not yet specified has its identity view.
 pub trait SaveRestoreView: View {}
 
 impl<T: View + ?Sized> SaveRestoreView for T {}
 
 /// The contract of every `SaveRestore` implementation (the unit-side
-/// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`). `save`
-/// does not change the object's view, and returns a saved state that
-/// encodes to the view's blob (`blob_of(view)`); after a successful
-/// `restore(state)`, the view's blob is the encoding of `state`.
+/// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`), on views:
+/// `save` does not change the object's view, and returns a saved state
+/// whose view is `saved_view(view)`; after a successful `restore(state)`,
+/// `saved_view(view)` is `state`'s view. No blobs: those are generic
+/// (`ProtobufSaveRestore`).
 ///
-/// `blob_of` is defined by each specified implementation (in
+/// `saved_view` is defined by each specified implementation (in
 /// `SaveRestoreSpecImpl`); unverified implementations are trusted to meet
 /// the contract.
 #[verifier::external_trait_specification]
@@ -111,11 +113,12 @@ impl<T: View + ?Sized> SaveRestoreView for T {}
 pub trait ExSaveRestore: SaveRestoreView {
     type ExternalTraitSpecificationFor: SaveRestore;
 
-    type SavedState;
+    type SavedState: SaveRestoreView;
 
-    /// The saved state of an object with view `view`, encoded: the blob of
-    /// what its `save` returns.
-    spec fn blob_of(view: <Self as View>::V) -> SavedStateBlobView;
+    /// The view of the saved state of an object with view `view`: what its
+    /// `save` returns, as a view. (Projects out what the object does not
+    /// save, e.g. static configuration.)
+    spec fn saved_view(view: <Self as View>::V) -> <Self::SavedState as View>::V;
 
     /// Well formed: what a valid object of this type satisfies (its view's
     /// `inv()` and the properties of its other fields), defined by each
@@ -128,7 +131,7 @@ pub trait ExSaveRestore: SaveRestoreView {
         ensures
             final(self).device_wf(),
             final(self)@ == old(self)@,
-            result matches Ok(state) ==> SavedStateBlobView::of(state) == Self::blob_of(old(self)@),
+            result matches Ok(state) ==> state@ == Self::saved_view(old(self)@),
     ;
 
     fn restore(&mut self, state: Self::SavedState) -> (result: Result<(), RestoreError>)
@@ -136,7 +139,7 @@ pub trait ExSaveRestore: SaveRestoreView {
             old(self).device_wf(),
         ensures
             final(self).device_wf(),
-            result is Ok ==> Self::blob_of(final(self)@) == SavedStateBlobView::of(state),
+            result is Ok ==> Self::saved_view(final(self)@) == state@,
     ;
 }
 
@@ -147,7 +150,8 @@ pub trait ExSaveRestore: SaveRestoreView {
 ///
 /// Given through `ProtobufSaveRestoreSpec`, as for `SaveRestore`. The
 /// blanket implementation for `SaveRestore` types is verified against it,
-/// with `saved_blob()` the blob of the object's view (`blob_of(self@)`)
+/// with `saved_blob()` the blob of the object's saved view
+/// (`of_view(saved_view(self@))`)
 /// (`save_restore.proof.rs`); the other implementations
 /// (`ChipsetDeviceProxy`, `BoundVp`, `ErasedChipsetDevice`) are trusted to
 /// meet it.

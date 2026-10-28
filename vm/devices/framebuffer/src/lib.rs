@@ -342,6 +342,7 @@ impl ChipsetDevice for FramebufferDevice {}
 
 // Placeholder view (save/restore not yet specified).
 vmcore::placeholder_view!(pub ExFramebufferDevice, FramebufferDevice);
+vmcore::placeholder_view!(saved SavedState);
 
 impl SaveRestore for FramebufferDevice {
     type SavedState = SavedState;

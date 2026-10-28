@@ -564,6 +564,46 @@ Baseline: upstream `nanvix/openvmm` commit
     `use vstd::prelude::verus as _;`). `chipset_legacy`'s
     `Winbond83977FloppySioDevice` uses the macro's `external` form.
 
+50. **Saved states compared by their views; the PIC and the RTC
+    specified** (one executable change in `vmcore`, behavior unchanged;
+    design doc, "`SaveRestore`'s contract on views"):
+    `SaveRestore::SavedState` gets the bound `SaveRestoreView` (normal
+    builds: implemented for every type). The contract compares views:
+    `save`'s result has view `saved_view(old(self)@)`; after a successful
+    `restore(state)`, `saved_view(final(self)@) == state@`; `spec fn
+    saved_view(view)` replaces `blob_of(view)`. Blobs are generic only:
+    `ProtobufSaveRestore`'s blanket `saved_blob()` is
+    `of_view(saved_view(self@))`, verified with a module-level `broadcast
+    use` of the new link axiom. Trusted (`save_restore_t.rs`):
+    `SavedStateBlobView::of_view` (new), `axiom_of_is_of_view` (a blob is
+    determined by its saved state's view) and `axiom_of_view_injective`
+    replace `equal_except_time`, `axiom_of_injective`,
+    `axiom_of_forgets_time`; `vmtime_t.rs` (`axiom_all_time`) removed,
+    vmtime's `SavedState` has view `()`. Views: `NoSavedState` (itself,
+    Verus-declared), `SavedStateNotSupported` (`()`, cfg'd plain impl in
+    `save_restore.rs`), `ExampleDevice`'s `saved_view`. Placeholder
+    saved-state views: `placeholder_view!(saved T)` (identity, outside
+    `verus!`) after 45 device placeholders, two in `chipset_legacy`
+    (Winbond), and in `virt` for `VmSavedState` / `VpSavedState` (x86,
+    aarch64). The PIT and the PIC: saved-state view the identity,
+    `saved_view = view.saved_state()`. The ports: `saved_view(()) =
+    NoSavedState`.
+    New PIC spec (`pic/mod.spec.rs`, `pic/mod.proof.rs`, a cfg'd `spec`
+    module inside `pic::save_restore`): `PicView` / `DualPicView`, `inv()`
+    (ICW2's low bits zero; the first PIC primary), `wf()`, `saved_view`;
+    `DualPic`, `Ocw3`, the saved `SavedState`, and `IRQ_MASK` are
+    `verus_verify` (cfg'd attributes); the `SaveRestore` impl is
+    `verus_verify` with `external_body` methods; narrow cfg'd imports of
+    `verus_spec` / `verus_verify`.
+    New RTC spec (`cmos_rtc.spec.rs`, `cmos_rtc.proof.rs`, a cfg'd
+    `verus_spec` module inside `cmos_rtc::save_restore`; not `spec`, the
+    RTC's register module): `RtcView` (`addr`, CMOS bytes, transaction
+    mask; no time), `inv()` (no transaction), `wf()`, the saved state's
+    view `RtcView` (without `clock_time_millis`, `time_valid`),
+    `saved_view` the identity; `Rtc`, `RtcState`, `CmosData` are
+    `verus_verify`; the `SaveRestore` impl is `verus_verify` with
+    `external_body` methods.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

@@ -435,6 +435,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExIoApicDevice, IoApicDevice);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for IoApicDevice {
         type SavedState = state::SavedState;

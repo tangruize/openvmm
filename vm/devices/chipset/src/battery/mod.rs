@@ -326,6 +326,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExBatteryDevice, BatteryDevice);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for BatteryDevice {
         type SavedState = state::SavedState;

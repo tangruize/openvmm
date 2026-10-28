@@ -32,6 +32,15 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExNoSavedState(NoSavedState);
 
+/// `NoSavedState`'s view is itself.
+impl View for NoSavedState {
+    type V = NoSavedState;
+
+    open spec fn view(&self) -> NoSavedState {
+        *self
+    }
+}
+
 // `inspect`'s traits, declared to Verus here, in a crate every user of them
 // depends on (`StateUnit` and `VmbusDevice` have `InspectMut` as a
 // supertrait; units reached through `&X` get it from `Inspect`).
@@ -99,8 +108,9 @@ impl View for ExampleDevice {
 }
 
 impl super::SaveRestoreSpecImpl for ExampleDevice {
-    closed spec fn blob_of(view: u64) -> SavedStateBlobView {
-        SavedStateBlobView::of(view)
+    /// It saves its register.
+    closed spec fn saved_view(view: u64) -> u64 {
+        view
     }
 
     /// Every value of the register is valid.
@@ -109,12 +119,12 @@ impl super::SaveRestoreSpecImpl for ExampleDevice {
     }
 }
 
-/// The blob of a `SaveRestore` object is its view's.
+/// The blob of a `SaveRestore` object is that of its saved view.
 impl<T: SaveRestore> super::ProtobufSaveRestoreSpecImpl for T where
     T::SavedState: 'static + Send + SavedStateRoot,
  {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
-        T::blob_of(self@)
+        SavedStateBlobView::of_view::<T::SavedState>(T::saved_view(self@))
     }
 
     open spec fn device_wf(&self) -> bool {

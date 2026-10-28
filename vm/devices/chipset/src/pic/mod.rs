@@ -18,6 +18,10 @@ use inspect_counters::Counter;
 use std::num::Wrapping;
 use vmcore::device_state::ChangeDeviceState;
 use vmcore::line_interrupt::LineInterrupt;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 const PRIMARY_PIC_COMMAND_PORT: u16 = 0x20;
 const PRIMARY_PIC_DATA_PORT: u16 = 0x21;
@@ -30,12 +34,14 @@ const SECONDARY_PIC_ELCR_PORT: u16 = 0x4d1;
 const PIC_CHAIN_COMMUNICATION_IRQ: u8 = 2;
 
 /// Mask for the IRQ vector within an individual PIC.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 const IRQ_MASK: u8 = 0b111;
 
 /// The spurious IRQ offset within an individual PIC.
 const SPURIOUS_IRQ: u8 = 7;
 
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct DualPic {
     // Runtime glue
     ready: LineInterrupt,
@@ -532,6 +538,7 @@ struct Ocw2 {
 
 #[derive(Inspect)]
 #[bitfield(u8)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 /// Operation Command Word 3
 struct Ocw3 {
     /// Read Selector
@@ -565,6 +572,20 @@ mod save_restore {
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
+    #[cfg(verus_keep_ghost)]
+    use vstd::prelude::*;
+
+    /// Verus specification of the PIC. Inside `save_restore`, so that it
+    /// can name the saved-state types.
+    #[cfg(verus_keep_ghost)]
+    pub(crate) mod spec {
+        include!("mod.spec.rs");
+
+        /// Declarations supporting the spec.
+        pub(crate) mod proof {
+            include!("mod.proof.rs");
+        }
+    }
 
     mod state {
         use mesh::payload::Protobuf;
@@ -572,6 +593,7 @@ mod save_restore {
 
         #[derive(Protobuf, SavedStateRoot)]
         #[mesh(package = "chipset.pic")]
+        #[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
         pub struct SavedState {
             #[mesh(1)]
             pub(super) primary: SavedPic,
@@ -680,12 +702,12 @@ mod save_restore {
         }
     }
 
-    // Placeholder view (save/restore not yet specified).
-    vmcore::placeholder_view!(pub ExDualPic, DualPic);
-
+    // Verified against `SaveRestore`'s contract (`mod.spec.rs`).
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl SaveRestore for DualPic {
         type SavedState = state::SavedState;
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
             let Self {
                 ready: _,
@@ -700,6 +722,7 @@ mod save_restore {
             })
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
             let state::SavedState { primary, secondary } = state;
             primary

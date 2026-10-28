@@ -246,6 +246,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExPs2Keyboard, Ps2Keyboard);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for Ps2Keyboard {
         type SavedState = state::SavedState;

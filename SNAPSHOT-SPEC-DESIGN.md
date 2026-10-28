@@ -364,9 +364,9 @@ time and the RTC) and holds the VPs stopped until the VM first starts.
 
 The clock restore changes only guest time (the partition's TSCs and LAPIC
 timers, VM time, the RTC's clock), which is out of the spec's scope ("Out of
-scope for now", guest time): the units' views leave it out
-(`SavedStateBlobView::of` forgets the time fields of the time-keeping units'
-saved states; `equal_except_time`). So in the view a restore gives back
+scope for now", guest time): the units' views leave it out (the
+time-keeping units' saved-state views have no time fields, and a blob is
+determined by its saved state's view, `of_view`). So in the view a restore gives back
 exactly the saved state, for every unit, also after a time ABI restore; the
 clock restore changes nothing in the view. (Until 2026-10-27 the view named
 the units the clock restore changes, `time_units` and `clock_units`, and the
@@ -490,7 +490,8 @@ state outside its mutex: the PIT's `VmTimeAccess` (its timer deadlines are
 in vmtime's shared timer state), and interrupt line levels (in the line
 sets). Changes there do not go through the device's mutex; they are the
 cross-unit effects already listed (per-pin resources; vmtime as its own
-unit). So a device's `saved_state()` should be defined over what it owns.
+unit). So a device's view, and its `saved_view(view)`, should be defined over
+what it owns.
 
 **The rule** (agreed 2026-10-26):
 
@@ -588,7 +589,10 @@ partition), which need modelling.
 *Superseded 2026-10-27* ("Chipset devices: the share in the device's
 lock"): the PIT's ghost field, `DeviceGhost`, and its lock invariant are
 retired; its view, `saved_state()`, and entry-point contracts stay. Kept
-below as the record of the first device worked through.
+below as the record of the first device worked through. (Later, 2026-10-27,
+"`SaveRestore`'s contract on views": the trait's `saved_state()` became
+`saved_view(view)`, the view of the saved state, at first named
+`blob_of(view)`; the PIT's `saved_view` is `view.saved_state()`.)
 
 - **The shared ghost field** (`vm/vmcore/src/device_state.spec.rs`): a
   device keeps one Verus-only field of type `DeviceGhostState` (`frac`, its
@@ -732,17 +736,17 @@ Moved to its own section: "Recipe: verifying another device".
 What a state unit must do for the request protocol to hold, layer by layer,
 from the device up.
 
-1. **Device: `SaveRestore`** (`vm/vmcore`). *Attached.* Stated on the
-   device's view (see "`SaveRestore`'s contract on views"): `save` keeps
-   the view (`final(self)@ == old(self)@`) and returns a state whose blob
-   is `blob_of(old(self)@)`; a successful `restore(state)` makes
-   `blob_of(final(self)@)` the blob of `state`. `blob_of(view)` is a spec
-   function each specified implementation defines. Given in
+1. **Device: `SaveRestore`** (`vm/vmcore`). *Attached.* Stated on views,
+   with no blobs (see "`SaveRestore`'s contract on views"): `save` keeps
+   the device's view (`final(self)@ == old(self)@`) and returns a state
+   whose view is `saved_view(old(self)@)`; a successful `restore(state)`
+   makes `saved_view(final(self)@)` equal to `state@`. `saved_view(view)` is
+   a spec function each specified implementation defines. Given in
    `vm/vmcore/src/save_restore.spec.rs` with `external_trait_specification`
    and `external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)`
-   (vstd's pattern for `Iterator`); the view comes from the trait's
-   Verus-only supertrait `SaveRestoreView: View`. Example: `ExampleDevice`
-   (`save_restore.proof.rs`) verifies.
+   (vstd's pattern for `Iterator`); the views come from the trait's
+   Verus-only supertrait `SaveRestoreView: View` and `SavedState`'s bound.
+   Example: `ExampleDevice` (`save_restore.proof.rs`) verifies.
 2. **Blob: `ProtobufSaveRestore`** (blanket impl for `SaveRestore` types).
    *Attached and verified* (2026-10-27): `external_trait_specification` +
    `external_trait_extension(ProtobufSaveRestoreSpec via
@@ -750,12 +754,13 @@ from the device up.
    with `saved_blob()` the encoded snapshotable state; the blanket impl
    (`save_restore.rs`, now `verus_verify`, its bodies rewritten without the
    closure and `?`) is verified against it, with `saved_blob() ==
-   blob_of(self@)` (`save_restore.proof.rs`). Negative check: a
+   of_view(saved_view(self@))` (`save_restore.proof.rs`): the only place a
+   device's saved state meets its blob. Negative check: a
    `restore` that ignores the decoded state fails. The other
    implementations (`ChipsetDeviceProxy`, `BoundVp`,
    `ErasedChipsetDevice`) are trusted to meet it. `save` returns a blob with view
-   `blob_of(old@)`; a successful `restore(blob)` leaves
-   `blob_of(self@) == blob@`. Follows from layer 1 and the `SavedStateBlob`
+   `of_view(saved_view(old@))`; a successful `restore(blob)` leaves
+   `of_view(saved_view(self@)) == blob@`. Follows from layer 1 and the `SavedStateBlob`
    contract.
 3. **State unit: `StateUnit`** (async trait, `vmm_core/state_unit`).
    *Stated, not attached.* Through the unit's `UnitSnapshot`: `save` returns
@@ -764,7 +769,7 @@ from the device up.
    `Saved(blob@)`; `stop` leaves the unit stopped with its state stable;
    `reset` and `advance_time` may change it. For a chipset device
    (`ArcMutexChipsetDeviceUnit`, `vmm_core/vmotherboard`), the snapshot is
-   `NoSavedState` if `omit_saved_state`, else `Saved(blob_of(device@))` of
+   `NoSavedState` if `omit_saved_state`, else `Saved(device.saved_blob())` of
    its device.
 4. **Request loop: `run_unit` / `StateRequest::apply`**. *Stated, not
    attached* for the production units. The unit answers each request by
@@ -798,15 +803,17 @@ Concerns:
 - **`run_async_unit`** handles concurrent `Inspect` requests while a state
   change runs, with the unit as `&T`: interior mutability, and the
   assumption that inspects do not change saved state.
-- **The device's blob is a function of its view** (`blob_of(view)`),
-  resolved 2026-10-27: the view is the device's snapshotable state.
-- **Deterministic `save`**: the contract makes `save`'s result (its blob)
-  a function of the view. A device whose saved state includes something
-  else (time, counters that `save` itself advances) must model it in its
-  view, or does not meet the contract.
-- **`restore(s)` then `blob_of(self@)` is `s`'s blob**: a device that
+- **The device's saved state is a function of its view**
+  (`saved_view(view)`), resolved 2026-10-27.
+- **Deterministic `save`**: the contract makes `save`'s result (its view)
+  a function of the device's view. A device whose saved state includes
+  something else (counters that `save` itself advances) must model it in
+  its view, or does not meet the contract. Time is not such a thing: it is
+  not in saved-state views.
+- **`restore(s)` then `saved_view(self@) == s@`**: a device that
   normalizes or only partly restores a saved state does not meet the
-  contract as stated.
+  contract as stated, unless the normalized part is outside the saved
+  state's view (the RTC's `time_valid`: time).
 - **`save` takes `&mut self`** (e.g. `WrappedVp::save` flushes async
   requests); the contract says the view is unchanged.
 - **Devices behind `CloseableMutex`**: while running, vCPUs change them
@@ -883,8 +890,8 @@ the chipset unit, the input distributor (no saved state), and the time
 keeper; each keeps its share in a ghost field of the unit, which only the
 unit's task changes. The time keeper's saved state is all time, so its
 view is only its running flag and its snapshot one constant,
-`Saved(VmTimeKeeperView::saved_blob())` (trusted: vmtime's saved states
-are all equal except time, `vmtime_t.rs`).
+`Saved(VmTimeKeeperView::saved_blob())` (vmtime's saved state has the
+view `()`, so all its blobs are one, `of_view(())`).
 
 Decided 2026-10-27 (user): a unit whose state is shared with other code
 that changes it keeps its share with that state, under the state's own
@@ -1202,7 +1209,7 @@ Constructors become `CloseableMutex::new(DeviceSlot::new(dev))`.
 `ghost` and `id` fields and its constructor's placeholders, its
 `DeviceGhost` and `LockInvariant` impls, `PitDeviceView::snapshot`, its
 `StateUnitDevice` impl and the four `example_*` protocol walk-throughs
-(`pit/mod.proof.rs`). Kept: its view, `saved_state()`, `SaveRestoreSpecImpl`,
+(`pit/mod.proof.rs`). Kept: its view, `PitDeviceView::saved_state`, `SaveRestoreSpecImpl`,
 `wf()` (now the view's invariant only), and its entry points' contracts
 (without the ghost clauses). What the PIT work found stays: the Verus
 patches (0001 to 0005), the `SavedStateBlob` contract, and the
@@ -1219,7 +1226,7 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
   invariant is `device.device_wf()` and the share rule, so every lock
   holder gets it and must keep it; `save` and `restore` require and keep
   it. Each device defines it when it is specified (the PIT: its `wf()`);
-  for the others it is unspecified, as their `saved_state()` is.
+  for the others it is unspecified, as their `saved_view` is.
 - **The dispatch layer's obligation**: code that changes a device under
   its lock (the vCPU I/O dispatch, line sets, the unit's poll) must hold
   the whole share and update it (`Saved(device.saved_blob())` after the
@@ -1233,34 +1240,54 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
 
 ### `SaveRestore`'s contract on views
 
-Decided 2026-10-27 (user): state `SaveRestore`'s contract on the device's
-view, once, on the trait (option A below). Replaces the contract over
-`saved_state()`, the typed saved state, which compared saved states with
-`==`: a saved state holding a `Vec` (portb, the IOAPIC, virtio-mmio) cannot
-be built in spec, and two `Vec`s with equal views are not provably `==`, so
-`save` could never meet it. Comparisons are between views.
+Decided 2026-10-27 (user), in two steps: first state the contract on the
+device's view (option A below, code change 49), then compare saved states
+by their views too, with no blobs at the device level (code change 50).
+Replaces the contract over `saved_state()`, the typed saved state, which
+compared saved states with `==`: a saved state holding a `Vec` (portb, the
+IOAPIC, virtio-mmio) cannot be built in spec, and two `Vec`s with equal
+views are not provably `==`, so `save` could never meet it. Comparisons
+are between views.
 
 **The contract** (`save_restore.spec.rs`):
 
 ```
-spec fn blob_of(view: <Self as View>::V) -> SavedStateBlobView;  // per device
+spec fn saved_view(view: <Self as View>::V) -> <Self::SavedState as View>::V;  // per device
 save:    final(self)@ == old(self)@
-         result matches Ok(s) ==> of(s) == Self::blob_of(old(self)@)
-restore: result is Ok ==> Self::blob_of(final(self)@) == of(state)
+         result matches Ok(s) ==> s@ == Self::saved_view(old(self)@)
+restore: result is Ok ==> Self::saved_view(final(self)@) == state@
 (both require and keep device_wf())
 ```
 
-`blob_of` makes the blob a function of the view, so a `save` that keeps
-the view keeps the blob (the blanket `ProtobufSaveRestore` impl verifies
-with no proof hints). Each device's own contracts say more on its view
-(the PIT's `save_device`: the result is `old(self)@.saved_state()`).
+`saved_view` projects the device's view onto what it saves: some of a
+device's state is not saved (the PIC's `primary`, the PIT's `time_abi`:
+static configuration), and the saved form may use other types or names.
+A device's own contracts can say more (the PIT's `restore_device` keeps
+`time_abi`).
 
-**Where the view comes from.** `SaveRestore` gets the supertrait
-`SaveRestoreView`: in Verus builds `SaveRestoreView: View` (blanket for
-every `T: View`); in normal builds an empty trait implemented for every
-type (code change 49). The spec cannot add the bound itself: an
-`external_trait_specification` cannot add bounds the real trait lacks, nor
-give implementations an associated type (both tried).
+**Blobs only in generic code.** A device's spec never mentions blobs.
+The blob appears in `ProtobufSaveRestore`'s blanket impl, whose
+`saved_blob()` is `of_view::<T::SavedState>(T::saved_view(self@))`
+(verified with the link fact below), and above it in the units and
+`LoadedVm`, all generic.
+
+**Where the views come from.** `SaveRestore` gets the supertrait
+`SaveRestoreView` (code change 49) and `SavedState` the bound
+`SaveRestoreView` (code change 50): in Verus builds `View`; in normal
+builds an empty trait implemented for every type. The spec cannot add
+these bounds itself: an `external_trait_specification` cannot add bounds
+the real trait lacks, nor give implementations an associated type (both
+tried).
+
+**A saved state's view and time.** A saved-state type's view keeps every
+field except guest time (out of scope): the RTC's saved-state view has no
+`clock_time_millis` or `time_valid`; vmtime's is `()` (all time). The
+trusted encode/decode contract (`save_restore_t.rs`) says a blob is
+determined by its saved state's view (`of(v) == of_view::<T>(v@)`) and
+that `of_view` is injective. So "time is out of scope" is "time is not in
+the saved-state views", reviewed per saved-state type in its `.spec.rs`;
+this replaces `equal_except_time` and its per-type axioms (vmtime's
+`axiom_all_time`, removed).
 
 **Options considered:**
 
@@ -1268,30 +1295,37 @@ give implementations an associated type (both tried).
 |---|---|---|
 | A (chosen) | `View` as `SaveRestore`'s (Verus-only) supertrait; the contract on `self@` | every `SaveRestore` type compiled in Verus runs needs a view; the ~10 microVM devices get real views, the others placeholders |
 | B | no supertrait; the generic contract blob-only, views only in each device's own contracts | rejected: "save keeps the view" said per device instead of once |
+| `blob_of(view)` (code change 49) | the device's blob as a function of its view | superseded by `saved_view`: needed a per-type time axiom (the RTC) and could not handle `Vec`s |
 | predicate `is_saved_state(&self, state)` | judge a saved state on views | rejected: needs a `forall` to say `save` keeps it, and `choose` to define the blob |
 | `SavedStateBlobView` as the typed saved state | | rejected: a blob is not interpretable |
 | trusted "`Vec`s with equal views are `==`" | | rejected: compare views instead |
 
 **Placeholder views.** Every `impl SaveRestore for X` compiled when Verus
-runs (the 12 verified crates and their dependencies) needs `X: View`: 63
-impls in 27 crates, found by the compiler. The microVM's devices get real
-views; the others get the placeholder view `()` from vmcore's
+runs (the 12 verified crates and their dependencies) needs `X: View` and
+`X::SavedState: View`: 63 impls in 27 crates, found by the compiler. The
+microVM's devices get real views; the others placeholders from vmcore's
 `placeholder_view!` macro, a line before the impl:
 
 - `placeholder_view!(pub ExX, X)` (or `ExX<T>, X<T>` for a generic type)
-  declares `X` to Verus as an opaque type and gives it the view `()`.
+  declares the device `X` to Verus as an opaque type and gives it the
+  view `()`.
 - `placeholder_view!(external[FDC: Bound] X<FDC>)` gives `X` the view `()`
   in a plain Rust impl outside `verus!` (so external to Verus), without
-  declaring `X` to Verus; used
-  where declaring `X` would need its bounds' traits declared too
-  (`chipset_legacy`'s `Winbond83977FloppySioDevice`). Verus never sees `X`'s
-  `SaveRestore` impl (it is outside `verus!`), so it needs no view there.
+  declaring `X` to Verus; used where declaring `X` would need its bounds'
+  traits declared too (`chipset_legacy`'s `Winbond83977FloppySioDevice`).
+- `placeholder_view!(saved T)` gives the saved-state type `T` its identity
+  view (`V = T`), outside `verus!`. Verus does not see these devices'
+  `SaveRestore` impls (outside `verus!`), so neither needs a view there; an
+  identity view is complete, as a saved-state view must be. The partition's
+  `VmSavedState` and `VpSavedState` have theirs in `virt` (orphan rule).
+  `NoSavedState`'s view is itself; `SavedStateNotSupported` (no values)
+  has the view `()`, outside `verus!`.
 
-A placeholder makes `final(self)@ == old(self)@` trivially true: the
-contract says nothing about that device, as before (its `blob_of` is
-unspecified). A placeholder is replaced by a real view when the device is
-specified. Not in the 12 crates' dependency graph, so untouched: the other
-16 crates with `SaveRestore` impls (e.g. `underhill_core`, `nvme`,
+A device placeholder makes `final(self)@ == old(self)@` trivially true:
+the contract says nothing about that device, as before (its `saved_view`
+is unspecified). A placeholder is replaced by a real view when the device
+is specified. Not in the 12 crates' dependency graph, so untouched: the
+other 16 crates with `SaveRestore` impls (e.g. `underhill_core`, `nvme`,
 `tpm_device`).
 
 Verus-enabled for this (code change 49), 22 crates: `amd_iommu`,
@@ -1302,13 +1336,19 @@ Verus-enabled for this (code change 49), 22 crates: `amd_iommu`,
 `vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core`. Their
 vstd import is `use vstd::prelude::verus as _;`, not the glob: the glob's
 `int` type turned a closure parameter named `int` into a pattern
-(`vfio_assigned_device`).
+(`vfio_assigned_device`; the PIC's top-level import is narrow for the
+same reason).
 
-**Still to do (portb, the IOAPIC, virtio-mmio):** their saved states hold
-`Vec`s, so `blob_of` cannot be `of(value)`; it needs the blob of a saved
-state given the saved state's view, and the per-type protobuf fact that a
-saved state's blob depends only on its view (trusted: `of` is the encoding
-abstraction). To design with the first of them.
+**Open:**
+
+- **The partition's VP saved state** (`virt`'s `VpSavedState`) has the
+  placeholder identity view, so its TSC and LAPIC-timer fields are not yet
+  left out. Its unit (`PartitionUnitRunner`) is uninterpreted, so nothing
+  depends on it yet; its real view (without time) comes with the
+  partition's spec.
+- **The PIT's `last`** (a `VmTime`, the time up to which the timers were
+  evaluated) is in its saved-state view. Is it guest time, to be left out
+  like the RTC's clock? To decide with the time scope.
 
 ### The microVM's units: what is specified
 
@@ -1322,12 +1362,13 @@ saved inventory (`openvmm_helpers/src/snapshot/microvm.rs`, e.g. line
 each a chipset device `VirtioMmioDevice` wrapping the virtio device.
 
 A chipset device's unit is `ArcMutexChipsetDeviceUnit` (its spec is
-generic, through `DeviceSlot`); what remains per device is its view and
-its `SaveRestoreSpecImpl` (`blob_of(view)`, `device_wf()`) and, so that the
+generic, through `DeviceSlot`); what remains per device is its view, its
+saved state's view, and its `SaveRestoreSpecImpl` (`saved_view(view)`,
+`device_wf()`) and, so that the
 device's `save` / `restore` are checked rather than trusted, its
 `SaveRestore` impl inside Verus.
 
-| Unit | Unit's spec | Device's view, `blob_of` / `device_wf` | Device's `save` / `restore` |
+| Unit | Unit's spec | Device's view, `saved_view` / `device_wf` | Device's `save` / `restore` |
 |---|---|---|---|
 | `vmtime` | done (`KeeperUnit`) | n/a | n/a |
 | `time-abi` | done (`TimeAbiUnit`) | n/a | n/a |
@@ -1335,18 +1376,18 @@ device's `save` / `restore` are checked rather than trusted, its
 | `chipset` | done (`ChipsetUnit`) | n/a (no state) | n/a |
 | `lines/*` | done (`LineSetUnit`) | n/a (no state) | n/a |
 | `partition` | **uninterpreted** (`PartitionUnitRunner`) | n/a (VPs: hypervisor state, trusted) | n/a |
-| `pit` | done (generic) | done (`PitDeviceView`; `of(view.saved_state())`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
-| `microvm-shutdown` | done (generic) | done: view `()`, `of(NoSavedState)`, `true` | **verified** (impl is `verus_verify`) |
-| `microvm-snapshot-request` | done (generic) | done: view `()`, `of(NoSavedState)`, `true` | **verified** (impl is `verus_verify`) |
+| `pit` | done (generic) | done (`PitDeviceView`; `view.saved_state()`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
+| `microvm-shutdown` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
+| `microvm-snapshot-request` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
 | `microvm-portb` | done (generic) | **open** (placeholder view): saved state holds `Vec<u8>`s | open |
-| `pic` | done (generic) | open (placeholder view; `DualPic`, fixed-size fields) | open |
+| `pic` | done (generic) | done (`DualPicView`: two PICs' registers and roles; `view.saved_state()`, without `primary`; `wf()`: ICW2's low bits zero, the first PIC primary) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `ioapic` | done (generic) | **open** (placeholder view): saved state holds `Vec`s | open |
-| `rtc` | done (generic) | open (placeholder view; `Rtc`, `[u8; 256]`, a clock: time fields) | open |
+| `rtc` | done (generic) | done (`RtcView`: `addr`, CMOS bytes, the transaction mask; its saved state's view is the same, without the time fields `clock_time_millis` and `time_valid`; `wf()`: no transaction) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | virtio-mmio | done (generic) | **open** (placeholder view): `VirtioMmioDevice`'s saved state holds a `Vec` and the inner device's `SavedStateBlob` | open |
 
-**Saved states that hold a `Vec`**: resolved 2026-10-27 by stating the
-contract on views ("`SaveRestore`'s contract on views"); the blob of such a
-state is still to design (same section, "Still to do").
+**Saved states that hold a `Vec`**: resolved 2026-10-27 by comparing saved
+states by their views ("`SaveRestore`'s contract on views"): a saved
+state's view holds `Seq`s for its `Vec`s.
 
 ### Where the halves come from
 
@@ -1615,6 +1656,7 @@ change preserves behavior: same results, same order of effects.
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
+| 50 | `vm/vmcore` | **`SaveRestore::SavedState` gains the bound `SaveRestoreView`** (`type SavedState: SaveRestoreView;`; normal builds: an empty trait every type implements, so no impl changes) |
 
 **Dependencies and build**
 
@@ -1636,7 +1678,7 @@ Updated 2026-10-27 for "Chipset devices: the share in the device's lock".
 A chipset device's unit and its share are generic now
 (`ArcMutexChipsetDeviceUnit`, `DeviceSlot`); what is left per device is its
 device-level spec. The PIT's files are the example: `pit/mod.spec.rs`
-(view, `blob_of`, `wf()`), `pit/mod.proof.rs` (declarations), and
+(view, `saved_view`, `wf()`), `pit/mod.proof.rs` (declarations), and
 `pit/mod.rs` (entry points).
 
 1. **Crate setup** (once per crate): `[package.metadata.verus] verify =
@@ -1648,22 +1690,28 @@ device-level spec. The PIT's files are the example: `pit/mod.spec.rs`
    its state types with their fields visible (for the view), its runtime
    glue as opaque types, and its saved-state types with their fields
    visible.
-3. **View and `blob_of`**: a view of the snapshotable state (and the
-   configuration that affects `save` / `restore`), its `inv()`, and
-   `SaveRestoreSpecImpl::blob_of(view)`, the blob of the saved state of a
-   device with that view. Replace the device's `placeholder_view!` line.
-   Say what the view leaves out (state that is not saved).
+3. **Views and `saved_view`**: a view of the snapshotable state (and the
+   configuration that affects `save` / `restore`), its `inv()`; a view of
+   the saved-state type (its fields without time; `Seq`s for `Vec`s); and
+   `SaveRestoreSpecImpl::saved_view(view)`, the saved state's view of a
+   device with that view. Replace the device's two `placeholder_view!`
+   lines. Say what the views leave out (state that is not saved; time).
+   Put the spec module where it can see the saved-state types (the PIC's
+   and the RTC's are inside their `save_restore` modules).
 4. **`SaveRestore`'s contract**: `save` keeps the view and returns a state
-   with blob `blob_of(view)`; a successful `restore(s)` makes
-   `blob_of(view)` `s`'s blob. The snapshot follows (`ProtobufSaveRestore`'s
-   blanket impl, `DeviceSnapshot`); no per-device ghost.
+   whose view is `saved_view(view)`; a successful `restore(s)` makes
+   `saved_view(view)` equal to `s@`. Mark the trait impl `verus_verify`,
+   its methods `external_body` until proved. The snapshot follows
+   (`ProtobufSaveRestore`'s blanket impl, `DeviceSnapshot`); no
+   per-device ghost.
 5. **Entry points with contracts**, where needed: inherent methods holding
    the trait methods' bodies (Verus cannot add contracts to a foreign
    trait's impl methods), keeping `wf()`.
 6. **Device-specific gaps**: activity of its own to stop; `advance_time`
    (like the RTC) or `quiesce_input` / `resume_input`; cross-device effects
    (interrupt lines it drives, vmtime timers); a `restore` that normalizes
-   the saved state (breaks "`blob_of(view)` is `s`'s blob"); saved-state roots using
+   the saved state (breaks "`saved_view(view) == s@`", unless only time is
+   normalized); saved-state roots using
    the derive's `transparent` or `prost` mode.
 7. **Proofs** (proof phase): remove `external_body`.
 
@@ -2016,9 +2064,9 @@ What Stage 2 still needs, found by comparing the prototype with
   anchor, the host clocks' meaning and monotonicity, the hypervisor's TSC
   set and LAPIC advance, the controller's validated time inputs, vmtime's
   saved stop time), so it is not worthwhile for now. How it is kept out:
-  the units' views leave time out (`SavedStateBlobView::of` forgets the
-  time fields of the time-keeping units' saved states:
-  `equal_except_time`, trusted per type), so every equality claim is about
+  the units' views leave time out (the time-keeping units' saved-state
+  views have no time fields, and a blob is determined by its saved state's
+  view, `of_view`), so every equality claim is about
   everything but time, and the clock restore changes nothing in the view;
   the time capture (`TimeCapture`, the VM-time cut) is unconstrained. What
   it would need, if taken up: a trusted

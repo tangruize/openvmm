@@ -623,6 +623,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExGenericPcieSwitch, GenericPcieSwitch);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for GenericPcieSwitch {
         type SavedState = state::SavedState;

@@ -1,0 +1,4 @@
+(std::boxed::Box<A120_E0>, std::boxed::Box<A121_E1>, std::boxed::Box<A122_E2>, std::boxed::Box<A123_E3>)
+(std::boxed::Box<A120_E0>, std::boxed::Box<A121_E1>, std::boxed::Box<A122_E2>, std::boxed::Box<A123_E3>, std::boxed::Box<A124_E4>)
+(std::boxed::Box<A120_E0>, std::boxed::Box<A121_E1>, std::boxed::Box<A122_E2>, std::boxed::Box<A123_E3>, std::boxed::Box<A124_E4>, std::boxed::Box<A125_E5>)
+(std::boxed::Box<A120_E0>, std::boxed::Box<A121_E1>, std::boxed::Box<A122_E2>, std::boxed::Box<A123_E3>, std::boxed::Box<A124_E4>, std::boxed::Box<A125_E5>, std::boxed::Box<A126_E6>)

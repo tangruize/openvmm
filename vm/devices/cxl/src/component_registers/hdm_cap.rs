@@ -501,6 +501,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExCxlHdmDecoderCapability, CxlHdmDecoderCapability);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for CxlHdmDecoderCapability {
         type SavedState = state::SavedState;

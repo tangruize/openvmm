@@ -593,6 +593,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExGenericPciBus, GenericPciBus);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for GenericPciBus {
         type SavedState = state::SavedState;

@@ -32,11 +32,6 @@ pub mod spec {
     mod proof {
         include!("vmtime.proof.rs");
     }
-
-    /// Trusted: vmtime's saved state is all time.
-    mod trusted {
-        include!("vmtime_t.rs");
-    }
 }
 
 #[cfg(verus_keep_ghost)]

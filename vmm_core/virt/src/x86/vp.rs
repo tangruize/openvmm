@@ -1999,6 +1999,10 @@ state_trait! {
     (200, "nested_state", nested_state, set_nested_state, NestedState),
 }
 
+// Placeholder view of the partition's saved state (save/restore not yet
+// specified; `SaveRestore::SavedState` needs a view).
+vmcore::placeholder_view!(saved VpSavedState);
+
 impl VpSavedState {
     /// Removes the saved TSC, so restoring this state leaves the VP's TSC to
     /// the NVX time ABI's synchronized TSC set.

@@ -495,6 +495,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExPiix4Pm, Piix4Pm);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for Piix4Pm {
         type SavedState = state::SavedState;

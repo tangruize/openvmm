@@ -328,6 +328,8 @@ mod save_restore {
     vmcore::placeholder_view!(
         external[FDC: MaybeStubFloppyDiskController] Winbond83977FloppySioDevice<FDC>
     );
+    vmcore::placeholder_view!(saved state::StubSavedState);
+    vmcore::placeholder_view!(saved state::FullSavedState);
 
     macro_rules! impl_save_restore {
         ($saved_sate:ident, $ty:path) => {

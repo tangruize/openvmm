@@ -148,3 +148,7 @@ state_trait!(
         ReferenceTscPage,
     ),
 );
+
+// Placeholder view of the partition's saved state (save/restore not yet
+// specified; `SaveRestore::SavedState` needs a view).
+vmcore::placeholder_view!(saved VmSavedState);

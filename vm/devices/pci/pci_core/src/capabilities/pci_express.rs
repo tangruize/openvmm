@@ -814,6 +814,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExPciExpressCapability, PciExpressCapability);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for PciExpressCapability {
         type SavedState = state::SavedState;

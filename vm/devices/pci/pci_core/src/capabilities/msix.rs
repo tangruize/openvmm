@@ -557,6 +557,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExMsixCapability, MsixCapability);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for MsixCapability {
         type SavedState = state::SavedState;

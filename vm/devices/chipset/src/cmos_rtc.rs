@@ -34,6 +34,10 @@ use vmcore::vmtime::VmTime;
 use vmcore::vmtime::VmTimeAccess;
 use vmcore::vmtime::VmTimeSource;
 use vmcore::vmtime::VmTimerPeriodic;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 mod spec {
     //! Definitions pulled directly from the CMOS RTC spec sheet.
@@ -149,6 +153,7 @@ open_enum::open_enum! {
 /// Newtype around `[u8; 256]` that only supports indexing via [`CmosReg`]
 #[derive(Debug, Clone, Inspect)]
 #[inspect(transparent)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct CmosData(#[inspect(hex, iter_by_index)] [u8; 256]);
 
 impl CmosData {
@@ -173,6 +178,7 @@ impl std::ops::IndexMut<CmosReg> for CmosData {
 
 /// CMOS RTC device
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct Rtc {
     // Static configuration
     century_reg: CmosReg,
@@ -197,6 +203,7 @@ pub struct Rtc {
 }
 
 #[derive(Debug, Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct RtcState {
     addr: u8,
     cmos: CmosData,
@@ -954,6 +961,19 @@ mod save_restore {
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
 
+    /// Verus specification of the RTC. Inside `save_restore`, so that it can
+    /// name the saved-state type. (Not `spec`: that is the RTC's register
+    /// definitions.)
+    #[cfg(verus_keep_ghost)]
+    pub(crate) mod verus_spec {
+        include!("cmos_rtc.spec.rs");
+
+        /// Declarations supporting the spec.
+        pub(crate) mod proof {
+            include!("cmos_rtc.proof.rs");
+        }
+    }
+
     mod state {
         use mesh::payload::Protobuf;
         use vmcore::save_restore::SavedStateRoot;
@@ -978,12 +998,12 @@ mod save_restore {
         }
     }
 
-    // Placeholder view (save/restore not yet specified).
-    vmcore::placeholder_view!(pub ExRtc, Rtc);
-
+    // Verified against `SaveRestore`'s contract (`cmos_rtc.spec.rs`).
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl SaveRestore for Rtc {
         type SavedState = state::SavedState;
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
             let RtcState { addr, ref cmos, .. } = self.state;
 
@@ -998,6 +1018,7 @@ mod save_restore {
             Ok(saved_state)
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
             let fields = snapshot::Fields::validate(&state)?;
             let state::SavedState { addr, cmos, .. } = state;

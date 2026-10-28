@@ -571,6 +571,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExCxlDeviceDevsecExtendedCapability, CxlDeviceDevsecExtendedCapability);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for CxlDeviceDevsecExtendedCapability {
         type SavedState = state::SavedState;

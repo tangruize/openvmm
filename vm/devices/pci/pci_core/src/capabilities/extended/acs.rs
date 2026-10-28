@@ -129,6 +129,7 @@ mod save_restore {
 
     // Placeholder view (save/restore not yet specified).
     vmcore::placeholder_view!(pub ExAcsExtendedCapability, AcsExtendedCapability);
+    vmcore::placeholder_view!(saved state::SavedState);
 
     impl SaveRestore for AcsExtendedCapability {
         type SavedState = state::SavedState;

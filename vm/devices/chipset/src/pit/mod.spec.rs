@@ -10,7 +10,6 @@ use super::save_restore::state::SavedCountState;
 use super::save_restore::state::SavedState;
 use super::save_restore::state::SavedTimerState;
 use vmcore::save_restore::spec::SaveRestoreSpecImpl;
-use vmcore::save_restore::spec::SavedStateBlobView;
 use vmcore::vmtime::VmTime;
 use vstd::prelude::*;
 
@@ -89,10 +88,20 @@ impl PitDevice {
     }
 }
 
-/// The PIT's blob is its view's saved state, encoded.
+/// The PIT's saved state has no time-free projection to make: its view
+/// is the value itself.
+impl View for SavedState {
+    type V = SavedState;
+
+    open spec fn view(&self) -> SavedState {
+        *self
+    }
+}
+
+/// The PIT saves its view's saved state.
 impl SaveRestoreSpecImpl for PitDevice {
-    closed spec fn blob_of(view: PitDeviceView) -> SavedStateBlobView {
-        SavedStateBlobView::of(view.saved_state())
+    closed spec fn saved_view(view: PitDeviceView) -> SavedState {
+        view.saved_state()
     }
 
     /// The PIT is well formed (`wf()`).
