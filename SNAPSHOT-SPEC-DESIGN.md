@@ -1386,7 +1386,7 @@ device's `save` / `restore` are checked rather than trusted, its
 | `input` | done | n/a (no state) | n/a |
 | `chipset` | done (`ChipsetUnit`) | n/a (no state) | n/a |
 | `lines/*` | done (`LineSetUnit`) | n/a (no state) | n/a |
-| `partition` | **uninterpreted** (`PartitionUnitRunner`) | n/a (VPs: hypervisor state, trusted) | n/a |
+| `partition` | done (`PartitionUnitRunner`: its share in a ghost field, set by `attach_share` from its channel; its snapshot is its saved state's blob: the partition's (`VmPartition`'s `ProtobufSaveRestore`), the VPs' (**trusted**: `VpSet::saved_vps`, until the VP layer), the encoded halt reason; running while started; `run` has a contract) | n/a (not a `SaveRestore` device; the hypervisor state is trusted) | `run`, `attach_share`: contracts, `external_body` |
 | `pit` | done (generic) | done (`PitDeviceView`; `view.saved_state()`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
 | `microvm-shutdown` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
 | `microvm-snapshot-request` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
@@ -1667,6 +1667,7 @@ change preserves behavior: same results, same order of effects.
 | **53** | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | **Behavior change, small. Scope: every virtio device (net, console, fs, block, ...) on both the MMIO and the PCI transport.** `restore(D)` puts the device's private state `D` in the **captured** slot too, not only the **staged** one (`TransportRestore::stage`, one added line). Before, `save` (which reads the captured slot) after a `restore(D)` and before the next `start` did not see `D`: after a fresh VM or a reset (OpenVMM's flows) it **failed** ("device state was not captured"); after a `stop` with no reset (no OpenVMM flow today) it returned the state from **before** the restore. Now it returns `D`. `start` and reset are unchanged (they clear the captured slot; `start` hands `D` to the device task). Cost: one blob copy per restore. Why: `SaveRestore`'s contract (after `restore(state)`, the device saves `state`). For OpenVMM developers: `verus-patches/openvmm-0002-virtio-restore-sets-captured-device-state.patch` (apply after `openvmm-0001`) |
 | 47 | `vmm_core` (`vmbus_unit.rs`) | `offer_channel_unit`, `offer_simple_device_unit`, `offer_vmbus_device_handle_unit` spawn with `spawn_with_channel(.., unit_channel_for(), ..)` instead of `spawn(..)`, and build their units with `new` (normal builds: `unit_channel_for()` and `unit_channel()` are both `mesh::channel()`, so the same channel) |
 | 54 | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | `TransportRestore`'s validator (a `Box<dyn Fn>`) is wrapped in a new private struct `Validator(DeviceStateValidator)`: built with `Validator(device.device_state_validator())`, called as `(self.restore.validator.0)(..)`. Same validator, same calls (Verus cannot declare a `Box<dyn Fn>`, so as a direct field it would hide `TransportRestore`'s other fields) |
+| 55 | `vmm_core` (`partition_unit.rs`) | `PartitionUnitRunner`'s `topology` field is wrapped in a new private struct `Topology(ProcessorTopology)`: built with `Topology(..)` (also in a test), read as `self.topology.0` (its `vp_count` and its inspect field). Same topology, same uses (Verus cannot declare `ProcessorTopology`: its generic bound needs `AsRef`, which uses an unstable marker). The unit's task closure also gets two Verus-only lines (`let mut recv = recv;`, `runner.attach_share(&mut recv)`, both `cfg(verus_keep_ghost)`; normal builds: unchanged) |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
@@ -2291,6 +2292,29 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 A summary of the other open items recorded in the sections above, most
 important first.
+
+- **TODO, not done: the VP layer** (2026-10-28). The partition unit's VPs
+  run on their own threads; `VpSet` asks each to stop, save, and restore
+  (`vmm_core/src/partition_unit/vp_set.rs`). For now the VPs' saved state
+  is a trusted accessor, `VpSet::saved_vps()` (uninterpreted: each VP's
+  index and blob, without guest time). To specify: `VpSet` and the VP
+  threads' request protocol (like the units' FracGhost shares, per VP),
+  `BoundVp`'s `ProtobufSaveRestore` (trusted today), and below it the
+  hypervisor's VP save and restore (trusted: KVM, WHP), with each VP
+  blob's view leaving out time (the TSC, the LAPIC timers; also
+  `omit_saved_tsc`'s restore, which drops the saved TSC).
+- **TODO, not done: the partition runner's other events.** Besides state
+  requests, `PartitionUnitRunner::run` handles halt events and partition
+  requests (`ClearHalt`, `SetInitialRegs`, `AcceptInitialPages`,
+  `StopVps`, `Snapshot`, ...). Those that change the saved state (the halt
+  reason, VP registers) must keep the share's rule: allowed while running
+  or before the first stop or restore (snapshot `Unknown`); while stopped
+  after a snapshot is recorded, only if the change is reflected in the
+  share, which the stopped unit cannot do alone. To check per request in
+  the proof (or as a protocol on `PartitionRequest`, whose `request_ok` is
+  still uninterpreted). The runner's `stop` also handles pending halt
+  requests after stopping the VPs, so the halt reason is settled at
+  `stop`.
 
 - **TODO, not done: the virtio-MMIO interrupt-state protocol** (2026-10-28,
   user). The interrupt status is in `MmioTransport::interrupt_state`, an

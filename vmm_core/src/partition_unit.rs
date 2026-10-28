@@ -7,7 +7,8 @@ mod debug;
 mod snapshot;
 mod vp_set;
 
-/// Verus specification of the partition unit's request channel.
+/// Verus specification of the partition unit (its request channel and its
+/// state unit).
 #[cfg(verus_keep_ghost)]
 mod spec {
     include!("partition_unit.spec.rs");
@@ -32,11 +33,15 @@ use inspect::InspectMut;
 use mesh::Receiver;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcSend;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
 use pal_async::task::Spawn;
 use state_unit::NameInUse;
 use state_unit::SpawnedUnit;
 use state_unit::StateRequest;
 use state_unit::StateUnit;
+#[cfg(verus_keep_ghost)]
+use state_unit::StateUnitSpec;
 use state_unit::UnitBuilder;
 use state_unit::UnitHandle;
 use std::sync::Arc;
@@ -98,6 +103,12 @@ pub trait VmPartition: 'static + Send + Sync + InspectMut + ProtobufSaveRestore 
 }
 
 /// An object to run the VM partition state unit.
+/// The partition's processor topology, in a struct of its own. (Verus:
+/// `ProcessorTopology`'s generic bound needs `AsRef`, which this toolchain's
+/// Verus cannot declare, so this struct is declared opaque instead.)
+struct Topology(ProcessorTopology);
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct PartitionUnitRunner {
     partition: Box<dyn VmPartition>,
     vp_set: VpSet,
@@ -108,7 +119,7 @@ struct PartitionUnitRunner {
     halt_request_recv: Receiver<InternalHaltReason>,
     client_notify_send: mesh::Sender<HaltReason>,
     req_recv: Receiver<PartitionRequest>,
-    topology: ProcessorTopology,
+    topology: Topology,
     initial_regs: Option<Arc<InitialRegs>>,
     /// Whether restores drop the VPs' saved TSC values (NVX time ABI).
     #[cfg(guest_arch = "x86_64")]
@@ -116,6 +127,9 @@ struct PartitionUnitRunner {
 
     #[cfg(feature = "gdb")]
     debugger_state: debug::DebuggerState,
+    /// The unit's share of its FracGhost (Verus only).
+    #[cfg(verus_keep_ghost)]
+    share: Tracked<vmcore::device_state::spec::DeviceGhostState>,
 }
 
 impl InspectMut for PartitionUnitRunner {
@@ -143,7 +157,7 @@ impl InspectMut for PartitionUnitRunner {
                     Ok(false)
                 }
             })
-            .field("topology", &self.topology)
+            .field("topology", &self.topology.0)
             .merge(&mut self.partition);
     }
 }
@@ -253,7 +267,7 @@ impl PartitionUnit {
             halt_request_recv: params.halt_request_recv.0,
             client_notify_send: params.client_notify_send,
             req_recv,
-            topology: params.processor_topology.clone(),
+            topology: Topology(params.processor_topology.clone()),
             initial_regs: None,
             #[cfg(guest_arch = "x86_64")]
             omit_saved_tsc: false,
@@ -264,10 +278,18 @@ impl PartitionUnit {
                     .clone(),
                 params.debugger_rpc,
             ),
+            // Verus: a placeholder, replaced by the unit's half in the task.
+            #[cfg(verus_keep_ghost)]
+            share: Tracked::assume_new(),
         };
 
         let handle = builder
             .spawn(spawner, async |recv| {
+                // Verus: the runner takes its half from its channel.
+                #[cfg(verus_keep_ghost)]
+                let mut recv = recv;
+                #[cfg(verus_keep_ghost)]
+                runner.attach_share(&mut recv);
                 runner.run(recv).await;
                 runner
             })
@@ -357,8 +379,41 @@ impl PartitionUnit {
     }
 }
 
+// Verus only: the runner takes its half of its FracGhost from its channel.
+#[cfg(verus_keep_ghost)]
+#[verus_verify]
+impl PartitionUnitRunner {
+    /// Replaces the placeholder share with the unit's half, attached to
+    /// `recv`, its channel's receiver. The runner is stopped.
+    #[verus_verify(external_body)]
+    #[verus_spec(
+        requires
+            !old(self).unit_started,
+            old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(recv).constant(),
+            !final(self).running(),
+            final(recv).constant() == old(recv).constant(),
+    )]
+    fn attach_share(&mut self, recv: &mut Receiver<StateRequest>) {
+        let _ = recv;
+    }
+}
+
 impl PartitionUnitRunner {
     /// Runs the VM partition, handling state change requests from `recv`.
+    ///
+    /// Verus: `recv` is the unit's channel; the runner stays well formed.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            recv.constant() == old(self).id(),
+        ensures
+            final(self).wf(),
+            final(self).id() == old(self).id(),
+    ))]
     async fn run(&mut self, mut recv: Receiver<StateRequest>) {
         loop {
             enum Event {
@@ -607,7 +662,7 @@ impl PartitionUnitRunner {
         let mut builder = PartitionStateBuilder::new(arch);
         builder.set_os_id(self.partition.guest_os_id());
 
-        let vp_count = self.topology.vp_count();
+        let vp_count = self.topology.0.vp_count();
         for vp_idx in 0..vp_count {
             let vtl = Vtl::Vtl0;
             let vp_state = self
@@ -694,6 +749,7 @@ mod save_restore {
 
         #[derive(Protobuf, SavedStateRoot)]
         #[mesh(package = "partition")]
+        #[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
         pub struct Partition {
             #[mesh(1)]
             pub(super) partition: SavedStateBlob,
@@ -705,6 +761,7 @@ mod save_restore {
 
         #[derive(Protobuf)]
         #[mesh(package = "partition")]
+        #[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
         pub struct Vp {
             #[mesh(1)]
             pub vp_index: u32,
@@ -712,6 +769,36 @@ mod save_restore {
             pub data: SavedStateBlob,
         }
     }
+
+    // Verus: the view of the partition unit's saved state.
+    #[cfg(verus_keep_ghost)]
+    vstd::prelude::verus! {
+
+    /// The view of the saved state: the partition's blob, each VP's index
+    /// and blob, and the encoded halt reason.
+    impl vstd::prelude::View for state::Partition {
+        type V = super::spec::PartitionSavedView;
+
+        closed spec fn view(&self) -> super::spec::PartitionSavedView {
+            super::spec::PartitionSavedView {
+                partition: self.partition@,
+                vps: self.vps@.map_values(|vp: state::Vp| (vp.vp_index, vp.data@)),
+                halt_reason: match self.halt_reason {
+                    Some(bytes) => Some(bytes@),
+                    None => None,
+                },
+            }
+        }
+    }
+
+    impl super::spec::PartitionSavedView {
+        /// The blob of a saved state with this view.
+        pub(crate) open spec fn blob(self) -> vmcore::save_restore::spec::SavedStateBlobView {
+            vmcore::save_restore::spec::SavedStateBlobView::of_view::<state::Partition>(self)
+        }
+    }
+
+    } // verus!
 
     impl PartitionUnitRunner {
         pub async fn save(&mut self) -> Result<state::Partition, SaveError> {
@@ -881,7 +968,7 @@ mod save_restore {
                 halt_request_recv: halt_request_recv.0,
                 client_notify_send,
                 req_recv: mesh::channel().1,
-                topology: test_topology(),
+                topology: super::super::Topology(test_topology()),
                 initial_regs: None,
                 #[cfg(guest_arch = "x86_64")]
                 omit_saved_tsc: false,

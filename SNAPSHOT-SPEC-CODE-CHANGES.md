@@ -706,6 +706,27 @@ Baseline: upstream `nanvix/openvmm` commit
     `build.rs`, a cfg'd import); `TransportRestore`'s validator is wrapped
     in a new private struct `Validator` (same validator, same calls).
 
+55. **The partition unit's `StateUnitSpec`** (one executable change in
+    `vmm_core`, behavior unchanged; design doc, the unit table and "Other
+    open items"). `PartitionUnitRunner` is `verus_verify` and gets a
+    Verus-only field `share` (its FracGhost share), a placeholder in
+    `PartitionUnit::new` replaced in the unit's task by the new Verus-only
+    `attach_share` (contract, `external_body`), and a contract on `run`
+    (`external_body`). `partition_unit.spec.rs`: `PartitionSavedView` (the
+    saved state's view: the partition's blob, the VPs' indexes and blobs,
+    the encoded halt reason), the runner's `saved_view()`, and
+    `StateUnitSpec` (`wf`: the share follows the rule for
+    `Saved(saved_view().blob())` and runs while started; `id`; `running`).
+    The saved state's `View` and `blob()` are in a cfg'd `verus!` block
+    inside `save_restore`; `state::Partition` and `state::Vp` get cfg'd
+    `verus_verify`. Trusted accessors: `VpSet::saved_vps` (until the VP
+    layer), `PartitionSavedView::encode_halt`. Declared: the trait
+    `VmPartition`, and as opaque `VpSet`, `InternalHaltReason`,
+    `Topology`, `InitialRegs`, and `HaltReason` (moved here from
+    `openvmm_core`'s `dispatch.proof.rs`). Executable: the runner's
+    `topology` field is wrapped in a new private struct `Topology` (built
+    with `Topology(..)`, read as `.0`; also in a test).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

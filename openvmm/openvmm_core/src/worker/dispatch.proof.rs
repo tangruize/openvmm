@@ -11,7 +11,6 @@ use crate::worker::dispatch::microvm::SnapshotBoundary;
 use crate::worker::dispatch::restore::SnapshotRestore;
 use openvmm_defs::worker::spec::SavedStateView;
 use vmcore::save_restore::spec::SavedStateBlobView;
-use vmm_core_defs::HaltReason;
 use vstd::prelude::*;
 
 verus! {
@@ -33,10 +32,6 @@ pub(in crate::worker::dispatch) struct ExSnapshotBoundary(SnapshotBoundary);
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(crate) struct ExInitializedVm(InitializedVm);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExHaltReason(HaltReason);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
