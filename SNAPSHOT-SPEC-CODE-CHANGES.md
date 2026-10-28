@@ -727,6 +727,21 @@ Baseline: upstream `nanvix/openvmm` commit
     `topology` field is wrapped in a new private struct `Topology` (built
     with `Topology(..)`, read as `.0`; also in a test).
 
+56. **The partition runner is built inside its task** (executable change
+    in `vmm_core`, behavior unchanged; decided 2026-10-28, user; design
+    doc, "The partition runner's construction order"). Before, the runner
+    was built before `spawn`, with a placeholder share replaced in the
+    task by `attach_share` (code change 55). Now `PartitionUnit::new`
+    computes the runner's parts (`RunnerParts`, new private struct) where
+    it built the runner, in the same order and with the same error; the
+    spawn closure is `|recv| async move { run_partition_unit(parts,
+    recv).await }`; `run_partition_unit` (new, **verified**) builds the
+    runner with `PartitionUnitRunner::new(parts, &mut recv)` (new;
+    contract: takes the channel's half; `external_body`) and runs it.
+    `attach_share` and the placeholder in `PartitionUnit::new` are gone.
+    The `async` block works around a Verus crash when an unverified
+    closure returns a verified async fn's future directly.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

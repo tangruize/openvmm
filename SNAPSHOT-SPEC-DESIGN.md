@@ -1361,6 +1361,44 @@ same reason).
   evaluated) is in its saved-state view. Is it guest time, to be left out
   like the RTC's clock? To decide with the time scope.
 
+### The partition runner's construction order
+
+Decided 2026-10-28 (user), code change 56. **Why:** the partition unit's
+runner keeps its share of its FracGhost in a Verus-only field. The share
+comes from the unit's channel, which `spawn` creates. The runner used to
+be built **before** `spawn`, so its share started as a placeholder
+(`Tracked::assume_new()`, a ghost made from nothing), replaced in the
+unit's task before `run`. That left two things unverified: the
+placeholder, and the order "replace the placeholder, then run", which was
+in an unverified async closure.
+
+**The change: only the order of construction.** It is not a concurrency
+change; everything still happens on the same task, one step after the
+other.
+
+| Step | Before | After |
+|---|---|---|
+| the checks, `VpSet` setup and the VPs, each of the runner's field values (with `gdb`, the debugger state, which can fail with `MissingGuestMemory`) | before `spawn`, in `PartitionUnit::new` | **unchanged**: before `spawn`, in `PartitionUnit::new`, same order, same error; collected in `RunnerParts` |
+| assemble `PartitionUnitRunner { .. }` | before `spawn` | inside the unit's task (`PartitionUnitRunner::new`), from `RunnerParts`, taking the share from the channel |
+| run the runner | in the task (an async closure) | in the task (`run_partition_unit`, a named async fn) |
+
+Assembling a struct from computed values only moves them (no effects, no
+failures), so the order of effects, the errors `PartitionUnit::new`
+returns, and the runner's behavior are unchanged.
+
+**What is verified now:** `run_partition_unit` (build the runner, taking
+the share from the channel, then run it) is verified: the order is
+checked. `PartitionUnitRunner::new`'s contract says it takes the channel's
+half; its body is `external_body` until proved (it still makes the share
+with `Tracked::assume_new()`, to be replaced by taking the half from the
+channel, as in `KeeperUnit::new`). No placeholder is left outside it.
+
+**Verus note:** the spawn closure awaits `run_partition_unit` inside an
+`async` block (`|recv| async move { run_partition_unit(parts, recv).await }`);
+returning the verified async fn's future directly from the unverified
+closure crashes Verus ("`VerusErasureCtxt` has not been initialized"), as
+for the chipset device unit's spawn sites (code change 41).
+
 ### The microVM's units: what is specified
 
 Decided 2026-10-27 (user): after VMBus went out of scope, specify the
@@ -1386,7 +1424,7 @@ device's `save` / `restore` are checked rather than trusted, its
 | `input` | done | n/a (no state) | n/a |
 | `chipset` | done (`ChipsetUnit`) | n/a (no state) | n/a |
 | `lines/*` | done (`LineSetUnit`) | n/a (no state) | n/a |
-| `partition` | done (`PartitionUnitRunner`: its share in a ghost field, set by `attach_share` from its channel; its snapshot is its saved state's blob: the partition's (`VmPartition`'s `ProtobufSaveRestore`), the VPs' (**trusted**: `VpSet::saved_vps`, until the VP layer), the encoded halt reason; running while started; `run` has a contract) | n/a (not a `SaveRestore` device; the hypervisor state is trusted) | `run`, `attach_share`: contracts, `external_body` |
+| `partition` | done (`PartitionUnitRunner`: its share in a ghost field, taken from its channel when the runner is built inside its task, `run_partition_unit` (code change 56); its snapshot is its saved state's blob: the partition's (`VmPartition`'s `ProtobufSaveRestore`), the VPs' (**trusted**: `VpSet::saved_vps`, until the VP layer), the encoded halt reason; running while started; `run` has a contract) | n/a (not a `SaveRestore` device; the hypervisor state is trusted) | `run`, `PartitionUnitRunner::new`: contracts, `external_body`; `run_partition_unit` **verified** |
 | `pit` | done (generic) | done (`PitDeviceView`; `view.saved_state()`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
 | `microvm-shutdown` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
 | `microvm-snapshot-request` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
@@ -1667,7 +1705,8 @@ change preserves behavior: same results, same order of effects.
 | **53** | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | **Behavior change, small. Scope: every virtio device (net, console, fs, block, ...) on both the MMIO and the PCI transport.** `restore(D)` puts the device's private state `D` in the **captured** slot too, not only the **staged** one (`TransportRestore::stage`, one added line). Before, `save` (which reads the captured slot) after a `restore(D)` and before the next `start` did not see `D`: after a fresh VM or a reset (OpenVMM's flows) it **failed** ("device state was not captured"); after a `stop` with no reset (no OpenVMM flow today) it returned the state from **before** the restore. Now it returns `D`. `start` and reset are unchanged (they clear the captured slot; `start` hands `D` to the device task). Cost: one blob copy per restore. Why: `SaveRestore`'s contract (after `restore(state)`, the device saves `state`). For OpenVMM developers: `verus-patches/openvmm-0002-virtio-restore-sets-captured-device-state.patch` (apply after `openvmm-0001`) |
 | 47 | `vmm_core` (`vmbus_unit.rs`) | `offer_channel_unit`, `offer_simple_device_unit`, `offer_vmbus_device_handle_unit` spawn with `spawn_with_channel(.., unit_channel_for(), ..)` instead of `spawn(..)`, and build their units with `new` (normal builds: `unit_channel_for()` and `unit_channel()` are both `mesh::channel()`, so the same channel) |
 | 54 | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | `TransportRestore`'s validator (a `Box<dyn Fn>`) is wrapped in a new private struct `Validator(DeviceStateValidator)`: built with `Validator(device.device_state_validator())`, called as `(self.restore.validator.0)(..)`. Same validator, same calls (Verus cannot declare a `Box<dyn Fn>`, so as a direct field it would hide `TransportRestore`'s other fields) |
-| 55 | `vmm_core` (`partition_unit.rs`) | `PartitionUnitRunner`'s `topology` field is wrapped in a new private struct `Topology(ProcessorTopology)`: built with `Topology(..)` (also in a test), read as `self.topology.0` (its `vp_count` and its inspect field). Same topology, same uses (Verus cannot declare `ProcessorTopology`: its generic bound needs `AsRef`, which uses an unstable marker). The unit's task closure also gets two Verus-only lines (`let mut recv = recv;`, `runner.attach_share(&mut recv)`, both `cfg(verus_keep_ghost)`; normal builds: unchanged) |
+| 55 | `vmm_core` (`partition_unit.rs`) | `PartitionUnitRunner`'s `topology` field is wrapped in a new private struct `Topology(ProcessorTopology)`: built with `Topology(..)` (also in a test), read as `self.topology.0` (its `vp_count` and its inspect field). Same topology, same uses (Verus cannot declare `ProcessorTopology`: its generic bound needs `AsRef`, which uses an unstable marker). (The two Verus-only lines this change added to the unit's task closure are gone with code change 56.) |
+| **56** | `vmm_core` (`partition_unit.rs`) | **The partition unit's runner is built inside the unit's task, after its channel exists, instead of before `spawn`** (see "The partition runner's construction order" below). `PartitionUnit::new` now computes the runner's parts (`RunnerParts`: the partition, the VP set, the halt and request receivers, the client notifier, the topology, and with `gdb` the debugger state) where it built the runner, in the same order and with the same error (`MissingGuestMemory`); the task (`run_partition_unit`, new) assembles the runner from them (`PartitionUnitRunner::new`, new) and runs it. New private struct `RunnerParts`, functions `PartitionUnitRunner::new` and `run_partition_unit`; the spawn closure is `\|recv\| async move { run_partition_unit(parts, recv).await }`. Same behavior |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |

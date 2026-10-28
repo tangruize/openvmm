@@ -257,20 +257,16 @@ impl PartitionUnit {
 
         let (req_send, req_recv) = mesh::channel();
 
-        let mut runner = PartitionUnitRunner {
+        // The runner's parts, computed here (in the same order as before, and
+        // with the same error), so that the unit's task, once its channel
+        // exists, only assembles them (`run_partition_unit`).
+        let parts = RunnerParts {
             partition: Box::new(partition),
             vp_set,
-            unit_started: false,
-            vp_stop_count: 0,
-            needs_reset: false,
-            halt_reason: None,
             halt_request_recv: params.halt_request_recv.0,
             client_notify_send: params.client_notify_send,
             req_recv,
             topology: Topology(params.processor_topology.clone()),
-            initial_regs: None,
-            #[cfg(guest_arch = "x86_64")]
-            omit_saved_tsc: false,
             #[cfg(feature = "gdb")]
             debugger_state: debug::DebuggerState::new(
                 params.vtl_guest_memory[0]
@@ -278,20 +274,11 @@ impl PartitionUnit {
                     .clone(),
                 params.debugger_rpc,
             ),
-            // Verus: a placeholder, replaced by the unit's half in the task.
-            #[cfg(verus_keep_ghost)]
-            share: Tracked::assume_new(),
         };
 
         let handle = builder
-            .spawn(spawner, async |recv| {
-                // Verus: the runner takes its half from its channel.
-                #[cfg(verus_keep_ghost)]
-                let mut recv = recv;
-                #[cfg(verus_keep_ghost)]
-                runner.attach_share(&mut recv);
-                runner.run(recv).await;
-                runner
+            .spawn(spawner, |recv| async move {
+                run_partition_unit(parts, recv).await
             })
             .unwrap();
 
@@ -379,26 +366,88 @@ impl PartitionUnit {
     }
 }
 
-// Verus only: the runner takes its half of its FracGhost from its channel.
-#[cfg(verus_keep_ghost)]
-#[verus_verify]
+/// What `PartitionUnit::new` computes for the runner before its channel
+/// exists: the runner's fields that are not its initial state.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+struct RunnerParts {
+    partition: Box<dyn VmPartition>,
+    vp_set: VpSet,
+    halt_request_recv: Receiver<InternalHaltReason>,
+    client_notify_send: mesh::Sender<HaltReason>,
+    req_recv: Receiver<PartitionRequest>,
+    topology: Topology,
+    #[cfg(feature = "gdb")]
+    debugger_state: debug::DebuggerState,
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl PartitionUnitRunner {
-    /// Replaces the placeholder share with the unit's half, attached to
-    /// `recv`, its channel's receiver. The runner is stopped.
-    #[verus_verify(external_body)]
-    #[verus_spec(
+    /// The runner, stopped, from its parts, taking its half of its FracGhost
+    /// from `recv`, its channel's receiver.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(runner =>
         requires
-            !old(self).unit_started,
             old(recv).attached() matches Some(h) && h.valid(old(recv).constant(), 0.5real),
         ensures
-            final(self).wf(),
-            final(self).id() == old(recv).constant(),
-            !final(self).running(),
+            runner.wf(),
+            runner.id() == old(recv).constant(),
+            !runner.running(),
             final(recv).constant() == old(recv).constant(),
-    )]
-    fn attach_share(&mut self, recv: &mut Receiver<StateRequest>) {
+    ))]
+    fn new(parts: RunnerParts, recv: &mut Receiver<StateRequest>) -> Self {
         let _ = recv;
+        let RunnerParts {
+            partition,
+            vp_set,
+            halt_request_recv,
+            client_notify_send,
+            req_recv,
+            topology,
+            #[cfg(feature = "gdb")]
+            debugger_state,
+        } = parts;
+        Self {
+            partition,
+            vp_set,
+            unit_started: false,
+            vp_stop_count: 0,
+            needs_reset: false,
+            halt_reason: None,
+            halt_request_recv,
+            client_notify_send,
+            req_recv,
+            topology,
+            initial_regs: None,
+            #[cfg(guest_arch = "x86_64")]
+            omit_saved_tsc: false,
+            #[cfg(feature = "gdb")]
+            debugger_state,
+            // Verus: to prove, the half taken from `recv` (as in
+            // `KeeperUnit::new`).
+            #[cfg(verus_keep_ghost)]
+            share: Tracked::assume_new(),
+        }
     }
+}
+
+/// The partition unit's task: builds the runner from its parts once its
+/// channel exists (taking its share from it), then runs it.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verus_spec(runner =>
+    requires
+        recv.attached() matches Some(h) && h.valid(recv.constant(), 0.5real),
+    ensures
+        runner.wf(),
+        runner.id() == recv.constant(),
+))]
+async fn run_partition_unit(
+    parts: RunnerParts,
+    recv: Receiver<StateRequest>,
+) -> PartitionUnitRunner {
+    let mut recv = recv;
+    let mut runner = PartitionUnitRunner::new(parts, &mut recv);
+    runner.run(recv).await;
+    runner
 }
 
 impl PartitionUnitRunner {
