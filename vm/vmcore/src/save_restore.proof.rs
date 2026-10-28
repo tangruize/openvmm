@@ -55,6 +55,12 @@ pub trait ExInspect {
     type ExternalTraitSpecificationFor: inspect::Inspect;
 }
 
+/// Declares `std::task::Waker` to Verus, as an opaque type (devices keep
+/// wakers; here, in a crate every device crate depends on).
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExWaker(std::task::Waker);
+
 /// Declares `anyhow::Error` to Verus, as an opaque type.
 #[verifier::external_type_specification]
 #[verifier::external_body]

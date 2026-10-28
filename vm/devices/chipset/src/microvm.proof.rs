@@ -30,7 +30,7 @@ pub struct ExMicrovmSnapshotRequest(MicrovmSnapshotRequest);
 pub struct ExMicrovmPortbSavedState(MicrovmPortbSavedState);
 
 // The types of portb's other fields, as opaque types (`mesh::Receiver` and
-// `Rpc` are declared in `mesh_rpc_verus`).
+// `Rpc` are declared in `mesh_rpc_verus`, `Waker` in vmcore).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -39,10 +39,6 @@ pub(crate) struct ExPortbTimeAbi(PortbTimeAbi);
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExMicrovmPortbDrain(MicrovmPortbDrain);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExWaker(std::task::Waker);
 
 #[verifier::external_trait_specification]
 pub trait ExAsyncRead {

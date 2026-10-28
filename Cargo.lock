@@ -10169,6 +10169,7 @@ name = "virtio"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-task",
  "async-trait",
  "chipset_device",
  "device_emulators",
@@ -10176,6 +10177,7 @@ dependencies = [
  "guestmem",
  "inspect",
  "mesh",
+ "mesh_rpc_verus",
  "pal_async",
  "pal_event",
  "parking_lot",
@@ -10358,6 +10360,7 @@ dependencies = [
  "bitfield-struct 0.11.0",
  "inspect",
  "open_enum",
+ "vstd",
  "zerocopy",
 ]
 

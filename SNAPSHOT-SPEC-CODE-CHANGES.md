@@ -675,6 +675,37 @@ Baseline: upstream `nanvix/openvmm` commit
     Checked: `cargo test -p virtio` 141 passed on this branch, 140 on
     `main`.
 
+54. **virtio-MMIO specified** (two dependency changes in `virtio`, behavior
+    unchanged; design doc, the unit table and "Other open items"): new
+    `transport/mmio.spec.rs`, `mmio.proof.rs` (a cfg'd `spec` module inside
+    `mmio::saved_state`). `VirtioMmioView` (the transport's saved
+    registers, two feature banks, queues as `VirtioQueueView`s with their
+    progress, the captured private state, the interrupt status) is also
+    the saved state's view; `saved_view` keeps it, with the private state
+    to save; `wf()`: two feature banks. `VirtioMmioDevice` and
+    `MmioTransport` get cfg'd `verus_verify`; the `SaveRestore` impl is
+    `verus_verify` with `external_body` methods. Declared: the transport
+    core, `QueueData`, `QueueParams`, `QueueState`, the saved-state types
+    (transparent), and as opaque types `TransportRestore`, the feature and
+    status bitfields, `DeviceCommand`, `TransportState`, `VirtioDoorbells`,
+    `StalledIo`, `InterruptState`, `InterruptAck`, `GuestMemory`,
+    `DeferredWrite`, `pal_event::Event`, `async_task::Task`,
+    `TaskMetadata`, `lock_api::Mutex`, `parking_lot::RawMutex`, the
+    validator `Validator`. One trusted accessor (uninterpreted):
+    `MmioTransport::interrupt_status` (TODO in the design doc). Defined
+    accessors: `TransportRestore::captured()` (closed, in
+    `transport/core/restore.rs`; `TransportRestore` is `verus_verify`),
+    `VirtioDeviceFeatures::bits()` / `bank_bits(i)` and
+    `VirtioDeviceStatus::bits()` (closed, in `virtio_spec`; both bitfields
+    `verus_verify`, the status with `verifier::external_derive` for its
+    `zerocopy` derives). `std::task::Waker`'s
+    declaration moved from `chipset` to vmcore (both crates need it).
+    Executable: `virtio` gets the dependencies `mesh_rpc_verus` and
+    `async-task`, referenced by cfg'd `use .. as _;` lines in `lib.rs`;
+    `virtio_spec` is Verus-enabled (`[package.metadata.verus]`, `vstd`,
+    `build.rs`, a cfg'd import); `TransportRestore`'s validator is wrapped
+    in a new private struct `Validator` (same validator, same calls).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

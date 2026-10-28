@@ -1394,7 +1394,7 @@ device's `save` / `restore` are checked rather than trusted, its
 | `pic` | done (generic) | done (`DualPicView`: two PICs' registers and roles; `view.saved_state()`, without `primary`; `wf()`: ICW2's low bits zero, the first PIC primary) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `ioapic` | done (generic) | done (`IoApicView`: ID, index, entries' bits, line levels; its saved state's view is the state's meaning: empty `line_levels` as all low, pending interrupts delivered; `saved_view` delivers pending interrupts; `wf()`: one level per entry) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `rtc` | done (generic) | done (`RtcView`: `addr`, CMOS bytes, the transaction mask; its saved state's view is the same, without the time fields `clock_time_millis` and `time_valid`; `wf()`: no transaction) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
-| virtio-mmio | done (generic) | **open** (placeholder view): `VirtioMmioDevice`'s saved state holds a `Vec` and the inner device's `SavedStateBlob` | open |
+| virtio-mmio | done (generic) | done (`VirtioMmioView`: the transport's saved registers, feature banks, queues' configuration and progress, the inner device's captured private state, the interrupt status; also its saved state's view; `saved_view` keeps all, with the private state to save; `wf()`: two feature banks). **Trusted accessor** (TODO below): the interrupt status | contract on the trait impl (`verus_verify`, bodies `external_body`); needs code changes 52 and 53 |
 
 **Saved states that hold a `Vec`**: resolved 2026-10-27 by comparing saved
 states by their views ("`SaveRestore`'s contract on views"): a saved
@@ -1666,6 +1666,7 @@ change preserves behavior: same results, same order of effects.
 | **52** | `vm/devices/virtio/virtio` (`transport/core/restore.rs`, `mmio.rs`, `pci.rs`) | **Behavior change, small. Scope: every virtio device (net, console, fs, block, ...) on both the MMIO and the PCI transport**, since the change is in their shared transport code. The virtio transports' `save` **copies** the inner device's captured private state instead of **taking** it: `take_device_state` (`captured.take()`) becomes `captured_device_state`, which clones the `SavedStateBlob` and keeps the capture until the next `start` / reset (which clear it, as before). Effect: the first `save` after a `stop` is unchanged; **a second `save` before the next `start` now returns the same state instead of failing** ("device state was not captured"); `save` without a `stop` still fails; a failed capture is still returned (and dropped) by the first `save`. Cost: one blob copy per save. Why: `SaveRestore`'s contract (`save` keeps the device's view and returns what the view determines). The same change against `origin/main`, for OpenVMM developers: `verus-patches/openvmm-0001-virtio-save-keeps-captured-device-state.patch` |
 | **53** | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | **Behavior change, small. Scope: every virtio device (net, console, fs, block, ...) on both the MMIO and the PCI transport.** `restore(D)` puts the device's private state `D` in the **captured** slot too, not only the **staged** one (`TransportRestore::stage`, one added line). Before, `save` (which reads the captured slot) after a `restore(D)` and before the next `start` did not see `D`: after a fresh VM or a reset (OpenVMM's flows) it **failed** ("device state was not captured"); after a `stop` with no reset (no OpenVMM flow today) it returned the state from **before** the restore. Now it returns `D`. `start` and reset are unchanged (they clear the captured slot; `start` hands `D` to the device task). Cost: one blob copy per restore. Why: `SaveRestore`'s contract (after `restore(state)`, the device saves `state`). For OpenVMM developers: `verus-patches/openvmm-0002-virtio-restore-sets-captured-device-state.patch` (apply after `openvmm-0001`) |
 | 47 | `vmm_core` (`vmbus_unit.rs`) | `offer_channel_unit`, `offer_simple_device_unit`, `offer_vmbus_device_handle_unit` spawn with `spawn_with_channel(.., unit_channel_for(), ..)` instead of `spawn(..)`, and build their units with `new` (normal builds: `unit_channel_for()` and `unit_channel()` are both `mesh::channel()`, so the same channel) |
+| 54 | `vm/devices/virtio/virtio` (`transport/core/restore.rs`) | `TransportRestore`'s validator (a `Box<dyn Fn>`) is wrapped in a new private struct `Validator(DeviceStateValidator)`: built with `Validator(device.device_state_validator())`, called as `(self.restore.validator.0)(..)`. Same validator, same calls (Verus cannot declare a `Box<dyn Fn>`, so as a direct field it would hide `TransportRestore`'s other fields) |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
@@ -1682,6 +1683,8 @@ change preserves behavior: same results, same order of effects.
 | 46 | `vmm_core/state_unit` | dev-dependency (tests only): `inspect` with the `initiate` feature, for the new test |
 | 47 | `vmbus_channel` | Verus-enabled: `[package.metadata.verus]`, dependencies `vstd` and `mesh_rpc_verus`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `vstd` import in `lib.rs` |
 | 51 | `vm/devices/chipset` | new direct dependency `mesh_rpc_verus`, for Verus: portb's fields include `mesh::Receiver` and `Rpc`, which that crate declares to Verus. Normal builds compile and link it, but no code uses it |
+| 54 | `vm/devices/virtio/virtio` | new direct dependencies `mesh_rpc_verus` (its declaration of `mesh::Sender`, the transport core's device sender) and `async-task` (`pal_async::task::Task` is `async_task::Task`, which Verus must be told about), both for Verus, both already in the build graph; referenced by cfg'd `use .. as _;` lines in `lib.rs`. Normal builds compile and link them, unused |
+| 54 | `vm/devices/virtio/virtio_spec` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus_verify;` in `lib.rs` |
 | 49 | `amd_iommu`, `chipset_legacy`, `cxl_spec`, `firmware_pcat`, `floppy`, `floppy_pcat_stub`, `framebuffer`, `generation_id`, `hcl_compat_uefi_nvram_storage`, `ide`, `intel_vtd`, `missing_dev`, `pci_bus`, `pci_core`, `pcie`, `smmu`, `uefi_nvram_storage`, `vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (for `vfio_assigned_device`, in its Linux-only dependencies), new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus as _;` in `lib.rs` |
 | 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
 | 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
@@ -2289,6 +2292,43 @@ concurrent per-pin writes into the PIC and IOAPIC.
 A summary of the other open items recorded in the sections above, most
 important first.
 
+- **TODO, not done: the virtio-MMIO interrupt-state protocol** (2026-10-28,
+  user). The interrupt status is in `MmioTransport::interrupt_state`, an
+  `Arc<parking_lot::Mutex<InterruptState>>` with three concurrent writers:
+  the transport (guest register writes, `restore`), the device task
+  through the queue and configuration interrupt closures
+  (`Interrupt::from_fn`, `transport/mmio.rs`), and the acknowledgement
+  worker (accelerated mode, `transport/mmio/interrupt.rs`); in the
+  accelerated mode the status is also in guest memory (`shared_status`;
+  guest RAM is out of scope). For now virtio-MMIO's view reads it through
+  an uninterpreted accessor, `MmioTransport::interrupt_status()`
+  (TRUSTED).
+
+  **Why this one is still trusted** (unlike `TransportRestore::captured()`
+  and the feature and status bits, which are now defined; see the next
+  item):
+
+  | | `captured()`, feature / status bits | `interrupt_status()` |
+  |---|---|---|
+  | where the value is | in the device's own fields | behind `Arc<Mutex<..>>`, shared with two other threads; in the accelerated mode, in guest memory |
+  | why it was opaque | a field type Verus could not declare (`Box<dyn Fn>`), or bits private to another crate | a view may only read the device's own state; a lock's contents belong to whoever holds the lock, and other threads change them |
+  | what fixed / would fix it | a small wrapper struct; an accessor in the owning crate | a ghost protocol: who may change the status and when (like the units' FracGhost shares), passed through the interrupt closures; and a decision on guest memory (out of scope) |
+  | size | a few lines each (done) | a design of its own (this TODO) |
+
+  Design to write: a FracGhost-style protocol for the status
+  (the transport's half and the lock's, the writers' updates while
+  running, the transport's whole while stopped, like the units' shares),
+  including ghost state passed through the interrupt closures; and what
+  the accelerated mode's guest-memory status means for the view.
+- **virtio-MMIO's other accessors**: resolved 2026-10-28 (user), now
+  defined, not trusted. `TransportRestore::captured()` is a closed spec
+  function on the real field (`transport/core/restore.rs`): the validator,
+  a `Box<dyn Fn>` that Verus cannot declare, moved into its own opaque
+  struct `Validator` (code change 54), so `TransportRestore` is
+  `verus_verify`. The feature banks and the status come from
+  `VirtioDeviceFeatures::bits()` / `bank_bits(i)` and
+  `VirtioDeviceStatus::bits()`, closed spec accessors in `virtio_spec`
+  (now Verus-enabled), matching `bank`'s definition.
 - **virtio-mmio: `save` takes the captured device state**: resolved
   2026-10-28 (user): option A, code change 52. `save` copies the capture
   instead of taking it. The same change against `origin/main`, for

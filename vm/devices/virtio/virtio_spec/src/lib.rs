@@ -19,6 +19,10 @@ use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
 
+// Verus requires every verified crate to import vstd.
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
+
 pub use packed_nums::*;
 
 #[expect(non_camel_case_types)]
@@ -30,6 +34,7 @@ mod packed_nums {
 
 #[derive(Inspect)]
 #[bitfield(u64)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioDeviceFeatures {
     // Bank 0 (bits 0-31)
     #[bits(24)]
@@ -111,6 +116,8 @@ mod feature_tests {
 
 #[bitfield(u8)]
 #[derive(IntoBytes, Immutable, KnownLayout, FromBytes, Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct VirtioDeviceStatus {
     pub acknowledge: bool,
     pub driver: bool,
@@ -403,4 +410,42 @@ pub mod queue {
         #[bits(14)]
         _reserved: u16,
     }
+}
+
+/// Verus: the bitfields' bits (their field is private to this crate).
+#[cfg(verus_keep_ghost)]
+mod verus_spec {
+    use super::VirtioDeviceFeatures;
+    use super::VirtioDeviceStatus;
+    use vstd::prelude::*;
+
+    verus! {
+
+    impl VirtioDeviceFeatures {
+        /// The features' 64 bits.
+        pub closed spec fn bits(self) -> u64 {
+            self.0
+        }
+
+        /// The 32 bits of bank `index`, as `bank` returns them: bank 0 the
+        /// low half, bank 1 the high half, other banks 0.
+        pub open spec fn bank_bits(self, index: int) -> u32 {
+            if index == 0 {
+                self.bits() as u32
+            } else if index == 1 {
+                (self.bits() >> 32u64) as u32
+            } else {
+                0
+            }
+        }
+    }
+
+    impl VirtioDeviceStatus {
+        /// The status's 8 bits.
+        pub closed spec fn bits(self) -> u8 {
+            self.0
+        }
+    }
+
+    } // verus!
 }

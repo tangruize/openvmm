@@ -38,11 +38,22 @@ use std::sync::atomic::Ordering;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::SavedStateBlobView;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
+/// The device's validator of restored private state, in a struct of its
+/// own. (Verus: a `Box<dyn Fn>` cannot be declared to Verus, so as a field
+/// of `TransportRestore` it would hide the other fields; this struct is
+/// declared opaque instead.)
+pub(crate) struct Validator(DeviceStateValidator);
 
 /// Device-private state and queue kick state of the transport core.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct TransportRestore {
     /// Validates restored private state; see VirtioDevice::device_state_validator.
-    validator: DeviceStateValidator,
+    validator: Validator,
     /// Private state captured by the last `stop()` or staged by the last
     /// `restore()`, read by `save()`.
     captured: Option<Result<Option<SavedStateBlob>, SaveError>>,
@@ -55,7 +66,7 @@ pub(crate) struct TransportRestore {
 impl TransportRestore {
     pub(super) fn new(device: &dyn DynVirtioDevice, max_queues: u16) -> Self {
         Self {
-            validator: device.device_state_validator(),
+            validator: Validator(device.device_state_validator()),
             captured: None,
             restored: DeviceRestoreState::NotRestored,
             kick_queued: (0..max_queues)
@@ -271,7 +282,7 @@ impl VirtioTransportCore {
                 queue_state: queue.queue_state,
             })
             .collect::<Vec<_>>();
-        (self.restore.validator)(
+        (self.restore.validator.0)(
             device_state.as_ref(),
             &restored_features,
             &device_queues,
@@ -374,3 +385,21 @@ pub(crate) fn validate_restored_queue(
     previous_ranges.extend(queue_ranges);
     Ok(())
 }
+
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl TransportRestore {
+    /// The captured private state, as in virtio-MMIO's view: `Some(state)`
+    /// after a successful capture (or a restore), `None` if nothing is
+    /// captured or the capture failed (then `save` fails).
+    pub(crate) closed spec fn captured(&self) -> Option<Option<SavedStateBlobView>> {
+        match self.captured {
+            Some(Ok(Some(blob))) => Some(Some(blob@)),
+            Some(Ok(None)) => Some(None),
+            _ => None,
+        }
+    }
+}
+
+} // verus!

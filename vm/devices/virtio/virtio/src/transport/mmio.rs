@@ -35,9 +35,14 @@ use std::sync::Arc;
 use vmcore::device_state::ChangeDeviceState;
 use vmcore::interrupt::Interrupt;
 use vmcore::line_interrupt::LineInterrupt;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 /// MMIO-specific transport state.
 #[derive(Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct MmioTransport {
     #[inspect(skip)]
     fixed_mmio_region: (&'static str, RangeInclusive<u64>),
@@ -101,6 +106,7 @@ impl TransportOps for MmioTransport {
 
 /// Run a virtio device over MMIO
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioMmioDevice {
     #[inspect(flatten)]
     core: VirtioTransportCore,
@@ -440,6 +446,18 @@ impl ChipsetDevice for VirtioMmioDevice {
 }
 
 mod saved_state {
+    /// Verus specification of the virtio-MMIO transport. Inside
+    /// `saved_state`, so that it can name the saved-state types.
+    #[cfg(verus_keep_ghost)]
+    pub(crate) mod spec {
+        include!("mmio.spec.rs");
+
+        /// Declarations supporting the spec.
+        pub(crate) mod proof {
+            include!("mmio.proof.rs");
+        }
+    }
+
     mod state {
         use crate::transport::saved_state::state::CommonQueueState;
         use crate::transport::saved_state::state::CommonSavedState;
@@ -471,13 +489,12 @@ mod saved_state {
     use super::*;
     use vmcore::save_restore::SaveRestore;
 
-    // Placeholder view (save/restore not yet specified).
-    vmcore::placeholder_view!(pub ExVirtioMmioDevice, VirtioMmioDevice);
-    vmcore::placeholder_view!(saved state::SavedState);
-
+    // Verified against `SaveRestore`'s contract (`mmio.spec.rs`).
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl SaveRestore for VirtioMmioDevice {
         type SavedState = state::SavedState;
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn save(&mut self) -> Result<Self::SavedState, vmcore::save_restore::SaveError> {
             Ok(state::SavedState {
                 common: self.core.save_common()?,
@@ -491,6 +508,7 @@ mod saved_state {
             })
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn restore(
             &mut self,
             state: Self::SavedState,

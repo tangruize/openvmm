@@ -11,6 +11,8 @@ verify = true
 
 [dependencies]
 vstd.workspace = true
+mesh_rpc_verus.workspace = true
+async-task.workspace = true
 device_emulators.workspace = true
 pci_core.workspace = true
 pci_resources.workspace = true

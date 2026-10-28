@@ -10,6 +10,16 @@
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::verus as _;
 
+// Verus: the transport core's device sender is a `mesh::Sender`, declared to
+// Verus in `mesh_rpc_verus`.
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus as _;
+
+// Verus: the transport core's device task is an `async_task::Task`
+// (`pal_async::task::Task`), declared to Verus in `mmio.proof.rs`.
+#[cfg(verus_keep_ghost)]
+use async_task as _;
+
 mod common;
 pub mod device;
 pub mod in_order;
