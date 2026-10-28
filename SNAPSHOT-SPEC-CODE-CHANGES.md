@@ -642,7 +642,10 @@ Baseline: upstream `nanvix/openvmm` commit
     the `SavedStateBlob` and keeps the capture (until the next `start` /
     reset, which clear it as before); on a failed capture it returns (and
     drops) the error; with no capture it fails as before. Callers: the MMIO
-    and PCI transports' `save` (`mmio.rs`, `pci.rs`). Behavior: a second
+    and PCI transports' `save` (`mmio.rs`, `pci.rs`). Scope: every virtio
+    device (net, console, fs, block, ...) on both the MMIO and the PCI
+    transport, since the change is in their shared transport code.
+    Behavior: a second
     `save` before the next `start` now returns the same state instead of
     failing; nothing else changes. Reason: `SaveRestore`'s contract (`save`
     keeps the view; its result is determined by the view). The same change

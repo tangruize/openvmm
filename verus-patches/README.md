@@ -374,6 +374,9 @@ clones the `SavedStateBlob`) and keeps the capture until the next `start`
 or reset, which clear it as before. A failed capture is still returned, and
 dropped, by the first `save`.
 
+**Scope.** Every virtio device (net, console, fs, block, ...) on both the
+MMIO and the PCI transport: the change is in their shared transport code.
+
 **Effect.** Same result for the first `save` after a `stop`. A second
 `save` before the next `start` now returns the same state instead of
 failing. `save` without a preceding `stop` still fails. Cost: one copy of
