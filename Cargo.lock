@@ -594,6 +594,7 @@ dependencies = [
  "jiff",
  "local_clock",
  "mesh",
+ "mesh_rpc_verus",
  "open_enum",
  "pal_async",
  "parking_lot",

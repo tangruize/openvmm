@@ -604,6 +604,35 @@ Baseline: upstream `nanvix/openvmm` commit
     `verus_verify`; the `SaveRestore` impl is `verus_verify` with
     `external_body` methods.
 
+51. **portb and the IOAPIC specified; a saved state's view is its
+    meaning** (one dependency change in `chipset`, behavior unchanged;
+    design doc, "`SaveRestore`'s contract on views" and the unit table):
+    - portb (`microvm.spec.rs`, `microvm.proof.rs`): `MicrovmPortbView`
+      (`rx`, `tx` as `Seq<u8>`), also its saved state's view;
+      `saved_view` the identity; `wf()`: each buffer at most
+      `BUFFER_MAX`. `MicrovmPortb`, `BUFFER_MAX`, `GENERATION_ID_SIZE`
+      get cfg'd `verus_verify`; its `SaveRestore` impl is `verus_verify`
+      with `external_body` methods; declared: `MicrovmPortbSavedState`,
+      and as opaque types `PortbTimeAbi`, `MicrovmPortbDrain`,
+      `std::task::Waker`, the traits `SerialIo`, `futures::AsyncRead`,
+      `futures::AsyncWrite`. Executable: `chipset` gets the dependency
+      `mesh_rpc_verus` (its declarations of `mesh::Receiver` and `Rpc`),
+      referenced by a cfg'd `use mesh_rpc_verus as _;` in `lib.rs`.
+    - IOAPIC (`ioapic/mod.spec.rs`, `ioapic/mod.proof.rs`, a cfg'd
+      `verus_spec` module inside `ioapic::save_restore`): `IoApicView`
+      (ID, index, entries' bits, line levels), `wf()`; its saved state's
+      view is the state's meaning (an empty `line_levels` is all low; a
+      pending interrupt is delivered, i.e. remote IRR set);
+      `saved_view` delivers pending interrupts. `IoApicDevice`,
+      `IrqEntry`, `RedirectionEntry` (with a closed `bits()` accessor in
+      the register module) and the saved `SavedState` get cfg'd
+      `verus_verify`; its `SaveRestore` impl is `verus_verify` with
+      `external_body` methods; declared: `IndexRegister`, and as opaque
+      `IoApicStats` and the trait `IoApicRouting`.
+    - Rule (user, 2026-10-27): a saved-state type's view is its meaning,
+      what `restore` makes of it; both IOAPIC normalizations are
+      intended (commit `4e396f9df`).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

@@ -1279,13 +1279,24 @@ these bounds itself: an `external_trait_specification` cannot add bounds
 the real trait lacks, nor give implementations an associated type (both
 tried).
 
-**A saved state's view and time.** A saved-state type's view keeps every
-field except guest time (out of scope): the RTC's saved-state view has no
-`clock_time_millis` or `time_valid`; vmtime's is `()` (all time). The
+**A saved state's view: its meaning** (decided 2026-10-27, user). A
+saved-state type's view is what the saved state means: what `restore`
+makes of it. Two encodings that `restore` reads the same way have the same
+view; two it reads differently never do. Guest time (out of scope) is not
+in it: the RTC's saved-state view has no `clock_time_millis` or
+`time_valid` (which `restore` reads as `true` when absent); vmtime's is
+`()` (all time). Legacy encodings read the same as current ones: the
+IOAPIC's empty `line_levels` (snapshots from before commit `4e396f9df`)
+is every line low, as `restore` treats it; and an IOAPIC entry with an
+interrupt pending reads as delivered (`restore` delivers it,
+`IrqEntry::evaluate`; the IOAPIC itself never keeps one). So `restore(s)`
+then `save` gives back `s`'s meaning, and the generic contract needs no
+per-device normalization. The
 trusted encode/decode contract (`save_restore_t.rs`) says a blob is
 determined by its saved state's view (`of(v) == of_view::<T>(v@)`) and
-that `of_view` is injective. So "time is out of scope" is "time is not in
-the saved-state views", reviewed per saved-state type in its `.spec.rs`;
+that `of_view` is injective, i.e. a blob's view is the meaning of the saved
+state it encodes. So "time is out of scope" is "time is not in the
+saved-state views", reviewed per saved-state type in its `.spec.rs`;
 this replaces `equal_except_time` and its per-type axioms (vmtime's
 `axiom_all_time`, removed).
 
@@ -1379,9 +1390,9 @@ device's `save` / `restore` are checked rather than trusted, its
 | `pit` | done (generic) | done (`PitDeviceView`; `view.saved_state()`) | contracts on `save_device` / `restore_device` (`external_body`); the trait impl delegates, outside Verus |
 | `microvm-shutdown` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
 | `microvm-snapshot-request` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
-| `microvm-portb` | done (generic) | **open** (placeholder view): saved state holds `Vec<u8>`s | open |
+| `microvm-portb` | done (generic) | done (`MicrovmPortbView`: `rx`, `tx` as `Seq<u8>`; also its saved state's view; `saved_view` the identity; `wf()`: each buffer at most `BUFFER_MAX`) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `pic` | done (generic) | done (`DualPicView`: two PICs' registers and roles; `view.saved_state()`, without `primary`; `wf()`: ICW2's low bits zero, the first PIC primary) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
-| `ioapic` | done (generic) | **open** (placeholder view): saved state holds `Vec`s | open |
+| `ioapic` | done (generic) | done (`IoApicView`: ID, index, entries' bits, line levels; its saved state's view is the state's meaning: empty `line_levels` as all low, pending interrupts delivered; `saved_view` delivers pending interrupts; `wf()`: one level per entry) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | `rtc` | done (generic) | done (`RtcView`: `addr`, CMOS bytes, the transaction mask; its saved state's view is the same, without the time fields `clock_time_millis` and `time_valid`; `wf()`: no transaction) | contract on the trait impl (`verus_verify`, bodies `external_body`) |
 | virtio-mmio | done (generic) | **open** (placeholder view): `VirtioMmioDevice`'s saved state holds a `Vec` and the inner device's `SavedStateBlob` | open |
 
@@ -1668,6 +1679,7 @@ change preserves behavior: same results, same order of effects.
 | 44 | `chipset_arc_mutex_device`, `chipset_device_fuzz` | new dependency `vmcore` (no cycle) |
 | 46 | `vmm_core/state_unit` | dev-dependency (tests only): `inspect` with the `initiate` feature, for the new test |
 | 47 | `vmbus_channel` | Verus-enabled: `[package.metadata.verus]`, dependencies `vstd` and `mesh_rpc_verus`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `vstd` import in `lib.rs` |
+| 51 | `vm/devices/chipset` | new direct dependency `mesh_rpc_verus`, for Verus: portb's fields include `mesh::Receiver` and `Rpc`, which that crate declares to Verus. Normal builds compile and link it, but no code uses it |
 | 49 | `amd_iommu`, `chipset_legacy`, `cxl_spec`, `firmware_pcat`, `floppy`, `floppy_pcat_stub`, `framebuffer`, `generation_id`, `hcl_compat_uefi_nvram_storage`, `ide`, `intel_vtd`, `missing_dev`, `pci_bus`, `pci_core`, `pcie`, `smmu`, `uefi_nvram_storage`, `vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (for `vfio_assigned_device`, in its Linux-only dependencies), new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus as _;` in `lib.rs` |
 | 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
 | 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
@@ -2274,6 +2286,15 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 A summary of the other open items recorded in the sections above, most
 important first.
+
+- **A clean design document** (requested 2026-10-27, user; to write once
+  the design settles, as it may still be refactored): a fresh document,
+  separate from this working log, stating clearly the device-level spec
+  (views, saved-state views, `saved_view`, `device_wf`), the `SaveRestore`
+  trait spec (and `ProtobufSaveRestore`, where blobs enter), the RPC (the
+  mesh RPC wrapper and the request protocol), `LoadedVm` (save, restore,
+  quiesce, restore from snapshot), and the FracGhost (the units' shares,
+  `DeviceSlot`, the lock invariant).
 
 - **`cargo xtask fmt` lint failures from earlier spec work** (found
   2026-10-27, not caused by code change 49): `closeable_mutex` reported

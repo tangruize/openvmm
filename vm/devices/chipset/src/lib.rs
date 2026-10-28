@@ -16,6 +16,11 @@
 #![expect(missing_docs)]
 #![forbid(unsafe_code)]
 
+// Verus: portb's fields name `mesh::Receiver` and `Rpc`, declared to Verus
+// in `mesh_rpc_verus`.
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus as _;
+
 pub mod battery;
 pub mod cmos_rtc;
 pub mod dma;

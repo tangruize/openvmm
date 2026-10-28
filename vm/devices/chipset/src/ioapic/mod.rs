@@ -28,6 +28,8 @@ use inspect_counters::Counter;
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use vmcore::device_state::ChangeDeviceState;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 use x86defs::apic::DeliveryMode;
 use x86defs::msi::MsiAddress;
 use x86defs::msi::MsiData;
@@ -65,8 +67,20 @@ mod spec {
     pub const IOAPIC_DEVICE_MMIO_REGION_SIZE: u64 = 0x20;
     pub const IOAPIC_DEVICE_MMIO_REGION_MASK: u64 = IOAPIC_DEVICE_MMIO_REGION_SIZE - 1;
 
+    #[cfg(verus_keep_ghost)]
+    vstd::prelude::verus! {
+        impl RedirectionEntry {
+            /// The entry's 64 bits (Verus: the field is private to this
+            /// module).
+            pub closed spec fn bits(self) -> u64 {
+                self.0
+            }
+        }
+    }
+
     #[derive(Inspect)]
     #[bitfield(u64)]
+    #[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
     #[rustfmt::skip]
     pub struct RedirectionEntry {
         #[bits(8)] pub vector: u8,
@@ -148,6 +162,7 @@ impl RedirectionEntry {
 }
 
 #[derive(Debug, Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct IrqEntry {
     #[inspect(flatten)]
     redirection: RedirectionEntry,
@@ -209,6 +224,7 @@ impl IrqEntry {
 }
 
 #[derive(Debug, InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct IoApicDevice {
     // Static configuration
     #[inspect(skip)]
@@ -410,6 +426,23 @@ mod save_restore {
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
     use vmcore::save_restore::SaveRestore;
+    #[cfg(verus_keep_ghost)]
+    use vstd::prelude::verus_spec;
+    #[cfg(verus_keep_ghost)]
+    use vstd::prelude::verus_verify;
+
+    /// Verus specification of the IOAPIC. Inside `save_restore`, so that it
+    /// can name the saved-state type. (Not `spec`: that is the IOAPIC's
+    /// register definitions.)
+    #[cfg(verus_keep_ghost)]
+    pub(crate) mod verus_spec {
+        include!("mod.spec.rs");
+
+        /// Declarations supporting the spec.
+        pub(crate) mod proof {
+            include!("mod.proof.rs");
+        }
+    }
 
     mod state {
         use mesh::payload::Protobuf;
@@ -417,6 +450,7 @@ mod save_restore {
 
         #[derive(Clone, Debug, Default, Protobuf, SavedStateRoot)]
         #[mesh(package = "chipset.ioapic")]
+        #[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
         pub struct SavedState {
             #[mesh(1)]
             pub(super) id: u8,
@@ -433,13 +467,12 @@ mod save_restore {
     #[error("wrong number of redirection entries")]
     struct WrongNumberOfRedirectionEntries;
 
-    // Placeholder view (save/restore not yet specified).
-    vmcore::placeholder_view!(pub ExIoApicDevice, IoApicDevice);
-    vmcore::placeholder_view!(saved state::SavedState);
-
+    // Verified against `SaveRestore`'s contract (`mod.spec.rs`).
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl SaveRestore for IoApicDevice {
         type SavedState = state::SavedState;
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn save(&mut self) -> Result<state::SavedState, SaveError> {
             let Self {
                 valid_lines: _,
@@ -458,6 +491,7 @@ mod save_restore {
             })
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn restore(&mut self, state: state::SavedState) -> Result<(), RestoreError> {
             let state::SavedState {
                 redirection_entries,

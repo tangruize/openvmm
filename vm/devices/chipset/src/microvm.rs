@@ -63,6 +63,7 @@ const SNAPSHOT_PORT: u16 = 0x605;
 const RESTORE_PACKET_SELECT: u8 = 0xa5;
 const GENERATION_ID_SELECT: u8 = 0xa6;
 const TIME_SAMPLE_SELECT: u8 = chipset_resources::microvm_time::TIME_SAMPLE_SELECT;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 const GENERATION_ID_SIZE: usize = 16;
 const STATUS_INPUT_AVAILABLE: u8 = 1 << 0;
 const STATUS_RESTORE_PACKET_AVAILABLE: u8 = 1 << 1;
@@ -72,6 +73,7 @@ const STATUS_RESTORE_MEMORY_EXPANSION_AVAILABLE: u8 = 1 << 4;
 const STATUS_GENERATION_ID_AVAILABLE: u8 = 1 << 5;
 const STATUS_TIME_SAMPLE_AVAILABLE: u8 =
     chipset_resources::microvm_time::STATUS_TIME_SAMPLE_AVAILABLE;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 const BUFFER_MAX: usize = 1024 * 1024;
 
 /// The restore packet version 4 of a restored VM process.
@@ -135,6 +137,7 @@ impl PortbTimeAbi {
 
 /// Raw bidirectional microVM portb console.
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct MicrovmPortb {
     #[inspect(skip)]
     io_region: (&'static str, RangeInclusive<u16>),
@@ -605,13 +608,12 @@ impl PortIoIntercept for MicrovmPortb {
     }
 }
 
-// Placeholder view (save/restore not yet specified).
-vmcore::placeholder_view!(pub ExMicrovmPortb, MicrovmPortb);
-vmcore::placeholder_view!(saved MicrovmPortbSavedState);
-
+// Verified against `SaveRestore`'s contract (`microvm.spec.rs`).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl SaveRestore for MicrovmPortb {
     type SavedState = MicrovmPortbSavedState;
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn save(&mut self) -> Result<Self::SavedState, SaveError> {
         Ok(MicrovmPortbSavedState {
             rx_buffer: self.rx_buffer.iter().copied().collect(),
@@ -619,6 +621,7 @@ impl SaveRestore for MicrovmPortb {
         })
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
         if state.rx_buffer.len() > BUFFER_MAX || state.tx_buffer.len() > BUFFER_MAX {
             return Err(RestoreError::InvalidSavedState(
