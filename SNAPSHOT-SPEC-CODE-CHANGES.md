@@ -633,6 +633,27 @@ Baseline: upstream `nanvix/openvmm` commit
       what `restore` makes of it; both IOAPIC normalizations are
       intended (commit `4e396f9df`).
 
+52. **virtio transports: `save` copies the captured device state**
+    (executable change in `vm/devices/virtio/virtio`, **behavior changes in
+    one case**; decided 2026-10-28, user; design doc, "Executable code
+    changes" and "Other open items"). `TransportRestore`'s
+    `take_device_state` (`self.restore.captured.take()`) is replaced by
+    `captured_device_state`: on a successful capture it returns a clone of
+    the `SavedStateBlob` and keeps the capture (until the next `start` /
+    reset, which clear it as before); on a failed capture it returns (and
+    drops) the error; with no capture it fails as before. Callers: the MMIO
+    and PCI transports' `save` (`mmio.rs`, `pci.rs`). Behavior: a second
+    `save` before the next `start` now returns the same state instead of
+    failing; nothing else changes. Reason: `SaveRestore`'s contract (`save`
+    keeps the view; its result is determined by the view). The same change
+    against `origin/main` (where the method is in `transport/core.rs`,
+    renamed `saved_device_state` there since the field is
+    `captured_device_state`) is
+    `verus-patches/openvmm-0001-virtio-save-keeps-captured-device-state.patch`,
+    for OpenVMM developers (`verus-patches/README.md`, "OpenVMM patches").
+    Checked: `cargo test -p virtio` 141 passed on this branch, 140 on
+    `main`.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

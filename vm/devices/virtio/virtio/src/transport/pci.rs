@@ -894,7 +894,7 @@ mod saved_state {
                     })
                     .collect(),
                 cfg_space: self.pci.config_space.save()?,
-                device_state: self.core.take_device_state()?,
+                device_state: self.core.captured_device_state()?,
                 interrupt_status: *self.pci.interrupt_status.lock(),
             })
         }

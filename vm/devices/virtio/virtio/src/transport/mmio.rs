@@ -486,7 +486,7 @@ mod saved_state {
                         common: self.core.save_queue_common(i),
                     })
                     .collect(),
-                device_state: self.core.take_device_state()?,
+                device_state: self.core.captured_device_state()?,
                 interrupt_status: self.mmio.read_interrupt_status(),
             })
         }

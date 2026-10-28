@@ -1,4 +1,11 @@
-# Verus patches
+# Verus patches (and one OpenVMM patch)
+
+This directory holds two kinds of patch:
+
+| Patch | Applies to | What |
+|---|---|---|
+| `0001`–`0005` (`*.patch` without a prefix) | **Verus**, commit `426d8b0` | local fixes to Verus needed by the snapshot specification work |
+| `openvmm-0001-virtio-save-keeps-captured-device-state.patch` | **OpenVMM `origin/main`** (`7a2b21747`) | a change to OpenVMM's own Rust code, for OpenVMM developers to review; this branch already contains it (see "OpenVMM patches" below) |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -339,3 +346,44 @@ published crate is `0005-verus_builtin_macros-published.patch` (the same
 change as this patch's `attr_rewrite.rs` hunks, at other line offsets).
 Fix 2 is in the verifier and comes from the local checkout, as
 for the other patches.
+
+## OpenVMM patches
+
+These change OpenVMM's executable Rust code (not Verus). This branch
+already contains each change (as a code change in
+`SNAPSHOT-SPEC-CODE-CHANGES.md`); the patch here is the same change against
+`origin/main`, to show OpenVMM developers. Apply from an OpenVMM checkout of
+`origin/main` with `git apply`.
+
+### openvmm-0001-virtio-save-keeps-captured-device-state.patch
+
+**Behavior before.** A virtio device's private state lives in its device
+task. When the device stops, the transport captures that state; `save` then
+*takes* it out (`take_device_state`, `captured_device_state.take()`). So
+`save` changes the transport, and a second `save` before the next `start`
+fails with "device state was not captured". (Added by commit `c2f1ed7c9` on
+`main`; the commit does not say why the state is taken rather than copied.)
+
+**Why change it.** The snapshot specification states, for every
+`SaveRestore` device, that `save` does not change the device and that what
+it returns is determined by the device's state. With `take`, the virtio
+transports (MMIO and PCI) cannot meet that.
+
+**Fix.** `save` copies the captured state (`saved_device_state`, which
+clones the `SavedStateBlob`) and keeps the capture until the next `start`
+or reset, which clear it as before. A failed capture is still returned, and
+dropped, by the first `save`.
+
+**Effect.** Same result for the first `save` after a `stop`. A second
+`save` before the next `start` now returns the same state instead of
+failing. `save` without a preceding `stop` still fails. Cost: one copy of
+the device's private-state blob per `save`, and the capture is kept in
+memory until the next `start`.
+
+**Files.** `vm/devices/virtio/virtio/src/transport/core.rs` (the method,
+renamed from `take_device_state`), `mmio.rs` and `pci.rs` (their `save`
+calls it). Checked on `main`: builds, rustfmt clean, `cargo test -p virtio`
+140 passed. On this branch the same change is in
+`transport/core/restore.rs` (the file was later split; the method is
+`captured_device_state` there).
+

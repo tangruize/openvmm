@@ -43,7 +43,7 @@ use vmcore::save_restore::SavedStateBlob;
 pub(crate) struct TransportRestore {
     /// Validates restored private state; see VirtioDevice::device_state_validator.
     validator: DeviceStateValidator,
-    /// Private state captured by the last `stop()`, taken by `save()`.
+    /// Private state captured by the last `stop()`, read by `save()`.
     captured: Option<Result<Option<SavedStateBlob>, SaveError>>,
     /// Private state restored by `restore_common()`, handed to the next start.
     restored: DeviceRestoreState,
@@ -143,12 +143,22 @@ impl VirtioTransportCore {
         Ok(())
     }
 
-    /// Take the device-private state captured when the queues stopped.
-    pub fn take_device_state(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
-        self.restore
-            .captured
-            .take()
-            .ok_or_else(|| SaveError::Other(anyhow::anyhow!("device state was not captured")))?
+    /// Returns the device-private state captured when the queues stopped.
+    ///
+    /// The capture is kept until the next start or reset, so saving again
+    /// before then returns the same state. A failed capture is returned (and
+    /// dropped) by the first save.
+    pub fn captured_device_state(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
+        match self.restore.captured.take() {
+            Some(Ok(state)) => {
+                self.restore.captured = Some(Ok(state.clone()));
+                Ok(state)
+            }
+            Some(Err(err)) => Err(err),
+            None => Err(SaveError::Other(anyhow::anyhow!(
+                "device state was not captured"
+            ))),
+        }
     }
 
     /// Sends a queue kick to the device task, unless one is already queued.

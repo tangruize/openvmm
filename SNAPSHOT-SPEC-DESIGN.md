@@ -1663,6 +1663,7 @@ change preserves behavior: same results, same order of effects.
 | 47 | `vmbus_channel` | `ChannelHandle::revoke` gets the device back with `.into_any()` instead of the `as Box<dyn Any>` upcast (same `Box`, same concrete type, same downcast; see "The vmbus units") |
 | 47 | `vmbus_channel` | `Device::run_channel` and `Device::handle_state_request` moved into their own `impl Device` block (bodies unchanged); `handle_state_request`'s `#[instrument]` applied only in normal builds (`cfg_attr(not(verus_keep_ghost), instrument(..))`; normal builds: unchanged) |
 | 47 | `vmbus_channel` | `Device::run_channel` takes `self` instead of `mut self`; the body starts with `let mut this = self;` and uses `this` (Verus does not support a `mut self` parameter; private method, same behavior) |
+| **52** | `vm/devices/virtio/virtio` (`transport/core/restore.rs`, `mmio.rs`, `pci.rs`) | **Behavior change, small.** The virtio transports' `save` **copies** the inner device's captured private state instead of **taking** it: `take_device_state` (`captured.take()`) becomes `captured_device_state`, which clones the `SavedStateBlob` and keeps the capture until the next `start` / reset (which clear it, as before). Effect: the first `save` after a `stop` is unchanged; **a second `save` before the next `start` now returns the same state instead of failing** ("device state was not captured"); `save` without a `stop` still fails; a failed capture is still returned (and dropped) by the first `save`. Cost: one blob copy per save. Why: `SaveRestore`'s contract (`save` keeps the device's view and returns what the view determines). The same change against `origin/main`, for OpenVMM developers: `verus-patches/openvmm-0001-virtio-save-keeps-captured-device-state.patch` |
 | 47 | `vmm_core` (`vmbus_unit.rs`) | `offer_channel_unit`, `offer_simple_device_unit`, `offer_vmbus_device_handle_unit` spawn with `spawn_with_channel(.., unit_channel_for(), ..)` instead of `spawn(..)`, and build their units with `new` (normal builds: `unit_channel_for()` and `unit_channel()` are both `mesh::channel()`, so the same channel) |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
@@ -2287,21 +2288,14 @@ concurrent per-pin writes into the PIC and IOAPIC.
 A summary of the other open items recorded in the sections above, most
 important first.
 
-- **virtio-mmio: `save` takes the captured device state** (found
-  2026-10-27; to discuss with the user next). `stop` captures the inner
-  virtio device's private state; `save` moves it out
-  (`TransportRestore::take_device_state`, `captured.take()`), so a second
-  `save` fails ("device state was not captured"); `start` and reset clear
-  it (commit `6bf6fe22d`). So `save` either changes the view (if the view
-  holds the capture) or returns something the view does not determine (if
-  not): virtio-mmio cannot meet `SaveRestore`'s contract as the code
-  stands. Options: A, `save` clones the capture (executable change: a
-  second `save` before `start` returns the same state instead of failing;
-  one blob copy per save); B, keep `take` and trust virtio-mmio's
-  `SaveRestore`; C, weaken the generic contract. Recommended: A. Separate,
-  later: the inner devices' state (the virtio device task's stop/start
-  protocol; net, console, fs, block) is its own layer.
-
+- **virtio-mmio: `save` takes the captured device state**: resolved
+  2026-10-28 (user): option A, code change 52. `save` copies the capture
+  instead of taking it. The same change against `origin/main`, for
+  OpenVMM developers, is `verus-patches/openvmm-0001-virtio-save-keeps-captured-device-state.patch`
+  (see `verus-patches/README.md`, "OpenVMM patches"). Next: virtio-mmio's
+  spec (its view holds the capture). Separate, later: the inner devices'
+  state (the virtio device task's stop/start protocol; net, console, fs,
+  block) is its own layer.
 - **A clean design document** (requested 2026-10-27, user; to write once
   the design settles, as it may still be refactored): a fresh document,
   separate from this working log, stating clearly the device-level spec
