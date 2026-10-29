@@ -125,8 +125,25 @@ impl MicrovmParameters {
 /// A guest snapshot-boundary request, or the closure of the request channel.
 pub(super) type SnapshotBoundaryEvent = Result<MicrovmSnapshotBoundaryRequest, mesh::RecvError>;
 
+// Verus: the view, from the fields: a boundary is active while the vCPUs are
+// held stopped.
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl View for SnapshotBoundary {
+    type V = super::spec::SnapshotBoundaryView;
+
+    closed spec fn view(&self) -> super::spec::SnapshotBoundaryView {
+        super::spec::SnapshotBoundaryView { active: self.stop_guard is Some }
+    }
+}
+
+} // verus!
+
 /// Guest-requested snapshot boundary state of a [`LoadedVm`].
 #[derive(Default)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub(super) struct SnapshotBoundary {
     /// Deferred snapshot PMIO requests awaiting an exact post-OUT boundary.
     requests: Option<mesh::Receiver<MicrovmSnapshotBoundaryRequest>>,

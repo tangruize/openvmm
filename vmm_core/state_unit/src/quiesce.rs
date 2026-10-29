@@ -22,16 +22,32 @@ use vstd::prelude::*;
 /// A bounded quiesce failed and the VM must not be saved.
 #[derive(Debug, Error)]
 #[error("failed to quiesce state units for save: {failures:?}")]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct QuiesceForSaveError {
     failures: Vec<(String, String)>,
     uncertain: bool,
 }
 
+// Verus: the error's view, from its fields.
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl View for QuiesceForSaveError {
+    type V = crate::spec::QuiesceForSaveErrorView;
+
+    closed spec fn view(&self) -> crate::spec::QuiesceForSaveErrorView {
+        crate::spec::QuiesceForSaveErrorView { uncertain: self.uncertain }
+    }
+}
+
+} // verus!
+
 impl QuiesceForSaveError {
     /// Returns whether any unit may have partially changed ownership or state.
     ///
     /// When true, the VM cannot be resumed safely and must be terminated.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures
             result == self@.uncertain,

@@ -144,14 +144,8 @@ pub struct QuiesceForSaveErrorView {
     pub uncertain: bool,
 }
 
-impl View for QuiesceForSaveError {
-    type V = QuiesceForSaveErrorView;
-
-    /// ASSUMED, to prove (PROOF TODO: declare the type to Verus with its
-    /// fields): `uncertain` is the error's `uncertain` field
-    /// (`has_uncertain_state` returns the field).
-    uninterp spec fn view(&self) -> QuiesceForSaveErrorView;
-}
+// `View for QuiesceForSaveError` is in `quiesce.rs`, next to the type (its
+// fields are private): `uncertain` is the error's `uncertain` field.
 
 /// What `StateUnit`'s contract needs to know about a unit (a supertrait of
 /// `StateUnit` in Verus builds; empty in normal builds). The contract itself

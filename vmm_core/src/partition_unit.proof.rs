@@ -38,4 +38,10 @@ pub(super) struct ExTopology(Topology);
 #[verifier::external_body]
 pub struct ExInitialRegs(InitialRegs);
 
+/// Declares `StopGuard` to Verus, as an opaque type (a field of
+/// `openvmm_core`'s `SnapshotRestore` and `SnapshotBoundary`).
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExStopGuard(super::StopGuard);
+
 } // verus!

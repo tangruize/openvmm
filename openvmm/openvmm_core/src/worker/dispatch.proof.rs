@@ -21,17 +21,28 @@ verus! {
 #[verifier::external_body]
 pub(in crate::worker::dispatch) struct ExLoadedVmInner(LoadedVmInner);
 
+// (`SnapshotRestore` is `verus_verify` itself, `dispatch/restore.rs`.)
+
+// `SnapshotRestore`'s other field types, declared to Verus as opaque types.
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub(in crate::worker::dispatch) struct ExSnapshotRestore(SnapshotRestore);
+pub struct ExFile(std::fs::File);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
-pub(in crate::worker::dispatch) struct ExSnapshotBoundary(SnapshotBoundary);
+pub struct ExInstant(pal_async::timer::Instant);
+
+// (`SnapshotBoundary` is `verus_verify` itself, `dispatch/microvm.rs`.)
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(crate) struct ExInitializedVm(InitializedVm);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExMicrovmSnapshotScratchPolicy(
+    chipset_resources::microvm::MicrovmSnapshotScratchPolicy,
+);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

@@ -57,24 +57,8 @@ pub struct SnapshotBoundaryView {
     pub active: bool,
 }
 
-impl View for SnapshotBoundary {
-    type V = SnapshotBoundaryView;
-
-    /// ASSUMED, to prove (PROOF TODO: define it from the fields, in a module
-    /// that can see them): `active` is `self.stop_guard.is_some()`.
-    /// (Uninterpreted for now: `SnapshotBoundary`'s fields are private.)
-    uninterp spec fn view(&self) -> SnapshotBoundaryView;
-}
-
-impl View for SnapshotRestore {
-    type V = SnapshotRestoreView;
-
-    /// ASSUMED, to prove (PROOF TODO: define it from the fields, in a module
-    /// that can see them): `clock_restore_pending` is
-    /// `self.time_abi.is_some()`. (Uninterpreted for now: `SnapshotRestore`'s
-    /// fields are private.)
-    uninterp spec fn view(&self) -> SnapshotRestoreView;
-}
+// The views of `SnapshotBoundary` and `SnapshotRestore` are defined next to
+// the types, from their fields (`dispatch/microvm.rs`, `dispatch/restore.rs`).
 
 impl LoadedVm {
     /// Well formed: the view's invariant holds, the state units are well

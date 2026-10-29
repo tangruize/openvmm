@@ -71,9 +71,7 @@ pub struct ExStateTransitionError(crate::StateTransitionError);
 #[verifier::external_type_specification]
 pub struct ExSavedStateUnit(crate::SavedStateUnit);
 
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExQuiesceForSaveError(crate::quiesce::QuiesceForSaveError);
+// (`QuiesceForSaveError` is `verus_verify` itself, `quiesce.rs`.)
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

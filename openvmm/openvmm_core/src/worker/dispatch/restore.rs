@@ -120,8 +120,25 @@ fn select_instantiated_vps<T>(
     Ok(vp_prefix)
 }
 
+// Verus: the view, from the fields: a clock restore is pending while the
+// time ABI inputs are set.
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl View for SnapshotRestore {
+    type V = super::spec::SnapshotRestoreView;
+
+    closed spec fn view(&self) -> super::spec::SnapshotRestoreView {
+        super::spec::SnapshotRestoreView { clock_restore_pending: self.time_abi is Some }
+    }
+}
+
+} // verus!
+
 /// Snapshot-restore state of a [`LoadedVm`].
 #[derive(Default)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub(super) struct SnapshotRestore {
     /// The time ABI inputs of a restore, validated by the controller.
     pub(super) time_abi: Option<openvmm_defs::time_abi::RestoreTimeInput>,

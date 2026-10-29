@@ -1139,6 +1139,30 @@ Baseline: upstream `nanvix/openvmm` commit
     `Weak<T>` (a vstd addition or a local declaration with the allocator
     parameter) would let these be marked like the others.
 
+78. **Three of our types' views defined from their fields, instead of
+    uninterpreted** (Verus only; no executable change; decided by the
+    user, 2026-10-30: avoid uninterpreted views of our own types, which
+    keep the code using them from being verified).
+    - `QuiesceForSaveError` (`state_unit`, `quiesce.rs`): the struct is
+      `verus_verify` (with `verifier::external_derive`); its view, next to
+      it, is `uncertain: self.uncertain`. `has_uncertain_state` is now
+      **verified** (its body was `external_body`). Its opaque declaration
+      in `lib.proof.rs` is removed.
+    - `SnapshotRestore` (`openvmm_core`, `dispatch/restore.rs`): the
+      struct is `verus_verify`; view `clock_restore_pending:
+      self.time_abi is Some`. Declared for its fields: `std::fs::File`,
+      `pal_async::timer::Instant` (`dispatch.proof.rs`), `StopGuard`
+      (`vmm_core`'s `partition_unit.proof.rs`).
+    - `SnapshotBoundary` (`openvmm_core`, `dispatch/microvm.rs`): the
+      struct is `verus_verify`; view `active: self.stop_guard is Some`.
+      Declared: `MicrovmSnapshotScratchPolicy`.
+    The uninterpreted views in `dispatch.spec.rs` and `lib.spec.rs` are
+    removed. **Not done, by the user's decision**: `VmTimeKeeper`'s view
+    (`vmcore`) stays uninterpreted; defining it needs two new `vmcore`
+    dependencies used only for Verus (`async-task`, `mesh_rpc_verus`), and
+    guest time is out of scope; its methods' contracts stay assumptions
+    (trusted doc, Part 3).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
