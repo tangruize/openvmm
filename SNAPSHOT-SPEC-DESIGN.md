@@ -1794,7 +1794,7 @@ to the docs by name; then each was checked by hand.
 
 | Marker | Count | Result |
 |---|---|---|
-| `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 39 in `external_body` bodies, 4 in plain (unverified) functions, 15 in tests, 1 (`reply`) only in builds other than the verification pass |
+| `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 41 in `external_body` bodies (6 are trusted functions that hand out a ghost, e.g. `recv_msg`; the other 35, bodies still to prove, are each marked `PROOF TODO:` with the real ghost to put there), 7 in plain (unverified) functions, 10 in tests, 1 (`reply`) only in builds other than the verification pass |
 | `assume(..)` | 1 | documented ("Recorded unit states are real") |
 | `assume_specification` | 8 | documented (saved-state blobs, protobuf, registry) |
 | `uninterp spec fn` | 34 | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC) |
@@ -1803,6 +1803,19 @@ to the docs by name; then each was checked by hand.
 | `external_body` without a contract of its own | 87 | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
+
+**Placeholder markers** (2026-10-29, for the proof agent's tooling,
+which looks for assumptions to remove). Every `assume_new()` carries one
+of five markers in the comment just above its statement; the audit
+script fails if one has none (or is in verified code):
+
+| Marker | Meaning | Count |
+|---|---|---|
+| `PROOF TODO:` | **replace** with the real ghost the comment names, when proving that body | 34 |
+| `TRUSTED:` | **keep**: the body of a trusted function that hands out a ghost (`recv`, `recv_failable`, `recv_msg`, `take_sender_ghost`, `take_receiver_ghost`, `new_vm_state_token`); the trust is its contract | 6 |
+| `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol (`PartitionRequest`'s, `VmRpc`'s) is specified and the code is verified | 6 |
+| `NOT VERIFIED:` | **keep**: not part of verification (the RPC wrapper's tests; `reply`'s build other than the verification pass) | 11 |
+| `OUT OF SCOPE:` | **keep**: vmbus units | 2 |
 
 **Answer.** The spec of quiesce, save, and restore is written down to
 the trust boundaries, and what is not done is documented: deferred until

@@ -13,6 +13,13 @@ Transparent ones are checked by Verus against the real type; opaque ones
 Uninterpreted spec functions claim nothing by themselves; they are listed
 only where a trusted item gives them meaning.
 
+**Placeholder ghosts.** Every `assume_new()` in the code is marked
+(`PROOF TODO:`, `TRUSTED:`, `WAITS FOR PROTOCOL:`, `NOT VERIFIED:`,
+`OUT OF SCOPE:`; design doc, "The completeness audit"). Only the
+`TRUSTED:` ones are part of the trusted base, through the contracts of
+the functions they are in (rows below); `scripts/verus-spec-audit.py`
+checks that every one is marked and none is in verified code.
+
 ## Tool
 
 | Item | Where | What is trusted |

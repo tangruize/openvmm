@@ -62,6 +62,8 @@ impl<'a> KeeperUnit<'a> {
     ))]
     fn new(keeper: &'a mut VmTimeKeeper, recv: &mut Receiver<StateRequest>) -> Self {
         let _ = recv;
+        // PROOF TODO: replace this placeholder (`assume_new()`) with the real
+        // ghost: the half taken from `recv` (`take_receiver_ghost`).
         #[cfg(verus_keep_ghost)]
         return Self(keeper, Tracked::assume_new());
         #[cfg(not(verus_keep_ghost))]

@@ -167,6 +167,9 @@ impl TimeAbiMsrs {
         return Self {
             rates: OnceLock::new(),
             tsc_invariant_control: vstd::atomic_ghost::AtomicU64::new(
+                // PROOF TODO: replace these placeholders (`assume_new()`) with
+                // the real ghost: the atomic's ghost and its invariant's share,
+                // as the contract states.
                 Ghost::assume_new(),
                 0,
                 Tracked::assume_new(),
@@ -184,6 +187,9 @@ impl TimeAbiMsrs {
         return self
             .tsc_invariant_control
             .patomic
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the atomic's invariant token (the share), per
+            // `TimeAbiMsrs`' invariant.
             .load(Tracked::assume_new());
         #[cfg(not(verus_keep_ghost))]
         return self.tsc_invariant_control.load(Ordering::Relaxed);
@@ -196,6 +202,9 @@ impl TimeAbiMsrs {
         #[cfg(verus_keep_ghost)]
         self.tsc_invariant_control
             .patomic
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the atomic's invariant token (the share), per
+            // `TimeAbiMsrs`' invariant.
             .store(Tracked::assume_new(), value);
         #[cfg(not(verus_keep_ghost))]
         self.tsc_invariant_control.store(value, Ordering::Relaxed);

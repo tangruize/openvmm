@@ -14,7 +14,12 @@ need a human check.
 Sections:
   placeholders   assume_new(): where each is (verified code would be
                  unsound; external_body bodies, plain functions, tests are
-                 not checked by Verus)
+                 not checked by Verus), and its marker, a comment just above
+                 its statement: PROOF TODO: (replace when proving the body),
+                 TRUSTED: (keep: a trusted function's body), WAITS FOR
+                 PROTOCOL: (replace once that protocol exists), NOT VERIFIED:
+                 (keep: tests, non-verification builds), OUT OF SCOPE: (keep).
+                 Exits 1 if one is in verified code or has no marker.
   functions      uninterp / external_body (with or without a contract) /
                  external; external_body with a contract is TRUSTED (a
                  boundary: a *_t.rs file, or "TRUSTED"/"Trusted" in its
@@ -76,14 +81,53 @@ def enclosing_fn(lines, i):
     return None, None
 
 
+def test_lines(lines):
+    """Lines inside `mod tests { .. }` blocks (by brace matching)."""
+    inside = set()
+    i = 0
+    while i < len(lines):
+        if re.match(r'\s*mod tests\s*\{', lines[i]):
+            depth = 0
+            j = i
+            while j < len(lines):
+                depth += lines[j].count('{') - lines[j].count('}')
+                inside.add(j)
+                if depth <= 0 and j > i:
+                    break
+                j += 1
+            i = j + 1
+        else:
+            i += 1
+    return inside
+
+
+MARKERS = ('PROOF TODO:', 'TRUSTED:', 'WAITS FOR PROTOCOL:', 'NOT VERIFIED:',
+           'OUT OF SCOPE:')
+
+
+def marker_of(lines, i, tests, test_marked):
+    """The marker in the comments just above the statement holding line i
+    (or the test module's, for a test)."""
+    if i in tests and test_marked:
+        return 'NOT VERIFIED:'
+    for k in range(i, max(-1, i - 12), -1):
+        t = lines[k].strip()
+        if k != i and not t.startswith('//') and t.endswith((';', '{', '}')):
+            break
+        for m in MARKERS:
+            if t.startswith('//') and m in t:
+                return m
+    return None
+
+
 def placeholders(files):
     rows = []
     for f in files:
         lines = open(f).read().split('\n')
-        in_tests = False
+        tests = test_lines(lines)
+        test_marked = any('NOT VERIFIED:' in lines[k] for k in tests)
         for i, l in enumerate(lines):
-            if re.match(r'\s*mod tests\b', l):
-                in_tests = True
+            in_tests = i in tests
             if 'assume_new()' not in l or l.strip().startswith('//'):
                 continue
             name, k = enclosing_fn(lines, i)
@@ -104,7 +148,8 @@ def placeholders(files):
                     kind = 'VERIFIED!'
                 else:
                     kind = 'PLAIN'
-            rows.append((kind, f'{f}:{i + 1}', name or '?'))
+            marker = marker_of(lines, i, tests, test_marked) or 'UNMARKED'
+            rows.append((kind, f'{f}:{i + 1}', name or '?', marker))
     return rows
 
 
@@ -173,7 +218,7 @@ def todos(files):
     for f in files:
         lines = open(f).read().split('\n')
         for i, l in enumerate(lines):
-            if 'TODO' not in l:
+            if 'TODO' not in l or 'PROOF TODO:' in l:
                 continue
             blame = subprocess.run(
                 ['git', 'blame', '--porcelain', '-L', f'{i + 1},{i + 1}', '--', f],
@@ -202,7 +247,8 @@ def main():
 
     p = placeholders(files)
     summarize('placeholders (assume_new)', p)
-    bad = [r for r in p if r[0] in ('VERIFIED!', 'NO-FN')]
+    summarize('placeholders by marker', p, key=3)
+    bad = [r for r in p if r[0] in ('VERIFIED!', 'NO-FN') or r[3] == 'UNMARKED']
     for r in (p if list_all else bad):
         print('   ', *r, sep='\t')
 
@@ -219,12 +265,19 @@ def main():
         for r in a:
             print('   ', *r, sep='\t')
 
+    failed = bool(bad)
     t = todos(files)
     summarize('TODOs', t)
     for r in t:
         if list_all or r[0] == 'OURS':
             print('   ', *r, sep='\t')
 
+    if failed:
+        print('FAILED: a placeholder is in verified code or has no marker '
+              '(one of: ' + ', '.join(MARKERS) + ')')
+        return 1
+    return 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

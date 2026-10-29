@@ -1125,6 +1125,9 @@ impl TimeAbiUnit {
         Self {
             msrs,
             report,
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the value the contract states (as built with the
+            // MSRs' share).
             #[cfg(verus_keep_ghost)]
             running: Ghost::assume_new(),
         }

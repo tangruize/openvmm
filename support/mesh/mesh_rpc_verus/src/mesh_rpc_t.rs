@@ -197,6 +197,8 @@ pub fn take_sender_ghost<M: MeshProtocol>(send: &mut Sender<M>) -> (result: Trac
         final(send).attached() is None,
         result@ == old(send).attached(),
 {
+    // TRUSTED: keep this `assume_new()`. This trusted function's
+    // contract hands out the ghost; its body has none to give.
     Tracked::assume_new()
 }
 
@@ -211,6 +213,8 @@ pub fn take_receiver_ghost<M: MeshProtocol>(receiver: &mut Receiver<M>) -> (resu
         final(receiver).attached() is None,
         result@ == old(receiver).attached(),
 {
+    // TRUSTED: keep this `assume_new()`. This trusted function's
+    // contract hands out the ghost; its body has none to give.
     Tracked::assume_new()
 }
 
@@ -289,6 +293,8 @@ impl<M: MeshProtocol, R: 'static + Send> PendingCall<M, R> {
             result matches Ok((r, gout)) ==> self.reply_ok(r, gout@),
     {
         match self.pending.await {
+            // TRUSTED: keep this `assume_new()`. This trusted function's
+            // contract hands out the ghost; its body has none to give.
             Ok(r) => Ok((r, Tracked::assume_new())),
             Err(err) => Err(err),
         }
@@ -307,6 +313,8 @@ impl<M: MeshProtocol, T: 'static + Send, E: 'static + Send> PendingCall<M, Resul
             result matches Ok((t, gout)) ==> self.reply_ok(Ok(t), gout@),
     {
         match self.pending.await {
+            // TRUSTED: keep this `assume_new()`. This trusted function's
+            // contract hands out the ghost; its body has none to give.
             Ok(Ok(t)) => Ok((t, Tracked::assume_new())),
             Ok(Err(e)) => Err(RpcError::Call(e)),
             Err(RpcError::Channel(e)) => Err(RpcError::Channel(e)),
@@ -325,6 +333,8 @@ pub async fn recv_msg<M: MeshProtocol>(receiver: &mut Receiver<M>) -> (result: O
         result matches Some((msg, gin)) ==> M::request_ok(old(receiver).constant(), msg, gin@),
 {
     match receiver.recv().await {
+        // TRUSTED: keep this `assume_new()`. This trusted function's
+        // contract hands out the ghost; its body has none to give.
         Ok(msg) => Some((msg, Tracked::assume_new())),
         Err(_) => None,
     }
@@ -366,6 +376,8 @@ impl<T> MeshProtocol for T {
 
 #[cfg(test)]
 mod tests {
+    // NOT VERIFIED: keep the `assume_new()`s in this module (tests, not part
+    // of verification).
     use super::*;
     use pal_async::DefaultDriver;
     use pal_async::async_test;

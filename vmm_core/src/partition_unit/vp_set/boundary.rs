@@ -48,6 +48,10 @@ impl VpSet {
                         &vp.send,
                         VpEvent::Stop,
                         (),
+                        // PROOF TODO: replace these placeholders
+                        // (`assume_new()`) with the real ghost: no ghost sent
+                        // (`None`) and the VP protocol's reply expectation for
+                        // `Stop`; then keep the returned half in `vp.share`.
                         Tracked::assume_new(),
                         Ghost::assume_new(),
                     );

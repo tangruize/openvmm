@@ -645,6 +645,8 @@ fn reply<R: 'static + Send>(rpc: Rpc<(), R>, r: R) {
             gout,
         ),
     );
+    // NOT VERIFIED: keep this `assume_new()` (builds other than the
+    // verification pass; the verification pass, above, passes `gout`).
     #[cfg(not(verus_keep_ghost_body))]
     mesh_rpc_verus::complete(rpc, r, Tracked::<ReplyGhost>::assume_new());
 }
@@ -1398,8 +1400,12 @@ async fn call_unit<I: 'static, R: 'static + Send, Req: FnOnce(Rpc<I, R>) -> Stat
     input: I,
 ) -> Result<R, UnitRecvError> {
     let start = Instant::now();
-    // Through the mesh RPC wrapper, with placeholder ghosts: the halves are
-    // not yet passed (`run_op` is unverified).
+    // Through the mesh RPC wrapper.
+    // PROOF TODO: replace these placeholders (`assume_new()`) with the real
+    // ghosts: the unit's half (or none) and the request protocol's reply
+    // expectation for `request`, passed in by the caller (this function and
+    // its caller `run_op` are not yet verified; `StateUnits`' operations'
+    // proofs need it).
     let r = mesh_rpc_verus::call(
         &send,
         request,

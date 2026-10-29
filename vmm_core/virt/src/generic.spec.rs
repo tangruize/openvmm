@@ -49,6 +49,8 @@ pub fn new_vm_state_token<P: PartitionAccessState>(partition: &P) -> (token: Tra
     ensures
         token@ matches Some(t) && t.frac() == 1real,
 {
+    // TRUSTED: keep this `assume_new()`. This trusted function's contract
+    // hands out the token; its body has none to give.
     Tracked::assume_new()
 }
 

@@ -188,6 +188,8 @@ impl<T: 'static + VmbusDevice + ?Sized> ChannelUnit<T> {
     fn new(handle: ChannelHandle<T>) -> Self {
         Self(
             handle,
+            // OUT OF SCOPE: keep this `assume_new()` (vmbus is out of scope;
+            // design doc).
             #[cfg(verus_keep_ghost)]
             Ghost::assume_new(),
         )
@@ -308,6 +310,8 @@ impl<T: SimpleVmbusDevice> SimpleChannelUnit<T> {
     fn new(handle: SimpleDeviceHandle<T>) -> Self {
         Self(
             handle,
+            // OUT OF SCOPE: keep this `assume_new()` (vmbus is out of scope;
+            // design doc).
             #[cfg(verus_keep_ghost)]
             Ghost::assume_new(),
         )

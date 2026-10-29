@@ -960,8 +960,10 @@ impl VpSet {
     pub fn start(&mut self) {
         if !self.started {
             for vp in &self.vps {
-                // Through the mesh RPC wrapper, with a placeholder ghost (to
-                // prove: `VpSet`'s half of the VP).
+                // Through the mesh RPC wrapper.
+                // PROOF TODO: replace this placeholder (`assume_new()`) with
+                // the real ghost: this VP's half, taken from `vp.share`
+                // (`Start` gives it to the VP thread).
                 mesh_rpc_verus::send_msg(&vp.send, VpEvent::Start, Tracked::assume_new());
             }
             self.started = true;
@@ -1026,6 +1028,10 @@ impl VpSet {
                         &vp.send,
                         VpEvent::Stop,
                         (),
+                        // PROOF TODO: replace these placeholders
+                        // (`assume_new()`) with the real ghost: no ghost sent
+                        // (`None`) and the VP protocol's reply expectation for
+                        // `Stop`; then keep the returned half in `vp.share`.
                         Tracked::assume_new(),
                         Ghost::assume_new(),
                     );
@@ -1063,6 +1069,10 @@ impl VpSet {
                     &vp.send,
                     |x| VpEvent::State(StateEvent::Reset(x)),
                     (),
+                    // PROOF TODO: replace these placeholders (`assume_new()`)
+                    // with the real ghost: this VP's half from `vp.share` and
+                    // the VP protocol's reply expectation; then put the
+                    // returned half back in `vp.share`.
                     Tracked::assume_new(),
                     Ghost::assume_new(),
                 )
@@ -1101,6 +1111,10 @@ impl VpSet {
                     &vp.send,
                     |x| VpEvent::State(StateEvent::Scrub(x)),
                     vtl,
+                    // PROOF TODO: replace these placeholders (`assume_new()`)
+                    // with the real ghost: this VP's half from `vp.share` and
+                    // the VP protocol's reply expectation; then put the
+                    // returned half back in `vp.share`.
                     Tracked::assume_new(),
                     Ghost::assume_new(),
                 )
@@ -1141,6 +1155,10 @@ impl VpSet {
                     &vp.send,
                     |x| VpEvent::State(StateEvent::Save(x)),
                     (),
+                    // PROOF TODO: replace these placeholders (`assume_new()`)
+                    // with the real ghost: this VP's half from `vp.share`
+                    // (lent) and the VP protocol's reply expectation; then put
+                    // the returned half back in `vp.share`.
                     Tracked::assume_new(),
                     Ghost::assume_new(),
                 )
@@ -1193,6 +1211,11 @@ impl VpSet {
                         &vp.send,
                         |x| VpEvent::State(StateEvent::Restore(x)),
                         data,
+                        // PROOF TODO: replace these placeholders
+                        // (`assume_new()`) with the real ghost: this VP's half
+                        // from `vp.share` and the VP protocol's reply
+                        // expectation; then put the returned half back in
+                        // `vp.share`.
                         Tracked::assume_new(),
                         Ghost::assume_new(),
                     )
@@ -1276,6 +1299,11 @@ impl VpSet {
                         &vp.send,
                         |x| VpEvent::State(StateEvent::SetInitialRegs(x)),
                         (vtl, initial_regs, to_set),
+                        // PROOF TODO: replace these placeholders
+                        // (`assume_new()`) with the real ghost: this VP's half
+                        // from `vp.share` and the VP protocol's reply
+                        // expectation; then put the returned half back in
+                        // `vp.share`.
                         Tracked::assume_new(),
                         Ghost::assume_new(),
                     )
@@ -1343,6 +1371,9 @@ impl VpSet {
             &self.instantiated_vp(vp)?.send,
             |x| VpEvent::State(StateEvent::GetDumpVpState(x)),
             vtl,
+            // PROOF TODO: replace these placeholders (`assume_new()`) with the
+            // real ghost: no ghost sent (`None`) and the VP protocol's reply
+            // expectation (no ghost back).
             Tracked::assume_new(),
             Ghost::assume_new(),
         )

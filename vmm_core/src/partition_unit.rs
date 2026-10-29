@@ -310,8 +310,10 @@ impl PartitionUnit {
     /// Temporarily stops the VPs, returning a guard that will resume them when
     /// dropped.
     pub async fn temporarily_stop_vps(&mut self) -> StopGuard {
-        // Through the mesh RPC wrapper, with placeholder ghosts
-        // (`PartitionRequest`'s protocol is not yet specified).
+        // Through the mesh RPC wrapper.
+        // WAITS FOR PROTOCOL: `PartitionRequest`'s (not yet specified); then
+        // replace these `assume_new()`s with the ghost it defines for
+        // `StopVps` and its reply expectation, when this function is verified.
         mesh_rpc_verus::call(
             &self.req_send,
             PartitionRequest::StopVps,
@@ -422,8 +424,9 @@ impl PartitionUnitRunner {
             omit_saved_tsc: false,
             #[cfg(feature = "gdb")]
             debugger_state,
-            // Verus: to prove, the half taken from `recv` (as in
-            // `KeeperUnit::new`).
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the half taken from `recv` (`take_receiver_ghost`, as
+            // in `KeeperUnit::new`).
             #[cfg(verus_keep_ghost)]
             share: Tracked::assume_new(),
         }
@@ -527,6 +530,9 @@ impl PartitionUnitRunner {
                     PartitionRequest::StopVps(rpc) => {
                         let ((), rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
                         self.stop_vps().await;
+                        // WAITS FOR PROTOCOL: `PartitionRequest`'s (not yet
+                        // specified); then replace this `assume_new()` with the
+                        // reply ghost it defines for `StopVps`.
                         mesh_rpc_verus::complete(rpc, (), Tracked::<()>::assume_new());
                     }
                     PartitionRequest::Snapshot(req) => self.handle_snapshot(req).await,

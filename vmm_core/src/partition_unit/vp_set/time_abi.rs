@@ -81,6 +81,9 @@ impl VpSet {
                     &vp.send,
                     |rpc| VpEvent::State(StateEvent::CheckTimers(rpc)),
                     (),
+                    // PROOF TODO: replace these placeholders (`assume_new()`)
+                    // with the real ghost: no ghost sent (`None`) and the VP
+                    // protocol's reply expectation (no ghost back).
                     Tracked::assume_new(),
                     Ghost::assume_new(),
                 )
@@ -131,6 +134,9 @@ impl VpSet {
                         downtime_ns,
                         apic_hz,
                     },
+                    // PROOF TODO: replace these placeholders (`assume_new()`)
+                    // with the real ghost: no ghost sent (`None`) and the VP
+                    // protocol's reply expectation (no ghost back).
                     Tracked::assume_new(),
                     Ghost::assume_new(),
                 )

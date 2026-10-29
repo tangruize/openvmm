@@ -4214,6 +4214,9 @@ impl LoadedVm {
                     VmRpc::QuiesceForSnapshot(rpc) => {
                         let (timeout, rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
                         let r = self.quiesce_for_snapshot(timeout).await;
+                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
+                        // yet specified); then replace this `assume_new()` with
+                        // the reply ghost it defines, when this loop is verified.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ResumeAfterFailedSnapshot(rpc) => {
@@ -4222,6 +4225,9 @@ impl LoadedVm {
                             .resume_after_failed_snapshot(timeout)
                             .await
                             .map_err(RemoteError::new);
+                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
+                        // yet specified); then replace this `assume_new()` with
+                        // the reply ghost it defines, when this loop is verified.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ReleaseSnapshotBoundary(rpc) => {
@@ -4230,6 +4236,9 @@ impl LoadedVm {
                             .release_snapshot_boundary()
                             .await
                             .map_err(RemoteError::new);
+                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
+                        // yet specified); then replace this `assume_new()` with
+                        // the reply ghost it defines, when this loop is verified.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::Nmi(rpc) => rpc.handle_sync(|vpindex| {

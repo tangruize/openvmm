@@ -69,6 +69,9 @@ impl<T: DeviceSnapshot> DeviceSlot<T> {
     ))]
     pub fn new(device: T) -> Self {
         Self {
+            // PROOF TODO: replace these placeholders (`assume_new()`) with the
+            // real ghost: the device's share and `omit`, as the contract
+            // states.
             #[cfg(verus_keep_ghost)]
             share: Tracked::assume_new(),
             #[cfg(verus_keep_ghost)]
