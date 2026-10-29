@@ -154,7 +154,8 @@ pub struct ResolvedChipsetDevice(pub ErasedChipsetDevice);
 pub struct ErasedChipsetDevice(Box<dyn DynChipsetDevice>);
 
 // Verus: where a device is erased (boxed into `dyn DynChipsetDevice`).
-// TRUSTED (`external_body`): the erased device's blob and well-formedness
+// DEFERRED (a Verus limit, `external_body`; not part of the trusted base):
+// the erased device's blob and well-formedness
 // are the device's. This is how `dyn` dispatch works in Rust, but Verus
 // cannot prove it here: its `dyn` axiom covers only spec functions of the
 // `dyn` trait itself with an impl visible to Verus, and `DynChipsetDevice`
@@ -164,6 +165,7 @@ pub struct ErasedChipsetDevice(Box<dyn DynChipsetDevice>);
 impl<T: ChangeDeviceState + ChipsetDevice + ProtobufSaveRestore + InspectMut> From<T>
     for ResolvedChipsetDevice
 {
+    /// DEFERRED (a Verus limit; see above).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures

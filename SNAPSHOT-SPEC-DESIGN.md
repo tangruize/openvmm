@@ -1795,14 +1795,29 @@ to the docs by name; then each was checked by hand.
 | Marker | Count | Result |
 |---|---|---|
 | `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 41 in `external_body` bodies (6 are trusted functions that hand out a ghost, e.g. `recv_msg`; the other 35, bodies still to prove, are each marked `PROOF TODO:` with the real ghost to put there), 7 in plain (unverified) functions, 10 in tests, 1 (`reply`) only in builds other than the verification pass |
-| `assume(..)` | 1 | documented ("Recorded unit states are real") |
+| `assume(..)` | 1 | documented ("Recorded unit states are real"); **relabelled 2026-10-29** from trusted to `PROOF TODO:` (provable with a running token shared by `StateUnits` and each unit) |
 | `assume_specification` | 8 | documented (saved-state blobs, protobuf, registry) |
 | `uninterp spec fn` | 34 | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC) |
-| `external_body` with a contract, trusted by design (a boundary: a `_t.rs` file or marked TRUSTED) | 33 | all in the trusted doc |
-| `external_body` with a contract, body to prove | 91 | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 22 | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), `parking_lot` (3), the hypervisor (3) |
+| `external_body` with a contract, deferred (a Verus limit) | 2 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
+| `external_body` with a contract, body to prove (our code) | 100 | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
 | `external_body` without a contract of its own | 87 | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
+
+**The trust rule** (decided 2026-10-29, user). The trusted base is only
+external things: the hypervisor, the guest, the hardware clock, protobuf,
+`mesh`, the locks' runtime (`parking_lot`), and the tools. A Verus limit is
+**deferred**, not trusted. A fact about our own code (OpenVMM's or ours) is
+**assumed until proved**: a TODO, even if it needs a new ghost. The first
+pass of this audit had labelled several such facts trusted (e.g. the
+`assume` in `StateRequest::apply`, the registry's
+`assume_specification`s, `CloseableMutex`'s specification, uninterpreted
+views of our own types); they are relabelled in the code and moved in
+`SNAPSHOT-SPEC-TRUSTED.md`, which is now in three parts (trusted base,
+deferred, assumed until proved). Earlier sections of this document may
+still say "trusted" for Part 3 items; `SNAPSHOT-SPEC-TRUSTED.md` is
+authoritative, and the wording is to fix in the document's cleanup.
 
 **Placeholder markers** (2026-10-29, for the proof agent's tooling,
 which looks for assumptions to remove). Every `assume_new()` carries one

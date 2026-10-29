@@ -43,8 +43,9 @@ impl View for SavedState {
 impl View for VmTimeKeeper {
     type V = VmTimeKeeperView;
 
-    /// Trusted: `running` is `self.time.is_started()`. (Uninterpreted:
-    /// `VmTimeKeeper` has private fields.)
+    /// ASSUMED, to prove (PROOF TODO: define it from the fields, in a module
+    /// that can see them): `running` is `self.time.is_started()`.
+    /// (Uninterpreted for now: `VmTimeKeeper`'s fields are private.)
     uninterp spec fn view(&self) -> VmTimeKeeperView;
 }
 

@@ -22,9 +22,10 @@ Sections:
                  build, vmbus). Exits 1 if one is in verified code or has no
                  marker.
   functions      uninterp / external_body (with or without a contract) /
-                 external; external_body with a contract is TRUSTED (a
-                 boundary: a *_t.rs file, or "TRUSTED"/"Trusted" in its
-                 attributes or docs) or PENDING (a body to prove)
+                 external; external_body with a contract is TRUSTED (the
+                 trusted base, external only: a *_t.rs file, or "TRUSTED" in
+                 its attributes or docs), DEFERRED (a Verus limit), or
+                 PENDING (our code: a body to prove; "ASSUMED")
   assumes        assume(..), assume_specification
   todos          TODOs: OURS (git blame: the current git user) or UPSTREAM
 """
@@ -158,12 +159,16 @@ def functions(files, docs):
     rows = []
     for f in files:
         lines = open(f).read().split('\n')
+        # A `_t.rs` file whose header says it is ASSUMED (our code) holds no
+        # trusted-base items.
+        header_assumed = any('ASSUMED' in h for h in lines[:15])
         for i, l in enumerate(lines):
             m = FN_RE.match(l)
             if not m:
                 continue
             name = m.group(1)
-            a = attrs_of(lines, i)
+            # (The docs' file name is not a label.)
+            a = attrs_of(lines, i).replace('SNAPSHOT-SPEC-TRUSTED', '')
             j, sig = i, l
             while ('{' not in lines[j] and not lines[j].rstrip().endswith(';')
                    and j + 1 < len(lines)):
@@ -181,12 +186,16 @@ def functions(files, docs):
                 kind = 'EXTERNAL'
             elif not contract:
                 kind = 'EB-NO-CONTRACT'
+            elif 'DEFERRED' in a:
+                kind = 'EB-DEFERRED'
+            elif 'ASSUMED' in a or header_assumed:
+                kind = 'EB-PENDING'
             elif f.endswith('_t.rs') or 'TRUSTED' in a or 'Trusted' in a:
                 kind = 'EB-TRUSTED'
             else:
                 kind = 'EB-PENDING'
             word = re.compile(r'\b' + re.escape(name) + r'\b')
-            if kind in ('EB-TRUSTED', 'UNINTERP'):
+            if kind in ('EB-TRUSTED', 'EB-DEFERRED', 'UNINTERP'):
                 documented = bool(word.search(trusted_doc))
             else:
                 documented = bool(word.search(docs))

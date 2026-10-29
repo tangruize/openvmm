@@ -1,11 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Trusted Verus specification of [`CloseableMutex`]: a lock invariant on the
+//! Verus specification of [`CloseableMutex`] (ASSUMED, to prove: it is
+//! OpenVMM's own lock, built on `parking_lot`, which is external; see
+//! `SNAPSHOT-SPEC-TRUSTED.md`, Part 3): a lock invariant on the
 //! value, given by the value's type ([`LockInvariant`]). Used only for Verus;
 //! the runtime mutex is the real [`CloseableMutex`].
 //!
-//! Everything in this file is TRUSTED.
+//! Everything in this file is ASSUMED until `CloseableMutex` itself is
+//! verified (not part of the trusted base).
 //!
 //! - Verified code closes the mutex with [`CloseableMutex::close_verified`],
 //!   which gives a [`VerifiedClosedGuard`] whose value satisfies the

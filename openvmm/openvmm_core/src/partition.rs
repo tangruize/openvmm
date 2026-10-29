@@ -268,8 +268,9 @@ where
     fn into_vm_partition(self: Arc<Self>) -> WrappedPartition {
         let initial_vp_state_source = Partition::initial_vp_state_source(self.as_ref());
         WrappedPartition {
-            // TRUSTED (Verus only): the partition's state token, created once,
-            // here (`virt::new_vm_state_token`).
+            // Verus only: the partition's state token (`virt::new_vm_state_token`:
+            // its value is TRUSTED, the hypervisor's; that it is created once,
+            // here, is a PROOF TODO).
             #[cfg(verus_keep_ghost)]
             hv: virt::new_vm_state_token(self.as_ref()),
             partition: self,

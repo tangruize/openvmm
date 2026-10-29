@@ -223,8 +223,9 @@ impl ArcMutexChipsetDeviceUnit {
 
     /// Waits for the next state request on `recv` (`None` when every
     /// sender is gone) or, while the device runs, for it to ask to be
-    /// polled. Trusted: as `recv_msg`, a request comes with a half meeting
-    /// the request protocol for `recv`'s constant.
+    /// polled. DEFERRED (a Verus limit: Verus does not support `select!`):
+    /// as `recv_msg`, a request comes with a half meeting the request
+    /// protocol for `recv`'s constant.
     #[verifier::external_body]
     async fn next_event(&self, recv: &mut mesh::Receiver<StateRequest>) -> (event: Option<UnitEvent>)
         ensures
@@ -254,8 +255,8 @@ impl ArcMutexChipsetDeviceUnit {
         }
     }
 
-    /// Polls the device. Trusted: it keeps the unit's `wf()` (the device
-    /// changes only through its mutex, by its poll handler).
+    /// Polls the device. ASSUMED, to prove: it keeps the unit's `wf()` (the
+    /// device changes only through its mutex, by its poll handler).
     #[verifier::external_body]
     fn poll_now(&self) {
         let waker = waker_ref(&self.poll_event);

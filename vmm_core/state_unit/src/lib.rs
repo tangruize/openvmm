@@ -533,9 +533,13 @@ impl StateRequest {
             StateRequest::Stop(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
                 proof! {
-                    // TRUSTED: a unit receives `Stop` only while it runs
-                    // ("`StateUnits`' unit states are the units' real
-                    // states").
+                    // PROOF TODO: remove this `assume`: a unit receives
+                    // `Stop` only while it runs. Provable with a running
+                    // token shared by `StateUnits` and each unit (given to
+                    // the unit with `Start`, taken back with `Stop`), so
+                    // that `StateUnits`' recorded unit states are the
+                    // units' real states. Not a trusted fact: it is about
+                    // our own code.
                     assume(unit.running());
                 }
                 let fut = {
@@ -651,9 +655,9 @@ fn reply<R: 'static + Send>(rpc: Rpc<(), R>, r: R) {
     mesh_rpc_verus::complete(rpc, r, Tracked::<ReplyGhost>::assume_new());
 }
 
-/// Inspects `unit`. Trusted: an inspect keeps the unit's `wf()`, `id()`, and
-/// `running()` (`InspectMut::inspect_mut` has no contract yet; see
-/// `SNAPSHOT-SPEC-TRUSTED.md`).
+/// Inspects `unit`. ASSUMED, to prove (PROOF TODO: give
+/// `InspectMut::inspect_mut` a contract): an inspect keeps the unit's
+/// `wf()`, `id()`, and `running()` (`SNAPSHOT-SPEC-TRUSTED.md`, Part 3).
 #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 #[cfg_attr(verus_keep_ghost, verus_spec(
     ensures

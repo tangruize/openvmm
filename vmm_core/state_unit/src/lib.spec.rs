@@ -147,8 +147,9 @@ pub struct QuiesceForSaveErrorView {
 impl View for QuiesceForSaveError {
     type V = QuiesceForSaveErrorView;
 
-    /// Trusted: `uncertain` is the error's `uncertain` field (the type is
-    /// opaque to Verus; `has_uncertain_state` returns the field).
+    /// ASSUMED, to prove (PROOF TODO: declare the type to Verus with its
+    /// fields): `uncertain` is the error's `uncertain` field
+    /// (`has_uncertain_state` returns the field).
     uninterp spec fn view(&self) -> QuiesceForSaveErrorView;
 }
 
