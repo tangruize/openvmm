@@ -38,7 +38,8 @@ pub trait ExPartition: 'static + super::Hv1 + inspect::Inspect + Send + Sync {
 }
 
 /// Creates the token of a partition's VM state (VTL 0): the whole
-/// FracGhost, whose value is the state. TRUSTED (the hypervisor): the
+/// FracGhost, whose value is the state. TRUSTED, do not attempt to prove
+/// (the hypervisor): the
 /// value is the partition's current state (unknown to the proof). PROOF
 /// TODO, not trusted: that this is called once per partition, when its
 /// `WrappedPartition` is built (about our own code: provable, e.g. with

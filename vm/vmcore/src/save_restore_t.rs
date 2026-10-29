@@ -3,6 +3,10 @@
 
 // Trusted: the encode/decode contract of saved-state blobs.
 //
+// TRUSTED, do not attempt to prove anything in this file: Verus uses only
+// the contracts and axioms here, and they are claims about protobuf
+// encoding, which is external (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1).
+//
 // Everything in this file is TRUSTED, and listed in
 // `SNAPSHOT-SPEC-TRUSTED.md`. A `SavedStateBlob` is a `ProtobufAny`: the
 // saved-state type's URL and the protobuf encoding of the value. Protobuf

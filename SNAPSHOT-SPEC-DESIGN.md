@@ -1861,6 +1861,16 @@ script fails if one has none (or is in verified code):
 | `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol (`PartitionRequest`'s, `VmRpc`'s) is specified and the code is verified | 6 |
 | `OUT OF SCOPE:` | **keep**: nothing to prove: the RPC wrapper's tests (10), `reply`'s build other than the verification pass (1), the vmbus units (2) | 13 |
 
+**Trusted code** (2026-10-30, user). Verus uses only a trusted
+function's contract, never its body. Every file that is trusted as a whole
+(`mesh_rpc_t.rs`, `save_restore_t.rs`, `rpc_t.rs`, `mutex_t.rs`,
+`closeable_mutex_t.rs`) says at its top "TRUSTED, do not attempt to prove
+anything in this file"; every trusted function elsewhere
+(`open_vm_state`, `close_vm_state`, `new_vm_state_token`, virtio-MMIO's
+`read_interrupt_status` and `restore_interrupt_status`, the hypervisor
+boundary in `state_trait!`) says "TRUSTED, do not attempt to prove". These
+are the trusted base's 30 functions (Part 1 of the trusted doc).
+
 **Deferred proofs** (2026-10-30, user). A function whose proof must wait
 carries `PROOF DEFERRED: do not attempt to prove this until ...` in its
 comment, naming what it waits for: `next_event` (postconditions on

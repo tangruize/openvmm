@@ -240,18 +240,22 @@ mod macros {
                     }
                 }
 
-                /// TRUSTED: the hypervisor boundary. A getter returns the
-                /// element's current value and changes nothing; a setter
-                /// sets the element (and only it); `commit` changes nothing
-                /// (every host backend applies a set at once). On an error
-                /// from a getter, nothing changes; on an error from a
-                /// setter, the state is unspecified. None of them changes
-                /// the handle's `hv_id()`.
+                /// TRUSTED, do not attempt to prove: the getters, the setters,
+                /// `commit`, and `hv_state()`: the hypervisor boundary (their
+                /// implementations are the backends, KVM, WHP, mshv, hvf). A
+                /// getter returns the element's current value and changes
+                /// nothing; a setter sets the element (and only it); `commit`
+                /// changes nothing (every host backend applies a set at
+                /// once). On an error from a getter, nothing changes; on an
+                /// error from a setter, the state is unspecified. None of
+                /// them changes the handle's `hv_id()`.
                 ///
-                /// `save_all` and `restore_all` (the trait's default
-                /// methods, generated above): contracts stated here, to
-                /// prove from the getters' and setters' (the trait is not
-                /// yet `verus_verify`, so their bodies are not checked).
+                /// NOT TRUSTED, PROOF TODO: `save_all` and `restore_all`, the
+                /// trait's default methods generated above (our code). Their
+                /// contracts are stated here and are to prove from the
+                /// getters' and setters' contracts; that needs the generated
+                /// trait to be `verus_verify`, so that their bodies are
+                /// checked.
                 #[verifier::external_trait_specification]
                 #[verifier::external_trait_extension(StateAccessSpec via StateAccessSpecImpl)]
                 pub trait ExStateAccess {

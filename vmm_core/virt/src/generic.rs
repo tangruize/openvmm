@@ -708,8 +708,8 @@ pub trait PartitionAccessState {
 
 /// Opens a handle to `partition`'s VM state for `vtl` (`access_state`).
 ///
-/// Verus: TRUSTED (the hypervisor boundary; design doc, "The partition's
-/// state"): the handle starts with the partition's state, which the
+/// Verus: TRUSTED, do not attempt to prove (the hypervisor boundary; design
+/// doc, "The partition's state"): the handle starts with the partition's state, which the
 /// partition's token records; the token stays with the handle until
 /// `close_vm_state`. Only VTL 0's VM state has a token.
 #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
@@ -732,7 +732,7 @@ pub fn open_vm_state<'a, P: PartitionAccessState>(
 
 /// Closes a handle opened by `open_vm_state` (drops it).
 ///
-/// Verus: TRUSTED (as `open_vm_state`): the partition's state is what the
+/// Verus: TRUSTED, do not attempt to prove (as `open_vm_state`): the partition's state is what the
 /// handle leaves; the token comes back, recording it.
 #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 #[cfg_attr(verus_keep_ghost, verus_spec(

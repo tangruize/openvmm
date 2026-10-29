@@ -5,6 +5,12 @@
 //! style of `vstd::rwlock::RwLock`. Used only for Verus; the runtime lock is
 //! the real `parking_lot::Mutex`.
 //!
+//! TRUSTED, do not attempt to prove anything in this file: Verus uses only
+//! the contracts here; the wrapper is a lock primitive we do not verify, over
+//! `parking_lot`, which is external (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1).
+//! Its unverified users are `external_body`, to prove (Part 3, "The locks'
+//! unverified users").
+//!
 //! Everything in this file is TRUSTED.
 //!
 //! - The value is kept as `Option<V>`, so that verified code can move it out

@@ -3,6 +3,10 @@
 
 // Trusted: the encode contract of protobuf messages (`ProtobufMessage`).
 //
+// TRUSTED, do not attempt to prove anything in this file: Verus uses only
+// the contracts and axioms here, and they are claims about protobuf
+// encoding, which is external (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1).
+//
 // Everything in this file is TRUSTED, and listed in
 // `SNAPSHOT-SPEC-TRUSTED.md`. Protobuf encoding is not verified. What we
 // assume, as for saved-state blobs (`vm/vmcore/src/save_restore_t.rs`):

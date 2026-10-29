@@ -5,11 +5,14 @@
 //! value, given by the value's type ([`LockInvariant`]). Used only for Verus;
 //! the runtime mutex is the real [`CloseableMutex`].
 //!
-//! TRUSTED: `CloseableMutex` is a lock primitive we do not verify (the
-//! user's decision, 2026-10-30), so its functions' contracts here are in the
-//! trusted base (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). The two assumptions
-//! about its unverified callers, below, are not: they are about the code
-//! that uses the lock, to prove (Part 3).
+//! TRUSTED, do not attempt to prove anything in this file: Verus uses only
+//! the contracts here. `CloseableMutex` is a lock primitive we do not verify
+//! (the user's decision, 2026-10-30), so these contracts are in the trusted
+//! base (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). Its unverified users (plain
+//! `lock`, `lock_if_open`, `close`, `new`) are not: they are
+//! `external_body` functions, to prove (Part 3, "The locks' unverified
+//! users"); once verified, Verus checks the invariant at each `release` and
+//! at `new_verified`.
 //!
 //! - Verified code closes the mutex with [`CloseableMutex::close_verified`],
 //!   which gives a [`VerifiedClosedGuard`] whose value satisfies the
@@ -23,13 +26,8 @@
 //!   [`VerifiedOpenGuard::release`]. A [`VerifiedOpenGuard`] dropped without
 //!   `release` leaves the mutex locked: later lockers wait forever. Safe, not
 //!   unsound, for the same reason.
-//! - Unverified code uses `lock`, `lock_if_open`, and `close` as before.
-//!   ASSUMPTION: it keeps the invariant (for a device: it changes the device
-//!   only through methods whose contracts keep the device's `wf()`).
-//! - ASSUMPTION: a mutex created by unverified code with
-//!   [`CloseableMutex::new`] is as if created by
-//!   [`CloseableMutex::new_verified`]: its value satisfied the invariant, and
-//!   its key is that value's key.
+//! - Unverified code uses `lock`, `lock_if_open`, `close`, and `new` as
+//!   before; those users are `external_body`, to prove (see above).
 
 use super::CloseableMutex;
 use super::ClosedGuard;

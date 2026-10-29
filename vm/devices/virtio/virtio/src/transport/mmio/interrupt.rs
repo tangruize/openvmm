@@ -381,7 +381,7 @@ impl MmioTransport {
 
     /// Returns the interrupt status.
     ///
-    /// Verus (TRUSTED boundary, `external_body`): the result is
+    /// Verus (TRUSTED boundary, `external_body`; do not attempt to prove): the result is
     /// `interrupt_status()`, the status the guest sees (in the shared-status
     /// mode, the word in guest memory).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
@@ -395,7 +395,7 @@ impl MmioTransport {
 
     /// Restores the saved interrupt status.
     ///
-    /// Verus (TRUSTED boundary, `external_body`): on success the status is
+    /// Verus (TRUSTED boundary, `external_body`; do not attempt to prove): on success the status is
     /// `status`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
