@@ -2959,7 +2959,10 @@ important first.
   hypervisor's VP save and restore (trusted: KVM, WHP), with each VP
   blob's view leaving out time (the TSC, the LAPIC timers; also
   `omit_saved_tsc`'s restore, which drops the saved TSC).
-- **TODO, not done: the partition runner's other events.** Besides state
+- **TODO, deferred until after G5** (decided 2026-10-28, user; part of
+  it calls `VmPartition`'s methods, `reset`, `scrub_vtl`,
+  `accept_initial_pages`, behind `async_trait`)**: the partition runner's
+  other events.** Besides state
   requests, `PartitionUnitRunner::run` handles halt events and partition
   requests (`ClearHalt`, `SetInitialRegs`, `AcceptInitialPages`,
   `StopVps`, `Snapshot`, ...). Those that change the saved state (the halt
