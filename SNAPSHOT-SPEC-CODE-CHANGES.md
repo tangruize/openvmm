@@ -1173,6 +1173,15 @@ Baseline: upstream `nanvix/openvmm` commit
     stay to prove. `inspect_unit`'s comment and two trusted-doc rows say
     so.
 
+80. **`poll_now` is a lock user, not an assumption** (docs and a comment
+    only; decided by the user, 2026-10-30). Its comment said "ASSUMED: it
+    keeps the unit's `wf()`", and the trusted doc had a row for it; but it
+    has no contract (it takes `&self`, so the verified `run` loop needs
+    nothing from it), and the change it makes is inside the device's lock.
+    It is one of "The locks' unverified users" (code change 75): to prove
+    through `lock_verified` / `release` and `poll_device`'s contract. The
+    comment says so; the separate row is removed.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

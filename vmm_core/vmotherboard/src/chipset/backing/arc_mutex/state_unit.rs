@@ -257,8 +257,11 @@ impl ArcMutexChipsetDeviceUnit {
         }
     }
 
-    /// Polls the device. ASSUMED, to prove: it keeps the unit's `wf()` (the
-    /// device changes only through its mutex, by its poll handler).
+    /// Polls the device. Verus: `external_body`, to prove: a user of the
+    /// device's lock (`SNAPSHOT-SPEC-TRUSTED.md`, "The locks' unverified
+    /// users"); once verified through `lock_verified` / `release` and
+    /// `poll_device`'s contract, Verus checks the device's invariant at
+    /// `release`.
     #[verifier::external_body]
     fn poll_now(&self) {
         let waker = waker_ref(&self.poll_event);
