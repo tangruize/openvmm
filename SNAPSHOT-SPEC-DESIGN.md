@@ -1627,10 +1627,18 @@ function on it (a partition id for the token) would require the five
 backends to define it, so the token is tied to its partition by
 `WrappedPartition` holding both (an assumption in the trusted doc).
 
-**The trust boundary, revised 2026-10-30 (user; code change 82).** The
-hypervisor, not OpenVMM's backends: `state_trait!`'s contracts are
-obligations of each backend (KVM, MSHV), to prove against trusted
-contracts on its hypervisor API (to write, one `_t.rs` file per backend).
+**The trust boundary, revised 2026-10-30 (user; code changes 82, 85).**
+The hypervisor, not OpenVMM's backends, but thin wrappers over it may be
+trusted. KVM's and MSHV's VM-state access (`AccessVmState`, about 70 and
+100 lines: MSR / register reads and writes through the boot VP) are such
+thin wrappers, so `state_trait!`'s contracts for `AccessVmState` stay
+trusted. Their VP-state access (`AccessVpState`, about 700 and 550 lines)
+is significant code: those contracts are obligations, PROOF DEFERRED
+until gap G4, then against trusted contracts on the hypervisor's calls
+(one `_t.rs` file per backend). Considered and dropped for the VM state:
+a handle struct per backend carrying a ghost token of the hypervisor's
+MSRs (needed to prove the wrappers, since the hypervisor's state changes
+through shared references).
 The handles' functions (`open_vm_state`, `close_vm_state`,
 `new_vm_state_token`) are in `virt/src/generic/generic_t.rs`.
 

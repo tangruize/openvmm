@@ -1248,6 +1248,19 @@ Baseline: upstream `nanvix/openvmm` commit
     keeping `ghost_status` in step). `mmio.rs` imports `vstd::prelude::Ghost`
     in Verus builds.
 
+85. **The backends' VM-state access trusted as thin wrappers; VP-state
+    access deferred** (comments and docs only; decided by the user,
+    2026-10-30; revises part of code change 82). Code change 82 made all
+    of `state_trait!`'s contracts obligations of the backends. Looking at
+    the code: KVM's and MSHV's VM-state access (`vm_state.rs`, about 70
+    and 100 lines) are thin wrappers over the hypervisor's calls (MSR or
+    register reads and writes through the boot VP), so they are trusted
+    with the hypervisor, avoiding a ghost token for the hypervisor's
+    MSRs and a new handle type. Their VP-state access (`vp_state.rs`,
+    about 700 and 550 lines) is significant code: obligations, PROOF
+    DEFERRED until gap G4. `state.rs`'s comment says both; the trusted
+    doc has one row for each (Part 1, Part 3).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

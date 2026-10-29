@@ -240,16 +240,28 @@ mod macros {
                     }
                 }
 
-                /// NOT TRUSTED: the getters', setters', and `commit`'s
-                /// contracts are OBLIGATIONS of each backend's implementation
-                /// (the user's decision, 2026-10-30: the trust boundary is the
-                /// hypervisor's API, not OpenVMM's backends, which have
-                /// significant code). To prove, per backend, against the
-                /// trusted contracts of its hypervisor API (in a `_t.rs` file
-                /// of the backend's crate): KVM (`virt_kvm`) and MSHV
-                /// (`virt_mshv`) are in scope; WHP and hvf (Windows and macOS
-                /// hosts) are out of scope. `hv_state()` is the handle's view
-                /// of the hypervisor's state, each backend defining it. A
+                /// The getters', setters', and `commit`'s contracts, for each
+                /// of the two traits this macro generates (the user's
+                /// decisions, 2026-10-30; the trust boundary is the
+                /// hypervisor, and only thin wrappers over it may be trusted):
+                ///
+                /// - `AccessVmState` (the partition-wide VM state): TRUSTED, do
+                ///   not attempt to prove. The backends' implementations (KVM,
+                ///   `virt_kvm/src/arch/x86_64/vm_state.rs`; MSHV,
+                ///   `virt_mshv/src/x86_64/vm_state.rs`) are thin wrappers
+                ///   over the hypervisor's calls (MSR / register reads and
+                ///   writes through the boot VP).
+                /// - `AccessVpState` (each VP's state): NOT TRUSTED,
+                ///   obligations of each backend's implementation, which has
+                ///   significant code (KVM's `vp_state.rs`, about 700 lines;
+                ///   MSHV's, about 550). PROOF DEFERRED: do not attempt to
+                ///   prove them until gap G4 (the VPs' state, itself deferred
+                ///   until after G5); then against trusted contracts on the
+                ///   hypervisor's calls, in a `_t.rs` file per backend. KVM
+                ///   and MSHV are in scope; WHP and hvf (Windows and macOS
+                ///   hosts) are out of scope.
+                ///
+                /// `hv_state()` is the handle's view of the hypervisor's state. A
                 /// getter returns the element's current value and changes
                 /// nothing; a setter sets the element (and only it); `commit`
                 /// changes nothing (every host backend applies a set at
