@@ -1719,7 +1719,31 @@ partition layer; G5 needs a Verus patch):
 - **G2** `DynDevice`'s `save` / `restore`: no contract; blanket impl plain. **Fixed** (code change 61).
 - **G3** `WrappedPartition`'s `SaveRestore`: plain (placeholder view). **Specified** (code change 73, "The partition's state"): checked against the trait's contract, down to the handles; bodies to prove; open: the guest's writes while VPs run (waits for G5).
 - **G4** `WrappedVp`'s `SaveRestore`, `BoundVp`'s `ProtobufSaveRestore`:
-  plain (the VP layer).
+  plain (the VP layer). **Deferred until after G5** (decided 2026-10-28,
+  user). Findings (2026-10-28), for then:
+  - The path: the VP thread's `state_event` calls `vp.save()` /
+    `restore()` on `dyn ControlVp` (`async_trait`: G5); `BoundVp`'s
+    `ProtobufSaveRestore` calls the generic `ProtobufSaveRestore` of its
+    VP (no ghost parameter); `WrappedVp`'s `SaveRestore` calls
+    `access_state(Vtl0).save_all()` / `restore_all()` (the same handle
+    problem as G3, "The partition's state").
+  - The VP's token cannot live in `WrappedVp` (as G3's lives in
+    `WrappedPartition`): a new `WrappedVp` is built each time `run` is
+    reissued (`HvliteVp::run`). It belongs with the VP thread
+    (`RunnerInner`) and must reach `access_state` through `BoundVp`, which
+    needs a restructure; with the VP thread's side of the VP protocol
+    (also waiting for G5).
+  - Doable without G5: `open_vp_state` / `close_vp_state` (G3's handle
+    fact, for VP handles), and the view of `VpSavedState`.
+  - The view, by the time rule; proposals, **not yet decided**: `tsc` out
+    ((a) read at save; (b) dropped by the time-ABI restore,
+    `omit_saved_tsc`); `tsc_deadline` out (a TSC value, meaningless
+    without `tsc`); `apic` out as a whole for now (it holds the LAPIC
+    timer, which the time ABI's `advance_lapic_timers` changes after
+    restore, (b); the element is opaque, so only all of it can be left
+    out, unless the APIC registers get a spec); `synic_timers` kept
+    (stored values; the time ABI does not change them); the other 17
+    elements kept.
 - **G5** **the `async_trait` glue** (found 2026-10-28). The async methods
   through `dyn DynDevice` (`vmotherboard`) and `dyn DynChipsetDevice`
   (`chipset_device_resources`): `start`, `stop`, `reset`, `advance_time`,
