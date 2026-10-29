@@ -1810,14 +1810,35 @@ Open (to do, not yet specified):
 
 Concerns found while specifying (for review):
 
-- **A VP whose runner is gone.** `stop` ignores a VP whose runner was
-  dropped (`.ok()`), and a call whose channel fails returns no ghost, so
-  `VpSet` would lose that VP's half and `wf()` would break. `stop`'s
-  contract promises every VP's half back; proving it needs a fact like
-  the units' ("channel failures do not happen for a registered unit"):
-  VP runners are not dropped while their `VpSet` is in use. To be added to
-  `SNAPSHOT-SPEC-TRUSTED.md` when a proof uses it, unless the proof can
-  avoid it.
+- **C1, a VP whose runner is gone: resolved 2026-10-28 (user: assume it
+  never happens; TRUSTED).** The problem: `stop` ignores a VP whose
+  runner was dropped (`.ok()`), and a call whose channel fails returns no
+  ghost, so `VpSet` would lose that VP's half and `wf()` (one half per VP
+  while stopped) would break; `stop`'s contract (every VP's half back)
+  could not be proved. The ways a runner can be dropped, checked in the
+  code:
+
+  | Way a runner could be dropped | While `VpSet` is in use? | Why |
+  |---|---|---|
+  | its `run` ends normally | no | `run` returns `Ok` only when every sender is gone, that is, after `VpSet` is gone |
+  | a run is cancelled | no | the VP thread reissues `run` with the same runner (`HvliteVp::run`, `openvmm_core/src/partition.rs`) |
+  | the VP fails to bind | no | its thread exits and drops the runner, but the VM's build then fails (`dispatch.rs`, the VP threads' `try_join_all`), so its `VpSet` is never used |
+  | a VP thread panics | no | the process aborts (`panic = 'abort'` in OpenVMM's dev and release profiles) |
+  | a test drops it | yes, on purpose | `failed_boundary_tolerates_dropped_runner` (`vp_set/boundary.rs`) checks that `stop_at_io_boundary` copes |
+
+  So in OpenVMM's runs it does not happen, though `VpSet` is written and
+  tested to tolerate it. Options were: (A) assume it (trusted); (B) make
+  `VpSet` panic on a dropped runner (a behavior change, against the
+  tolerance the code was designed for); (C) specify a "lost" VP (no half,
+  recorded `Unknown`), with a mesh fact that a channel error means the
+  receiver is gone for good. Decided: (A). The fact, "VP runners are
+  never dropped while their `VpSet` is in use", is in
+  `SNAPSHOT-SPEC-TRUSTED.md` ("State units") and noted in the VP
+  protocol (`vp_set.spec.rs`); the proofs of `VpSet`'s calls (`stop`,
+  `stop_at_io_boundary`, `save`, `restore`, `reset`, `scrub`,
+  `set_initial_regs`) may use it for a call's channel-error case. The
+  test above is not covered by the spec. Like the units' "no channel
+  failure for a registered unit".
 - **C2, restore with the VPs in another order: resolved 2026-10-28
   (user: option A; code change 69).** `restore` accepts the saved VPs in
   any order (it checks that each index appears once), and `save` returns

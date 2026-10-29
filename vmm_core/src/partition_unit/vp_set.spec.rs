@@ -31,6 +31,11 @@ verus! {
 /// `VpSet` holds its half, the half records what the VP's save returns
 /// (the rule, kept by the VP thread).
 ///
+/// TRUSTED (`SNAPSHOT-SPEC-TRUSTED.md`): VP runners are never dropped while
+/// their `VpSet` is in use, so no call on this channel fails with a channel
+/// error, which would lose `VpSet`'s half (a failed call returns no ghost).
+/// `VpSet`'s contracts rely on it (design doc, "The VP protocol", C1).
+///
 /// - `Start`: `VpSet` gives its half; the thread, holding both, runs the VP.
 /// - `Stop`: no ghost is sent; the thread stops the VP and returns a half
 ///   recording its saved state.
