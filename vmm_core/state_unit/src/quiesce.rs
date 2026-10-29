@@ -54,6 +54,7 @@ impl StateUnits {
             .await
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     async fn run_input_op(
         &self,
         operation: &'static str,

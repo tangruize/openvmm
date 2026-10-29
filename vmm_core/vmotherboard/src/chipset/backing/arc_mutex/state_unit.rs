@@ -51,7 +51,9 @@ pub struct ArcMutexChipsetDeviceUnit {
     omit_saved_state: bool,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl InspectMut for ArcMutexChipsetDeviceUnit {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn inspect_mut(&mut self, req: inspect::Request<'_>) {
         self.device.lock().inspect_mut(req);
     }

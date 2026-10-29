@@ -22,6 +22,10 @@ use cvm_tracing::CVM_CONFIDENTIAL;
 use inspect::Inspect;
 use std::future::poll_fn;
 use std::sync::Arc;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 /// The "glue" that interconnects virtual devices, and exposes an API for
 /// external entities (such as VCPUs) to access devices.
@@ -163,6 +167,7 @@ impl Chipset {
     }
 
     /// Dispatch a MMIO read to the given address.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn mmio_read(&self, vp: u32, address: u64, data: &mut [u8]) {
         let lookup = self.mmio_ranges.lookup(address, true);
         let r = lookup
@@ -185,6 +190,7 @@ impl Chipset {
     }
 
     /// Dispatch a MMIO write to the given address.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn mmio_write(&self, vp: u32, address: u64, data: &[u8]) {
         let lookup = self.mmio_ranges.lookup(address, false);
         let r = lookup
@@ -212,6 +218,7 @@ impl Chipset {
     }
 
     /// Dispatch a Port IO read to the given address.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn io_read(&self, vp: u32, port: u16, data: &mut [u8]) {
         let lookup = self.pio_ranges.lookup(port, true);
         let r = lookup
@@ -234,6 +241,7 @@ impl Chipset {
     }
 
     /// Dispatch a Port IO write to the given address.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn io_write(&self, vp: u32, port: u16, data: &[u8]) {
         let lookup = self.pio_ranges.lookup(port, false);
         let r = lookup
@@ -257,6 +265,7 @@ impl Chipset {
 
     /// Gets the vector of the next interrupt to inject from the legacy
     /// interrupt controller (PIC) and sets the IRQ in service.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub fn acknowledge_pic_interrupt(&self) -> Option<u8> {
         self.pic
             .as_ref()?
@@ -269,6 +278,7 @@ impl Chipset {
     /// Handle End Of Interrupt (EOI)
     ///
     /// A `u32` is used for the IRQ value for (future) ARM compat.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub fn handle_eoi(&self, irq: u32) {
         if let Some(eoi_handler) = &self.eoi_handler {
             eoi_handler
@@ -366,3 +376,14 @@ impl std::fmt::Display for PcieConflict {
         }
     }
 }
+
+// Verus: declarations of this file's types used in Verus-visible
+// signatures, as opaque types.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExPciConflict(PciConflict);
+
+} // verus!

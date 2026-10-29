@@ -10,6 +10,8 @@ use super::StateUnits;
 use super::state_change;
 use futures::future::join_all;
 use std::time::Instant;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 impl StateUnits {
     /// Starts all stopped units in dependency order.
@@ -18,6 +20,7 @@ impl StateUnits {
     /// failure, the units that did start are stopped again, and a unit whose
     /// start failed or is uncertain is left in a terminal state that fails
     /// later starts.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub(super) async fn start_with_rollback(&mut self) -> anyhow::Result<()> {
         enum StartResult {
             Started,

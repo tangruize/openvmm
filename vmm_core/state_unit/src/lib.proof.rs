@@ -31,6 +31,24 @@ pub(crate) struct ExInner(Inner);
 #[verifier::external_type_specification]
 pub(crate) struct ExUnit(Unit);
 
+/// Declared opaque (for their `external_body` functions, which lock the
+/// registry).
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExUnitHandle(crate::UnitHandle);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExStateUnitsInspector(crate::StateUnitsInspector);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExUnitBuilder<'a>(crate::UnitBuilder<'a>);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExNameInUse(crate::NameInUse);
+
 #[verifier::external_type_specification]
 pub(crate) struct ExState(State);
 

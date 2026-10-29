@@ -1073,6 +1073,72 @@ Baseline: upstream `nanvix/openvmm` commit
     Also (2026-10-30): `StateRequest::apply` is `external_body` (Verus
     only), instead of verified with an `assume` in its `Stop` arm.
 
+75. **The locks' unverified users are `external_body`** (Verus only; no
+    executable change; decided by the user, 2026-10-30). Instead of rows
+    assuming that unverified code keeps the locks' invariants, the
+    functions that lock (or create) a device's `CloseableMutex` or the
+    registry's `Mutex` are `verus_verify(external_body)`, without a
+    contract, to prove like the others. `CloseableMutex`'s and `mutex_t`'s
+    own specifications stay trusted (lock primitives we do not verify).
+    Marked: `vmotherboard`'s `Chipset::mmio_read`, `mmio_write`,
+    `io_read`, `io_write`, `acknowledge_pic_interrupt`, `handle_eoi`;
+    `IoRanges::lookup`; `LineSetTargetDevice::set_irq` (its `impl` is
+    `verus_verify`); `ArcMutexChipsetServices::finalize` (likewise);
+    `ArcMutexChipsetDeviceUnit::inspect_mut` (likewise); `state_unit`'s
+    `UnitHandle::remove_if`, `Inspect` for `StateUnits` and
+    `StateUnitsInspector`, `StateUnits::run_op`, `run_input_op`,
+    `start_with_rollback`. Declared to Verus (opaque) for their
+    signatures: `IoRanges`, `LookupResult`, `LineSetTargetDevice`,
+    `PciConflict`, `ArcMutexChipsetServices`, `FinalizeError`
+    (`vmotherboard`, next to their definitions); `UnitHandle`,
+    `StateUnitsInspector` (`state_unit`'s `lib.proof.rs`);
+    `inspect::Request` (`vmcore`); the PCI configuration-space types
+    (`chipset_device_resources`). Not marked: `UnitBuilder::build` and
+    `ArcMutexChipsetDeviceBuilder::inner_add` / `add*` (they take
+    `mut self`: needs an executable change, to decide), and the paths out
+    of the microVM's scope (PCI, PCIe, hotplug, `vpci`; `Weak<T>`, which
+    the PCI wrappers use, cannot be declared with this vstd).
+
+76. **`self` instead of `mut self` in six builder functions, so that they
+    can be `external_body`** (EXECUTABLE, behavior unchanged; decided by
+    the user, 2026-10-30; completes code change 75). Verus rejects a
+    `mut self` parameter even in an `external_body` signature. In
+    `state_unit`'s `UnitBuilder::build` and `vmotherboard`'s
+    `ArcMutexChipsetDeviceBuilder::inner_add`, `add`, `add_async`, the
+    parameter is now `self`, the body starts with `let mut this = self;`,
+    and every `self` in the body is `this` (as in code change 47). Same
+    statements, same order; `#[instrument(.. fields(device =
+    self.dev_name ..))]` still reads the parameter `self`. The four are
+    then `verus_verify(external_body)` (no contract, to prove); declared
+    to Verus (opaque) for their signatures: `UnitBuilder`, `NameInUse`
+    (`state_unit`'s `lib.proof.rs`), `ArcMutexChipsetDeviceBuilder`,
+    `AddDeviceError` (next to their definitions), and the trait
+    `address_filter::RangeKey` (for `IoRanges::lookup`'s `impl`).
+    Not changed: `try_add` and `try_add_async`: their bounds name
+    `dyn std::error::Error + Send + Sync`, which Verus cannot express (a
+    `dyn` of more than one trait, as in gap G5), so they stay plain and
+    are recorded as deferred. Remaining Verus warning: `add_async`'s bound
+    `AsyncFnOnce` is an undeclared std trait.
+77. **Skipped: the PCI and PCIe paths' lock users, for now** (no code
+    change; decided by the user, 2026-10-30, with code change 75).
+    Not marked `external_body`: `vmotherboard`'s `base_chipset.rs`,
+    module `weak_mutex_pci` (`WeakMutexPciDeviceWrapper`'s
+    `GenericPciBusDevice` impl: `pci_cfg_read`, `pci_cfg_write`,
+    `pci_cfg_read_with_routing`, `pci_cfg_write_with_routing`; the two
+    `RegisterWeakMutexPci::add_pci_device` impls); `openvmm_core`'s
+    `dispatch.rs` (`WeakMutexPciBusDevice`'s `GenericPciBusDevice` impl;
+    the PCIe root complexes' and switches' operations, including hotplug);
+    `ChipsetDevices::add_dyn_device` (PCIe hotplug, `vpci`); `vmm_core`'s
+    `device_builder.rs` (`vpci`). Reasons: (1) the microVM has no PCI or
+    PCIe devices (its inventory: IOAPIC, PIC, PIT, portb, shutdown,
+    snapshot-request, and virtio-MMIO devices), so these are not on its
+    save/restore path; (2) the PCI wrappers hold
+    `std::sync::Weak<DeviceMutex<..>>`, and this vstd provides no
+    declaration of `Weak<T>` (std's `Weak<T, A: Allocator>` needs the
+    unstable `allocator_api` to declare). **May be revisited**: declaring
+    `Weak<T>` (a vstd addition or a local declaration with the allocator
+    parameter) would let these be marked like the others.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

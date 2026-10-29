@@ -1789,6 +1789,30 @@ save/restore (e.g. the VM's normal running, which no contract here
 covers).
 
 
+### The locks' unverified users (2026-10-30)
+
+Decided by the user: the code that locks or creates a device's
+`CloseableMutex` or the registry's `Mutex` without being verified is
+handled like any other unverified function: `external_body` (no
+contract), to prove; once it is verified, Verus checks the lock's
+invariant at each release, as for any user of a lock with an invariant
+(vstd's `RwLock`, for example). This replaces rows in
+`SNAPSHOT-SPEC-TRUSTED.md` that assumed these users keep the invariants.
+`CloseableMutex`'s and `mutex_t`'s own specifications stay trusted: lock
+primitives we do not verify (the user). Done in code changes 75 and 76
+(the list is in the trusted doc, "The locks' unverified users").
+
+**Skipped, may be revisited** (code change 77): the PCI and PCIe paths'
+lock users (`base_chipset.rs`'s `weak_mutex_pci`, `dispatch.rs`'s
+`WeakMutexPciBusDevice` and root-complex / switch operations,
+`add_dyn_device`, `device_builder.rs`'s `vpci`). Not on the microVM's
+path (it has no PCI or PCIe devices), and the PCI wrappers hold
+`std::sync::Weak<..>`, which this vstd cannot declare (std's
+`Weak<T, A: Allocator>` needs the unstable `allocator_api`). Supporting
+`Weak<T>` later would let them be marked like the others. Also deferred:
+`try_add` / `try_add_async` (their bounds name `dyn Error + Send + Sync`,
+a Verus limit as in G5).
+
 ### The completeness audit (2026-10-28)
 
 Asked by the user: is the spec of quiesce, save, and restore finished,
@@ -1804,10 +1828,10 @@ to the docs by name; then each was checked by hand.
 | `assume(..)` | 0 (was 1) | the one in `StateRequest::apply`'s `Stop` ("Recorded unit states are real"): first relabelled from trusted to `PROOF TODO:`, then (2026-10-30, user) removed: `apply` is `external_body`, to prove with a running token shared by `StateUnits` and each unit |
 | `assume_specification` | 5 (was 8) | documented: saved-state blobs and protobuf (external). The 3 about our registry code were removed 2026-10-30 (code change 74): `Inner::ready_set` is `external_body`, `ReadySet`'s `Clone` is written out and verified, `State`'s `==` needed none |
 | `uninterp spec fn` | 34 | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC) |
-| `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 22 | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), `parking_lot` (3), the hypervisor (3) |
+| `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 30 | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
 | `external_body` with a contract, deferred (a Verus limit) | 2 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 100 | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
-| `external_body` without a contract of its own | 87 | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
+| `external_body` with a contract, body to prove (our code) | 94 (was 100) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` without a contract of its own | 103 (was 87; +16 on 2026-10-30: the locks' unverified users, code change 75) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
 
@@ -2360,6 +2384,7 @@ change preserves behavior: same results, same order of effects.
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | `VpSet::add` creates the VP's channel with a new private `vp_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`) instead of `mesh::channel()`; binding `let (mut send, recv)` with `cfg_attr(not(verus_keep_ghost), expect(unused_mut))`; new imports `vstd::prelude::Ghost`, `Tracked`. Same channel |
 | 66 | `vm/vmcore/vm_topology` (`processor.rs`) | `VpIndex::new` (`const fn`) moved, same body, into a `verus!` block (no longer cfg'd; normal builds: the same `const fn`), so that it can carry a contract (Verus's attribute form does not take a `const fn`). Same function |
 | 74 | `vmm_core/state_unit` (`lib.rs`) | `ReadySet`'s `#[derive(Clone)]` replaced by the same impl written out (`ReadySet(self.0.clone())`); the crate attribute is `#![forbid(unsafe_code)]` in both builds (normal builds unchanged); `registry_t.rs` (Verus only) deleted. Same behavior |
+| **76** | `vmm_core/state_unit` (`lib.rs`), `vmm_core/vmotherboard` (`chipset/backing/arc_mutex/device.rs`) | **`UnitBuilder::build`, `ArcMutexChipsetDeviceBuilder::inner_add`, `add`, `add_async` take `self` instead of `mut self`**; each body starts with `let mut this = self;` and uses `this` for `self` (as in CC 47). Same statements, same order; their `#[instrument]` fields still read `self`. Reason: Verus rejects `mut self` even in an `external_body` signature, and these are marked `external_body` (code change 75). `try_add` / `try_add_async` unchanged |
 | 71 | `vmm_core` (`partition_unit/vp_set.rs`, `vp_set/boundary.rs`, `vp_set/time_abi.rs`), `mesh_rpc_verus` | `VpSet`'s VP events go through the mesh RPC wrapper instead of `mesh`'s calls: `vp.send.call(f, x).await` becomes `mesh_rpc_verus::call(&vp.send, f, x, ..).recv().await` (the ghost dropped from the result), `call_failable` the same with `recv_failable`, `send(VpEvent::Start)` the new `mesh_rpc_verus::send_msg` (`send.send(msg)`); in `start`, `stop`, `stop_at_io_boundary`, `reset`, `scrub`, `save`, `restore`, `set_initial_regs`, `get_dump_vp_state`, `check_one_shot_timers`, `advance_lapic_timers`. Placeholder ghosts (`Tracked::assume_new()`, `Ghost::assume_new()`), as in CC 31. Same messages, sent at the same time (the wrapper's `call` sends at once, as `mesh`'s does), same order, same errors. Imports: `RpcSend` only with `gdb` in `vp_set.rs`, dropped in `boundary.rs` and `time_abi.rs`; new test in `mesh_rpc_verus` |
 | 73 | `openvmm_core` (`partition.rs`) | the blanket `BasicPartitionStateAccess` impl's `save` / `restore`: the handle is opened with `open_vm_state` into a named variable, used (`save_all` / `restore_all`), closed with `close_vm_state`, then `.context(..)?` applied (before: one statement on a temporary from `access_state`). Same calls and order; the handle is dropped before `.context`, which only wraps the error. `WrappedPartition`'s `save` / `restore`: `let r = self.partition.save(); r.map_err(..)` (one binding added). `vstd::prelude::*` imported in both builds |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |

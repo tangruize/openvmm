@@ -19,6 +19,10 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::Weak;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 struct IoRangesInner<T> {
     map: RangeMap<T, RangeEntry>,
@@ -134,6 +138,7 @@ impl<T: RangeKey> IoRanges<T> {
         inner.map.remove(&start);
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub fn lookup(&self, addr: T, is_read: bool) -> LookupResult {
         static UNKNOWN_DEVICE: OnceLock<Arc<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>> =
             OnceLock::new();
@@ -219,3 +224,24 @@ impl<T: RangeKey> Inspect for IoRanges<T> {
         }
     }
 }
+
+// Verus: declarations of this file's types used in Verus-visible
+// signatures, as opaque types.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+#[verifier::external_trait_specification]
+pub trait ExRangeKey: PartialOrd + Ord + PartialEq + Copy + core::fmt::LowerHex {
+    type ExternalTraitSpecificationFor: RangeKey;
+}
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(T)]
+pub struct ExIoRanges<T>(IoRanges<T>);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExLookupResult(LookupResult);
+
+} // verus!

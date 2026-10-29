@@ -767,6 +767,7 @@ impl UnitHandle {
         self.inner = None;
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn remove_if(&mut self) {
         if let Some(inner) = self.inner.take().and_then(|inner| inner.upgrade()) {
             let mut inner = inner.lock();
@@ -782,13 +783,17 @@ pub struct StateUnitsInspector {
     inner: Weak<InnerMutex>,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl Inspect for StateUnits {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn inspect(&self, req: inspect::Request<'_>) {
         self.inner.lock().inspect(req);
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl Inspect for StateUnitsInspector {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn inspect(&self, req: inspect::Request<'_>) {
         if let Some(inner) = self.inner.upgrade() {
             inner.lock().inspect(req);
@@ -1195,6 +1200,7 @@ impl StateUnits {
     /// then communication with the unit is skipped, but the unit still
     /// transitions through the interim and into the new state, and its
     /// dependencies are still waited on by its dependents.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     async fn run_op<I: 'static, R: 'static + Send>(
         &self,
         op: &str,
@@ -1482,45 +1488,47 @@ impl UnitBuilder<'_> {
     }
 
     /// Adds a new state unit sending requests to `send`.
-    pub fn build(mut self, send: Sender<StateRequest>) -> Result<UnitHandle, NameInUse> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    pub fn build(self, send: Sender<StateRequest>) -> Result<UnitHandle, NameInUse> {
+        let mut this = self;
         let id = {
-            let mut inner = self.units.inner.lock();
+            let mut inner = this.units.inner.lock();
             let id = inner.next_id;
-            let entry = match inner.names.entry(self.name.clone()) {
-                hash_map::Entry::Occupied(_) => return Err(NameInUse(self.name)),
+            let entry = match inner.names.entry(this.name.clone()) {
+                hash_map::Entry::Occupied(_) => return Err(NameInUse(this.name)),
                 hash_map::Entry::Vacant(e) => e,
             };
             entry.insert(id);
 
             // Dedup the dependencies and update the dependencies' lists of
             // dependents.
-            self.dependencies.sort();
-            self.dependencies.dedup();
-            for &dep in &self.dependencies {
+            this.dependencies.sort();
+            this.dependencies.dedup();
+            for &dep in &this.dependencies {
                 inner.units.get_mut(&dep).unwrap().dependents.push(id);
             }
 
             // Dedup the depenedents and update the dependents' lists of
             // dependencies.
-            self.dependents.sort();
-            self.dependents.dedup();
-            for &dep in &self.dependents {
+            this.dependents.sort();
+            this.dependents.dedup();
+            for &dep in &this.dependents {
                 inner.units.get_mut(&dep).unwrap().dependencies.push(id);
             }
             inner.insert_unit(
                 id,
                 Unit {
-                    name: self.name.clone(),
+                    name: this.name.clone(),
                     send,
-                    dependencies: self.dependencies,
-                    dependents: self.dependents,
+                    dependencies: this.dependencies,
+                    dependents: this.dependents,
                     state: State::Stopped,
-                    inspect_sensitivity: self.inspect_sensitivity,
-                    advances_time: self.advances_time,
+                    inspect_sensitivity: this.inspect_sensitivity,
+                    advances_time: this.advances_time,
                 },
             );
             let unit_id = UnitId {
-                name: self.name,
+                name: this.name,
                 id,
             };
             inner.next_id += 1;
@@ -1528,7 +1536,7 @@ impl UnitBuilder<'_> {
         };
         Ok(UnitHandle {
             id,
-            inner: Some(Arc::downgrade(&self.units.inner)),
+            inner: Some(Arc::downgrade(&this.units.inner)),
         })
     }
 

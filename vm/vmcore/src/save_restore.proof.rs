@@ -72,6 +72,12 @@ pub struct ExAnyhowError(anyhow::Error);
 #[verifier::external_body]
 pub struct ExDeferred(inspect::Deferred);
 
+/// Declares `inspect::Request` to Verus, as an opaque type (`inspect_mut`'s
+/// parameter).
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRequest<'a>(inspect::Request<'a>);
+
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

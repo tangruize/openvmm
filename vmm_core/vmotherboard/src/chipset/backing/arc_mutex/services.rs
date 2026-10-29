@@ -23,6 +23,10 @@ use thiserror::Error;
 use vmcore::line_interrupt::LineInterrupt;
 use vmcore::line_interrupt::NewLineError;
 use vmcore::vmtime::VmTimeSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 /// The concrete instance of [`ChipsetServices`] offered to devices when using
 /// the `Weak<vmcore::device_state::DeviceMutex<..>>` [`Chipset`](crate::Chipset) API.
@@ -51,9 +55,11 @@ pub enum FinalizeError {
     NameInUse(#[source] state_unit::NameInUse),
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: VmmChipsetDevice> ArcMutexChipsetServicesFinalize<T> for ArcMutexChipsetServices<'_, '_> {
     type Error = FinalizeError;
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn finalize(
         self,
         device: &Arc<vmcore::device_state::DeviceMutex<T>>,
@@ -368,3 +374,18 @@ mod device_range {
     impl_device_range!(RegisterMmioIntercept, ControlMmioIntercept, u64);
     impl_device_range!(RegisterPortIoIntercept, ControlPortIoIntercept, u16);
 }
+
+// Verus: declarations of this file's types used in Verus-visible
+// signatures, as opaque types.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExArcMutexChipsetServices<'a, 'b>(ArcMutexChipsetServices<'a, 'b>);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExFinalizeError(FinalizeError);
+
+} // verus!

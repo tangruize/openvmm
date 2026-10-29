@@ -22,6 +22,10 @@ use vmcore::line_interrupt::LineSetTarget;
 use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::vm_task::VmTaskDriverSource;
 #[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 #[cfg(verus_keep_ghost)]
 use vstd::resource::frac::FracGhost;
@@ -157,7 +161,9 @@ impl<T: ChipsetDevice> LineSetTargetDevice<T> {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: ChipsetDevice> LineSetTarget for LineSetTargetDevice<T> {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_irq(&self, vector: u32, high: bool) {
         self.device
             .lock()
@@ -166,3 +172,15 @@ impl<T: ChipsetDevice> LineSetTarget for LineSetTargetDevice<T> {
             .set_irq(vector, high);
     }
 }
+
+// Verus: declarations of this file's types used in Verus-visible
+// signatures, as opaque types.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(T)]
+pub struct ExLineSetTargetDevice<T>(LineSetTargetDevice<T>);
+
+} // verus!

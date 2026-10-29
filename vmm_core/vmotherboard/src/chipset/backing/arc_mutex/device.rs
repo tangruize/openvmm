@@ -18,6 +18,10 @@ use std::sync::Arc;
 use std::sync::Weak;
 use thiserror::Error;
 use tracing::instrument;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 #[derive(Debug, Error)]
 pub(crate) enum AddDeviceErrorKind {
@@ -158,16 +162,18 @@ where
         self
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn inner_add(
-        mut self,
+        self,
         typed_dev: Result<T, AddDeviceError>,
     ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError> {
+        let mut this = self;
         let mut typed_dev = typed_dev?;
 
         if let Some(dev) = typed_dev.supports_mmio() {
             // static mmio registration
             for (label, range) in dev.get_static_regions() {
-                self.services
+                this.services
                     .register_mmio()
                     .new_io_region(label, range.end() - range.start() + 1)
                     .map(*range.start());
@@ -177,35 +183,35 @@ where
         if let Some(dev) = typed_dev.supports_pio() {
             // static pio registration
             for (label, range) in dev.get_static_regions() {
-                self.services
+                this.services
                     .register_pio()
                     .new_io_region(label, range.end() - range.start() + 1)
                     .map(*range.start());
             }
         }
 
-        if !self.external_pci {
+        if !this.external_pci {
             if let Some(dev) = typed_dev.supports_pci() {
                 let bus_options = [
-                    self.pci_bus_id.is_some(),
-                    self.pcie_port.is_some(),
-                    self.pcie_rciep.is_some(),
+                    this.pci_bus_id.is_some(),
+                    this.pcie_port.is_some(),
+                    this.pcie_rciep.is_some(),
                 ];
                 if bus_options.iter().filter(|&&v| v).count() > 1 {
                     panic!(
                         "wiring error: invoked multiple bus placement methods for `{}`",
-                        self.dev_name
+                        this.dev_name
                     );
                 }
 
-                if let Some(bus_id_port) = self.pcie_port {
-                    self.services.register_static_pcie(bus_id_port);
-                } else if let Some((enumerator_id, devfn)) = self.pcie_rciep {
-                    self.services
+                if let Some(bus_id_port) = this.pcie_port {
+                    this.services.register_static_pcie(bus_id_port);
+                } else if let Some((enumerator_id, devfn)) = this.pcie_rciep {
+                    this.services
                         .register_static_pcie_rciep(enumerator_id, devfn);
                 } else {
                     // static pci registration
-                    let bdf = match (self.pci_addr, dev.suggested_bdf()) {
+                    let bdf = match (this.pci_addr, dev.suggested_bdf()) {
                         (Some(override_bdf), Some(suggested_bdf)) => {
                             let (ob, od, of) = override_bdf;
                             let (sb, sd, sf) = suggested_bdf;
@@ -224,34 +230,34 @@ where
                         (None, Some(suggested_bdf)) => suggested_bdf,
                         (None, None) => {
                             return Err(
-                                AddDeviceErrorKind::NoPciBusAddress.with_dev_name(self.dev_name)
+                                AddDeviceErrorKind::NoPciBusAddress.with_dev_name(this.dev_name)
                             );
                         }
                     };
 
-                    let bus_id = if let Some(bus_id) = self.pci_bus_id.take() {
+                    let bus_id = if let Some(bus_id) = this.pci_bus_id.take() {
                         bus_id
                     } else {
                         return Err(
-                            AddDeviceErrorKind::NoPciBusSpecified.with_dev_name(self.dev_name)
+                            AddDeviceErrorKind::NoPciBusSpecified.with_dev_name(this.dev_name)
                         );
                     };
 
-                    self.services.register_static_pci(bus_id, bdf);
+                    this.services.register_static_pci(bus_id, bdf);
                 }
             }
         }
 
         let dev =
-            self.arc_builder
+            this.arc_builder
                 .build(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(
                     typed_dev,
                 )));
 
         // Now ask the services to finish wiring up the device.
-        self.services
-            .finalize(&dev, self.dev_name.clone())
-            .map_err(|err| AddDeviceErrorKind::Finalize(err.into()).with_dev_name(self.dev_name))?;
+        this.services
+            .finalize(&dev, this.dev_name.clone())
+            .map_err(|err| AddDeviceErrorKind::Finalize(err.into()).with_dev_name(this.dev_name))?;
 
         Ok(dev)
     }
@@ -266,28 +272,29 @@ where
     /// corresponding `ChipsetDevice::supports_` method.
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
     #[expect(clippy::should_implement_trait)]
-    pub fn add<F>(
-        mut self,
-        f: F,
-    ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    pub fn add<F>(self, f: F) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: FnOnce(&mut ArcMutexChipsetServices<'a, 'b>) -> T,
     {
-        let dev = (f)(&mut self.services);
-        self.inner_add(Ok(dev))
+        let mut this = self;
+        let dev = (f)(&mut this.services);
+        this.inner_add(Ok(dev))
     }
 
     /// Just like [`add`](Self::add), except async.
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn add_async<F>(
-        mut self,
+        self,
         f: F,
     ) -> Result<Arc<vmcore::device_state::DeviceMutex<T>>, AddDeviceError>
     where
         F: AsyncFnOnce(&mut ArcMutexChipsetServices<'a, 'b>) -> T,
     {
-        let dev = (f)(&mut self.services).await;
-        self.inner_add(Ok(dev))
+        let mut this = self;
+        let dev = (f)(&mut this.services).await;
+        this.inner_add(Ok(dev))
     }
 
     /// Just like [`add`](Self::add), except fallible.
@@ -328,3 +335,19 @@ where
         self.inner_add(Ok(dev))
     }
 }
+
+// Verus: declarations of this file's types used in Verus-visible
+// signatures, as opaque types.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(T)]
+pub struct ExArcMutexChipsetDeviceBuilder<'a, 'b, T>(ArcMutexChipsetDeviceBuilder<'a, 'b, T>);
+
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExAddDeviceError(AddDeviceError);
+
+} // verus!
