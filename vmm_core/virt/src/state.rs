@@ -240,9 +240,16 @@ mod macros {
                     }
                 }
 
-                /// TRUSTED, do not attempt to prove: the getters, the setters,
-                /// `commit`, and `hv_state()`: the hypervisor boundary (their
-                /// implementations are the backends, KVM, WHP, mshv, hvf). A
+                /// NOT TRUSTED: the getters', setters', and `commit`'s
+                /// contracts are OBLIGATIONS of each backend's implementation
+                /// (the user's decision, 2026-10-30: the trust boundary is the
+                /// hypervisor's API, not OpenVMM's backends, which have
+                /// significant code). To prove, per backend, against the
+                /// trusted contracts of its hypervisor API (in a `_t.rs` file
+                /// of the backend's crate): KVM (`virt_kvm`) and MSHV
+                /// (`virt_mshv`) are in scope; WHP and hvf (Windows and macOS
+                /// hosts) are out of scope. `hv_state()` is the handle's view
+                /// of the hypervisor's state, each backend defining it. A
                 /// getter returns the element's current value and changes
                 /// nothing; a setter sets the element (and only it); `commit`
                 /// changes nothing (every host backend applies a set at

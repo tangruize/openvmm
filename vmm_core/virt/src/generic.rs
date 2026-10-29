@@ -9,8 +9,10 @@ mod partition_memory_map;
 mod spec {
     include!("generic.spec.rs");
 }
-#[cfg(verus_keep_ghost)]
-pub use spec::new_vm_state_token;
+mod generic_t;
+// A glob, so that Verus's companion functions (for the ghost parameters) are
+// exported too.
+pub use generic_t::*;
 
 pub use partition_memory_map::PartitionHostAccess;
 pub use partition_memory_map::PartitionMemoryMap;
@@ -23,8 +25,6 @@ use crate::irqcon::ControlGic;
 use crate::irqcon::IoApicRouting;
 use crate::irqcon::MsiRequest;
 use crate::irqfd::IrqFd;
-#[cfg(verus_keep_ghost)]
-use crate::vm::state_spec::StateAccessSpec;
 use crate::x86::DebugState;
 use crate::x86::HardwareBreakpoint;
 use guestmem::DoorbellRegistration;
@@ -704,47 +704,6 @@ pub trait PartitionAccessState {
 
     /// Returns an object to access VM state for the specified VTL.
     fn access_state(&self, vtl: Vtl) -> Self::StateAccess<'_>;
-}
-
-/// Opens a handle to `partition`'s VM state for `vtl` (`access_state`).
-///
-/// Verus: TRUSTED, do not attempt to prove (the hypervisor boundary; design
-/// doc, "The partition's state"): the handle starts with the partition's state, which the
-/// partition's token records; the token stays with the handle until
-/// `close_vm_state`. Only VTL 0's VM state has a token.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-#[cfg_attr(verus_keep_ghost, verus_spec(result =>
-    with Tracked(token): Tracked<&mut Option<vstd::resource::frac::FracGhost<crate::vm::VmSavedState>>>
-    requires
-        vtl == Vtl::Vtl0,
-        (*old(token)) matches Some(t) && t.frac() == 1real,
-    ensures
-        (*final(token)) is None,
-        result.hv_id() == (*old(token))->Some_0.id(),
-        result.hv_state() == (*old(token))->Some_0@,
-))]
-pub fn open_vm_state<'a, P: PartitionAccessState>(
-    partition: &'a P,
-    vtl: Vtl,
-) -> P::StateAccess<'a> {
-    partition.access_state(vtl)
-}
-
-/// Closes a handle opened by `open_vm_state` (drops it).
-///
-/// Verus: TRUSTED, do not attempt to prove (as `open_vm_state`): the partition's state is what the
-/// handle leaves; the token comes back, recording it.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-#[cfg_attr(verus_keep_ghost, verus_spec(
-    with Tracked(token): Tracked<&mut Option<vstd::resource::frac::FracGhost<crate::vm::VmSavedState>>>
-    requires
-        (*old(token)) is None,
-    ensures
-        (*final(token)) matches Some(t) && t.frac() == 1real && t.id() == access.hv_id()
-            && t@ == access.hv_state(),
-))]
-pub fn close_vm_state<A: crate::vm::AccessVmState>(access: A) {
-    drop(access)
 }
 
 /// Change memory protections for lower VTLs. This can be used to share memory

@@ -1196,6 +1196,30 @@ Baseline: upstream `nanvix/openvmm` commit
     `stop` (until its view is defined from its fields). `view_str` is
     labelled deferred (until vstd has a view of `Arc<str>`).
 
+82. **The trust boundary moves to the hypervisor; the partition's state
+    handles in a `_t.rs` file** (a small executable change in `virt`,
+    behavior unchanged; decided by the user, 2026-10-30).
+    - EXECUTABLE: `open_vm_state` and `close_vm_state` (code change 73)
+      moved, unchanged, from `virt/src/generic.rs` into a new module
+      `virt/src/generic/generic_t.rs` (`mod generic_t;` in `generic.rs`,
+      re-exported with `pub use generic_t::*;`, so `virt::open_vm_state`
+      and `virt::close_vm_state` keep their paths; a glob, so that Verus's
+      companion functions for the ghost parameters are exported too).
+      Verus only: `new_vm_state_token` moved there from `generic.spec.rs`.
+      The file is headed "TRUSTED, do not attempt to prove anything in
+      this file" (thin wrappers: `access_state`, a drop); "called once
+      per partition" stays a PROOF TODO. No header otherwise (skipped by
+      the lint, `vmm_core/virt/src/.ignore`).
+    - Spec: `state_trait!`'s getters', setters', and `commit`'s contracts
+      are no longer trusted: they are obligations of each backend's
+      implementation, to prove against the trusted contracts of its
+      hypervisor API (a `_t.rs` file per backend, to write: KVM and MSHV;
+      WHP and hvf out of scope). Reason (the user): the trust boundary is
+      the hypervisor, not OpenVMM's backends, which have significant code
+      (e.g. KVM's VM state works around a KVM bug and converts the
+      reference time; MSHV's builds register arrays). Trusted doc: the row
+      moved from Part 1 to Part 3.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

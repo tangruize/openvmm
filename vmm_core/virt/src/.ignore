@@ -2,3 +2,4 @@
 # walker honors `.ignore` files): spec files written for the Verus work,
 # which carry no copyright header.
 generic.spec.rs
+generic/generic_t.rs

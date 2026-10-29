@@ -1,11 +1,8 @@
 // The partition's VM state: declarations, and the token's trusted
 // creation (`SNAPSHOT-SPEC-DESIGN.md`, "The partition's state").
 
-use super::PartitionAccessState;
-use crate::vm::VmSavedState;
 use hvdef::Vtl;
 use vstd::prelude::*;
-use vstd::resource::frac::FracGhost;
 
 verus! {
 
@@ -37,25 +34,5 @@ pub trait ExPartition: 'static + super::Hv1 + inspect::Inspect + Send + Sync {
     type ExternalTraitSpecificationFor: super::Partition;
 }
 
-/// Creates the token of a partition's VM state (VTL 0): the whole
-/// FracGhost, whose value is the state. TRUSTED, do not attempt to prove
-/// (the hypervisor): the
-/// value is the partition's current state (unknown to the proof). PROOF
-/// TODO, not trusted: that this is called once per partition, when its
-/// `WrappedPartition` is built (about our own code: provable, e.g. with
-/// `into_vm_partition` verified as the only caller).
-#[verifier::external_body]
-#[allow(unused_variables)]
-pub fn new_vm_state_token<P: PartitionAccessState>(partition: &P) -> (token: Tracked<
-    Option<FracGhost<VmSavedState>>,
->)
-    ensures
-        token@ matches Some(t) && t.frac() == 1real,
-{
-    // TRUSTED: keep this `assume_new()`. This trusted function's contract
-    // hands out the token; its body has none to give. (Its "once per
-    // partition" is a PROOF TODO; see above.)
-    Tracked::assume_new()
-}
 
 } // verus!

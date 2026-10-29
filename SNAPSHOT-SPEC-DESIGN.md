@@ -1611,6 +1611,13 @@ function on it (a partition id for the token) would require the five
 backends to define it, so the token is tied to its partition by
 `WrappedPartition` holding both (an assumption in the trusted doc).
 
+**The trust boundary, revised 2026-10-30 (user; code change 82).** The
+hypervisor, not OpenVMM's backends: `state_trait!`'s contracts are
+obligations of each backend (KVM, MSHV), to prove against trusted
+contracts on its hypervisor API (to write, one `_t.rs` file per backend).
+The handles' functions (`open_vm_state`, `close_vm_state`,
+`new_vm_state_token`) are in `virt/src/generic/generic_t.rs`.
+
 **Open (TODO):**
 
 - **The guest ran.** The guest writes `hypercall` and
@@ -2412,6 +2419,7 @@ change preserves behavior: same results, same order of effects.
 | 50 | `vm/vmcore` | **`SaveRestore::SavedState` gains the bound `SaveRestoreView`** (`type SavedState: SaveRestoreView;`; normal builds: an empty trait every type implements, so no impl changes) |
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | **`VpSet::restore`'s parameter type changes** from `impl IntoIterator<Item = (VpIndex, SavedStateBlob)>` to `Vec<(VpIndex, SavedStateBlob)>` (its one caller already passes a `Vec`) |
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
+| 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
 
 **Dependencies and build**
 
