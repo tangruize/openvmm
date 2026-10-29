@@ -1465,6 +1465,22 @@ channel into `ghost` before any `StateRequest::apply` (its body,
 
 ### virtio-MMIO's interrupt status: the guest-memory boundary
 
+**Revised 2026-10-30 (user; code changes 83, 84).** The boundary is guest
+memory, not our transport code. The device's view no longer calls an
+uninterpreted `interrupt_status()` (removed: an unknown value no proof
+could relate to the real status); it reads a Verus-only ghost field of
+the transport, `ghost_status`, the interrupt status as ghost data.
+`read_interrupt_status` and `restore_interrupt_status` are `external_body`
+without contracts, PROOF TODO: the proof specifies them and keeps
+`ghost_status` in step with the real status (set on restore and reset,
+following the device's interrupts, refreshed by a trusted step after the
+guest has run, as for G3's token), from trusted guest-memory access
+contracts (`GuestMemory::read_plain`, `compare_exchange`; to write) and a
+lock invariant on `InterruptState` (shared with the queue interrupts and
+the acknowledgement worker). Only the guest's behavior (it changes the
+word only while its VPs run) stays trusted. The section below is the
+original design.
+
 Decided 2026-10-28 (user), code change 58.
 
 **Where the status lives.** A virtio-MMIO transport is created in one of
@@ -1834,10 +1850,10 @@ to the docs by name; then each was checked by hand.
 | `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 41 in `external_body` bodies (6 are trusted functions that hand out a ghost, e.g. `recv_msg`; the other 35, bodies still to prove, are each marked `PROOF TODO:` with the real ghost to put there), 7 in plain (unverified) functions, 10 in tests, 1 (`reply`) only in builds other than the verification pass |
 | `assume(..)` | 0 (was 1) | the one in `StateRequest::apply`'s `Stop` ("Recorded unit states are real"): first relabelled from trusted to `PROOF TODO:`, then (2026-10-30, user) removed: `apply` is `external_body`, to prove with a running token shared by `StateUnits` and each unit |
 | `assume_specification` | 5 (was 8) | documented: saved-state blobs and protobuf (external). The 3 about our registry code were removed 2026-10-30 (code change 74): `Inner::ready_set` is `external_body`, `ReadySet`'s `Clone` is written out and verified, `State`'s `==` needed none |
-| `uninterp spec fn` | 31 (was 34) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
-| `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 30 | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
+| `uninterp spec fn` | 30 (was 34; virtio's `interrupt_status()` removed, code change 84) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
+| `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 28 (30 until code change 83) | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
 | `external_body` with a contract, deferred (marked `PROOF DEFERRED`) | 8 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 87 (2026-10-30; was 100 on 2026-10-29) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` with a contract, body to prove (our code) | 89 (2026-10-30; was 100 on 2026-10-29) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
 | `external_body` without a contract of its own | 107 (2026-10-30; was 87: +20, the locks' unverified users, code changes 75, 76) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
@@ -1873,10 +1889,13 @@ function's contract, never its body. Every file that is trusted as a whole
 (`mesh_rpc_t.rs`, `save_restore_t.rs`, `rpc_t.rs`, `mutex_t.rs`,
 `closeable_mutex_t.rs`) says at its top "TRUSTED, do not attempt to prove
 anything in this file"; every trusted function elsewhere
-(`open_vm_state`, `close_vm_state`, `new_vm_state_token`, virtio-MMIO's
-`read_interrupt_status` and `restore_interrupt_status`, the hypervisor
-boundary in `state_trait!`) says "TRUSTED, do not attempt to prove". These
-are the trusted base's 30 functions (Part 1 of the trusted doc).
+(`open_vm_state`, `close_vm_state`, `new_vm_state_token`, since code
+change 82 also in a `_t.rs` file, `virt/src/generic/generic_t.rs`) says
+"TRUSTED, do not attempt to prove". These are the trusted base's 28
+functions (Part 1 of the trusted doc). (Until 2026-10-30 also trusted, now
+to prove: virtio-MMIO's `read_interrupt_status` and
+`restore_interrupt_status`, code change 83, and the backends' state access
+in `state_trait!`, code change 82.)
 
 **Deferred proofs** (2026-10-30, user). A function whose proof must wait
 carries `PROOF DEFERRED: do not attempt to prove this until ...` in its

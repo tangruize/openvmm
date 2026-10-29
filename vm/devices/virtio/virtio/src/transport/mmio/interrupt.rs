@@ -381,27 +381,22 @@ impl MmioTransport {
 
     /// Returns the interrupt status.
     ///
-    /// Verus (TRUSTED boundary, `external_body`; do not attempt to prove): the result is
-    /// `interrupt_status()`, the status the guest sees (in the shared-status
-    /// mode, the word in guest memory).
+    /// Verus: `external_body`, no contract yet. PROOF TODO (our code, not
+    /// trusted): specify and prove that it returns the transport's
+    /// `ghost_status` while the VPs and the device are stopped (the device's
+    /// `save` needs it); see `MmioTransport::ghost_status`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        ensures
-            result == self.interrupt_status(),
-    ))]
     pub(super) fn read_interrupt_status(&self) -> u32 {
         self.lock_interrupt_state().read_status()
     }
 
     /// Restores the saved interrupt status.
     ///
-    /// Verus (TRUSTED boundary, `external_body`; do not attempt to prove): on success the status is
-    /// `status`.
+    /// Verus: `external_body`, no contract yet. PROOF TODO (our code, not
+    /// trusted): specify and prove that, on success, the status the guest
+    /// sees is `status` and the transport's `ghost_status` is `status` (the
+    /// device's `restore` needs it); see `MmioTransport::ghost_status`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
-        ensures
-            result is Ok ==> final(self).interrupt_status() == status,
-    ))]
     pub(super) fn restore_interrupt_status(&mut self, status: u32) -> Result<(), RestoreError> {
         self.interrupt_state.lock().restore_status(status)
     }

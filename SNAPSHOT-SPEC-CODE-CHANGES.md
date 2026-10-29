@@ -1220,6 +1220,34 @@ Baseline: upstream `nanvix/openvmm` commit
       reference time; MSHV's builds register arrays). Trusted doc: the row
       moved from Part 1 to Part 3.
 
+83. **virtio-MMIO's interrupt status: the transport's functions are to
+    prove, not trusted** (comments and docs only; decided by the user,
+    2026-10-30). `MmioTransport::read_interrupt_status` and
+    `restore_interrupt_status` keep their contracts but are now labelled
+    PROOF TODO, not trusted: they are our code (a lock, the
+    acknowledgement, the two modes). The proof needs trusted contracts on
+    guest-memory access (`GuestMemory::read_plain`, `compare_exchange`;
+    not written yet) and a lock invariant on `InterruptState`, which is
+    left to the proof (it may need a lock with an invariant).
+    `interrupt_status()` stays uninterpreted for now, labelled a PROOF
+    TODO (to define from the transport's state); only the guest's
+    behavior stays trusted.
+
+84. **virtio-MMIO's interrupt status as a ghost field** (Verus only; no
+    executable change; decided by the user, 2026-10-30). The
+    uninterpreted `MmioTransport::interrupt_status()` is removed: the
+    device's view read it, but an unknown value cannot be related to the
+    real status (a word in guest memory, in the microVM's mode), so the
+    save/restore contract on it could never be proved. Instead
+    `MmioTransport` has a Verus-only ghost field `ghost_status: Ghost<u32>`
+    (`#[inspect(skip)]`), which the view reads; its one construction site
+    (`VirtioMmioDevice::new`) sets it with a placeholder (PROOF TODO: the
+    word's value at creation); the test helpers are not built for Verus.
+    `read_interrupt_status` and `restore_interrupt_status` lose their
+    contracts (`external_body`, PROOF TODO: specify and prove them,
+    keeping `ghost_status` in step). `mmio.rs` imports `vstd::prelude::Ghost`
+    in Verus builds.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

@@ -64,8 +64,8 @@ pub struct VirtioMmioView {
     /// `None` if not (nothing captured, or the capture failed; then `save`
     /// fails).
     pub device_state: Option<Option<SavedStateBlobView>>,
-    /// The interrupt status register (TRUSTED accessor, see
-    /// `MmioTransport::interrupt_status`).
+    /// The interrupt status the guest sees (the transport's ghost record of
+    /// it, `MmioTransport::ghost_status`; to keep in step, a PROOF TODO).
     pub interrupt_status: u32,
 }
 
@@ -103,20 +103,6 @@ impl View for QueueData {
     }
 }
 
-impl MmioTransport {
-    /// The interrupt status the guest sees (TRUSTED boundary:
-    /// uninterpreted). In the shared-status mode (the microVM's) it is a
-    /// 32-bit word in guest memory at `status_gpa`, which the device sets
-    /// and the guest reads and clears directly; in the legacy modes, the
-    /// `status` field behind `interrupt_state`'s lock. The trusted
-    /// contracts of `read_interrupt_status` and `restore_interrupt_status`
-    /// (`transport/mmio/interrupt.rs`) say how `save` reads it and
-    /// `restore` sets it; otherwise only the guest (while
-    /// its VPs run) and the device task's interrupts (while the device runs)
-    /// change it. See the design doc, "virtio-MMIO's interrupt status: the
-    /// guest-memory boundary".
-    pub uninterp spec fn interrupt_status(&self) -> u32;
-}
 
 impl View for VirtioMmioDevice {
     type V = VirtioMmioView;
@@ -136,7 +122,7 @@ impl View for VirtioMmioDevice {
             config_generation: core.config_generation,
             queues: core.queues@.map_values(|q: QueueData| q@),
             device_state: core.restore.captured(),
-            interrupt_status: self.mmio.interrupt_status(),
+            interrupt_status: self.mmio.ghost_status@,
         }
     }
 }

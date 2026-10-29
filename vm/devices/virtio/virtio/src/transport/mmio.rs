@@ -36,6 +36,8 @@ use vmcore::device_state::ChangeDeviceState;
 use vmcore::interrupt::Interrupt;
 use vmcore::line_interrupt::LineInterrupt;
 #[cfg(verus_keep_ghost)]
+use vstd::prelude::Ghost;
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::verus_spec;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::verus_verify;
@@ -53,6 +55,18 @@ struct MmioTransport {
     interrupt_state: Arc<Mutex<InterruptState>>,
     #[inspect(skip)]
     interrupt_ack: interrupt::InterruptAck,
+    /// Verus only: the interrupt status the guest sees, as ghost data (the
+    /// device's view reads it). In the shared-status mode (the microVM's)
+    /// the real status is a word in guest memory, which the view cannot
+    /// read. PROOF TODO: keep it equal to the real status: set it in
+    /// `restore_interrupt_status` and `reset_interrupt_state`, follow the
+    /// device's interrupts, refresh it after the guest has run (a trusted
+    /// step, as for the partition's state token), and prove that
+    /// `read_interrupt_status` returns it (needs trusted guest-memory access
+    /// contracts and a lock invariant on `InterruptState`).
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    ghost_status: Ghost<u32>,
 }
 
 #[derive(Inspect)]
@@ -176,6 +190,10 @@ impl VirtioMmioDevice {
                 vendor_id: 0x1af4,
                 interrupt_state,
                 interrupt_ack: ack,
+                // PROOF TODO: replace this placeholder (`assume_new()`) with
+                // the real ghost: the guest-memory word's value at creation.
+                #[cfg(verus_keep_ghost)]
+                ghost_status: Ghost::assume_new(),
             },
         })
     }
