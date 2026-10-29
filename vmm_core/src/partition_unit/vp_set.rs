@@ -874,13 +874,14 @@ fn vp_channel() -> (result: (mesh::Sender<VpEvent>, mesh::Receiver<VpEvent>))
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VpSet {
-    /// Verus: an empty, stopped set.
+    /// Verus: an empty, stopped set, for `vp_capacity` VPs.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures
             result.wf(),
             !result@.started,
             result@.vps.len() == 0,
+            result@.capacity == vp_capacity,
     ))]
     pub fn new(
         vtl_guest_memory: [Option<GuestMemory>; NUM_VTLS],
@@ -912,6 +913,7 @@ impl VpSet {
             final(self).wf(),
             final(self)@.vps == old(self)@.vps.push(UnitSnapshot::Unknown),
             final(self)@.started == old(self)@.started,
+            final(self)@.capacity == old(self)@.capacity,
     ))]
     pub fn add(&mut self, vp: TargetVpInfo) -> VpRunner {
         assert!(!self.started);
@@ -952,6 +954,7 @@ impl VpSet {
             final(self).wf(),
             final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
     ))]
     pub fn start(&mut self) {
         if !self.started {
@@ -1005,6 +1008,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
             old(self)@.started ==> final(self)@.all_saved(),
             !old(self)@.started ==> final(self)@ == old(self)@,
     ))]
@@ -1037,6 +1041,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
     ))]
     pub async fn reset(&mut self) -> anyhow::Result<()> {
         assert!(!self.started);
@@ -1067,6 +1072,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
     ))]
     pub async fn scrub(&mut self, vtl: Vtl) -> anyhow::Result<()> {
         assert!(!self.started);
@@ -1087,7 +1093,7 @@ impl VpSet {
     /// Saves every VP's state.
     ///
     /// Verus: each VP's half is lent (`Save`); on `Ok`, the VPs' indexes
-    /// and blobs are the recorded ones.
+    /// and blobs are the recorded ones, in index order.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
@@ -1133,6 +1139,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
             result is Ok ==> forall|i: int| #![trigger final(self)@.vps[i]]
                 0 <= i < final(self)@.vps.len() ==> exists|j: int| #![trigger states@[j]]
                     0 <= j < states@.len() && states@[j].0.spec_index() == i
@@ -1218,6 +1225,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
     ))]
     pub async fn set_initial_regs(
         &mut self,

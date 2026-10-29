@@ -28,6 +28,7 @@ impl VpSet {
             final(self).wf(),
             !final(self)@.started,
             final(self)@.vps.len() == old(self)@.vps.len(),
+            final(self)@.capacity == old(self)@.capacity,
             old(self)@.started ==> final(self)@.all_saved(),
             !old(self)@.started ==> final(self)@ == old(self)@,
     ))]

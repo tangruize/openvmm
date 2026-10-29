@@ -918,6 +918,40 @@ Baseline: upstream `nanvix/openvmm` commit
     contract (`&self`). `vp_set.proof.rs` declares `mesh::OneshotSender`.
     The `gdb` methods stay unseen (out of scope).
 
+69. **The partition's saved VPs are a set of (index, blob) pairs**
+    (Verus only; no executable change; decided by the user, 2026-10-28:
+    first a map by index, then a set; design doc, "The VP protocol",
+    concern C2). `PartitionSavedView::vps` becomes
+    `Set<(u32, SavedStateBlobView)>` (was `Seq<(u32, SavedStateBlobView)>`):
+    `state::Partition`'s view is the set of its list's (index, blob)
+    pairs, and the partition unit's saved view uses
+    `VpSetView::saved_vps().to_set()` (`saved_vps()` stays the sequence in
+    index order, what `VpSet::save` returns). Reason: `restore` accepts
+    the VPs in any order and `save` returns index order; with a sequence,
+    a snapshot in another order made the partition unit's restore
+    contract false. The order carries no meaning, so the view leaves it
+    out. A set rather than a map: no arbitrary choice for an index listed
+    twice (such a list keeps all its pairs; restore rejects it anyway).
+    `partition_unit.rs`'s saved-state view module gets a cfg'd
+    `use vstd::prelude::*;`.
+
+70. **The partition unit after a restore of a VP prefix** (Verus only; no
+    executable change; decided by the user, 2026-10-28; design doc, "The
+    VP protocol", concern C3). With MSHV's restore-time VP prefix
+    (`active_vp_count`, set when the partition unit is created) the unit
+    instantiates VPs `0..k` of a topology of `capacity` VPs; `restore`
+    takes a snapshot with all `capacity` VPs and keeps those below `k`;
+    `save` then fails (`validate_save_vp_count`, deliberate). The generic
+    state-unit protocol is unchanged (restore `Ok` records the given
+    blob; save `Ok` returns the recorded one, vacuous here). Changed: the
+    partition unit's `wf()` (`partition_unit.spec.rs`) has two cases: all
+    VPs instantiated: the recorded blob is its saved state's, as before;
+    fewer: the recorded blob is that of some saved state `v` whose
+    `v.restrict_vps(k)` (new, on `PartitionSavedView`: only the VPs below
+    `k`) is the unit's saved state. `VpSetView` gains `capacity`
+    (`vp_capacity`); `new` ensures it, and the contracts that keep the VP
+    count keep it too.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

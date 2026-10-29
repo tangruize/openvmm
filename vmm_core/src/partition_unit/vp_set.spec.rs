@@ -128,8 +128,12 @@ impl StateEvent {
 pub struct VpSetView {
     /// Started (by `start`, with no `stop` since).
     pub started: bool,
-    /// Per VP, in index order, what `VpSet`'s half records.
+    /// Per VP, in index order, what `VpSet`'s half records (the
+    /// instantiated VPs: a prefix of the topology's).
     pub vps: Seq<UnitSnapshot>,
+    /// The topology's VP count (`vp_capacity`); a snapshot has one entry per
+    /// VP up to it.
+    pub capacity: nat,
 }
 
 impl VpSetView {
@@ -143,8 +147,8 @@ impl VpSetView {
         forall|i: int| 0 <= i < self.vps.len() ==> #[trigger] self.vps[i] is Saved
     }
 
-    /// Each VP's index and recorded saved state (meaningful when
-    /// `all_saved()`): what `VpSet::save` returns.
+    /// Each VP's index and recorded saved state, in index order
+    /// (meaningful when `all_saved()`): what `VpSet::save` returns.
     pub open spec fn saved_vps(&self) -> Seq<(u32, SavedStateBlobView)> {
         Seq::new(self.vps.len(), |i: int| (i as u32, self.vps[i]->Saved_0))
     }
@@ -157,6 +161,7 @@ impl View for VpSet {
         VpSetView {
             started: self.started,
             vps: self.vps@.map_values(|vp: Vp| vp.recorded()),
+            capacity: self.vp_capacity as nat,
         }
     }
 }

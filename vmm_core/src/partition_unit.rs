@@ -819,19 +819,23 @@ mod save_restore {
         }
     }
 
+    #[cfg(verus_keep_ghost)]
+    use vstd::prelude::*;
+
     // Verus: the view of the partition unit's saved state.
     #[cfg(verus_keep_ghost)]
     vstd::prelude::verus! {
 
-    /// The view of the saved state: the partition's blob, each VP's index
-    /// and blob, and the encoded halt reason.
-    impl vstd::prelude::View for state::Partition {
+    /// The view of the saved state: the partition's blob, the VPs' (index,
+    /// blob) pairs (a set: the order of the list carries no meaning, and
+    /// restore accepts any order), and the encoded halt reason.
+    impl View for state::Partition {
         type V = super::spec::PartitionSavedView;
 
         closed spec fn view(&self) -> super::spec::PartitionSavedView {
             super::spec::PartitionSavedView {
                 partition: self.partition@,
-                vps: self.vps@.map_values(|vp: state::Vp| (vp.vp_index, vp.data@)),
+                vps: self.vps@.map_values(|vp: state::Vp| (vp.vp_index, vp.data@)).to_set(),
                 halt_reason: match self.halt_reason {
                     Some(bytes) => Some(bytes@),
                     None => None,

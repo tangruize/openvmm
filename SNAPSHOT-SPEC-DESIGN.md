@@ -1682,7 +1682,7 @@ covers).
 
 ### The VP protocol
 
-Proposed and reviewed 2026-10-28; **specified** (code changes 63 to 68;
+Proposed and reviewed 2026-10-28; **specified** (code changes 63 to 70;
 see "Status" at the end of this section): the interface between `VpSet`
 (in the partition unit's task) and the VP threads (`VpRunner`), the
 `VpEvent` channel, one per VP (`vmm_core/src/partition_unit/vp_set.rs`).
@@ -1778,7 +1778,7 @@ and the VP thread answers through the RPC wrapper (`call`, `recv_msg`,
 |---|---|---|
 | the protocol (`MeshProtocol for VpEvent`, `StateEvent::request_ok`) | written, as the tables above | `vmm_core/src/partition_unit/vp_set.spec.rs` |
 | `VpSet`'s view (`VpSetView`: `started`, each VP's recorded `UnitSnapshot`; `saved_vps()`, `all_saved()`) and `wf()` (`VpSet` holds a valid half per VP exactly while stopped) | written | same file |
-| `VpSet::saved_vps()` | **no longer trusted**: `VpSetView::saved_vps()`, from `VpSet`'s halves; the partition unit's saved view uses it | `partition_unit.spec.rs` |
+| `VpSet::saved_vps()` | **no longer trusted**: `VpSetView::saved_vps()`, from `VpSet`'s halves, in index order; the partition unit's saved view uses it as a set of (index, blob) pairs (code change 69) | `partition_unit.spec.rs` |
 | the VP's FracGhost: created with its channel, one half attached to each end | **verified** (`vp_channel`) | `vp_set.rs` |
 | `VpEvent::Stop` as an `Rpc<(), ()>` | done (executable, CC 63) | `vp_set.rs`, `vp_set/boundary.rs` |
 | contracts on `new`, `add`, `start`, `halt`, `clear_halt`, `stop`, `reset`, `scrub`, `save`, `restore`, `restore_halt`, `set_initial_regs`, `stop_at_io_boundary`, `check_one_shot_timers`, `advance_lapic_timers` | written, bodies `external_body` (to prove) | `vp_set.rs`, `vp_set/boundary.rs`, `vp_set/time_abi.rs` |
@@ -1818,15 +1818,42 @@ Concerns found while specifying (for review):
   VP runners are not dropped while their `VpSet` is in use. To be added to
   `SNAPSHOT-SPEC-TRUSTED.md` when a proof uses it, unless the proof can
   avoid it.
-- **Restore with the VPs in another order.** `restore` accepts the saved
-  VPs in any order (it checks that each index appears once), and `save`
-  returns them in index order. The partition unit's restore contract says
-  that after `Ok` the unit's recorded blob is the given one, so for a
-  snapshot whose VPs are not in index order it would be false (`save`
-  then returns a different encoding). OpenVMM's own snapshots are in
-  index order. Options: require sorted VPs in the partition's restore
-  contract, or compare saved states by their meaning (as sets) rather
-  than as blobs.
+- **C2, restore with the VPs in another order: resolved 2026-10-28
+  (user: option A; code change 69).** `restore` accepts the saved VPs in
+  any order (it checks that each index appears once), and `save` returns
+  them in index order. With the partition's saved-state view holding the
+  VPs as a sequence, the partition unit's restore contract ("after `Ok`
+  the unit records the given blob") was false for a snapshot whose VPs
+  are not in index order (example: `[(1, B1), (0, B0)]` restored, then
+  `save` gives `[(0, B0), (1, B1)]`, another view). OpenVMM's own
+  snapshots are in index order. Options were: (A) the view forgets the order
+  of the VPs (spec only); (B) `restore` rejects VPs out of order (a
+  behavior change); (C) leave it. A was first done with a map from index
+  to blob, then (user) with a set of (index, blob) pairs: simpler, and
+  no arbitrary choice for a list that names an index twice (it keeps
+  all its pairs; restore rejects such a list). Now
+  `PartitionSavedView::vps` is a `Set<(u32, SavedStateBlobView)>`; the
+  partition unit's saved view uses `VpSetView::saved_vps().to_set()`.
+- **C3, restore with fewer VPs instantiated than the snapshot has:
+  resolved 2026-10-28 (user; code change 70).** A feature, not a bug:
+  with MSHV's restore-time VP prefix (`restore_vp_prefix`,
+  `dispatch/restore.rs`; MSHV creates VPs lazily), the partition unit is
+  created with `active_vp_count: Some(k)` (`dispatch.rs`) and
+  instantiates VPs `0..k` of `capacity`; `restore` checks that the
+  snapshot has all `capacity` VPs and restores those below `k`; a later
+  `save` fails on purpose (`validate_save_vp_count`: a prefix cannot give
+  a complete snapshot). The subset is the unit's configuration, given at
+  creation, not a parameter of `Restore`. Example (capacity 4, `k` = 2):
+  restore `{VP0..VP3}`, the unit holds `{VP0, VP1}`. Resolution: the
+  generic state-unit protocol stays (restore `Ok` records the given
+  blob; save `Ok` returns the recorded blob, vacuous here since save
+  fails); only the partition unit's `wf()` changes, with two cases: all
+  VPs instantiated: it holds exactly the recorded blob; fewer: it holds
+  the recorded blob's VPs below `k` (`PartitionSavedView::restrict_vps`).
+  The recorded blob remembers the whole snapshot; no extra ghost field.
+  (Considered and dropped: keeping the dropped VPs in a ghost field, as if
+  restored; a new recorded value `Partial(blob)`, which would weaken the
+  generic rule.)
 
 ### The microVM's units: what is specified
 
