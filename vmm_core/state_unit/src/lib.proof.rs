@@ -185,8 +185,7 @@ impl View for crate::ReadySet {
 }
 
 impl Inner {
-    /// The registered units. (Proof plumbing for `Inner::ready_set`'s
-    /// assumed specification.)
+    /// The registered units. (For `Inner::ready_set`'s contract.)
     pub(crate) closed spec fn unit_ids(&self) -> Set<u64> {
         self.units@.dom()
     }

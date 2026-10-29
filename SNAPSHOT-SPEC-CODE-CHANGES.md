@@ -1050,6 +1050,29 @@ Baseline: upstream `nanvix/openvmm` commit
     `InitialVpStateSource`, `InitialPageImport`, `Hv1`, `Partition`,
     `StateError`.
 
+74. **No assumed specifications for our own registry code** (a small
+    executable change in `state_unit`, behavior unchanged; decided by the
+    user, 2026-10-30, while reviewing what is trusted). `registry_t.rs`
+    held three `assume_specification`s, a tool meant for library
+    functions; all three were about our own code. Now:
+    - `Inner::ready_set`: `verus_verify(external_body)` with the same
+      contract (to prove; its `impl` block is `verus_verify`).
+    - `ReadySet`'s `Clone`: EXECUTABLE, `#[derive(Clone)]` replaced by the
+      same impl written out (`ReadySet(self.0.clone())`, what the derive
+      generates), `verus_verify` with the contract "a clone holds the same
+      units"; **verified** (through vstd's spec of `Arc::clone`).
+    - `State`'s `PartialEq`: the `assume_specification` is dropped; no
+      verified code compares `State`s (`run_op`, `start_with_rollback`
+      are plain, `resume_after_failed_save` is `external_body`). When one
+      does, Verus may handle the derived `==`, or the impl is written out.
+    - `registry_t.rs` is deleted, with its `allow(unsafe_code)` and
+      `UNSAFETY:` comment; `lib.rs`'s crate attribute is
+      `#![forbid(unsafe_code)]` in both builds (before: `forbid` in normal
+      builds, `deny` in Verus builds, for `assume_specification`; normal
+      builds unchanged).
+    Also (2026-10-30): `StateRequest::apply` is `external_body` (Verus
+    only), instead of verified with an `assume` in its `Stop` arm.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

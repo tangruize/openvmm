@@ -28,10 +28,7 @@
 //! This model allows for asynchronous, highly concurrent state changes, and it
 //! works across process boundaries thanks to `mesh`.
 
-#![cfg_attr(not(verus_keep_ghost), forbid(unsafe_code))]
-// Under Verus, `assume_specification` (in `registry_t`) expands to `unsafe`
-// declarations; everything else still may not use `unsafe`.
-#![cfg_attr(verus_keep_ghost, deny(unsafe_code))]
+#![forbid(unsafe_code)]
 
 mod advance_time;
 mod inventory;
@@ -39,11 +36,6 @@ mod inventory;
 mod mutex_t;
 pub mod quiesce;
 mod registry;
-#[cfg(verus_keep_ghost)]
-// UNSAFETY: Verus only: `assume_specification` (trusted specifications of
-// external functions) expands to `unsafe` declarations; no unsafe code runs.
-#[allow(unsafe_code)]
-mod registry_t;
 mod start;
 mod unit_channel;
 
@@ -501,7 +493,7 @@ impl StateRequest {
     /// `reply`). Verus: `gin` is the half the request carries; each request
     /// is answered by the request protocol, from `StateUnit`'s contract.
     /// (Equivalent to `Rpc::handle` / `handle_failable`.)
-    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         with Tracked(gin): Tracked<Option<FracGhost<UnitSnapshot>>>
         requires
@@ -532,16 +524,6 @@ impl StateRequest {
             }
             StateRequest::Stop(rpc) => {
                 let ((), rpc) = split::<_, _, ReplyGhost>(rpc);
-                proof! {
-                    // PROOF TODO: remove this `assume`: a unit receives
-                    // `Stop` only while it runs. Provable with a running
-                    // token shared by `StateUnits` and each unit (given to
-                    // the unit with `Start`, taken back with `Stop`), so
-                    // that `StateUnits`' recorded unit states are the
-                    // units' real states. Not a trusted fact: it is about
-                    // our own code.
-                    assume(unit.running());
-                }
                 let fut = {
                     proof_with! {Tracked(&mut g)}
                     unit.stop()
@@ -1295,7 +1277,15 @@ impl StateUnits {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl Inner {
+    /// Verus: with `unit_ids` `None`, the ready set holds every registered
+    /// unit. (Its body, an iterator chain with closures, is still to prove.)
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            unit_ids is None ==> self.unit_ids() <= result@,
+    ))]
     fn ready_set(&self, unit_ids: Option<&[u64]>) -> ReadySet {
         let map = |id, unit: &Unit| {
             (
@@ -1318,8 +1308,20 @@ impl Inner {
     }
 }
 
-#[derive(Clone)]
 struct ReadySet(Arc<BTreeMap<u64, ReadyState>>);
+
+// Written out (it was `#[derive(Clone)]`, which generates the same impl) so
+// that Verus can check it: a clone holds the same units.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl Clone for ReadySet {
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result@ == self@,
+    ))]
+    fn clone(&self) -> Self {
+        ReadySet(self.0.clone())
+    }
+}
 
 #[derive(Clone)]
 struct ReadyState {
