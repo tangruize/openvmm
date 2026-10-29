@@ -637,9 +637,11 @@ fn reply<R: 'static + Send>(rpc: Rpc<(), R>, r: R) {
     mesh_rpc_verus::complete(rpc, r, Tracked::<ReplyGhost>::assume_new());
 }
 
-/// Inspects `unit`. ASSUMED, to prove (PROOF TODO: give
-/// `InspectMut::inspect_mut` a contract): an inspect keeps the unit's
-/// `wf()`, `id()`, and `running()` (`SNAPSHOT-SPEC-TRUSTED.md`, Part 3).
+/// Inspects `unit`. ASSUMED, to prove (PROOF TODO: give the units'
+/// `inspect_mut` a contract): a read-only inspect keeps the unit's `wf()`,
+/// `id()`, and `running()` (`SNAPSHOT-SPEC-TRUSTED.md`, Part 3). Inspect
+/// writes (e.g. the partition unit's `"clear_halt"`) are out of scope, like
+/// the `gdb` debugger (design doc, "Out of scope for now").
 #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 #[cfg_attr(verus_keep_ghost, verus_spec(
     ensures

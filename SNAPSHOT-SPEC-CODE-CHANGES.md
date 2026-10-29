@@ -1163,6 +1163,16 @@ Baseline: upstream `nanvix/openvmm` commit
     guest time is out of scope; its methods' contracts stay assumptions
     (trusted doc, Part 3).
 
+79. **Inspect writes out of scope** (docs and a comment only; decided by
+    the user, 2026-10-30). `inspect_unit`'s contract (an inspect keeps the
+    unit's `wf()`, `id()`, `running()`) holds only for read-only
+    inspects; the partition unit's `"clear_halt"` inspect write clears
+    its `halt_reason`, part of its saved state. Inspect writes are a
+    debugging interface and out of scope, like `gdb` (design doc, "Out of
+    scope for now", with the microVM's units checked); read-only inspects
+    stay to prove. `inspect_unit`'s comment and two trusted-doc rows say
+    so.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

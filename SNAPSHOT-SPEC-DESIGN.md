@@ -2775,6 +2775,25 @@ What Stage 2 still needs, found by comparing the prototype with
 
 ## Out of scope for now
 
+- **Inspect writes** (decided 2026-10-30, user). Inspect is OpenVMM's
+  diagnostics interface: an operator can query a unit, and some fields
+  can be written. The spec covers read-only inspects: an `Inspect` request
+  keeps the unit's `wf()`, `id()`, and `running()` (`inspect_unit`'s
+  contract, `state_unit/src/lib.rs`; to prove, by giving the units'
+  `inspect_mut` a contract). Inspect writes are a debugging interface and
+  are out of scope, like the `gdb` debugger: the spec promises nothing
+  while an operator writes through inspect. The known write that changes
+  a unit's saved state: the partition unit's `"clear_halt"`
+  (`PartitionUnitRunner::inspect_mut`, `partition_unit.rs`), which clears
+  `halt_reason`, part of its saved state; done while the units are
+  stopped, it would make the recorded snapshot stale. Checked for the
+  microVM's units: portb's `#[inspect(mut)]` reaches only its serial
+  backend (not in its saved state); the VPs' `vtl0` to `vtl2` go through
+  the VP thread (with G4); the other devices have no inspect writes.
+  Options considered: trust the operator (external input) not to write
+  during a snapshot; give `Inspect` a half, like `Reset` (a protocol
+  change); or this.
+
 - **VMBus** (decided 2026-10-27, user): the microVM has no VMBus. Its load
   path sets `with_hv = false` (`openvmm_entry/src/lib.rs:1381`), and VMBus
   exists only with it (`lib.rs:2244`: `vmbus: (with_hv &&
