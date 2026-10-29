@@ -105,6 +105,9 @@ unverified users are listed in Part 3 ("The locks' unverified users").
 
 # Part 2. Deferred (Verus limits; not trusted)
 
+Each item is marked in the code with `PROOF DEFERRED: do not attempt to
+prove this until ...`, naming what it waits for (since 2026-10-30).
+
 | Item | Where | What is assumed until Verus supports it |
 |---|---|---|
 | A device boxed into `dyn DynChipsetDevice` keeps its blob | `From<T> for ResolvedChipsetDevice` (`vm/chipset_device_resources/src/lib.rs`, `external_body`) | The erased device's `saved_blob()` and `device_wf()` are the device's (Rust's `dyn` dispatch calls the device's impl). Verus cannot prove it while `DynChipsetDevice` is `async_trait` (gap G5); to remove with the G5 Verus patch. |

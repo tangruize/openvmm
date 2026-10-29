@@ -89,6 +89,8 @@ pub trait ExInspectConcurrently {
 }
 
 /// A spec view of `Arc<str>` (vstd has views only for `Arc` of sized types).
+/// DEFERRED (a vstd limit): uninterpreted until vstd has a view of
+/// `Arc<str>`.
 pub trait ArcStrView {
     spec fn view_str(&self) -> Seq<char>;
 }

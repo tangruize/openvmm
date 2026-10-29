@@ -165,7 +165,8 @@ pub struct ErasedChipsetDevice(Box<dyn DynChipsetDevice>);
 impl<T: ChangeDeviceState + ChipsetDevice + ProtobufSaveRestore + InspectMut> From<T>
     for ResolvedChipsetDevice
 {
-    /// DEFERRED (a Verus limit; see above).
+    /// PROOF DEFERRED: do not attempt to prove this function until G5's
+    /// Verus patch lands (`DynChipsetDevice` is `async_trait`; see above).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         ensures

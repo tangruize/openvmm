@@ -646,6 +646,9 @@ impl ConfigureChipsetDevice for ArcMutexChipsetServices<'_, '_> {
     }
 }
 
+// Verus: PROOF DEFERRED: this module's lock users are not marked
+// `external_body`; do not attempt to mark or prove them until `Weak<T>` can be
+// declared to Verus (code change 77; not on the microVM's path).
 mod weak_mutex_pci {
     use crate::chipset::PciConflict;
     use crate::chipset::PciConflictReason;

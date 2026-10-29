@@ -1829,9 +1829,9 @@ to the docs by name; then each was checked by hand.
 | `assume_specification` | 5 (was 8) | documented: saved-state blobs and protobuf (external). The 3 about our registry code were removed 2026-10-30 (code change 74): `Inner::ready_set` is `external_body`, `ReadySet`'s `Clone` is written out and verified, `State`'s `==` needed none |
 | `uninterp spec fn` | 31 (was 34) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
 | `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 30 | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
-| `external_body` with a contract, deferred (a Verus limit) | 2 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 94 (was 100) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
-| `external_body` without a contract of its own | 103 (was 87; +16 on 2026-10-30: the locks' unverified users, code change 75) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
+| `external_body` with a contract, deferred (marked `PROOF DEFERRED`) | 8 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
+| `external_body` with a contract, body to prove (our code) | 87 (2026-10-30; was 100 on 2026-10-29) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` without a contract of its own | 107 (2026-10-30; was 87: +20, the locks' unverified users, code changes 75, 76) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
 
@@ -1860,6 +1860,15 @@ script fails if one has none (or is in verified code):
 | `TRUSTED:` | **keep**: the body of a trusted function that hands out a ghost (`recv`, `recv_failable`, `recv_msg`, `take_sender_ghost`, `take_receiver_ghost`, `new_vm_state_token`); the trust is its contract | 6 |
 | `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol (`PartitionRequest`'s, `VmRpc`'s) is specified and the code is verified | 6 |
 | `OUT OF SCOPE:` | **keep**: nothing to prove: the RPC wrapper's tests (10), `reply`'s build other than the verification pass (1), the vmbus units (2) | 13 |
+
+**Deferred proofs** (2026-10-30, user). A function whose proof must wait
+carries `PROOF DEFERRED: do not attempt to prove this until ...` in its
+comment, naming what it waits for: `next_event` (postconditions on
+futures, G5), `From<T> for ResolvedChipsetDevice` (G5), `try_add` /
+`try_add_async` (a `dyn` of more than one trait), the PCI lock users in
+`base_chipset.rs` and `dispatch.rs` (`Weak<T>`), and `VmTimeKeeper`'s six
+methods (its view, uninterpreted by the user's decision). The audit
+script counts them as deferred.
 
 **Answer.** The spec of quiesce, save, and restore is written down to
 the trust boundaries, and what is not done is documented: deferred until

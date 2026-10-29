@@ -1182,6 +1182,20 @@ Baseline: upstream `nanvix/openvmm` commit
     through `lock_verified` / `release` and `poll_device`'s contract. The
     comment says so; the separate row is removed.
 
+81. **Explicit `PROOF DEFERRED` markers** (comments and docs only; asked
+    by the user, 2026-10-30). Every deferred item now says, in its
+    comment, `PROOF DEFERRED: do not attempt to prove this until ...`:
+    `ArcMutexChipsetDeviceUnit::next_event` (until Verus can state
+    postconditions on futures, G5; then rewrite `select!` with
+    `futures::future::select` and an `assume_specification`); `From<T> for
+    ResolvedChipsetDevice` (until G5's patch); `try_add`, `try_add_async`
+    (until Verus supports a `dyn` of more than one trait); the PCI lock
+    users (`base_chipset.rs`'s `weak_mutex_pci`, `dispatch.rs`'s
+    `WeakMutexPciBusDevice`; until `Weak<T>` can be declared);
+    `VmTimeKeeper`'s `save`, `restore`, `advance`, `reset`, `start`,
+    `stop` (until its view is defined from its fields). `view_str` is
+    labelled deferred (until vstd has a view of `Arc<str>`).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

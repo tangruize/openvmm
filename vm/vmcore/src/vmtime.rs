@@ -528,6 +528,9 @@ impl VmTimeKeeper {
     }
 
     /// Saves the time state.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
@@ -543,6 +546,9 @@ impl VmTimeKeeper {
     }
 
     /// Restores the time state.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
@@ -559,6 +565,9 @@ impl VmTimeKeeper {
     }
 
     /// Advances stopped VM time by `duration`.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
@@ -586,6 +595,9 @@ impl VmTimeKeeper {
     }
 
     /// Reset the VM time to 0.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
@@ -598,6 +610,9 @@ impl VmTimeKeeper {
     }
 
     /// Starts the timer, so that the current time will increase.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires
@@ -617,6 +632,9 @@ impl VmTimeKeeper {
     }
 
     /// Stops the timer, so that the current time will stop increasing.
+    /// PROOF DEFERRED: do not attempt to prove this until `VmTimeKeeper`'s
+    /// view is defined from its fields (it is uninterpreted, by the user's
+    /// decision, 2026-10-30; `vmtime.spec.rs`).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         requires

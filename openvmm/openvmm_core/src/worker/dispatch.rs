@@ -4995,6 +4995,9 @@ mesh_worker::register_workers! {
     chipset_device_worker::worker::RemoteChipsetDeviceWorker<OpenVmmRemoteDynamicResolvers>
 }
 
+// Verus: PROOF DEFERRED: not marked `external_body` (it locks a device); do
+// not attempt to mark or prove it until `Weak<T>` can be declared to Verus
+// (code change 77; PCI is not on the microVM's path).
 /// Wrapper around `Weak<vmcore::device_state::DeviceMutex<dyn ChipsetDevice>>` that implements
 /// [`GenericPciBusDevice`] for PCIe hotplug devices.
 struct WeakMutexPciBusDevice(

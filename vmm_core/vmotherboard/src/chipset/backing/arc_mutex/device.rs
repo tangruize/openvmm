@@ -298,6 +298,9 @@ where
     }
 
     /// Just like [`add`](Self::add), except fallible.
+    // Verus: PROOF DEFERRED: not marked `external_body`; do not attempt to
+    // mark or prove this until Verus supports a `dyn` of more than one trait
+    // (its bound names `dyn Error + Send + Sync`; code change 76).
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
     pub fn try_add<F, E>(
         mut self,
@@ -317,6 +320,9 @@ where
     }
 
     /// Just like [`try_add`](Self::try_add), except async.
+    // Verus: PROOF DEFERRED: not marked `external_body`; do not attempt to
+    // mark or prove this until Verus supports a `dyn` of more than one trait
+    // (its bound names `dyn Error + Send + Sync`; code change 76).
     #[instrument(name = "add_device", skip_all, fields(device = self.dev_name.as_ref()))]
     pub async fn try_add_async<F, E>(
         mut self,

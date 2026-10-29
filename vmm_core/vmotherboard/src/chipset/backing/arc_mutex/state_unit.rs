@@ -225,9 +225,14 @@ impl ArcMutexChipsetDeviceUnit {
 
     /// Waits for the next state request on `recv` (`None` when every
     /// sender is gone) or, while the device runs, for it to ask to be
-    /// polled. DEFERRED (a Verus limit: Verus does not support `select!`):
-    /// as `recv_msg`, a request comes with a half meeting the request
-    /// protocol for `recv`'s constant.
+    /// polled. Its contract: as `recv_msg`, a request comes with a half
+    /// meeting the request protocol for `recv`'s constant.
+    ///
+    /// PROOF DEFERRED: do not attempt to prove this function until Verus can
+    /// state postconditions on futures (part of gap G5, design doc, "The
+    /// trust audit"). Verus does not support `select!`; then rewrite it with
+    /// `futures::future::select`, give that library function an
+    /// `assume_specification`, and prove this from `recv_msg`'s contract.
     #[verifier::external_body]
     async fn next_event(&self, recv: &mut mesh::Receiver<StateRequest>) -> (event: Option<UnitEvent>)
         ensures
