@@ -39,11 +39,8 @@ pub struct ExMicrovmSnapshotBoundaryRequest(
     chipset_resources::microvm::MicrovmSnapshotBoundaryRequest,
 );
 
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExRecvError(mesh::RecvError);
-
-// (`anyhow::Error` is declared in vmcore, `save_restore.proof.rs`.)
+// (`anyhow::Error` is declared in vmcore, `save_restore.proof.rs`;
+// `mesh::RecvError` in vmm_core, `partition_unit/vp_set.proof.rs`.)
 
 impl LoadedVmView {
     /// `InitializedVm::load`'s contract for a restore follows from the VM it

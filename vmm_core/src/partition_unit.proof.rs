@@ -5,7 +5,6 @@
 
 use super::InternalHaltReason;
 use super::VmPartition;
-use super::vp_set::VpSet;
 use virt::InitialRegs;
 use super::Topology;
 use vmm_core_defs::HaltReason;
@@ -20,10 +19,6 @@ verus! {
 pub trait ExVmPartition: 'static + Send + Sync + inspect::InspectMut + vmcore::save_restore::ProtobufSaveRestore {
     type ExternalTraitSpecificationFor: VmPartition;
 }
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExVpSet(VpSet);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

@@ -3279,6 +3279,7 @@ dependencies = [
  "sparse_mmap",
  "thiserror 2.0.16",
  "trycopy",
+ "vstd",
  "zerocopy",
 ]
 
@@ -10500,6 +10501,7 @@ dependencies = [
  "mesh_protobuf",
  "safe_intrinsics",
  "thiserror 2.0.16",
+ "vstd",
  "x86defs",
 ]
 

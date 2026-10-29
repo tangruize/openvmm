@@ -21,7 +21,6 @@ use crate::transport::task::restore::DeviceRestoreState;
 use crate::transport::saved_state::state::CommonQueueState;
 use crate::transport::saved_state::state::CommonSavedState;
 use chipset_device::io::deferred::DeferredWrite;
-use guestmem::GuestMemory;
 use vstd::prelude::*;
 
 verus! {
@@ -88,10 +87,6 @@ pub(crate) struct ExInterruptState(InterruptState);
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(crate) struct ExInterruptAck(InterruptAck);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExGuestMemory(GuestMemory);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

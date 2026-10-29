@@ -12,6 +12,8 @@ use hvdef::Vtl;
 use mesh::rpc::RpcSend;
 use virt::Processor;
 use virt::vp::AccessVpState;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// A request to advance the LAPIC timer of a stopped VP by the restore
 /// downtime.
@@ -50,10 +52,21 @@ impl LapicAdvance {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VpSet {
     /// Checks the LAPIC timer of every stopped VP: capture step 1 of the time
     /// ABI. Restore needs no separate check, because the LAPIC advance
     /// rejects the same timers.
+    ///
+    /// Verus: changes nothing (`CheckTimers` carries no ghost).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     pub async fn check_one_shot_timers(&mut self) -> anyhow::Result<()> {
         anyhow::ensure!(
             !self.started,
@@ -78,6 +91,18 @@ impl VpSet {
     /// the time ABI, after the synchronized TSC set. A periodic or
     /// TSC-deadline timer fails it (`E_LAPIC_PERIODIC`,
     /// `E_LAPIC_TSC_DEADLINE`) before any VP runs.
+    ///
+    /// Verus: the recorded VP states are unchanged: `AdvanceLapic` changes
+    /// only the LAPIC timers, which a VP's saved-state view leaves out (the
+    /// time rule, (b)).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     pub async fn advance_lapic_timers(
         &mut self,
         downtime_ns: u64,

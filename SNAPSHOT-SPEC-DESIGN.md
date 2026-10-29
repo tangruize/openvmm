@@ -1609,7 +1609,7 @@ resolvers, `dyn` traits, channels); a sweep for `assume(`, `admit()`,
 | resource-built devices: `ErasedChipsetDevice(Box<dyn DynChipsetDevice>)` (`base_chipset.rs:295`) | the PIT, PIC, IOAPIC, portb, shutdown, snapshot-request | **fixed (G1, code change 62)**, with one trusted fact: the wrapper's blob is its `dyn` device's, and its `save` / `restore` are verified; at the one erasure point (`From<T> for ResolvedChipsetDevice`) a trusted contract says the erased device's blob and `device_wf` are `t`'s (Verus cannot prove it while `DynChipsetDevice` is `async_trait`, G5) |
 | typed devices: `arc_mutex_device(..).add(..)` | the RTC (`base_chipset.rs:447`), virtio-MMIO (`dispatch/microvm.rs`) | connected (no erasure) |
 | the partition unit → `Box<dyn VmPartition>` | `WrappedPartition`'s `SaveRestore` | **gap G3** |
-| the partition unit → `VpSet` → VP threads → `BoundVp` → `WrappedVp` | the hypervisor getters | **gap G4**: the VP layer (`VpSet::saved_vps` is a recorded trusted accessor until then) |
+| the partition unit → `VpSet` → VP threads → `BoundVp` → `WrappedVp` | the hypervisor getters | **gap G4**: the VP layer (the VPs' saved state is now defined from `VpSet`'s halves, "The VP protocol"; the layers below `VpSet` are to prove) |
 | virtio-MMIO → its device task → the inner device (net, console, fs, block) | the captured private state | recorded TODO (the inner devices' layer): the blob is opaque in the view |
 | `StateUnits` → each unit: `mesh` channels through the RPC wrapper | the unit's task | trusted boundary (`mesh_rpc_t.rs`), listed |
 
@@ -1680,6 +1680,154 @@ trusted items (`SNAPSHOT-SPEC-TRUSTED.md`); paths other than the microVM's
 save/restore (e.g. the VM's normal running, which no contract here
 covers).
 
+### The VP protocol
+
+Proposed and reviewed 2026-10-28; **specified** (code changes 63 to 68;
+see "Status" at the end of this section): the interface between `VpSet`
+(in the partition unit's task) and the VP threads (`VpRunner`), the
+`VpEvent` channel, one per VP (`vmm_core/src/partition_unit/vp_set.rs`).
+It is the state-unit protocol ("Request protocol") one level down. With
+it, `VpSet::saved_vps()` (trusted before) becomes defined, and the layers
+in between (`save_all` / `restore_all`, `WrappedVp`, `BoundVp`, the VP
+thread's loop, `VpSet`'s loops) are left to the proof agent, with this
+protocol and the hypervisor boundary ("The hypervisor boundary") as their
+spec.
+
+**Facts the protocol must fit** (from `VpRunner::run_inner`):
+
+| Fact | Where |
+|---|---|
+| a VP is `Stopped`, `Running`, or `Halted` (it stops by itself when the VM halts, and is `Stopped` only once `Stop` arrives) | `VpState`; `Stop` is accepted from `Halted` |
+| state events (`Save`, `Restore`, `Reset`, `Inspect`, `SetInitialRegs`, `CheckTimers`, `AdvanceLapic`, ...) can arrive while the VP runs: the thread pauses the VP, handles them, and resumes | `Event::Vp(VpEvent::State(..))` in the run loop |
+| `VpSet::save` and `restore` require stopped VPs | `assert!(!self.started)` |
+| a cancelled `run` can be reissued with a **different `vp` object** for the same VP | `VpRunner::run`'s doc |
+
+**The ghost.** One FracGhost per VP, a `UnitSnapshot` (the units' type;
+`NoSavedState` is never recorded for a VP): `Unknown` or `Saved(blob)` (the VP's saved state, as a blob view, without guest time:
+the TSC and the LAPIC timers, time rule). Its halves: one in `VpSet` (per
+VP), one in the VP thread (`RunnerInner`, which survives a reissue of
+`run`, so the share is per VP index, not per `vp` object).
+
+| | `VpSet` holds | the VP thread holds |
+|---|---|---|
+| VP stopped | one half | one half |
+| VP running or halted | nothing | both halves (it may change the VP) |
+
+**The rule** (as for units): while `VpSet` holds its half, the VP's state
+is the recorded one: `Saved(b)` means the VP's `save` returns `b`.
+
+**Events and replies** (each `VpEvent` sent through the mesh RPC wrapper,
+with the ghost each row says):
+
+| Event | Sent with | Reply carries | Promise |
+|---|---|---|---|
+| `Start` (one-way) | `VpSet`'s half | (none) | the thread then holds both halves |
+| `Stop` (to become an `Rpc<(), ()>`; today a bare oneshot) | (nothing) | a half, recording `Saved(the VP's blob)` | the VP has stopped; the recorded blob is the one its `save` returns |
+| `State(Save)` | `VpSet`'s half, lent (the VP is stopped) | the same half back | `Ok(blob)`: `blob@` is the recorded blob; the VP is unchanged |
+| `State(Restore(blob))` | `VpSet`'s half | the half back, recording `Saved(blob@)` on `Ok` | on `Ok`, the VP's blob is `blob@` |
+| `State(Reset)`, `State(Scrub(vtl))`, `State(SetInitialRegs(..))` while stopped | `VpSet`'s half | the half back, also on `Err` (its value per the share rule: `Unknown` or the VP's current blob) | they change the VP |
+| `State(AdvanceLapic(..))` | (nothing) | (nothing) | changes only the LAPIC timers, which the blob's view leaves out (time rule (b)) |
+| `State(Inspect)`, `CheckTimers`, `GetDumpVpState` | (nothing) | (nothing) | change nothing |
+| `State(Debug(..))` (`gdb` only) | out of scope | | debugging is not part of the snapshot spec |
+
+While the VP runs, the thread holds both halves, so a state event that
+arrives then needs no ghost from `VpSet`.
+
+**What it gives.** `VpSetView::saved_vps()` = for each VP, its index and
+the blob recorded in `VpSet`'s half (defined, while the VPs are stopped;
+no longer trusted). The partition unit's snapshot then follows from the VP
+protocol and the hypervisor boundary.
+
+**Code changes it needs** (executable, after review): `VpEvent::Stop`
+becomes an `Rpc<(), ()>` (today `mesh::OneshotSender<()>`); `VpSet` sends
+and the VP thread answers through the RPC wrapper (`call`, `recv_msg`,
+`split`, `complete`), as for state requests (code change 31); a one-way
+`send_msg` with a ghost added to the wrapper (trusted, like `call`) for
+`Start`; Verus-only ghost fields in `VpSet` (per VP) and `RunnerInner`.
+
+**Open questions:**
+
+- `Halted`: **decided 2026-10-28 (user): treated like `Running`.** A VP
+  halts by itself when the VM halts (the shared `Halt`): its thread stops
+  running guest code and sets `Halted`, while `VpSet` is still `started`
+  and holds no half. The partition unit then sends `Stop` (its `Halt`
+  event: `vp_set.stop()`), which `Halted` accepts like `Running`: the
+  reply hands `VpSet` its half, recording the VP's blob. `VpSet` cannot
+  send `Save` or `Restore` meanwhile (`!started` is required).
+- The `gdb` debug events (`SetVpState`, `WriteVirtualMemory`, ...):
+  **decided 2026-10-28 (user): out of scope.** With a debugger attached,
+  the protocol promises nothing.
+- What `Reset` records: **decided 2026-10-28 (user): as for units.** The
+  unit-level `reset` takes the caller's half and gives back a half, also
+  on `Err`, with no promise about its value beyond the share rule
+  (`Unknown` or the current state); the VP's `Reset`, `Scrub`, and
+  `SetInitialRegs` do the same with `VpSet`'s half. As at the unit level,
+  every request that changes the recorded value (`Restore`, `Reset`, ...)
+  runs with the whole FracGhost: the caller's half travels with the
+  request, so the receiver holds both halves while it changes the state
+  (checked 2026-10-28: the unit-level `restore` contract already does
+  this, recording `Saved(buffer@)` on `Ok`).
+- Not covered by the protocol, left to the proof agent: the VP thread's
+  run loop itself, `save_all` / `restore_all`, `WrappedVp`, `BoundVp`
+  (gap G4); and G3 (`WrappedPartition`), the partition-wide state,
+  similarly specified through `AccessVmState`'s boundary.
+
+**Status** (2026-10-28, code changes 63 to 68):
+
+| Piece | State | Where |
+|---|---|---|
+| the protocol (`MeshProtocol for VpEvent`, `StateEvent::request_ok`) | written, as the tables above | `vmm_core/src/partition_unit/vp_set.spec.rs` |
+| `VpSet`'s view (`VpSetView`: `started`, each VP's recorded `UnitSnapshot`; `saved_vps()`, `all_saved()`) and `wf()` (`VpSet` holds a valid half per VP exactly while stopped) | written | same file |
+| `VpSet::saved_vps()` | **no longer trusted**: `VpSetView::saved_vps()`, from `VpSet`'s halves; the partition unit's saved view uses it | `partition_unit.spec.rs` |
+| the VP's FracGhost: created with its channel, one half attached to each end | **verified** (`vp_channel`) | `vp_set.rs` |
+| `VpEvent::Stop` as an `Rpc<(), ()>` | done (executable, CC 63) | `vp_set.rs`, `vp_set/boundary.rs` |
+| contracts on `new`, `add`, `start`, `halt`, `clear_halt`, `stop`, `reset`, `scrub`, `save`, `restore`, `restore_halt`, `set_initial_regs`, `stop_at_io_boundary`, `check_one_shot_timers`, `advance_lapic_timers` | written, bodies `external_body` (to prove) | `vp_set.rs`, `vp_set/boundary.rs`, `vp_set/time_abi.rs` |
+
+Done since (code changes 66 to 68):
+
+- **`VpSet::new`** has its contract (`wf()`, not started, no VPs). Its
+  parameter type `GuestMemory` was declared to Verus by virtio, and a
+  second declaration in `vmm_core` crashed Verus (a panic in Verus's
+  erasure; a duplicate of an ordinary type is reported as an error). Now
+  `guestmem` is Verus-enabled and declares it once (code change 67).
+- **`VpIndex::new`** has its contract (verified): it moved into a `verus!`
+  block, since the attribute form does not take a `const fn` (code change
+  66).
+- **`stop_at_io_boundary`** (as `stop`), **`check_one_shot_timers`** and
+  **`advance_lapic_timers`** (view unchanged), **`get_dump_vp_state`**
+  (`&self`) have contracts (code change 68).
+
+Open (to do, not yet specified):
+
+- **The calls through the RPC wrapper.** `VpSet`'s methods still call
+  `mesh` directly; their proofs need `mesh_rpc_verus::call` (and, for the
+  one-way `Start`, a new trusted `send_msg` with a ghost, to add). These
+  are executable changes, like code change 31.
+- **The VP thread's side.** Its half stays attached to the runner's
+  receiver (`VpRunner::recv`); the run loop (`run_inner`) goes through
+  `dyn ControlVp` (`async_trait`, gap G5), so its contract waits for G5.
+- **Not specified**: the `gdb` methods (out of scope).
+
+Concerns found while specifying (for review):
+
+- **A VP whose runner is gone.** `stop` ignores a VP whose runner was
+  dropped (`.ok()`), and a call whose channel fails returns no ghost, so
+  `VpSet` would lose that VP's half and `wf()` would break. `stop`'s
+  contract promises every VP's half back; proving it needs a fact like
+  the units' ("channel failures do not happen for a registered unit"):
+  VP runners are not dropped while their `VpSet` is in use. To be added to
+  `SNAPSHOT-SPEC-TRUSTED.md` when a proof uses it, unless the proof can
+  avoid it.
+- **Restore with the VPs in another order.** `restore` accepts the saved
+  VPs in any order (it checks that each index appears once), and `save`
+  returns them in index order. The partition unit's restore contract says
+  that after `Ok` the unit's recorded blob is the given one, so for a
+  snapshot whose VPs are not in index order it would be false (`save`
+  then returns a different encoding). OpenVMM's own snapshots are in
+  index order. Options: require sorted VPs in the partition's restore
+  contract, or compare saved states by their meaning (as sets) rather
+  than as blobs.
+
 ### The microVM's units: what is specified
 
 Decided 2026-10-27 (user): after VMBus went out of scope, specify the
@@ -1705,7 +1853,7 @@ device's `save` / `restore` are checked rather than trusted, its
 | `input` | done | n/a (no state) | n/a |
 | `chipset` | done (`ChipsetUnit`) | n/a (no state) | n/a |
 | `lines/*` | done (`LineSetUnit`) | n/a (no state) | n/a |
-| `partition` | done (`PartitionUnitRunner`: its share in a ghost field, taken from its channel when the runner is built inside its task, `run_partition_unit` (code change 56); its snapshot is its saved state's blob: the partition's (`VmPartition`'s `ProtobufSaveRestore`), the VPs' (**trusted**: `VpSet::saved_vps`, until the VP layer), the encoded halt reason; running while started; `run` has a contract) | n/a (not a `SaveRestore` device; the hypervisor state is trusted) | `run`, `PartitionUnitRunner::new`: contracts, `external_body`; `run_partition_unit` **verified** |
+| `partition` | done (`PartitionUnitRunner`: its share in a ghost field, taken from its channel when the runner is built inside its task, `run_partition_unit` (code change 56); its snapshot is its saved state's blob: the partition's (`VmPartition`'s `ProtobufSaveRestore`), the VPs' (`VpSetView::saved_vps`, from `VpSet`'s halves; "The VP protocol"), the encoded halt reason; running while started; `run` has a contract) | n/a (not a `SaveRestore` device; the hypervisor state is trusted) | `run`, `PartitionUnitRunner::new`: contracts, `external_body`; `run_partition_unit` **verified** |
 | `pit` | done (generic) | done (`PitDeviceView`; `view.saved_state()`) | contract on the trait impl (`verus_verify`, bodies `external_body`: they call `save_device` / `restore_device`, which have the PIT's own contracts; code change 60) |
 | `microvm-shutdown` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
 | `microvm-snapshot-request` | done (generic) | done: view `()`, `NoSavedState`, `true` | **verified** (impl is `verus_verify`) |
@@ -1992,10 +2140,14 @@ change preserves behavior: same results, same order of effects.
 | 58 | `vm/devices/virtio/virtio` (`transport/mmio.rs`, `transport/mmio/interrupt.rs`) | `restore`'s inline interrupt-status block (lock, `restore_status`) moved into a new `MmioTransport::restore_interrupt_status(&mut self, status)` (same lock, same call, same order), so that it can carry a contract. Trusted boundary contracts on it and `read_interrupt_status` (see "virtio-MMIO's interrupt status: the guest-memory boundary"). Same behavior |
 | 61 | `vmm_core/vmotherboard` (`chipset/backing/arc_mutex/state_unit.rs`) | The private trait `DynDevice`'s `save` and `restore` moved into a new private trait `DynDeviceState`, which `DynDevice` has as a supertrait (it takes over the `DeviceSnapshot` supertrait); its blanket `impl<T: VmmChipsetDevice> DynDeviceState for T` calls `ProtobufSaveRestore::save` / `restore` (before: `self.save()` / `self.restore(state)` in `DynDevice`'s impl, the same functions). Callers are unchanged (supertrait methods are callable through `dyn DynDevice`). Reason: `DynDevice` is `async_trait`, whose `dyn Future + Send` Verus cannot express, so `save` / `restore` need a trait of their own to carry contracts and be checked. Same behavior |
 | 62 | `vm/chipset_device_resources` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd`, new `build.rs` (declares the `verus_keep_ghost` cfg), cfg'd imports of `verus_spec` / `verus_verify` in `lib.rs`; the rest of the change is Verus-only (cfg'd attributes and a `verus!` block) |
+| **63** | `vmm_core` (`partition_unit/vp_set.rs`, `vp_set/boundary.rs`) | **`VpEvent::Stop` carries an `Rpc<(), ()>` instead of a `mesh::OneshotSender<()>`**: `VpSet::stop` and `stop_at_io_boundary` send `vp.send.call(VpEvent::Stop, ())` and await it with `.ok()` (before: a `mesh::oneshot()` pair); the VP thread's two `Stop` arms answer `complete(())` (before: `send(())`); tests likewise. Same one-shot reply, same order; a VP whose runner is gone is still ignored. Reason: the reply carries the VP's half back to `VpSet` (the VP protocol) |
+| 65 | `vmm_core` (`partition_unit/vp_set.rs`) | `VpSet::add` creates the VP's channel with a new private `vp_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`) instead of `mesh::channel()`; binding `let (mut send, recv)` with `cfg_attr(not(verus_keep_ghost), expect(unused_mut))`; new imports `vstd::prelude::Ghost`, `Tracked`. Same channel |
+| 66 | `vm/vmcore/vm_topology` (`processor.rs`) | `VpIndex::new` (`const fn`) moved, same body, into a `verus!` block (no longer cfg'd; normal builds: the same `const fn`), so that it can carry a contract (Verus's attribute form does not take a `const fn`). Same function |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
 | 50 | `vm/vmcore` | **`SaveRestore::SavedState` gains the bound `SaveRestoreView`** (`type SavedState: SaveRestoreView;`; normal builds: an empty trait every type implements, so no impl changes) |
+| 65 | `vmm_core` (`partition_unit/vp_set.rs`) | **`VpSet::restore`'s parameter type changes** from `impl IntoIterator<Item = (VpIndex, SavedStateBlob)>` to `Vec<(VpIndex, SavedStateBlob)>` (its one caller already passes a `Vec`) |
 
 **Dependencies and build**
 
@@ -2007,6 +2159,8 @@ change preserves behavior: same results, same order of effects.
 | 44 | `chipset_arc_mutex_device`, `chipset_device_fuzz` | new dependency `vmcore` (no cycle) |
 | 46 | `vmm_core/state_unit` | dev-dependency (tests only): `inspect` with the `initiate` feature, for the new test |
 | 47 | `vmbus_channel` | Verus-enabled: `[package.metadata.verus]`, dependencies `vstd` and `mesh_rpc_verus`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `vstd` import in `lib.rs` |
+| 64 | `vm/vmcore/vm_topology` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (`Cargo.lock`), `build.rs` declares the `verus_keep_ghost` cfg, a cfg'd `vstd` import in `lib.rs`; the rest is Verus-only (`VpIndex`'s cfg'd attributes, a cfg'd `verus!` block) |
+| 67 | `vm/vmcore/guestmem` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (`Cargo.lock`), new `build.rs` (declares the `verus_keep_ghost` cfg); the rest is Verus-only (a cfg'd module declaring `GuestMemory` to Verus) |
 | 51 | `vm/devices/chipset` | new direct dependency `mesh_rpc_verus`, for Verus: portb's fields include `mesh::Receiver` and `Rpc`, which that crate declares to Verus. Normal builds compile and link it, but no code uses it |
 | 54 | `vm/devices/virtio/virtio` | new direct dependencies `mesh_rpc_verus` (its declaration of `mesh::Sender`, the transport core's device sender) and `async-task` (`pal_async::task::Task` is `async_task::Task`, which Verus must be told about), both for Verus, both already in the build graph; referenced by cfg'd `use .. as _;` lines in `lib.rs`. Normal builds compile and link them, unused |
 | 54 | `vm/devices/virtio/virtio_spec` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd`, new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus_verify;` in `lib.rs` |
@@ -2638,14 +2792,13 @@ important first.
   - Fixed: **the PIT's `SaveRestore` impl** was plain Rust (code change 60).
 
 - **TODO, in progress: the VP layer** (2026-10-28). Done: the hypervisor
-  boundary (layer A, "The hypervisor boundary"). Next: the `VpEvent`
-  protocol (on the mesh RPC wrapper; `Stop` to become an `Rpc`). Then, by
-  the proof agent: `save_all` / `restore_all`, `WrappedVp`, `BoundVp`,
-  the VP threads, `VpSet`. The partition unit's VPs
+  boundary (layer A, "The hypervisor boundary"); the `VpEvent` protocol
+  and `VpSet`'s contracts ("The VP protocol", code changes 63 to 65; its
+  "Open" list). Then, by the proof agent: `save_all` / `restore_all`,
+  `WrappedVp`, `BoundVp`, the VP threads, `VpSet`. The partition unit's VPs
   run on their own threads; `VpSet` asks each to stop, save, and restore
-  (`vmm_core/src/partition_unit/vp_set.rs`). For now the VPs' saved state
-  is a trusted accessor, `VpSet::saved_vps()` (uninterpreted: each VP's
-  index and blob, without guest time). To specify: `VpSet` and the VP
+  (`vmm_core/src/partition_unit/vp_set.rs`). The VPs' saved state is now
+  `VpSetView::saved_vps()`, from `VpSet`'s halves. Originally to specify: `VpSet` and the VP
   threads' request protocol (like the units' FracGhost shares, per VP),
   `BoundVp`'s `ProtobufSaveRestore` (trusted today), and below it the
   hypervisor's VP save and restore (trusted: KVM, WHP), with each VP

@@ -822,6 +822,102 @@ Baseline: upstream `nanvix/openvmm` commit
     Also gap G5 logged: the `async_trait` glue, with the Verus patch's
     five pieces.
 
+63. **The VP thread answers `Stop` through an `Rpc`** (executable change in
+    `vmm_core`, behavior unchanged; design doc, "The VP protocol").
+    `VpEvent::Stop(mesh::OneshotSender<()>)` becomes `Stop(Rpc<(), ()>)`,
+    so that the reply can carry the VP's half of its FracGhost back to
+    `VpSet`, as every other VP event's reply does. Senders: `VpSet::stop`
+    and `VpSet::stop_at_io_boundary` (`vp_set/boundary.rs`) send
+    `vp.send.call(VpEvent::Stop, ())` and await it with `.ok()` (before:
+    a `mesh::oneshot()` pair, the sender in the event, the receiver
+    awaited with `.ok()`); both ignore a VP whose runner is gone, as
+    before. Receivers: the VP thread's two `Stop` arms (`run_inner`)
+    answer `send.complete(())` (before: `send.send(())`); the boundary
+    tests answer `.complete(())`. A mesh `Rpc` with input `()` and reply
+    `()` is a one-shot reply channel, as the old sender was; same
+    messages, same order.
+
+64. **`vm_topology` is Verus-enabled** (dependency and build change,
+    behavior unchanged). `[package.metadata.verus]`, dependency `vstd`
+    (`Cargo.lock`: one line), `build.rs` declares the `verus_keep_ghost`
+    cfg, `lib.rs` a cfg'd `vstd` import. Verus only: `VpIndex` is
+    `verus_verify` (with `verifier::external_derive`), with a closed
+    `spec_index()` and a contract on `index()` (returns `spec_index()`).
+    `VpIndex::new` (a `const fn`, used by the `const` `BSP`) has no
+    contract yet (since code change 66 it has one). Needed so that `VpSet::save` / `restore`'s contracts can
+    name the VP indexes.
+
+65. **`VpSet`'s contracts, the VP protocol, and the VP's FracGhost**
+    (executable changes in `vmm_core`, behavior unchanged; design doc,
+    "The VP protocol"). Executable:
+    - `VpSet::restore` takes `states: Vec<(VpIndex, SavedStateBlob)>`
+      instead of `impl IntoIterator<Item = ..>` (Verus cannot state a
+      contract over an `impl IntoIterator`); its one caller
+      (`PartitionUnitRunner::restore`) already passes a `Vec`. The body
+      is unchanged (it passes `states` to `select_instantiated_vp_states`,
+      which still takes `impl IntoIterator`).
+    - `VpSet::add` creates the VP's channel with a new private function
+      `vp_channel()` (in a `verus!` block; normal builds:
+      `mesh::channel()`, through `mesh_rpc_verus::channel`) instead of
+      `mesh::channel()`. The binding is `let (mut send, recv)` with
+      `cfg_attr(not(verus_keep_ghost), expect(unused_mut))` (the `mut`
+      is for Verus builds, which take the sender's half).
+    - `vp_set.rs` imports `vstd::prelude::Ghost` and `Tracked` (used by
+      `vp_channel` in normal builds too: zero-sized wrappers).
+    Verus only: `vp_channel` creates the VP's FracGhost (`UnitSnapshot`,
+    `Unknown`) and attaches one half to each end (as
+    `state_unit::unit_channel`; verified); `Vp` gets a ghost field `share`
+    (`VpSet`'s half, taken from the sender in `add`); `VpSet`, `Vp`,
+    `VpEvent`, `StateEvent` are `verus_verify` (with
+    `verifier::external_derive`); `vp_set.spec.rs` (for review): the VP
+    protocol (`MeshProtocol for VpEvent`, `StateEvent::request_ok`), the
+    view `VpSetView` (`started`, each VP's recorded `UnitSnapshot`;
+    `inv`, `all_saved`, `saved_vps`), `VpSet::wf()`; `vp_set.proof.rs`:
+    declarations. Contracts (`external_body`) on `add`, `start`, `halt`,
+    `clear_halt`, `stop`, `reset`, `scrub`, `save`, `restore`,
+    `restore_halt`, `set_initial_regs`; `validate_restore_halt` and
+    `teardown` are `external_body` without contracts; `new` is
+    `verus_verify(external)` (its `GuestMemory` parameter: virtio already
+    declares `GuestMemory`, and a second declaration crashes Verus; since
+    code change 67 it has a contract).
+    `partition_unit.spec.rs`: the trusted, uninterpreted
+    `VpSet::saved_vps()` is replaced by `VpSetView::saved_vps()`, defined
+    from `VpSet`'s halves; `partition_unit.proof.rs` no longer declares
+    `VpSet` opaque. `openvmm_core`'s `dispatch.proof.rs` no longer
+    declares `mesh::RecvError` (now declared in `vmm_core`, upstream; two
+    declarations are an error).
+
+66. **`VpIndex::new` has a contract** (executable change in `vm_topology`,
+    behavior unchanged). `VpIndex::new` (a `const fn`) moved, with the
+    same body, into a `verus!` block (no longer cfg'd), next to
+    `spec_index()`: in normal builds the block expands to the same
+    `pub const fn new(index: u32) -> Self { Self(index) }`; in Verus
+    builds `new` ensures `result.spec_index() == index` (verified).
+    Reason: Verus's attribute form (`verus_verify` / `verus_spec`) does
+    not accept a `const fn` (code change 64 left it without a contract).
+    `VpSet::save`'s proof needs it. `BSP` (`Self::new(0)`) is unchanged.
+
+67. **`guestmem` is Verus-enabled and declares `GuestMemory`** (dependency
+    and build change, behavior unchanged). `[package.metadata.verus]`,
+    dependency `vstd` (`Cargo.lock`), new `build.rs` (declares the
+    `verus_keep_ghost` cfg). Verus only: a cfg'd module
+    `verus_declarations` at the end of `lib.rs` declares `GuestMemory` to
+    Verus (opaque), once for every crate that names it. virtio's
+    declaration (`transport/mmio.proof.rs`) is removed: two declarations
+    of a type crash Verus. With it, `VpSet::new` gets its contract
+    (`external_body`): `wf()`, not started, no VPs (code change 65 had
+    left it `verus_verify(external)`).
+
+68. **Contracts on the rest of `VpSet`'s microVM functions** (Verus only;
+    no executable change). `external_body`, to prove:
+    `stop_at_io_boundary` (`vp_set/boundary.rs`): as `stop`, also on
+    `Err`; `check_one_shot_timers`, `advance_lapic_timers`
+    (`vp_set/time_abi.rs`): `wf()` kept and the view unchanged (no ghost
+    travels; the LAPIC timers are out of the saved-state views, the time
+    rule (b)); `get_dump_vp_state` (`dump` feature): `external_body`, no
+    contract (`&self`). `vp_set.proof.rs` declares `mesh::OneshotSender`.
+    The `gdb` methods stay unseen (out of scope).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

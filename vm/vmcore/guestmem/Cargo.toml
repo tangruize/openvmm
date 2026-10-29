@@ -6,10 +6,14 @@ name = "guestmem"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 bitmap = ["dep:minircu"]
 
 [dependencies]
+vstd.workspace = true
 guestmem_core.workspace = true
 inspect.workspace = true
 pal_event.workspace = true

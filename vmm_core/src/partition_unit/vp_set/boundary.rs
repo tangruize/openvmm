@@ -9,9 +9,28 @@ use super::VpEvent;
 use super::VpSet;
 use anyhow::Context as _;
 use futures::future::JoinAll;
+use mesh::rpc::RpcSend;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VpSet {
     /// Stops all VPs at a deferred I/O completion boundary.
+    ///
+    /// Verus: as `stop`: if they were started, each VP's thread hands back
+    /// a half recording the VP's saved state; otherwise nothing changes.
+    /// Also on `Err` (the I/O peer failed; the stops are still drained).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+            old(self)@.started ==> final(self)@.all_saved(),
+            !old(self)@.started ==> final(self)@ == old(self)@,
+    ))]
     pub async fn stop_at_io_boundary(
         &mut self,
         release_io: mesh::OneshotSender<()>,
@@ -22,9 +41,8 @@ impl VpSet {
                 .vps
                 .iter()
                 .map(|vp| {
-                    let (send, recv) = mesh::oneshot();
-                    vp.send.send(VpEvent::Stop(send));
-                    async { recv.await.ok() }
+                    let stopped = vp.send.call(VpEvent::Stop, ());
+                    async { stopped.await.ok() }
                 })
                 .collect::<JoinAll<_>>();
             self.started = false;
@@ -102,9 +120,9 @@ mod tests {
             drop(complete);
         }
         assert!(boundary.as_mut().now_or_never().is_none());
-        first_stop.send(());
+        first_stop.complete(());
         assert!(boundary.as_mut().now_or_never().is_none());
-        second_stop.send(());
+        second_stop.complete(());
         let result = boundary.as_mut().now_or_never().unwrap();
         if io_succeeds {
             result.unwrap();
@@ -147,7 +165,7 @@ mod tests {
             let Ok(VpEvent::Stop(stop)) = runners[0].recv.try_recv() else {
                 panic!("expected a stop request before releasing I/O");
             };
-            stop.send(());
+            stop.complete(());
             assert!(boundary.as_mut().now_or_never().is_none());
 
             if io_succeeds {
@@ -181,7 +199,7 @@ mod tests {
         let Ok(VpEvent::Stop(stop)) = runners[0].recv.try_recv() else {
             panic!("expected a stop request before releasing I/O");
         };
-        stop.send(());
+        stop.complete(());
         assert!(boundary.as_mut().now_or_never().unwrap().is_err());
         drop(boundary);
         drop(runners);

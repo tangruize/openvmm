@@ -8,6 +8,18 @@ mod prefix;
 #[cfg(guest_arch = "x86_64")]
 mod time_abi;
 
+/// Verus specification of the VP protocol (`VpSet` to the VP threads) and
+/// of `VpSet`'s view.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("vp_set.spec.rs");
+}
+
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("vp_set.proof.rs");
+}
+
 use super::HaltReason;
 use super::HaltReasonReceiver;
 use super::InternalHaltReason;
@@ -26,6 +38,10 @@ use inspect::Inspect;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcError;
 use mesh::rpc::RpcSend;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::SenderAdditionalSpecFns;
 use parking_lot::Mutex;
 use slab::Slab;
 use std::future::Future;
@@ -51,8 +67,16 @@ use vmcore::save_restore::ProtobufSaveRestore;
 use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
+#[cfg(verus_keep_ghost)]
+use vmcore::save_restore::spec::UnitSnapshot;
 #[cfg(feature = "gdb")]
 use vmm_core_defs::debug_rpc::DebuggerVpState;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
 
 const NUM_VTLS: usize = 3;
 
@@ -796,6 +820,8 @@ struct Inner {
 }
 
 #[derive(Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct VpSet {
     #[inspect(flatten)]
     inner: Arc<Inner>,
@@ -807,6 +833,8 @@ pub struct VpSet {
 }
 
 #[derive(Inspect)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 struct Vp {
     #[inspect(flatten, send = "|req| VpEvent::State(StateEvent::Inspect(req))")]
     send: mesh::Sender<VpEvent>,
@@ -814,9 +842,46 @@ struct Vp {
     done: mesh::OneshotReceiver<()>,
     #[inspect(flatten)]
     vp_info: TargetVpInfo,
+    /// `VpSet`'s half of the VP's FracGhost, while the VP is stopped (Verus
+    /// only; see the design doc, "The VP protocol").
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    share: Tracked<Option<FracGhost<UnitSnapshot>>>,
 }
 
+vstd::prelude::verus! {
+
+/// Creates the channel to a new VP's thread. In Verus builds it also creates
+/// the VP's FracGhost, value `Unknown`, and attaches one half to each end:
+/// the sender's half goes to `VpSet` (`VpSet::add`), the receiver's half to
+/// the VP thread. The channel's constant is the ghost's id. (As
+/// `state_unit::unit_channel`.)
+fn vp_channel() -> (result: (mesh::Sender<VpEvent>, mesh::Receiver<VpEvent>))
+    ensures
+        result.0.attached() matches Some(h) && h.valid(result.0.constant(), 0.5real)
+            && h@ == UnitSnapshot::Unknown,
+        result.1.attached() matches Some(h) && h.valid(result.1.constant(), 0.5real)
+            && h@ == UnitSnapshot::Unknown,
+        result.0.constant() == result.1.constant(),
+{
+    let tracked mut send_half = FracGhost::new(UnitSnapshot::Unknown);
+    let tracked recv_half = send_half.split();
+    let ghost id = send_half.id();
+    mesh_rpc_verus::channel(Ghost(id), Tracked(send_half), Tracked(recv_half))
+}
+
+} // verus!
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VpSet {
+    /// Verus: an empty, stopped set.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result.wf(),
+            !result@.started,
+            result@.vps.len() == 0,
+    ))]
     pub fn new(
         vtl_guest_memory: [Option<GuestMemory>; NUM_VTLS],
         halt: Arc<Halt>,
@@ -835,14 +900,32 @@ impl VpSet {
     }
 
     /// Adds a VP and returns its runner.
+    ///
+    /// Verus: the new VP's half records `Unknown`; the VP thread's half
+    /// stays attached to the runner's receiver.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            final(self)@.vps == old(self)@.vps.push(UnitSnapshot::Unknown),
+            final(self)@.started == old(self)@.started,
+    ))]
     pub fn add(&mut self, vp: TargetVpInfo) -> VpRunner {
         assert!(!self.started);
-        let (send, recv) = mesh::channel();
+        #[cfg_attr(not(verus_keep_ghost), expect(unused_mut))]
+        let (mut send, recv) = vp_channel();
+        #[cfg(verus_keep_ghost)]
+        let share = mesh_rpc_verus::take_sender_ghost(&mut send);
         let (done_send, done_recv) = mesh::oneshot();
         self.vps.push(Vp {
             send,
             done: done_recv,
             vp_info: vp,
+            #[cfg(verus_keep_ghost)]
+            share,
         });
         let (cancel_send, cancel_recv) = mesh::channel();
         VpRunner {
@@ -859,6 +942,17 @@ impl VpSet {
     }
 
     /// Starts all VPs.
+    ///
+    /// Verus: each VP's half goes to its thread (`Start`).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+    ))]
     pub fn start(&mut self) {
         if !self.started {
             for vp in &self.vps {
@@ -869,6 +963,14 @@ impl VpSet {
     }
 
     /// Initiates a halt to the VPs.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     #[cfg_attr(not(feature = "gdb"), expect(dead_code))]
     pub fn halt(&mut self, reason: HaltReason) {
         self.inner.halt.halt(reason);
@@ -877,22 +979,44 @@ impl VpSet {
     /// Resets the halt state for all VPs.
     ///
     /// The VPs must be stopped.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     pub fn clear_halt(&mut self) {
         assert!(!self.started);
         self.inner.halt.clear_halt();
     }
 
     /// Stops all VPs.
+    ///
+    /// Verus: if they were started, each VP's thread hands back a half
+    /// recording the VP's saved state (`Stop`); otherwise nothing changes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+            old(self)@.started ==> final(self)@.all_saved(),
+            !old(self)@.started ==> final(self)@ == old(self)@,
+    ))]
     pub async fn stop(&mut self) {
         if self.started {
             let stops = self
                 .vps
                 .iter()
                 .map(|vp| {
-                    let (send, recv) = mesh::oneshot();
-                    vp.send.send(VpEvent::Stop(send));
+                    let stopped = vp.send.call(VpEvent::Stop, ());
                     // Ignore VPs whose runners have been dropped.
-                    async { recv.await.ok() }
+                    async { stopped.await.ok() }
                 })
                 .collect::<JoinAll<_>>();
             self.started = false;
@@ -901,6 +1025,19 @@ impl VpSet {
     }
 
     /// Resets per-VP state on all VPs concurrently.
+    ///
+    /// Verus: each VP's half travels with the request and comes back, also
+    /// on `Err`, with any value.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+    ))]
     pub async fn reset(&mut self) -> anyhow::Result<()> {
         assert!(!self.started);
         self.vps
@@ -918,6 +1055,19 @@ impl VpSet {
     }
 
     /// Scrubs per-VP state for a VTL on all VPs concurrently.
+    ///
+    /// Verus: each VP's half travels with the request and comes back, also
+    /// on `Err`, with any value.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+    ))]
     pub async fn scrub(&mut self, vtl: Vtl) -> anyhow::Result<()> {
         assert!(!self.started);
         self.vps
@@ -934,6 +1084,22 @@ impl VpSet {
         Ok(())
     }
 
+    /// Saves every VP's state.
+    ///
+    /// Verus: each VP's half is lent (`Save`); on `Ok`, the VPs' indexes
+    /// and blobs are the recorded ones.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+            old(self)@.all_saved(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+            result matches Ok(v) ==> v@.map_values(|e: (VpIndex, SavedStateBlob)| (e.0.spec_index(), e.1@))
+                == final(self)@.saved_vps(),
+    ))]
     pub async fn save(&mut self) -> Result<Vec<(VpIndex, SavedStateBlob)>, SaveError> {
         assert!(!self.started);
         self.validate_save_vp_count()?;
@@ -954,9 +1120,27 @@ impl VpSet {
             .await
     }
 
+    /// Restores the VPs' states.
+    ///
+    /// Verus: each VP's half travels with its `Restore`; on `Ok`, each VP
+    /// records the blob given for its index.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+            result is Ok ==> forall|i: int| #![trigger final(self)@.vps[i]]
+                0 <= i < final(self)@.vps.len() ==> exists|j: int| #![trigger states@[j]]
+                    0 <= j < states@.len() && states@[j].0.spec_index() == i
+                        && final(self)@.vps[i] == UnitSnapshot::Saved(states@[j].1@),
+    ))]
     pub async fn restore(
         &mut self,
-        states: impl IntoIterator<Item = (VpIndex, SavedStateBlob)>,
+        states: Vec<(VpIndex, SavedStateBlob)>,
     ) -> Result<(), RestoreError> {
         assert!(!self.started);
         let states = self.select_instantiated_vp_states(states)?;
@@ -987,6 +1171,7 @@ impl VpSet {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub(super) fn validate_restore_halt(&self) -> Result<(), RestoreError> {
         if self.started {
             return Err(RestoreError::Other(anyhow::anyhow!(
@@ -996,12 +1181,22 @@ impl VpSet {
         self.inner.halt.validate_restore_halt()
     }
 
+    /// Verus: the VPs are unchanged.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            final(self)@ == old(self)@,
+    ))]
     pub(super) fn restore_halt(&mut self, halted: bool) -> Result<(), RestoreError> {
         self.validate_restore_halt()?;
         self.inner.halt.restore_halt(halted)
     }
 
     /// Tears down the VPs.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn teardown(self) {
         self.vps
             .into_iter()
@@ -1010,6 +1205,20 @@ impl VpSet {
             .await;
     }
 
+    /// Sets the VPs' initial registers.
+    ///
+    /// Verus: as `reset`; the VPs must be stopped (the partition unit's
+    /// callers ensure it).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.started,
+        ensures
+            final(self).wf(),
+            !final(self)@.started,
+            final(self)@.vps.len() == old(self)@.vps.len(),
+    ))]
     pub async fn set_initial_regs(
         &mut self,
         vtl: Vtl,
@@ -1073,10 +1282,14 @@ pub struct RegisterSetError(&'static str, #[source] anyhow::Error);
 struct RunnerGoneError(#[source] RpcError);
 
 #[cfg(feature = "dump")]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VpSet {
     /// Gets full VP state for dump generation.
     ///
     /// Returns all registers needed for a `.vmrs` dump file.
+    ///
+    /// Verus: changes nothing (`&self`; `GetDumpVpState` carries no ghost).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     pub async fn get_dump_vp_state(
         &self,
         vp: VpIndex,
@@ -1182,13 +1395,17 @@ impl VpSet {
 }
 
 #[derive(Debug)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 enum VpEvent {
     Start,
-    Stop(mesh::OneshotSender<()>),
+    Stop(Rpc<(), ()>),
     State(StateEvent),
 }
 
 #[derive(Debug)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 enum StateEvent {
     Inspect(inspect::Deferred),
     SetInitialRegs(Rpc<(Vtl, Arc<InitialRegs>, RegistersToSet), Result<(), RegisterSetError>>),
@@ -1303,7 +1520,7 @@ impl VpRunner {
                     Some(VpEvent::Stop(send)) => {
                         assert_eq!(self.inner.state, VpState::Halted);
                         self.inner.state = VpState::Stopped;
-                        send.send(());
+                        send.complete(());
                     }
                     Some(VpEvent::State(event)) => self.inner.state_event(vp, event),
                     None => return Ok(()),
@@ -1418,7 +1635,7 @@ impl VpRunner {
 
             if let Some(send) = stop_complete {
                 self.inner.state = VpState::Stopped;
-                send.send(());
+                send.complete(());
             }
 
             if let Some(by_user) = cancelled_by_user {

@@ -20,6 +20,10 @@ cfg_if::cfg_if! {
     }
 }
 use thiserror::Error;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
 
 /// A description of the VM's processor topology.
 ///
@@ -306,14 +310,30 @@ pub struct VpTopologyInfo {
 /// them interchangeably.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "inspect", derive(inspect::Inspect), inspect(transparent))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct VpIndex(u32);
 
-impl VpIndex {
-    /// Returns `index` as a VP index.
-    pub const fn new(index: u32) -> Self {
-        Self(index)
-    }
+// In a `verus!` block (normal builds: the plain `const fn`), so that `new`
+// can carry a contract: Verus's attribute form does not take a `const fn`.
+vstd::prelude::verus! {
+    impl VpIndex {
+        /// The VP index value.
+        pub closed spec fn spec_index(self) -> u32 {
+            self.0
+        }
 
+        /// Returns `index` as a VP index.
+        pub const fn new(index: u32) -> (result: Self)
+            ensures
+                result.spec_index() == index,
+        {
+            Self(index)
+        }
+    }
+}
+
+impl VpIndex {
     /// VP index zero, corresponding to the boot processor (BSP).
     ///
     /// Note that this being a constant means that the BSP's HV VP index
@@ -324,6 +344,11 @@ impl VpIndex {
     pub const BSP: Self = Self::new(0);
 
     /// Returns the VP index value.
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result == self.spec_index(),
+    ))]
     pub fn index(&self) -> u32 {
         self.0
     }

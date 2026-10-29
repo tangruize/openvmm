@@ -6,7 +6,6 @@
 
 use super::PartitionRequest;
 use super::PartitionUnitRunner;
-use super::vp_set::VpSet;
 use vmcore::save_restore::spec::SavedStateBlobView;
 use vmcore::save_restore::spec::UnitSnapshot;
 use vmcore::save_restore::spec::ProtobufSaveRestoreSpec;
@@ -58,23 +57,15 @@ impl PartitionSavedView {
     pub uninterp spec fn encode_halt(reason: HaltReason) -> Seq<u8>;
 }
 
-impl VpSet {
-    /// Each VP's index and saved state, as its VP thread would save it
-    /// (TRUSTED: uninterpreted until the VP layer is specified: the VP
-    /// threads, their stop and save requests, and each VP's hypervisor
-    /// state; see the design doc, "Other open items"). Guest time (the
-    /// TSCs, the LAPIC timers) is not in the blobs' views.
-    pub uninterp spec fn saved_vps(&self) -> Seq<(u32, SavedStateBlobView)>;
-}
-
 impl PartitionUnitRunner {
     /// The view of the saved state the runner's `save` returns now: the
     /// partition's blob (`ProtobufSaveRestore`, `VmPartition`'s
-    /// supertrait), the VPs' (`VpSet::saved_vps`), and the halt reason.
+    /// supertrait), the VPs' (as `VpSet`'s halves record them, see "The VP
+    /// protocol"), and the halt reason.
     pub closed spec fn saved_view(&self) -> PartitionSavedView {
         PartitionSavedView {
             partition: self.partition.saved_blob(),
-            vps: self.vp_set.saved_vps(),
+            vps: self.vp_set@.saved_vps(),
             halt_reason: match self.halt_reason {
                 Some(r) => Some(PartitionSavedView::encode_halt(r)),
                 None => None,

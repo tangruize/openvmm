@@ -2709,3 +2709,19 @@ mod tests {
         assert!(!gm.supports_locking());
     }
 }
+
+/// Declares `GuestMemory` to Verus, as an opaque type, once for every
+/// crate that names it (virtio, vmm_core).
+#[cfg(verus_keep_ghost)]
+mod verus_declarations {
+    use super::GuestMemory;
+    use vstd::prelude::*;
+
+    verus! {
+
+    #[verifier::external_type_specification]
+    #[verifier::external_body]
+    pub struct ExGuestMemory(GuestMemory);
+
+    } // verus!
+}
