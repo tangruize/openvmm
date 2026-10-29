@@ -2,3 +2,4 @@
 # walker honors `.ignore` files): written for the Verus work, without
 # OpenVMM's copyright header.
 verus-trust-classify.py
+verus-spec-audit.py

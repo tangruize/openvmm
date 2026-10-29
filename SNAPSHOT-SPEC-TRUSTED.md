@@ -32,6 +32,7 @@ only where a trusted item gives them meaning.
 | `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
 | `LoadedVm::quiesce_for_snapshot`, `resume_after_failed_snapshot`, `establish_snapshot_boundary`, `release_snapshot_boundary`, `handle_snapshot_boundary` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). |
 | `StateUnits::resume_after_failed_save`, `QuiesceForSaveError::has_uncertain_state` | `vmm_core/state_unit/src/quiesce.rs` | Same. `has_uncertain_state` returns the error's `uncertain` field, which is `QuiesceForSaveError`'s view (uninterpreted). |
+| `ArcStrView::view_str` for `Arc<str>` (uninterpreted) | `vmm_core/state_unit/src/lib.proof.rs` | A unit name's characters, as a `Seq<char>` (`Arc<str>` has no vstd view). Used as the unit's name in the registry's and `StateUnits`' views (and compared for distinctness); nothing is assumed about its value. |
 | `View for SnapshotBoundary` (uninterpreted) | `dispatch.spec.rs` | `active` is `stop_guard.is_some()` (private fields). |
 | `LoadedVm::quiesce_and_save`, `LoadedVm::capture_time_abi` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). `capture_time_abi`'s contract (the view is unchanged) is a claim about the VPs' timer check and the partition's time records. |
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
@@ -39,6 +40,10 @@ only where a trusted item gives them meaning.
 | `InitializedVm::load` | `openvmm/openvmm_core/src/worker/dispatch.rs` | Same (design doc, "Restore from snapshot"). Includes the fresh-VM facts: every unit's half collected, recording `Unknown`. |
 | `LoadedVm::time_abi_restore` | `openvmm/openvmm_core/src/worker/dispatch/time_abi.rs` | Same. Claims the clock restore changes only time (so nothing in the view). |
 | `StateUnits::advance_time` | `vmm_core/state_unit/src/advance_time.rs` | Same. |
+| `VpSet`'s methods (since code changes 65, 67, 68) | `vmm_core/src/partition_unit/vp_set.rs` (`new`, `add`, `start`, `halt`, `clear_halt`, `stop`, `reset`, `scrub`, `save`, `restore`, `restore_halt`, `set_initial_regs`), `vp_set/boundary.rs` (`stop_at_io_boundary`), `vp_set/time_abi.rs` (`check_one_shot_timers`, `advance_lapic_timers`) | Same (`external_body`; contracts in the design doc, "The VP protocol"). Their bodies pass placeholder ghosts to the RPC wrapper (code change 71), to replace with `VpSet`'s halves when proved. `validate_restore_halt`, `teardown`, `get_dump_vp_state` are `external_body` without contracts. |
+| `PartitionUnitRunner::run` | `vmm_core/src/partition_unit.rs` | Same: it keeps the runner's `wf()` and `id()`. (Its other events are deferred until after G5; design doc, "Other open items".) |
+| The partition's state, above the handles (since code change 73) | `openvmm/openvmm_core/src/partition.rs`: the blanket `BasicPartitionStateAccess` impl's `save` / `restore` (bodies `external_body`), `WrappedPartition`'s `SaveRestore` `save` / `restore` (bodies `external_body`, the trait's contract) | Same (design doc, "The partition's state"). The blanket impl's `reset`, `scrub_vtl`, `accept_initial_pages`, `guest_os_id` are `external_body` without contracts (TODO there). |
+| `unit_channel_for` | `vmm_core/state_unit/src/unit_channel.rs` (`external_body`) | Its contract: the given half is attached to the new channel's sender, none to its receiver, and both ends' constant is the half's id. Its body is `mesh::channel()`; to prove through `mesh_rpc_verus::channel`. |
 | `View for SnapshotRestore` (uninterpreted) | `openvmm/openvmm_core/src/worker/dispatch.spec.rs` | `clock_restore_pending` is `time_abi.is_some()` (`SnapshotRestore` has private fields, so Verus cannot see it). |
 
 ## Proofs pending
@@ -84,7 +89,7 @@ contracts are assumptions about mesh. See the file header, and
 | Protocols of `VmRpc` and `PartitionRequest` | None assumed: `request_ok` is uninterpreted (placeholders; `openvmm_defs/src/rpc.spec.rs`, `vmm_core/src/partition_unit.spec.rs`). Their unverified call sites pass placeholder ghosts. |
 | `recv_msg` | The received message and ghost satisfy `request_ok` for the channel's constant. |
 | `send_msg` (one-way, since code change 71) | It sends `msg` with `send.send(msg)`; the caller must establish `request_ok` for `msg` and its ghost `gin`, which the receiver then gets through `recv_msg` (as `call`, without a reply). Used by `VpSet::start` (`VpEvent::Start`). |
-| `split`, `complete` | `split` returns the `Rpc`'s input and keeps its reply contract; `complete` requires the reply contract. |
+| `split`, `complete` | `split` returns the `Rpc`'s input (`Rpc::spec_input()`, uninterpreted: the input `call` put in it) and keeps its reply contract; `complete` requires the reply contract. |
 | Reply ghost type | `Rpc::reply_ok::<G>` is uninterpreted for every `G`; the only facts about it come from `call`, for `G = M::GhostOut`. Argument that a mismatched type cannot be used: file header. **Needs soundness review.** |
 | Attached ghosts | `channel(k, gs, gr)` attaches `gs`/`gr` to the ends; `take_sender_ghost` / `take_receiver_ghost` return them once; `clone_sender` carries none; `recv_msg` keeps the receiver's. |
 | Ends from `channel` | ASSUMPTION: an end whose ghost is taken was created by `channel`, not by `mesh::channel` directly (whose `attached()` is unknown). |

@@ -1782,6 +1782,38 @@ trusted items (`SNAPSHOT-SPEC-TRUSTED.md`); paths other than the microVM's
 save/restore (e.g. the VM's normal running, which no contract here
 covers).
 
+
+### The completeness audit (2026-10-28)
+
+Asked by the user: is the spec of quiesce, save, and restore finished,
+with everything not done documented? Method: `scripts/verus-spec-audit.py`
+(rerun it to repeat the audit; `--list` lists every item) scans every
+tracked `.rs` file with Verus code (172 files, outside `verus-patches/`)
+for each trust marker and every `TODO`, classifies them, and matches each
+to the docs by name; then each was checked by hand.
+
+| Marker | Count | Result |
+|---|---|---|
+| `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 39 in `external_body` bodies, 4 in plain (unverified) functions, 15 in tests, 1 (`reply`) only in builds other than the verification pass |
+| `assume(..)` | 1 | documented ("Recorded unit states are real") |
+| `assume_specification` | 8 | documented (saved-state blobs, protobuf, registry) |
+| `uninterp spec fn` | 34 | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC) |
+| `external_body` with a contract, trusted by design (a boundary: a `_t.rs` file or marked TRUSTED) | 33 | all in the trusted doc |
+| `external_body` with a contract, body to prove | 91 | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` without a contract of its own | 87 | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
+| `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
+| `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
+
+**Answer.** The spec of quiesce, save, and restore is written down to
+the trust boundaries, and what is not done is documented: deferred until
+after G5 (G4, the VP thread's side, the partition runner's other events,
+the "guest ran" step of the partition's state); open concerns in "The VP
+protocol" and "The partition's state"; protocols of `PartitionRequest`
+and `VmRpc` (not needed by the current contracts, which promise nothing
+about timers or the controller); out of scope (RAM, guest time, vmbus,
+the controller layer, roadmap step 3). What remains is proof: 91 bodies
+with stated contracts, for the proof agent.
+
 ### The VP protocol
 
 Proposed and reviewed 2026-10-28; **specified** (code changes 63 to 70;
