@@ -42,6 +42,20 @@ pub struct StateError<T: 'static + Debug + std::error::Error> {
     pub(crate) err: T,
 }
 
+/// Verus: `std::error::Error`, declared once for the state traits' `Error`
+/// bound.
+#[cfg(verus_keep_ghost)]
+mod error_spec {
+    use vstd::prelude::*;
+
+    verus! {
+        #[verifier::external_trait_specification]
+        pub trait ExError: core::fmt::Debug + core::fmt::Display {
+            type ExternalTraitSpecificationFor: core::error::Error;
+        }
+    }
+}
+
 mod macros {
     /// Generates a trait for getting and setting some aspect of partition state
     /// (e.g. per-partition state, per-VP state, per-VTL state).
@@ -152,11 +166,98 @@ mod macros {
             /// Saved state type that can be used to save or restore.
             #[derive(Debug, Default, PartialEq, Eq, mesh_protobuf::Protobuf, vmcore::save_restore::SavedStateRoot)]
             #[mesh(package = $package)]
+            #[cfg_attr(verus_keep_ghost, ::vstd::prelude::verus_verify)]
+            #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
             pub struct $save_state {
                 $(
                     #[mesh($field_num)]
                     $get: Option<$ty>,
                 )*
+            }
+
+            /// Verus: the trusted contract of the hypervisor boundary for
+            /// this state (`SNAPSHOT-SPEC-DESIGN.md`, "The hypervisor
+            /// boundary"). Each backend's implementation of the trait above
+            /// talks to the hypervisor; its state is the abstract
+            /// `hv_state()`, a value of the saved-state type: each element's
+            /// current value.
+            #[cfg(verus_keep_ghost)]
+            pub mod state_spec {
+                #[allow(unused_imports)]
+                use super::*;
+                use ::vstd::prelude::*;
+
+                // The element types, declared to Verus as opaque types
+                // (values the hypervisor holds; their contents are not
+                // specified).
+                $(
+                    #[allow(non_snake_case)]
+                    mod $get {
+                        #[allow(unused_imports)]
+                        use super::super::*;
+                        use ::vstd::prelude::*;
+
+                        verus! {
+                            #[verifier::external_type_specification]
+                            #[verifier::external_body]
+                            pub struct Ex($ty);
+                        }
+                    }
+                )*
+
+                verus! {
+
+                impl $save_state {
+                    $(
+                        /// The element's value, if present.
+                        pub closed spec fn $get(self) -> Option<$ty> {
+                            self.$get
+                        }
+
+                        /// This state with the element set to `value`.
+                        pub closed spec fn $set(self, value: $ty) -> Self {
+                            Self { $get: Some(value), ..self }
+                        }
+                    )*
+                }
+
+                /// TRUSTED: the hypervisor boundary. A getter returns the
+                /// element's current value and changes nothing; a setter
+                /// sets the element (and only it); `commit` changes nothing
+                /// (every host backend applies a set at once). On an error
+                /// from a getter, nothing changes; on an error from a
+                /// setter, the state is unspecified.
+                #[verifier::external_trait_specification]
+                #[verifier::external_trait_extension(StateAccessSpec via StateAccessSpecImpl)]
+                pub trait ExStateAccess {
+                    type ExternalTraitSpecificationFor: super::$trait;
+
+                    type Error: 'static + std::error::Error + Send + Sync;
+
+                    /// The hypervisor's state, as each element's current
+                    /// value (TRUSTED: uninterpreted; the hypervisor's).
+                    spec fn hv_state(&self) -> $save_state;
+
+                    fn commit(&mut self) -> (result: Result<(), Self::Error>)
+                        ensures
+                            final(self).hv_state() == old(self).hv_state(),
+                    ;
+
+                    $(
+                        fn $get(&mut self) -> (result: Result<$ty, Self::Error>)
+                            ensures
+                                final(self).hv_state() == old(self).hv_state(),
+                                result matches Ok(v) ==> old(self).hv_state().$get() == Some(v),
+                        ;
+
+                        fn $set(&mut self, value: &$ty) -> (result: Result<(), Self::Error>)
+                            ensures
+                                result is Ok ==> final(self).hv_state() == old(self).hv_state().$set(*value),
+                        ;
+                    )*
+                }
+
+                } // verus!
             }
         };
     }

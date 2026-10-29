@@ -3,23 +3,18 @@
 
 // Declarations supporting `state_unit.spec.rs`; no human review needed.
 
+use vmcore::save_restore::RestoreError;
+use vmcore::save_restore::SaveError;
+use vmcore::save_restore::SavedStateBlob;
 use vstd::prelude::*;
 
 verus! {
 
 // (`ArcMutexChipsetDeviceUnit` itself is `verus_verify`.)
 
-/// `ChipsetDevice`, declared to Verus (no methods).
-#[verifier::external_trait_specification]
-pub trait ExChipsetDevice: 'static + Send {
-    type ExternalTraitSpecificationFor: chipset_device::ChipsetDevice;
-}
+// (`ChipsetDevice` is declared in `chipset_device_resources`.)
 
-/// `ChangeDeviceState`, declared to Verus (no methods).
-#[verifier::external_trait_specification]
-pub trait ExChangeDeviceState {
-    type ExternalTraitSpecificationFor: vmcore::device_state::ChangeDeviceState;
-}
+// (`ChangeDeviceState` is declared in `chipset_device_resources`.)
 
 /// `VmmChipsetDevice`, declared to Verus (no methods).
 #[verifier::external_trait_specification]
@@ -28,9 +23,11 @@ pub trait ExVmmChipsetDevice: chipset_device::ChipsetDevice + inspect::InspectMu
     type ExternalTraitSpecificationFor: crate::VmmChipsetDevice;
 }
 
-/// `DynDevice`, declared to Verus (no methods).
+/// `DynDevice`, declared to Verus (its methods are `async_trait` methods,
+/// which cannot carry contracts; `save` and `restore` are in
+/// `DynDeviceState`, its supertrait, with contracts).
 #[verifier::external_trait_specification]
-pub(super) trait ExDynDevice: inspect::InspectMut + Send + vmcore::device_state::DeviceSnapshot {
+pub(super) trait ExDynDevice: inspect::InspectMut + Send + super::DynDeviceState {
     type ExternalTraitSpecificationFor: super::DynDevice;
 }
 

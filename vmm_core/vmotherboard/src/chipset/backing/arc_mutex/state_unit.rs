@@ -57,11 +57,52 @@ impl InspectMut for ArcMutexChipsetDeviceUnit {
     }
 }
 
+/// The device's save and restore, for [`DynDevice`]. (`DeviceSnapshot`: in
+/// Verus builds, the device's saved blob, which its lock's invariant names.)
+///
+/// Verus: a trait of its own, without `async_trait`, so that its contracts
+/// can be stated and its blanket impl checked (`async_trait`'s
+/// `dyn Future + Send` is not supported by Verus).
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+trait DynDeviceState: vmcore::device_state::DeviceSnapshot {
+    /// Saves the device: returns its blob and changes nothing.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).device_wf(),
+        ensures
+            final(self).device_wf(),
+            final(self).saved_blob() == old(self).saved_blob(),
+            result matches Ok(blob) ==> blob@ == old(self).saved_blob(),
+    ))]
+    fn save(&mut self) -> Result<SavedStateBlob, SaveError>;
+
+    /// Restores the device: on success, its blob is `state`'s.
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).device_wf(),
+        ensures
+            final(self).device_wf(),
+            result is Ok ==> final(self).saved_blob() == state@,
+    ))]
+    fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError>;
+}
+
+// Checked against `DynDeviceState`'s contracts: the device's
+// `ProtobufSaveRestore` meets them.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl<T: VmmChipsetDevice> DynDeviceState for T {
+    fn save(&mut self) -> Result<SavedStateBlob, SaveError> {
+        vmcore::save_restore::ProtobufSaveRestore::save(self)
+    }
+
+    fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
+        vmcore::save_restore::ProtobufSaveRestore::restore(self, state)
+    }
+}
+
 /// Object-safe trait for the subset of [`VmmChipsetDevice`] that we use here.
-/// (`DeviceSnapshot`: in Verus builds, the device's saved blob, which its
-/// lock's invariant names.)
 #[async_trait]
-trait DynDevice: InspectMut + Send + vmcore::device_state::DeviceSnapshot {
+trait DynDevice: InspectMut + Send + DynDeviceState {
     async fn start(&mut self) -> anyhow::Result<()>;
     async fn stop(&mut self);
     async fn quiesce_input(&mut self) -> anyhow::Result<()>;
@@ -69,8 +110,6 @@ trait DynDevice: InspectMut + Send + vmcore::device_state::DeviceSnapshot {
     async fn reset(&mut self);
     async fn advance_time(&mut self, duration: std::time::Duration) -> anyhow::Result<()>;
     fn poll_device(&mut self, cx: &mut Context<'_>);
-    fn save(&mut self) -> Result<SavedStateBlob, SaveError>;
-    fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError>;
 }
 
 #[async_trait]
@@ -101,14 +140,6 @@ impl<T: VmmChipsetDevice> DynDevice for T {
         if let Some(poll) = self.supports_poll_device() {
             poll.poll_device(cx);
         }
-    }
-
-    fn save(&mut self) -> Result<SavedStateBlob, SaveError> {
-        self.save()
-    }
-
-    fn restore(&mut self, state: SavedStateBlob) -> Result<(), RestoreError> {
-        self.restore(state)
     }
 }
 

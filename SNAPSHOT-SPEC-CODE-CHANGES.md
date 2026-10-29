@@ -767,6 +767,61 @@ Baseline: upstream `nanvix/openvmm` commit
     `restore_interrupt_status`, so that it can carry a contract. The lock protocol for the legacy modes (not the
     microVM's) stays a TODO, now with the acknowledgement-worker race.
 
+59. **The hypervisor boundary** (Verus only; no executable change; design
+    doc, "The hypervisor boundary"). `state_trait!`
+    (`vmm_core/virt/src/state.rs`) emits, under `cfg(verus_keep_ghost)`,
+    a module `state_spec` per invocation: the element types declared as
+    opaque, closed spec accessors on the saved-state type (`$get()`,
+    `$set(v)`), and the trait's `external_trait_specification` with the
+    extension `StateAccessSpec` (`hv_state()`, uninterpreted; trusted
+    contracts on each getter, setter, and `commit`). The saved-state
+    struct gets cfg'd `verus_verify` and `verifier::external_derive`.
+    `std::error::Error` declared to Verus once (`state.rs`). Checked
+    with a throwaway probe (getter keeps the state: verified; setter
+    keeps the state: fails).
+
+60. **The PIT's `SaveRestore` impl checked against the trait's contract**
+    (Verus only; no executable change). It was plain Rust, so the
+    contract was not attached to it (found while confirming which impls
+    the contract enforces: a negative check, an `ExampleDevice` whose
+    `restore` ignores its state, fails the trait's postcondition). Now
+    `verus_verify`, with `save` / `restore` `external_body` (they call
+    `save_device` / `restore_device`; proof hint in the code: reveal the
+    PIT's closed `device_wf()` and `saved_view`).
+
+61. **Gap G2 fixed: a chipset device unit reaches its device through a
+    checked contract** (executable change in `vmotherboard`, behavior
+    unchanged; design doc, "The trust audit"). `DynDevice` (private,
+    `async_trait`) had `save` / `restore` without contracts and a plain
+    blanket impl. They moved into a new private, non-async trait
+    `DynDeviceState` (`DynDevice`'s supertrait, now carrying
+    `DeviceSnapshot`), `verus_verify`, with contracts on the device's blob
+    (`saved_blob()`, `device_wf()` from `DeviceSnapshot`: those of
+    `ProtobufSaveRestore`). Its blanket impl for `T: VmmChipsetDevice` is
+    `verus_verify` and verified (it calls `ProtobufSaveRestore::save` /
+    `restore`; negative check: a `restore` returning `Ok` without
+    restoring fails). `state_unit.proof.rs`: `ExDynDevice`'s supertrait is
+    `DynDeviceState`. Not possible inside `async_trait`: Verus does not
+    support its `dyn Future + Send` return type ("dyn with more than one
+    trait").
+
+62. **Gap G1 fixed: the erased chipset devices' blobs reach their units**
+    (a dependency change in `chipset_device_resources`, behavior
+    unchanged; design doc, "The trust audit"). The crate is
+    Verus-enabled. `ErasedChipsetDevice` is `verus_verify` (with
+    `verifier::external_derive`); its `ProtobufSaveRestoreSpecImpl` (in a
+    `verus!` block next to its impl, since its field is private) makes its
+    blob and `device_wf` its `dyn` device's; its `ProtobufSaveRestore`
+    impl is `verus_verify` and verified. `From<T> for
+    ResolvedChipsetDevice`, where devices are boxed, has a TRUSTED
+    `external_body` contract: the erased device's blob and `device_wf`
+    are `t`'s (not provable while `DynChipsetDevice` is `async_trait`,
+    gap G5). `lib.proof.rs` declares `DynChipsetDevice`,
+    `ResolvedChipsetDevice`, and (moved here from `vmotherboard`, which
+    depends on this crate) `ChipsetDevice` and `ChangeDeviceState`.
+    Also gap G5 logged: the `async_trait` glue, with the Verus patch's
+    five pieces.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

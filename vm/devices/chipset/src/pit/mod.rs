@@ -913,13 +913,20 @@ mod save_restore {
         InvalidLastTick,
     }
 
+    // Checked against `SaveRestore`'s contract (`mod.spec.rs`). Proof hint:
+    // from the contracts of `save_device` and `restore_device`, revealing
+    // the PIT's `device_wf()` (its `wf()`) and `saved_view(v)`
+    // (`v.saved_state()`), which are closed in `mod.spec.rs`.
+    #[cfg_attr(verus_keep_ghost, verus_verify)]
     impl SaveRestore for PitDevice {
         type SavedState = state::SavedState;
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn save(&mut self) -> Result<Self::SavedState, SaveError> {
             self.save_device()
         }
 
+        #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
         fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
             self.restore_device(state)
         }

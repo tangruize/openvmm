@@ -661,6 +661,7 @@ dependencies = [
  "tdisp",
  "vm_resource",
  "vmcore",
+ "vstd",
 ]
 
 [[package]]

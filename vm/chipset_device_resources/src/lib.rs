@@ -17,6 +17,18 @@ use vmcore::line_interrupt::LineInterrupt;
 use vmcore::save_restore::ProtobufSaveRestore;
 use vmcore::vm_task::VmTaskDriverSource;
 use vmcore::vmtime::VmTimeSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_spec;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::verus_verify;
+
+/// Verus: declarations supporting the type-erased chipset device's spec
+/// (the spec itself is next to `ErasedChipsetDevice`'s `ProtobufSaveRestore`
+/// impl).
+#[cfg(verus_keep_ghost)]
+mod proof {
+    include!("lib.proof.rs");
+}
 
 /// A unique identifier for a line set.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -137,11 +149,29 @@ pub struct ResolvedChipsetDevice(pub ErasedChipsetDevice);
 /// A type-erased [`ChipsetDevice`].
 #[derive(InspectMut)]
 #[inspect(transparent(mut))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct ErasedChipsetDevice(Box<dyn DynChipsetDevice>);
 
+// Verus: where a device is erased (boxed into `dyn DynChipsetDevice`).
+// TRUSTED (`external_body`): the erased device's blob and well-formedness
+// are the device's. This is how `dyn` dispatch works in Rust, but Verus
+// cannot prove it here: its `dyn` axiom covers only spec functions of the
+// `dyn` trait itself with an impl visible to Verus, and `DynChipsetDevice`
+// is `async_trait` (gap G5, `SNAPSHOT-SPEC-DESIGN.md`, "The trust audit").
+// To remove with the G5 Verus patch.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: ChangeDeviceState + ChipsetDevice + ProtobufSaveRestore + InspectMut> From<T>
     for ResolvedChipsetDevice
 {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            vmcore::save_restore::spec::ProtobufSaveRestoreSpec::saved_blob(&result.0)
+                == vmcore::save_restore::spec::ProtobufSaveRestoreSpec::saved_blob(&value),
+            vmcore::save_restore::spec::ProtobufSaveRestoreSpec::device_wf(&result.0)
+                == vmcore::save_restore::spec::ProtobufSaveRestoreSpec::device_wf(&value),
+    ))]
     fn from(value: T) -> Self {
         Self(ErasedChipsetDevice(Box::new(value)))
     }
@@ -219,6 +249,27 @@ impl ChipsetDevice for ErasedChipsetDevice {
     }
 }
 
+// Verus: the erased device's blob and well-formedness are its device's
+// (the `dyn DynChipsetDevice` it holds; `DynChipsetDevice` has
+// `ProtobufSaveRestore` as a supertrait). Here, not in `lib.spec.rs`: the
+// field is private to this module, so the definitions are closed and the
+// impl below, which needs them, is in this module.
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+    impl vmcore::save_restore::spec::ProtobufSaveRestoreSpecImpl for ErasedChipsetDevice {
+        closed spec fn saved_blob(&self) -> vmcore::save_restore::spec::SavedStateBlobView {
+            vmcore::save_restore::spec::ProtobufSaveRestoreSpec::saved_blob(&*self.0)
+        }
+
+        closed spec fn device_wf(&self) -> bool {
+            vmcore::save_restore::spec::ProtobufSaveRestoreSpec::device_wf(&*self.0)
+        }
+    }
+}
+
+// Checked against `ProtobufSaveRestore`'s contract: it forwards to the
+// device.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl ProtobufSaveRestore for ErasedChipsetDevice {
     fn save(
         &mut self,
