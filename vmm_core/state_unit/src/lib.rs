@@ -645,7 +645,7 @@ fn reply<R: 'static + Send>(rpc: Rpc<(), R>, r: R) {
             gout,
         ),
     );
-    // NOT VERIFIED: keep this `assume_new()` (builds other than the
+    // OUT OF SCOPE: keep this `assume_new()` (a build other than the
     // verification pass; the verification pass, above, passes `gout`).
     #[cfg(not(verus_keep_ghost_body))]
     mesh_rpc_verus::complete(rpc, r, Tracked::<ReplyGhost>::assume_new());

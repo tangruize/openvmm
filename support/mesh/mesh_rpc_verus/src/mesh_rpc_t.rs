@@ -376,7 +376,7 @@ impl<T> MeshProtocol for T {
 
 #[cfg(test)]
 mod tests {
-    // NOT VERIFIED: keep the `assume_new()`s in this module (tests, not part
+    // OUT OF SCOPE: keep the `assume_new()`s in this module (tests, not part
     // of verification).
     use super::*;
     use pal_async::DefaultDriver;

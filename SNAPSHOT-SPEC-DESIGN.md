@@ -1806,7 +1806,7 @@ to the docs by name; then each was checked by hand.
 
 **Placeholder markers** (2026-10-29, for the proof agent's tooling,
 which looks for assumptions to remove). Every `assume_new()` carries one
-of five markers in the comment just above its statement; the audit
+of four markers in the comment just above its statement; the audit
 script fails if one has none (or is in verified code):
 
 | Marker | Meaning | Count |
@@ -1814,8 +1814,7 @@ script fails if one has none (or is in verified code):
 | `PROOF TODO:` | **replace** with the real ghost the comment names, when proving that body | 34 |
 | `TRUSTED:` | **keep**: the body of a trusted function that hands out a ghost (`recv`, `recv_failable`, `recv_msg`, `take_sender_ghost`, `take_receiver_ghost`, `new_vm_state_token`); the trust is its contract | 6 |
 | `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol (`PartitionRequest`'s, `VmRpc`'s) is specified and the code is verified | 6 |
-| `NOT VERIFIED:` | **keep**: not part of verification (the RPC wrapper's tests; `reply`'s build other than the verification pass) | 11 |
-| `OUT OF SCOPE:` | **keep**: vmbus units | 2 |
+| `OUT OF SCOPE:` | **keep**: nothing to prove: the RPC wrapper's tests (10), `reply`'s build other than the verification pass (1), the vmbus units (2) | 13 |
 
 **Answer.** The spec of quiesce, save, and restore is written down to
 the trust boundaries, and what is not done is documented: deferred until

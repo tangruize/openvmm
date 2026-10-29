@@ -17,9 +17,10 @@ Sections:
                  not checked by Verus), and its marker, a comment just above
                  its statement: PROOF TODO: (replace when proving the body),
                  TRUSTED: (keep: a trusted function's body), WAITS FOR
-                 PROTOCOL: (replace once that protocol exists), NOT VERIFIED:
-                 (keep: tests, non-verification builds), OUT OF SCOPE: (keep).
-                 Exits 1 if one is in verified code or has no marker.
+                 PROTOCOL: (replace once that protocol exists), OUT OF SCOPE:
+                 (keep: nothing to prove, e.g. tests, a non-verification
+                 build, vmbus). Exits 1 if one is in verified code or has no
+                 marker.
   functions      uninterp / external_body (with or without a contract) /
                  external; external_body with a contract is TRUSTED (a
                  boundary: a *_t.rs file, or "TRUSTED"/"Trusted" in its
@@ -101,15 +102,14 @@ def test_lines(lines):
     return inside
 
 
-MARKERS = ('PROOF TODO:', 'TRUSTED:', 'WAITS FOR PROTOCOL:', 'NOT VERIFIED:',
-           'OUT OF SCOPE:')
+MARKERS = ('PROOF TODO:', 'TRUSTED:', 'WAITS FOR PROTOCOL:', 'OUT OF SCOPE:')
 
 
 def marker_of(lines, i, tests, test_marked):
     """The marker in the comments just above the statement holding line i
     (or the test module's, for a test)."""
     if i in tests and test_marked:
-        return 'NOT VERIFIED:'
+        return 'OUT OF SCOPE:'
     for k in range(i, max(-1, i - 12), -1):
         t = lines[k].strip()
         if k != i and not t.startswith('//') and t.endswith((';', '{', '}')):
@@ -125,7 +125,7 @@ def placeholders(files):
     for f in files:
         lines = open(f).read().split('\n')
         tests = test_lines(lines)
-        test_marked = any('NOT VERIFIED:' in lines[k] for k in tests)
+        test_marked = any('OUT OF SCOPE:' in lines[k] for k in tests)
         for i, l in enumerate(lines):
             in_tests = i in tests
             if 'assume_new()' not in l or l.strip().startswith('//'):
