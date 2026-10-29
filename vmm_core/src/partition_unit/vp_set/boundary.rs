@@ -9,7 +9,8 @@ use super::VpEvent;
 use super::VpSet;
 use anyhow::Context as _;
 use futures::future::JoinAll;
-use mesh::rpc::RpcSend;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
@@ -42,8 +43,15 @@ impl VpSet {
                 .vps
                 .iter()
                 .map(|vp| {
-                    let stopped = vp.send.call(VpEvent::Stop, ());
-                    async { stopped.await.ok() }
+                    // Through the mesh RPC wrapper, with placeholder ghosts.
+                    let stopped = mesh_rpc_verus::call(
+                        &vp.send,
+                        VpEvent::Stop,
+                        (),
+                        Tracked::assume_new(),
+                        Ghost::assume_new(),
+                    );
+                    async { stopped.recv().await.map(|((), _ghost)| ()).ok() }
                 })
                 .collect::<JoinAll<_>>();
             self.started = false;

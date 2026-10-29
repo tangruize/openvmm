@@ -952,6 +952,36 @@ Baseline: upstream `nanvix/openvmm` commit
     (`vp_capacity`); `new` ensures it, and the contracts that keep the VP
     count keep it too.
 
+71. **`VpSet` sends its VP events through the mesh RPC wrapper**
+    (executable change in `vmm_core` and `mesh_rpc_verus`, behavior
+    unchanged; design doc, "The VP protocol", open item 3). As code
+    change 31 for the state units. Each call site, `vp.send.call(f, x)
+    .await` becomes `mesh_rpc_verus::call(&vp.send, f, x, ghost, ghost)
+    .recv().await.map(|(r, _ghost)| r)`; each `vp.send.call_failable(f,
+    x).await` the same with `.recv_failable()`; `vp.send.send(
+    VpEvent::Start)` becomes `mesh_rpc_verus::send_msg(&vp.send,
+    VpEvent::Start, ghost)`. Sites: `VpSet::start`, `stop`, `reset`,
+    `scrub`, `save`, `restore`, `set_initial_regs`, `get_dump_vp_state`
+    (`vp_set.rs`), `stop_at_io_boundary` (`vp_set/boundary.rs`),
+    `check_one_shot_timers`, `advance_lapic_timers` (`vp_set/time_abi.rs`).
+    Not changed: the `gdb` methods (out of scope), `Inspect` (through the
+    derive). At run time the wrapper calls `mesh`'s own functions (`call`
+    is `send.call(f, input)`, sending at once as before, which
+    `stop_at_io_boundary` relies on: every VP has a queued `Stop` before
+    the I/O is released; `recv` awaits it; `recv_failable` maps a remote
+    error to `RpcError::Call` as `call_failable` does; `send_msg` is
+    `send.send(msg)`): same messages, same order, same errors. Ghosts:
+    placeholders (`Tracked::assume_new()`, `Ghost::assume_new()`) in the
+    `external_body` bodies, to be replaced by the real halves (`Vp.share`)
+    when the methods are proved. New in `mesh_rpc_verus`: `send_msg`
+    (TRUSTED, `external_body`: requires `request_ok`; trusted doc, "Mesh
+    RPC"), and a test `send_msg_arrives` (the test message type gains a
+    one-way variant `Note(u32)`; `call_round_trip`'s server ignores it).
+    Imports: `boundary.rs` and `time_abi.rs` drop `mesh::rpc::RpcSend` and
+    import `vstd::prelude::Ghost` and `Tracked`; in `vp_set.rs`
+    `RpcSend` is now imported only with the `gdb` feature (its only
+    remaining users).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

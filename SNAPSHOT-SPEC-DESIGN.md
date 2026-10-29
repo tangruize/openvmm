@@ -1793,16 +1793,17 @@ Done since (code changes 66 to 68):
 - **`VpIndex::new`** has its contract (verified): it moved into a `verus!`
   block, since the attribute form does not take a `const fn` (code change
   66).
+- **The calls through the RPC wrapper** (code change 71, executable,
+  behavior unchanged): `VpSet`'s methods send their VP events with
+  `mesh_rpc_verus::call` / `recv` / `recv_failable`, and `Start` with the
+  new trusted one-way `send_msg`; placeholder ghosts until the proofs
+  pass the real halves.
 - **`stop_at_io_boundary`** (as `stop`), **`check_one_shot_timers`** and
   **`advance_lapic_timers`** (view unchanged), **`get_dump_vp_state`**
   (`&self`) have contracts (code change 68).
 
 Open (to do, not yet specified):
 
-- **The calls through the RPC wrapper.** `VpSet`'s methods still call
-  `mesh` directly; their proofs need `mesh_rpc_verus::call` (and, for the
-  one-way `Start`, a new trusted `send_msg` with a ghost, to add). These
-  are executable changes, like code change 31.
 - **The VP thread's side.** Its half stays attached to the runner's
   receiver (`VpRunner::recv`); the run loop (`run_inner`) goes through
   `dyn ControlVp` (`async_trait`, gap G5), so its contract waits for G5.
@@ -2191,6 +2192,7 @@ change preserves behavior: same results, same order of effects.
 | **63** | `vmm_core` (`partition_unit/vp_set.rs`, `vp_set/boundary.rs`) | **`VpEvent::Stop` carries an `Rpc<(), ()>` instead of a `mesh::OneshotSender<()>`**: `VpSet::stop` and `stop_at_io_boundary` send `vp.send.call(VpEvent::Stop, ())` and await it with `.ok()` (before: a `mesh::oneshot()` pair); the VP thread's two `Stop` arms answer `complete(())` (before: `send(())`); tests likewise. Same one-shot reply, same order; a VP whose runner is gone is still ignored. Reason: the reply carries the VP's half back to `VpSet` (the VP protocol) |
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | `VpSet::add` creates the VP's channel with a new private `vp_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`) instead of `mesh::channel()`; binding `let (mut send, recv)` with `cfg_attr(not(verus_keep_ghost), expect(unused_mut))`; new imports `vstd::prelude::Ghost`, `Tracked`. Same channel |
 | 66 | `vm/vmcore/vm_topology` (`processor.rs`) | `VpIndex::new` (`const fn`) moved, same body, into a `verus!` block (no longer cfg'd; normal builds: the same `const fn`), so that it can carry a contract (Verus's attribute form does not take a `const fn`). Same function |
+| 71 | `vmm_core` (`partition_unit/vp_set.rs`, `vp_set/boundary.rs`, `vp_set/time_abi.rs`), `mesh_rpc_verus` | `VpSet`'s VP events go through the mesh RPC wrapper instead of `mesh`'s calls: `vp.send.call(f, x).await` becomes `mesh_rpc_verus::call(&vp.send, f, x, ..).recv().await` (the ghost dropped from the result), `call_failable` the same with `recv_failable`, `send(VpEvent::Start)` the new `mesh_rpc_verus::send_msg` (`send.send(msg)`); in `start`, `stop`, `stop_at_io_boundary`, `reset`, `scrub`, `save`, `restore`, `set_initial_regs`, `get_dump_vp_state`, `check_one_shot_timers`, `advance_lapic_timers`. Placeholder ghosts (`Tracked::assume_new()`, `Ghost::assume_new()`), as in CC 31. Same messages, sent at the same time (the wrapper's `call` sends at once, as `mesh`'s does), same order, same errors. Imports: `RpcSend` only with `gdb` in `vp_set.rs`, dropped in `boundary.rs` and `time_abi.rs`; new test in `mesh_rpc_verus` |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |

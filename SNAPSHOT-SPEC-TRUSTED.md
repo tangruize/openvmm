@@ -83,6 +83,7 @@ contracts are assumptions about mesh. See the file header, and
 | `PendingCall::recv_failable` | As `RpcSend::call_failable`: a remote `Err(e)` becomes `RpcError::Call(e)`; on `Ok(t)`, `post(Ok(t), gout)`. |
 | Protocols of `VmRpc` and `PartitionRequest` | None assumed: `request_ok` is uninterpreted (placeholders; `openvmm_defs/src/rpc.spec.rs`, `vmm_core/src/partition_unit.spec.rs`). Their unverified call sites pass placeholder ghosts. |
 | `recv_msg` | The received message and ghost satisfy `request_ok` for the channel's constant. |
+| `send_msg` (one-way, since code change 71) | It sends `msg` with `send.send(msg)`; the caller must establish `request_ok` for `msg` and its ghost `gin`, which the receiver then gets through `recv_msg` (as `call`, without a reply). Used by `VpSet::start` (`VpEvent::Start`). |
 | `split`, `complete` | `split` returns the `Rpc`'s input and keeps its reply contract; `complete` requires the reply contract. |
 | Reply ghost type | `Rpc::reply_ok::<G>` is uninterpreted for every `G`; the only facts about it come from `call`, for `G = M::GhostOut`. Argument that a mismatched type cannot be used: file header. **Needs soundness review.** |
 | Attached ghosts | `channel(k, gs, gr)` attaches `gs`/`gr` to the ends; `take_sender_ghost` / `take_receiver_ghost` return them once; `clone_sender` carries none; `recv_msg` keeps the receiver's. |

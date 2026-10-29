@@ -37,6 +37,7 @@ use hvdef::Vtl;
 use inspect::Inspect;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcError;
+#[cfg(feature = "gdb")]
 use mesh::rpc::RpcSend;
 #[cfg(verus_keep_ghost)]
 use mesh_rpc_verus::ReceiverAdditionalSpecFns;
@@ -959,7 +960,9 @@ impl VpSet {
     pub fn start(&mut self) {
         if !self.started {
             for vp in &self.vps {
-                vp.send.send(VpEvent::Start);
+                // Through the mesh RPC wrapper, with a placeholder ghost (to
+                // prove: `VpSet`'s half of the VP).
+                mesh_rpc_verus::send_msg(&vp.send, VpEvent::Start, Tracked::assume_new());
             }
             self.started = true;
         }
@@ -1018,9 +1021,16 @@ impl VpSet {
                 .vps
                 .iter()
                 .map(|vp| {
-                    let stopped = vp.send.call(VpEvent::Stop, ());
+                    // Through the mesh RPC wrapper, with placeholder ghosts.
+                    let stopped = mesh_rpc_verus::call(
+                        &vp.send,
+                        VpEvent::Stop,
+                        (),
+                        Tracked::assume_new(),
+                        Ghost::assume_new(),
+                    );
                     // Ignore VPs whose runners have been dropped.
-                    async { stopped.await.ok() }
+                    async { stopped.recv().await.map(|((), _ghost)| ()).ok() }
                 })
                 .collect::<JoinAll<_>>();
             self.started = false;
@@ -1049,10 +1059,17 @@ impl VpSet {
             .iter()
             .enumerate()
             .map(|(index, vp)| async move {
-                vp.send
-                    .call_failable(|x| VpEvent::State(StateEvent::Reset(x)), ())
-                    .await
-                    .with_context(|| format!("vp{index} reset"))
+                mesh_rpc_verus::call(
+                    &vp.send,
+                    |x| VpEvent::State(StateEvent::Reset(x)),
+                    (),
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
+                )
+                .recv_failable()
+                .await
+                .map(|((), _ghost)| ())
+                .with_context(|| format!("vp{index} reset"))
             })
             .collect::<TryJoinAll<_>>()
             .await?;
@@ -1080,10 +1097,17 @@ impl VpSet {
             .iter()
             .enumerate()
             .map(|(index, vp)| async move {
-                vp.send
-                    .call_failable(|x| VpEvent::State(StateEvent::Scrub(x)), vtl)
-                    .await
-                    .with_context(|| format!("vp{index} scrub"))
+                mesh_rpc_verus::call(
+                    &vp.send,
+                    |x| VpEvent::State(StateEvent::Scrub(x)),
+                    vtl,
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
+                )
+                .recv_failable()
+                .await
+                .map(|((), _ghost)| ())
+                .with_context(|| format!("vp{index} scrub"))
             })
             .collect::<TryJoinAll<_>>()
             .await?;
@@ -1113,13 +1137,19 @@ impl VpSet {
             .iter()
             .enumerate()
             .map(async |(index, vp)| {
-                let data = vp
-                    .send
-                    .call(|x| VpEvent::State(StateEvent::Save(x)), ())
-                    .await
-                    .map_err(|err| SaveError::Other(RunnerGoneError(err).into()))
-                    .and_then(|x| x)
-                    .map_err(|err| SaveError::ChildError(format!("vp{index}"), Box::new(err)))?;
+                let data = mesh_rpc_verus::call(
+                    &vp.send,
+                    |x| VpEvent::State(StateEvent::Save(x)),
+                    (),
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
+                )
+                .recv()
+                .await
+                .map(|(r, _ghost)| r)
+                .map_err(|err| SaveError::Other(RunnerGoneError(err).into()))
+                .and_then(|x| x)
+                .map_err(|err| SaveError::ChildError(format!("vp{index}"), Box::new(err)))?;
                 Ok((VpIndex::new(index as u32), data))
             })
             .collect::<TryJoinAll<_>>()
@@ -1159,17 +1189,21 @@ impl VpSet {
                     let vp = vp.ok_or_else(|| {
                         RestoreError::UnknownEntryId(format!("vp{}", vp_index.index()))
                     })?;
-                    vp.send
-                        .call(|x| VpEvent::State(StateEvent::Restore(x)), data)
-                        .await
-                        .map_err(|err| RestoreError::Other(RunnerGoneError(err).into()))
-                        .and_then(|x| x)
-                        .map_err(|err| {
-                            RestoreError::ChildError(
-                                format!("vp{}", vp_index.index()),
-                                Box::new(err),
-                            )
-                        })
+                    mesh_rpc_verus::call(
+                        &vp.send,
+                        |x| VpEvent::State(StateEvent::Restore(x)),
+                        data,
+                        Tracked::assume_new(),
+                        Ghost::assume_new(),
+                    )
+                    .recv()
+                    .await
+                    .map(|(r, _ghost)| r)
+                    .map_err(|err| RestoreError::Other(RunnerGoneError(err).into()))
+                    .and_then(|x| x)
+                    .map_err(|err| {
+                        RestoreError::ChildError(format!("vp{}", vp_index.index()), Box::new(err))
+                    })
                 }
             })
             .collect::<TryJoinAll<_>>()
@@ -1238,15 +1272,17 @@ impl VpSet {
             .map(|vp| {
                 let initial_regs = initial_regs.clone();
                 async move {
-                    vp.send
-                        .call(
-                            |x| VpEvent::State(StateEvent::SetInitialRegs(x)),
-                            (vtl, initial_regs, to_set),
-                        )
-                        .await
-                        .map_err(|err| {
-                            RegisterSetError("initial_regs", RunnerGoneError(err).into())
-                        })?
+                    mesh_rpc_verus::call(
+                        &vp.send,
+                        |x| VpEvent::State(StateEvent::SetInitialRegs(x)),
+                        (vtl, initial_regs, to_set),
+                        Tracked::assume_new(),
+                        Ghost::assume_new(),
+                    )
+                    .recv()
+                    .await
+                    .map(|(r, _ghost)| r)
+                    .map_err(|err| RegisterSetError("initial_regs", RunnerGoneError(err).into()))?
                 }
             })
             .collect::<TryJoinAll<_>>()
@@ -1303,11 +1339,17 @@ impl VpSet {
         vp: VpIndex,
         vtl: Vtl,
     ) -> anyhow::Result<hyperv_dump::VpState> {
-        self.instantiated_vp(vp)?
-            .send
-            .call(|x| VpEvent::State(StateEvent::GetDumpVpState(x)), vtl)
-            .await
-            .map_err(RunnerGoneError)?
+        mesh_rpc_verus::call(
+            &self.instantiated_vp(vp)?.send,
+            |x| VpEvent::State(StateEvent::GetDumpVpState(x)),
+            vtl,
+            Tracked::assume_new(),
+            Ghost::assume_new(),
+        )
+        .recv()
+        .await
+        .map(|(r, _ghost)| r)
+        .map_err(RunnerGoneError)?
     }
 }
 

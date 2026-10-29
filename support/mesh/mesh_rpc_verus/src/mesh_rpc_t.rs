@@ -225,6 +225,18 @@ pub fn clone_sender<M: MeshProtocol>(send: &Sender<M>) -> (result: Sender<M>)
     send.clone()
 }
 
+/// Sends the one-way message `msg` on `send`, with the ghost `gin`
+/// (TRUSTED, like `call`: the receiver gets `msg` and `gin` through
+/// `recv_msg`).
+#[verifier::external_body]
+#[allow(unused_variables)]  // the ghost is erased at runtime
+pub fn send_msg<M: MeshProtocol + 'static + Send>(send: &Sender<M>, msg: M, gin: Tracked<M::GhostIn>)
+    requires
+        M::request_ok(send.constant(), msg, gin@),
+{
+    send.send(msg)
+}
+
 /// The caller's end of one call: awaits the reply.
 #[verifier::external_body]
 #[verifier::reject_recursive_types(M)]
@@ -361,6 +373,7 @@ mod tests {
 
     enum TestMsg {
         Double(Rpc<u32, u32>),
+        Note(u32),
     }
 
     #[cfg(verus_keep_ghost)]
@@ -391,9 +404,11 @@ mod tests {
         let send2 = clone_sender(&send);
         let server = driver.spawn("server", async move {
             let _ = take_receiver_ghost(&mut recv);
-            while let Some((TestMsg::Double(rpc), _)) = recv_msg(&mut recv).await {
-                let (input, rpc) = split::<u32, u32, ()>(rpc);
-                complete(rpc, input * 2, Tracked::<()>::assume_new());
+            while let Some((msg, _)) = recv_msg(&mut recv).await {
+                if let TestMsg::Double(rpc) = msg {
+                    let (input, rpc) = split::<u32, u32, ()>(rpc);
+                    complete(rpc, input * 2, Tracked::<()>::assume_new());
+                }
             }
         });
         let (r, _) = call(
@@ -410,5 +425,21 @@ mod tests {
         drop(send);
         drop(send2);
         server.await;
+    }
+
+    #[async_test]
+    async fn send_msg_arrives(_driver: DefaultDriver) {
+        let (send, mut recv) = channel::<TestMsg>(
+            Ghost::assume_new(),
+            Tracked::assume_new(),
+            Tracked::assume_new(),
+        );
+        send_msg(&send, TestMsg::Note(7), Tracked::assume_new());
+        drop(send);
+        let Some((TestMsg::Note(n), _)) = recv_msg(&mut recv).await else {
+            panic!("expected the one-way message");
+        };
+        assert_eq!(n, 7);
+        assert!(recv_msg(&mut recv).await.is_none());
     }
 }

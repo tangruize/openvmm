@@ -9,9 +9,10 @@ use super::VpSet;
 use anyhow::Context as _;
 use futures::future::TryJoinAll;
 use hvdef::Vtl;
-use mesh::rpc::RpcSend;
 use virt::Processor;
 use virt::vp::AccessVpState;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
@@ -76,10 +77,17 @@ impl VpSet {
             .iter()
             .enumerate()
             .map(|(index, vp)| async move {
-                vp.send
-                    .call_failable(|rpc| VpEvent::State(StateEvent::CheckTimers(rpc)), ())
-                    .await
-                    .with_context(|| format!("vp{index} LAPIC timer"))
+                mesh_rpc_verus::call(
+                    &vp.send,
+                    |rpc| VpEvent::State(StateEvent::CheckTimers(rpc)),
+                    (),
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
+                )
+                .recv_failable()
+                .await
+                .map(|((), _ghost)| ())
+                .with_context(|| format!("vp{index} LAPIC timer"))
             })
             .collect::<TryJoinAll<_>>()
             .await?;
@@ -116,16 +124,20 @@ impl VpSet {
             .iter()
             .enumerate()
             .map(|(index, vp)| async move {
-                vp.send
-                    .call_failable(
-                        |rpc| VpEvent::State(StateEvent::AdvanceLapic(rpc)),
-                        LapicAdvance {
-                            downtime_ns,
-                            apic_hz,
-                        },
-                    )
-                    .await
-                    .with_context(|| format!("vp{index} LAPIC timer advance"))
+                mesh_rpc_verus::call(
+                    &vp.send,
+                    |rpc| VpEvent::State(StateEvent::AdvanceLapic(rpc)),
+                    LapicAdvance {
+                        downtime_ns,
+                        apic_hz,
+                    },
+                    Tracked::assume_new(),
+                    Ghost::assume_new(),
+                )
+                .recv_failable()
+                .await
+                .map(|((), _ghost)| ())
+                .with_context(|| format!("vp{index} LAPIC timer advance"))
             })
             .collect::<TryJoinAll<_>>()
             .await?;
