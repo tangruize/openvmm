@@ -982,6 +982,29 @@ Baseline: upstream `nanvix/openvmm` commit
     `RpcSend` is now imported only with the `gdb` feature (its only
     remaining users).
 
+72. **OpenVMM's lint passes again** (`cargo xtask fmt --pass lints`;
+    a dependency change, behavior unchanged; decided by the user,
+    2026-10-28). Executable (dependencies only, no code):
+    `closeable_mutex` removed from the dependencies of `vmm_core`,
+    `state_unit`, `openvmm_core`, `chipset`, `chipset_device_fuzz`, and
+    `vmbus_ring` from `vmm_core` (`Cargo.lock`: six lines). None is used
+    any more: code change 44 replaced the direct `CloseableMutex` uses
+    with `vmcore::device_state::DeviceMutex` (`closeable_mutex` stays in
+    the build through `vmcore`); `chipset`'s and `state_unit`'s were
+    added for Verus and are not referenced; `vmbus_ring` (code change 39)
+    is no longer referenced. Not executable: two `// UNSAFETY:` comments
+    (`state_unit/src/lib.rs`, `openvmm_defs/src/rpc.rs`: the Verus-only
+    modules whose `assume_specification`s expand to `unsafe`
+    declarations); `verus-patches/README.md`'s trailing newlines; two new
+    `.ignore` files that the lint's file walker honors:
+    `verus-patches/.ignore` skips the vendored Verus macro crate
+    (`verus_builtin_macros/`, third-party code under the Verus project's
+    license) and the RPC prototype's `Cargo.toml` and
+    `rust-toolchain.toml`; `scripts/.ignore` skips
+    `verus-trust-classify.py`. Files written for this work get no
+    Microsoft copyright header (the user: they are under a University of
+    Chicago license), so they are skipped rather than given one.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

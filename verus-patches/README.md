@@ -432,4 +432,3 @@ MMIO and the PCI transport: the change is in their shared transport code.
 **Checked** on `main` with `openvmm-0001` applied: builds, rustfmt clean,
 `cargo test -p virtio` 140 passed. On this branch the same change is in
 `TransportRestore::stage` (`transport/core/restore.rs`).
-

@@ -10,7 +10,6 @@ rust-version.workspace = true
 verify = true
 
 [dependencies]
-closeable_mutex.workspace = true
 vmcore.workspace = true
 
 inspect = { workspace = true, features = ["defer"] }

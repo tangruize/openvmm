@@ -1,0 +1,4 @@
+# Skipped by OpenVMM's lint (`cargo xtask fmt --pass lints`, whose file
+# walker honors `.ignore` files): written for the Verus work, without
+# OpenVMM's copyright header.
+verus-trust-classify.py

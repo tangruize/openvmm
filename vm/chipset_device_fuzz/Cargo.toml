@@ -11,7 +11,6 @@ rust-version.workspace = true
 chipset_device.workspace = true
 chipset_arc_mutex_device.workspace = true
 
-closeable_mutex.workspace = true
 vmcore.workspace = true
 range_map_vec.workspace = true
 

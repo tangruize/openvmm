@@ -40,6 +40,8 @@ mod mutex_t;
 pub mod quiesce;
 mod registry;
 #[cfg(verus_keep_ghost)]
+// UNSAFETY: Verus only: `assume_specification` (trusted specifications of
+// external functions) expands to `unsafe` declarations; no unsafe code runs.
 #[allow(unsafe_code)]
 mod registry_t;
 mod start;

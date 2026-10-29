@@ -26,7 +26,9 @@ pub mod spec {
 
 /// Trusted encode contract of protobuf messages.
 #[cfg(verus_keep_ghost)]
-#[allow(unsafe_code)] // `assume_specification` expands to `unsafe` declarations
+// UNSAFETY: Verus only: `assume_specification` (trusted specifications of
+// external functions) expands to `unsafe` declarations; no unsafe code runs.
+#[allow(unsafe_code)]
 mod trusted {
     include!("rpc_t.rs");
 }
