@@ -37,6 +37,7 @@ and none is in verified code.
 | Verus `426d8b0` with patches 0001 to 0005 | `~/programs/verus`; `verus-patches/`: The verifier, and the patches: 0001, an `async fn` without a named return keeps its postconditions at `.await`; 0002, annotation-style ghost parameters work on an `async fn`; 0003, `external_trait_specification` accepts a trait whose bound names its own associated type, external impls with higher-ranked associated-type bounds no longer panic, and an undeclared type in a bound is an error, not a panic; 0004, `async fn` in traits; 0005, ghost inputs on trait methods (also written with `cfg_attr`) and async default methods. Targeted tests pass (`verus-patches/README.md`); the full test suite has not been run. |
 | `verus_builtin_macros` `0.0.0-2026-09-20-0158`, patched | `verus-patches/verus_builtin_macros` (via `[patch.crates-io]`): The published macro crate plus patch 0005's macro fixes (`verus-patches/0005-verus_builtin_macros-published.patch`). |
 | `vstd` `=0.0.0-2026-10-04-0306` | crates.io: vstd's own trusted specs (e.g. `BTreeMap::get_mut`, `FracGhost`). |
+| `vstd` patch vstd-0001 | `verus-patches/vstd` (the pinned `vstd` with `verus-patches/vstd-0001-arc-unsized-view.patch`, via `[patch.crates-io]`) | `Arc<T>`'s view for unsized `T` is its contents' view (so `Arc<str>@` is the `str`'s `Seq<char>`), as for sized `T` (since 2026-10-30; replaces the uninterpreted `ArcStrView::view_str`). |
 
 ## Protobuf: saved-state blobs (`vm/vmcore/src/save_restore.spec.rs`, `save_restore_t.rs`)
 
@@ -112,7 +113,6 @@ prove this until ...`, naming what it waits for (since 2026-10-30).
 |---|---|---|
 | A device boxed into `dyn DynChipsetDevice` keeps its blob | `From<T> for ResolvedChipsetDevice` (`vm/chipset_device_resources/src/lib.rs`, `external_body`) | The erased device's `saved_blob()` and `device_wf()` are the device's (Rust's `dyn` dispatch calls the device's impl). Verus cannot prove it while `DynChipsetDevice` is `async_trait` (gap G5); to remove with the G5 Verus patch. |
 | `ArcMutexChipsetDeviceUnit::next_event` | `vmotherboard`, `backing/arc_mutex/state_unit.rs`, `external_body` | DEFERRED (Verus does not support `select!`): as `recv_msg`, a request comes with a half meeting the protocol for the channel's constant. |
-| `ArcStrView::view_str` for `Arc<str>` (uninterpreted) | `vmm_core/state_unit/src/lib.proof.rs` | A unit name's characters, as a `Seq<char>` (`Arc<str>` has no vstd view). Used as the unit's name in the registry's and `StateUnits`' views (and compared for distinctness); nothing is assumed about its value. |
 | `ArcMutexChipsetDeviceBuilder::try_add`, `try_add_async` (not marked) | `vmotherboard`, `chipset/backing/arc_mutex/device.rs` | DEFERRED: their bounds name `dyn std::error::Error + Send + Sync` (a `dyn` of more than one trait); they lock no mutex themselves but call `inner_add`, which is marked. |
 | `std::sync::Weak<T>` (the PCI paths' lock users, not marked) | `base_chipset.rs` (`weak_mutex_pci`), `dispatch.rs` (`WeakMutexPciBusDevice`) | DEFERRED (and not on the microVM's path): this vstd cannot declare `Weak<T, A: Allocator>` without the unstable `allocator_api`; code change 77. |
 

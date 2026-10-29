@@ -5,3 +5,4 @@
 verus_builtin_macros/
 verus-rpc-prototype/Cargo.toml
 verus-rpc-prototype/rust-toolchain.toml
+vstd/

@@ -1315,6 +1315,25 @@ Baseline: upstream `nanvix/openvmm` commit
       and `openvmm_entry`'s `vm_controller/microvm.rs` (6 WAITS FOR
       PROTOCOL, `VmRpc`).
 
+88. **A patched vstd: `Arc<str>` has a view** (a dependency change:
+    `vstd` now comes from a patched copy; decided by the user,
+    2026-10-30). Unit names are `Arc<str>`, and the spec compares them
+    (snapshots are keyed by name); vstd gives `Arc<T>` a view only for
+    sized `T`, so the spec used an uninterpreted stand-in,
+    `ArcStrView::view_str`. Now `verus-patches/vstd` is the pinned vstd
+    (`=0.0.0-2026-10-04-0306`) with
+    `verus-patches/vstd-0001-arc-unsized-view.patch` (`View` and
+    `DeepView` for `Arc<A>` with `A: ?Sized`), used through
+    `[patch.crates-io]` (`Cargo.toml`; excluded from the workspace;
+    skipped by the lint; `Cargo.lock` changes the source of `vstd`).
+    `ArcStrView` is removed; `state_unit`'s spec uses `name@`.
+    Side effect: vstd's own warnings (13) showed in builds, as for any
+    path dependency; `verus-patches/vstd-0002-allow-warnings.patch`
+    (`#![allow(warnings)]` in `vstd.rs`) silences the 10 lint warnings;
+    3 remain, rustc's "negative impls are experimental" (`impl !Sync` /
+    `!Send` in vstd's `invariant.rs` and `thread.rs`), which are not lints.
+    README: "vstd patches".
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

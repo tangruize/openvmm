@@ -88,16 +88,9 @@ pub trait ExInspectConcurrently {
     type Inspector: inspect::Inspect;
 }
 
-/// A spec view of `Arc<str>` (vstd has views only for `Arc` of sized types).
-/// DEFERRED (a vstd limit): uninterpreted until vstd has a view of
-/// `Arc<str>`.
-pub trait ArcStrView {
-    spec fn view_str(&self) -> Seq<char>;
-}
-
-impl ArcStrView for Arc<str> {
-    uninterp spec fn view_str(&self) -> Seq<char>;
-}
+// A unit's name's view is `name@` (`Arc<str>`'s view, `str`'s: a
+// `Seq<char>`), with the patched vstd (`verus-patches/README.md`,
+// vstd-0001).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -233,14 +226,14 @@ impl MutexPredicate<Inner> for InnerPred {
         let g = v.registry_ghost@;
         &&& g.entries.dom() == v.units@.dom()
         &&& forall|id: u64| #[trigger] v.units@.contains_key(id) ==> g.entries[id] == (
-            v.units@[id].name.view_str(),
+            v.units@[id].name@,
             v.units@[id].send.constant(),
             v.units@[id].advances_time,
         )
         // Registered units have distinct names (`build` checks `names`).
         &&& forall|a: u64, b: u64|
             #[trigger] v.units@.contains_key(a) && #[trigger] v.units@.contains_key(b) && a != b
-                ==> v.units@[a].name.view_str() != v.units@[b].name.view_str()
+                ==> v.units@[a].name@ != v.units@[b].name@
         &&& g.collected.frac() == 0.5real
         &&& g.halves.dom() <= g.entries.dom()
         &&& forall|id: u64| #[trigger] g.halves.contains_key(id)

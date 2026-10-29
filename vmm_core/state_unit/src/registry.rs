@@ -14,8 +14,6 @@ use crate::Unit;
 #[cfg(verus_keep_ghost)]
 use crate::mutex_t::MutexPredicate;
 #[cfg(verus_keep_ghost)]
-use crate::spec::proof::ArcStrView;
-#[cfg(verus_keep_ghost)]
 use mesh_rpc_verus::SenderAdditionalSpecFns;
 use mesh_rpc_verus::take_sender_ghost;
 use vstd::prelude::*;
@@ -31,7 +29,7 @@ impl Inner {
             InnerPred::inv(*old(self)),
             !old(self).units@.contains_key(id),
             forall|other: u64| #[trigger] old(self).units@.contains_key(other)
-                ==> old(self).units@[other].name.view_str() != unit.name.view_str(),
+                ==> old(self).units@[other].name@ != unit.name@,
             unit.send.attached() matches Some(h) && h.valid(unit.send.constant(), 0.5real),
         ensures
             InnerPred::inv(*final(self)),
@@ -39,7 +37,7 @@ impl Inner {
     {
         let mut unit = unit;
         let Tracked(half) = take_sender_ghost(&mut unit.send);
-        let ghost entry = (unit.name.view_str(), unit.send.constant(), unit.advances_time);
+        let ghost entry = (unit.name@, unit.send.constant(), unit.advances_time);
         let ghost old_units = self.units@;
         self.units.insert(id, unit);
         proof {

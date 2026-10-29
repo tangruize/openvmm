@@ -68,8 +68,9 @@ members = [
 exclude = [
   "xsync",
   "Guide/mdbook-openvmm-shim",
-  # A patched copy of a Verus crate (see `[patch.crates-io]`).
+  # Patched copies of Verus crates (see `[patch.crates-io]`).
   "verus-patches/verus_builtin_macros",
+  "verus-patches/vstd",
 ]
 
 [workspace.package]
@@ -773,6 +774,9 @@ pbjson-build = { git = "https://github.com/jstarks/pbjson", branch = "aliases" }
 # Verus's macros with patch 0005's macro fix (ghost inputs on trait methods),
 # for the version `vstd` pins; see `verus-patches/README.md`.
 verus_builtin_macros = { path = "verus-patches/verus_builtin_macros" }
+# The pinned `vstd` with patch vstd-0001 (`Arc<T>`'s view for unsized `T`,
+# e.g. `Arc<str>`); see `verus-patches/README.md`.
+vstd = { path = "verus-patches/vstd" }
 
 [workspace.lints.rust]
 # Lint groups need a priority lower than individual lints so they get applied first.

@@ -7,6 +7,8 @@ This directory holds two kinds of patch:
 | `0001`–`0005` (`*.patch` without a prefix) | **Verus**, commit `426d8b0` | local fixes to Verus needed by the snapshot specification work |
 | `openvmm-0001-virtio-save-keeps-captured-device-state.patch` | **OpenVMM `origin/main`** (`7a2b21747`) | a change to OpenVMM's own Rust code, for OpenVMM developers to review; this branch already contains it (see "OpenVMM patches" below) |
 | `openvmm-0002-virtio-restore-sets-captured-device-state.patch` | **OpenVMM `origin/main` with `openvmm-0001` applied** | a second change to the same code; this branch already contains it |
+| `vstd-0001-arc-unsized-view.patch` | **`vstd` `=0.0.0-2026-10-04-0306`** (`source/vstd/view.rs` in the Verus tree) | `Arc<T>`'s `View` and `DeepView` for unsized `T` (e.g. `Arc<str>`); this branch uses the patched copy in `verus-patches/vstd` (see "vstd patches" below) |
+| `vstd-0002-allow-warnings.patch` | the same (`source/vstd/vstd.rs`) | `#![allow(warnings)]`: silences vstd's lint warnings, which show now that it is a path dependency |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -432,3 +434,40 @@ MMIO and the PCI transport: the change is in their shared transport code.
 **Checked** on `main` with `openvmm-0001` applied: builds, rustfmt clean,
 `cargo test -p virtio` 140 passed. On this branch the same change is in
 `TransportRestore::stage` (`transport/core/restore.rs`).
+
+## vstd patches
+
+`verus-patches/vstd` is the pinned `vstd` (`=0.0.0-2026-10-04-0306`, as
+published on crates.io) with the patches below applied; the workspace
+uses it through `[patch.crates-io]` (`Cargo.toml`), as for
+`verus_builtin_macros`. It is excluded from the workspace and skipped by
+the lint (`verus-patches/.ignore`). Its own compiler warnings (e.g. an
+unused variable in `atomic.rs`) now show in builds, as for any path
+dependency; patch vstd-0002 silences its lint warnings.
+
+### vstd-0001-arc-unsized-view.patch
+
+**Need.** State units are named by `Arc<str>`, and the snapshot spec
+compares names (a snapshot is keyed by unit name). vstd's
+`impl<A: View> View for Arc<A>` requires `A: Sized`, so `Arc<str>` had no
+view, and the spec used an uninterpreted stand-in (`ArcStrView::view_str`).
+
+**Change.** `impl<A: View + ?Sized> View for Arc<A>` (and the same for
+`DeepView`): an `Arc`'s view is its contents' view, for unsized contents
+too. `str` already has a view (`Seq<char>`), so `name@` is a unit name's
+characters.
+
+**Check.** `state_unit` spec-checks with `name@` in place of `view_str()`;
+all spec crates spec-check.
+
+### vstd-0002-allow-warnings.patch
+
+**Need.** Cargo caps the warnings of crates.io dependencies, not of path
+dependencies, so the patched copy's lint warnings (10, unused variables
+in `atomic.rs`) showed in every OpenVMM build.
+
+**Change.** `#![allow(warnings)]` at the top of `vstd.rs`. Three warnings
+remain: rustc's "negative impls are experimental" (`impl !Sync` /
+`impl !Send` in `invariant.rs` and `thread.rs`), which are not lints, so
+no attribute silences them (and `-D warnings` does not turn them into
+errors).
