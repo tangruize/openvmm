@@ -25,6 +25,19 @@ use vstd::prelude::*;
 
 verus! {
 
+/// The encoding, uninterpreted (TRUSTED with the contracts below: protobuf
+/// is external).
+impl ProtobufMessageView {
+    /// The view of a message that encodes `value`, of type `T`.
+    pub uninterp spec fn of<T>(value: T) -> ProtobufMessageView;
+}
+
+impl ProtobufMessageAdditionalSpecFns for ProtobufMessage {
+    /// The value this message encodes (uninterpreted: protobuf).
+    uninterp spec fn encoded(&self) -> ProtobufMessageView;
+}
+
+
 /// Trusted: encoding gives a message whose view is `of(data)`.
 pub assume_specification<T: Protobuf>[ ProtobufMessage::new ](data: T) -> (result:
     ProtobufMessage)

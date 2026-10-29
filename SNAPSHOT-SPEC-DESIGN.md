@@ -1858,12 +1858,13 @@ to the docs by name; then each was checked by hand.
 | `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 41 in `external_body` bodies (6 are trusted functions that hand out a ghost, e.g. `recv_msg`; the other 35, bodies still to prove, are each marked `PROOF TODO:` with the real ghost to put there), 7 in plain (unverified) functions, 10 in tests, 1 (`reply`) only in builds other than the verification pass |
 | `assume(..)` | 0 (was 1) | the one in `StateRequest::apply`'s `Stop` ("Recorded unit states are real"): first relabelled from trusted to `PROOF TODO:`, then (2026-10-30, user) removed: `apply` is `external_body`, to prove with a running token shared by `StateUnits` and each unit |
 | `assume_specification` | 5 (was 8) | documented: saved-state blobs and protobuf (external). The 3 about our registry code were removed 2026-10-30 (code change 74): `Inner::ready_set` is `external_body`, `ReadySet`'s `Clone` is written out and verified, `State`'s `==` needed none |
-| `uninterp spec fn` | 30 (was 34; virtio's `interrupt_status()` removed, code change 84) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
+| `uninterp spec fn` | 23 (was 34; virtio's `interrupt_status()` removed, code change 84; the vmbus ones now counted as out of scope) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
 | `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 28 (30 until code change 83) | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
 | `external_body` with a contract, deferred (marked `PROOF DEFERRED`) | 8 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 89 (2026-10-30; was 100 on 2026-10-29) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
-| `external_body` without a contract of its own | 107 (2026-10-30; was 87: +20, the locks' unverified users, code changes 75, 76) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
+| `external_body` with a contract, body to prove (our code) | 64 (2026-10-30, after the vmbus files were marked out of scope; 89 before) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` without a contract of its own | 92 (2026-10-30, after the vmbus files were marked out of scope; was 87 on 2026-10-29) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
+| out of scope (files headed `// OUT OF SCOPE`, the vmbus spec) | 47 | parked; not counted as trusted or to prove (2026-10-30) |
 | `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
 
 **The trust rule** (decided 2026-10-29, user). The trusted base is only
@@ -2859,7 +2860,13 @@ What Stage 2 still needs, found by comparing the prototype with
   items are parked: the vmbus server's share, a channel task starting
   `Running` (open item 1 there), and the vmbus devices' views and
   `saved_blob()` (`netvsp`, `storvsp`, `SimpleDeviceWrapper` and the simple
-  devices, with `task_control`'s view).
+  devices, with `task_control`'s view). **Marked** (2026-10-30, user): every
+  file with vmbus spec (seven in `vmbus_channel`, three in `vmm_core`) is
+  headed `// OUT OF SCOPE (vmbus): ... Do not attempt to prove anything
+  here.`, and the audit script counts their functions as out of scope.
+  Not reverted: the `StateUnit` trait requires the vmbus units to follow
+  its protocol, so their conversion (code changes 39, 46) stays; the user
+  decided to keep the rest of the spec too.
 
 - **Guest RAM.** It has no in-memory Rust structure (it is a file-backed
   mapping). RAM will be removed from the spec rather than left unverified.

@@ -23,10 +23,7 @@ pub struct ProtobufMessageView {
     _private: (),
 }
 
-impl ProtobufMessageView {
-    /// The view of a message that encodes `value`, of type `T`.
-    pub uninterp spec fn of<T>(value: T) -> ProtobufMessageView;
-}
+// `ProtobufMessageView::of` (the encoding, uninterpreted) is in `rpc_t.rs`.
 
 /// Declares `ProtobufMessage` to Verus, as an opaque type.
 #[verifier::external_type_specification]
@@ -40,10 +37,7 @@ pub trait ProtobufMessageAdditionalSpecFns {
     spec fn encoded(&self) -> ProtobufMessageView;
 }
 
-impl ProtobufMessageAdditionalSpecFns for ProtobufMessage {
-    /// Trusted: the value this message encodes (see `rpc_t.rs`).
-    uninterp spec fn encoded(&self) -> ProtobufMessageView;
-}
+// Its implementation for `ProtobufMessage` (uninterpreted) is in `rpc_t.rs`.
 
 /// Declares `SnapshotSaveResponse` (the reply to `QuiesceForSnapshot`) to
 /// Verus, with its fields.

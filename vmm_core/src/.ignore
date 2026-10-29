@@ -1,0 +1,4 @@
+# Skipped by OpenVMM's lint (`cargo xtask fmt --pass lints`, whose file
+# walker honors `.ignore` files): files written for the Verus work, which
+# carry no copyright header.
+partition_unit_t.rs

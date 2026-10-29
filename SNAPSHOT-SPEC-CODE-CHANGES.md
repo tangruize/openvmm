@@ -1261,6 +1261,27 @@ Baseline: upstream `nanvix/openvmm` commit
     DEFERRED until gap G4. `state.rs`'s comment says both; the trusted
     doc has one row for each (Part 1, Part 3).
 
+86. **Encoding functions into their `_t.rs` files; the vmbus spec marked
+    out of scope** (Verus only; no executable change; decided by the
+    user, 2026-10-30).
+    - The uninterpreted encoding functions moved in with their trusted
+      contracts: `SavedStateBlobView::of`, `of_view`, `View for
+      SavedStateBlob` (from `save_restore.spec.rs` to `save_restore_t.rs`);
+      `ProtobufMessageView::of` and `ProtobufMessage`'s `encoded` (from
+      `rpc.spec.rs` to `rpc_t.rs`); `PartitionSavedView::encode_halt` (from
+      `partition_unit.spec.rs` to a new `vmm_core/src/partition_unit_t.rs`,
+      included as a Verus-only `mod trusted` in `partition_unit.rs`; no
+      header, skipped by the lint through a new `vmm_core/src/.ignore`).
+    - The ten files with vmbus spec (`vmbus_channel`'s `lib.rs`,
+      `channel.rs`, `channel.spec.rs`, `channel.proof.rs`, `simple.rs`,
+      `simple.spec.rs`, `simple.proof.rs`; `vmm_core`'s `vmbus_unit.rs`,
+      `vmbus_unit.spec.rs`, `vmbus_unit.proof.rs`) are headed
+      `// OUT OF SCOPE (vmbus): ... Do not attempt to prove anything
+      here.` The audit script counts functions in files so headed as out
+      of scope. The trusted doc has a new "Out of scope" section; the
+      vmbus rows moved there. Not reverted (the user): the `StateUnit`
+      trait requires the vmbus units to follow its protocol.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

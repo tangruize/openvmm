@@ -40,6 +40,25 @@ use vstd::prelude::*;
 
 verus! {
 
+/// The encoding, uninterpreted (TRUSTED with the contracts below: protobuf
+/// is external).
+impl SavedStateBlobView {
+    /// The view of a blob that encodes `value`, of saved-state type `T`.
+    pub uninterp spec fn of<T>(value: T) -> SavedStateBlobView;
+
+    /// The view of a blob that encodes a saved state of type `T` whose view
+    /// is `view`.
+    pub uninterp spec fn of_view<T: View>(view: T::V) -> SavedStateBlobView;
+}
+
+impl View for SavedStateBlob {
+    type V = SavedStateBlobView;
+
+    /// The value this blob encodes (uninterpreted: protobuf).
+    uninterp spec fn view(&self) -> SavedStateBlobView;
+}
+
+
 // The trait chain behind `new` and `parse`'s bound `T: SavedStateRoot`,
 // declared to Verus (no methods: the contracts below need only the traits
 // and their bounds). `SavedStateRoot: DescribedProtobuf: Protobuf`, and

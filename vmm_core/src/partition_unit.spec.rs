@@ -62,9 +62,8 @@ impl PartitionSavedView {
         }
     }
 
-    /// The encoding of a halt reason (TRUSTED: uninterpreted; what
-    /// `mesh::payload::encode` gives, protobuf).
-    pub uninterp spec fn encode_halt(reason: HaltReason) -> Seq<u8>;
+    // `encode_halt` (the encoding of a halt reason, uninterpreted) is in
+    // `partition_unit_t.rs`.
 }
 
 impl PartitionUnitRunner {

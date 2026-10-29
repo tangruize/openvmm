@@ -25,7 +25,8 @@ Sections:
                  external; external_body with a contract is TRUSTED (the
                  trusted base, external only: a *_t.rs file, or "TRUSTED" in
                  its attributes or docs), DEFERRED (a Verus limit), or
-                 PENDING (our code: a body to prove; "ASSUMED")
+                 PENDING (our code: a body to prove; "ASSUMED"); everything
+                 in a file headed "// OUT OF SCOPE" is OUT-OF-SCOPE
   assumes        assume(..), assume_specification
   todos          TODOs: OURS (git blame: the current git user) or UPSTREAM
 """
@@ -162,6 +163,8 @@ def functions(files, docs):
         # A `_t.rs` file whose header says it is ASSUMED (our code) holds no
         # trusted-base items.
         header_assumed = any('ASSUMED' in h for h in lines[:15])
+        # A file parked out of scope (e.g. vmbus) holds nothing to prove.
+        out_of_scope = any(h.startswith('// OUT OF SCOPE') for h in lines[:15])
         for i, l in enumerate(lines):
             m = FN_RE.match(l)
             if not m:
@@ -180,7 +183,9 @@ def functions(files, docs):
             if not (uninterp or eb or ext):
                 continue
             contract = any(k in a or k in sig for k in ('requires', 'ensures'))
-            if uninterp:
+            if out_of_scope:
+                kind = 'OUT-OF-SCOPE'
+            elif uninterp:
                 kind = 'UNINTERP'
             elif ext:
                 kind = 'EXTERNAL'
@@ -197,6 +202,8 @@ def functions(files, docs):
             word = re.compile(r'\b' + re.escape(name) + r'\b')
             if kind in ('EB-TRUSTED', 'EB-DEFERRED', 'UNINTERP'):
                 documented = bool(word.search(trusted_doc))
+            elif kind == 'OUT-OF-SCOPE':
+                documented = True
             else:
                 documented = bool(word.search(docs))
             rows.append((kind, f'{f}:{i + 1}', name, documented))

@@ -48,21 +48,10 @@ pub struct SavedStateBlobView {
     _private: (),
 }
 
-impl SavedStateBlobView {
-    /// The view of a blob that encodes `value`, of saved-state type `T`.
-    pub uninterp spec fn of<T>(value: T) -> SavedStateBlobView;
+// `SavedStateBlobView::of`, `of_view`, and `View for SavedStateBlob` (the
+// encoding, uninterpreted) are in `save_restore_t.rs`, with the encoding's
+// trusted contracts.
 
-    /// The view of a blob that encodes a saved state of type `T` whose view
-    /// is `view`.
-    pub uninterp spec fn of_view<T: View>(view: T::V) -> SavedStateBlobView;
-}
-
-impl View for SavedStateBlob {
-    type V = SavedStateBlobView;
-
-    /// Trusted: the value this blob encodes (see `save_restore_t.rs`).
-    uninterp spec fn view(&self) -> SavedStateBlobView;
-}
 
 /// What a state unit's FracGhost records: the unit's snapshotable state,
 /// that is, what its save returns. (Here, not in `state_unit`, so that

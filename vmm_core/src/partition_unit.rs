@@ -14,6 +14,12 @@ mod spec {
     include!("partition_unit.spec.rs");
 }
 
+/// Trusted: the encoding of a halt reason (protobuf).
+#[cfg(verus_keep_ghost)]
+mod trusted {
+    include!("partition_unit_t.rs");
+}
+
 pub use vp_set::Halt;
 pub use vp_set::RequestYield;
 pub use vp_set::RunCancelled;
