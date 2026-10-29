@@ -54,6 +54,11 @@ use vmm_core::partition_unit::RequestYield;
 use vmm_core::partition_unit::RunCancelled;
 use vmm_core::partition_unit::VmPartition;
 use vmm_core::partition_unit::VpRunner;
+// In both builds: `proof_with!` (which erases its ghost code in normal
+// builds).
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::frac::FracGhost;
 
 /// A base partition, with methods needed at rutnime along with methods to initialize the vm.
 pub trait HvlitePartition:
@@ -127,8 +132,32 @@ pub trait HvlitePartition:
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
+///
+/// Verus: `save` and `restore` take the partition's state token (held by
+/// `WrappedPartition`), which records the partition's VM state (VTL 0):
+/// `save` returns it and leaves it unchanged; `restore` overwrites it with
+/// the given state's elements (design doc, "The partition's state").
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub trait BasicPartitionStateAccess: 'static + Send + Sync + Inspect {
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(token): Tracked<&mut Option<FracGhost<VmSavedState>>>
+        requires
+            (*old(token)) matches Some(t) && t.frac() == 1real,
+        ensures
+            (*final(token)) matches Some(t) && t.frac() == 1real
+                && t.id() == (*old(token))->Some_0.id() && t@ == (*old(token))->Some_0@,
+            result matches Ok(s) ==> s == (*old(token))->Some_0@,
+    ))]
     fn save(&self) -> anyhow::Result<VmSavedState>;
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        with Tracked(token): Tracked<&mut Option<FracGhost<VmSavedState>>>
+        requires
+            (*old(token)) matches Some(t) && t.frac() == 1real,
+        ensures
+            (*final(token)) matches Some(t) && t.frac() == 1real
+                && t.id() == (*old(token))->Some_0.id(),
+            result is Ok ==> (*final(token))->Some_0@ == (*old(token))->Some_0@.overwrite(state),
+    ))]
     fn restore(&self, state: VmSavedState) -> anyhow::Result<()>;
     fn reset(&self) -> anyhow::Result<()>;
     fn scrub_vtl(&self, vtl: Vtl) -> anyhow::Result<()>;
@@ -136,24 +165,48 @@ pub trait BasicPartitionStateAccess: 'static + Send + Sync + Inspect {
     fn guest_os_id(&self) -> u64;
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: Partition + PartitionAccessState> BasicPartitionStateAccess for T {
+    // Verus: the handle is opened and closed explicitly, so that the token
+    // travels with it (`open_vm_state`, `close_vm_state`: `access_state` and
+    // the handle's drop).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(token): Tracked<&mut Option<FracGhost<VmSavedState>>>))]
     fn save(&self) -> anyhow::Result<VmSavedState> {
-        let vm = self
-            .access_state(Vtl::Vtl0)
-            .save_all()
-            .context("saving vm state")?;
+        let mut access = {
+            proof_with! {Tracked(&mut *token)}
+            virt::open_vm_state(self, Vtl::Vtl0)
+        };
+        let r = access.save_all();
+        {
+            proof_with! {Tracked(&mut *token)}
+            virt::close_vm_state(access);
+        }
+        let vm = r.context("saving vm state")?;
 
         Ok(vm)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(token): Tracked<&mut Option<FracGhost<VmSavedState>>>))]
     fn restore(&self, state: VmSavedState) -> anyhow::Result<()> {
-        self.access_state(Vtl::Vtl0)
-            .restore_all(&state)
-            .context("restoring vm state")?;
+        let mut access = {
+            proof_with! {Tracked(&mut *token)}
+            virt::open_vm_state(self, Vtl::Vtl0)
+        };
+        let r = access.restore_all(&state);
+        {
+            proof_with! {Tracked(&mut *token)}
+            virt::close_vm_state(access);
+        }
+        r.context("restoring vm state")?;
 
         Ok(())
     }
 
+    // No contract yet: these change the partition's state without its token
+    // (TODO, design doc, "The partition's state").
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn reset(&self) -> anyhow::Result<()> {
         self.supports_reset()
             .context("reset not supported")?
@@ -161,6 +214,7 @@ impl<T: Partition + PartitionAccessState> BasicPartitionStateAccess for T {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn scrub_vtl(&self, vtl: Vtl) -> anyhow::Result<()> {
         self.supports_vtl_scrub()
             .context("scrub vtl not supported")?
@@ -168,6 +222,7 @@ impl<T: Partition + PartitionAccessState> BasicPartitionStateAccess for T {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn accept_initial_pages(&self, pages: Vec<InitialPageImport>) -> anyhow::Result<()> {
         self.supports_initial_page_acceptance()
             .context("initial page import finalization not supported")?
@@ -176,6 +231,7 @@ impl<T: Partition + PartitionAccessState> BasicPartitionStateAccess for T {
     }
 
     #[cfg(guest_arch = "x86_64")]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn guest_os_id(&self) -> u64 {
         self.access_state(Vtl::Vtl0)
             .hypercall()
@@ -183,6 +239,7 @@ impl<T: Partition + PartitionAccessState> BasicPartitionStateAccess for T {
     }
 
     #[cfg(guest_arch = "aarch64")]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn guest_os_id(&self) -> u64 {
         // TODO: implement guest OS ID for aarch64 once there is
         // an equivalent to HV_X64_MSR_GUEST_OS_ID.
@@ -211,6 +268,10 @@ where
     fn into_vm_partition(self: Arc<Self>) -> WrappedPartition {
         let initial_vp_state_source = Partition::initial_vp_state_source(self.as_ref());
         WrappedPartition {
+            // TRUSTED (Verus only): the partition's state token, created once,
+            // here (`virt::new_vm_state_token`).
+            #[cfg(verus_keep_ghost)]
+            hv: virt::new_vm_state_token(self.as_ref()),
             partition: self,
             initial_vp_state_source,
         }
@@ -286,11 +347,18 @@ where
 
 /// Wrapper struct that implements [`VmPartition`].
 #[derive(InspectMut)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct WrappedPartition {
     #[inspect(flatten)]
     partition: Arc<dyn BasicPartitionStateAccess>,
     #[inspect(skip)]
     initial_vp_state_source: virt::InitialVpStateSource,
+    /// The partition's state token (Verus only): records the partition's VM
+    /// state (design doc, "The partition's state").
+    #[cfg(verus_keep_ghost)]
+    #[inspect(skip)]
+    hv: Tracked<Option<FracGhost<VmSavedState>>>,
 }
 
 #[async_trait]
@@ -316,18 +384,52 @@ impl VmPartition for WrappedPartition {
     }
 }
 
-// Placeholder view (save/restore not yet specified).
-vmcore::placeholder_view!(pub ExWrappedPartition, WrappedPartition);
+// Verus: the partition's view is its VM state as its token records it; its
+// saved state's view is the same (`SaveRestoreSpecImpl`); well formed while
+// it holds the whole token.
+#[cfg(verus_keep_ghost)]
+verus! {
 
+impl View for WrappedPartition {
+    type V = virt::vm::VmSavedStateView;
+
+    closed spec fn view(&self) -> virt::vm::VmSavedStateView {
+        self.hv@->Some_0@.view()
+    }
+}
+
+impl vmcore::save_restore::spec::SaveRestoreSpecImpl for WrappedPartition {
+    closed spec fn saved_view(view: virt::vm::VmSavedStateView) -> virt::vm::VmSavedStateView {
+        view
+    }
+
+    closed spec fn device_wf(&self) -> bool {
+        self.hv@ matches Some(t) && t.frac() == 1real
+    }
+}
+
+} // verus!
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl SaveRestore for WrappedPartition {
     type SavedState = VmSavedState;
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn save(&mut self) -> Result<Self::SavedState, SaveError> {
-        self.partition.save().map_err(SaveError::Other)
+        let r = {
+            proof_with! {Tracked(self.hv.borrow_mut())}
+            self.partition.save()
+        };
+        r.map_err(SaveError::Other)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn restore(&mut self, state: Self::SavedState) -> Result<(), RestoreError> {
-        self.partition.restore(state).map_err(RestoreError::Other)
+        let r = {
+            proof_with! {Tracked(self.hv.borrow_mut())}
+            self.partition.restore(state)
+        };
+        r.map_err(RestoreError::Other)
     }
 }
 

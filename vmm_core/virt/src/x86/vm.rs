@@ -149,6 +149,28 @@ state_trait!(
     ),
 );
 
-// Placeholder view of the partition's saved state (save/restore not yet
-// specified; `SaveRestore::SavedState` needs a view).
-vmcore::placeholder_view!(saved VmSavedState);
+// Verus: the view of the partition's saved state (design doc, "The
+// partition's state"): its elements, without `reftime` (the partition's
+// reference time, a running clock read at save: the time rule, (a)).
+#[cfg(verus_keep_ghost)]
+vstd::prelude::verus! {
+
+/// The view of `VmSavedState`: the hypercall MSRs and the reference TSC
+/// page's MSR, each if present.
+pub struct VmSavedStateView {
+    pub hypercall: Option<HypercallMsrs>,
+    pub reference_tsc_page: Option<ReferenceTscPage>,
+}
+
+impl vstd::prelude::View for VmSavedState {
+    type V = VmSavedStateView;
+
+    closed spec fn view(&self) -> VmSavedStateView {
+        VmSavedStateView {
+            hypercall: self.hypercall,
+            reference_tsc_page: self.reference_tsc_page,
+        }
+    }
+}
+
+} // verus!

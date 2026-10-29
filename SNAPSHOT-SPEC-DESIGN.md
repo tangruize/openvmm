@@ -1561,6 +1561,84 @@ are not Verus crates, need no changes). The saved-state struct gets
 `std::error::Error` is declared once in `virt` (`state.rs`), for the
 trait's `Error` bound.
 
+
+### The partition's state
+
+Decided 2026-10-28 (user; gap G3; code change 73). The partition-wide
+VM state (`VmSavedState`: on x86 `hypercall`, `reftime`,
+`reference_tsc_page`) is saved and restored by the partition unit through
+`Box<dyn VmPartition>` = `WrappedPartition` (its `SaveRestore`), then
+`Arc<dyn BasicPartitionStateAccess>` (`&self` methods), then the blanket
+impl for `T: Partition + PartitionAccessState`, which opens a handle
+(`access_state(Vtl0)`) and calls `save_all` / `restore_all`, which call
+the elements' getters and setters (the hypervisor boundary).
+
+**The problem.** The hypervisor boundary is stated on one handle; each
+save or restore opens a new one. Nothing said that a later handle sees
+what an earlier one left (restore through H1 sets `hypercall = X`; a
+later save through H2 reads it; the boundary only says H2 returns H2's
+state). And through `&self`, Verus sees no change to the partition.
+
+**Options** were: (A) trusted contracts at `WrappedPartition` (nothing
+below proved); (B) the fact at the handles: a new handle starts with the
+partition's state and the partition's state is what a handle leaves
+(below that, `save_all` / `restore_all` and the code above provable; the
+VPs need the same fact, G4). **Decided: B.**
+
+**Design (B).** The partition's VM state (VTL 0) is a ghost **token**, a
+whole `FracGhost<VmSavedState>`, held by `WrappedPartition` (ghost field
+`hv`, created once, in `into_vm_partition`, by the TRUSTED
+`new_vm_state_token`):
+
+| Piece | Says | Status |
+|---|---|---|
+| `open_vm_state` (`virt`) | the new handle's `hv_state()` is the token's value; the handle holds the token (`hv_id()`) | TRUSTED |
+| `close_vm_state` (`virt`) | the token comes back, recording the handle's final `hv_state()` | TRUSTED |
+| `save_all` / `restore_all` | save returns the handle's state, unchanged; restore overwrites it with the given state's present elements (`overwrite`) | contracts stated; to prove from the getters and setters |
+| `BasicPartitionStateAccess::save` / `restore` (blanket impl) | with the token: save returns its state and keeps it; restore overwrites it | contracts stated; bodies to prove (`external_body`) |
+| `WrappedPartition` | view: the token's state (`VmSavedStateView`); saved view: the same; `device_wf`: holds the whole token; `SaveRestore` checked against the trait's contract | contracts stated; bodies to prove |
+| `VmSavedState`'s view (x86) | `hypercall`, `reference_tsc_page`; **`reftime` left out** (a running clock read at save: the time rule, (a)) | done |
+
+Verus limits met: an `external_trait_specification` of
+`PartitionAccessState` (with its generic associated type `StateAccess<'a>`)
+crashes the compiler, so the trait itself is `verus_verify`; a spec
+function on it (a partition id for the token) would require the five
+backends to define it, so the token is tied to its partition by
+`WrappedPartition` holding both (an assumption in the trusted doc).
+
+**Open (TODO):**
+
+- **The guest ran.** The guest writes `hypercall` and
+  `reference_tsc_page` while its VPs run, so the token goes out of date.
+  Needed: a TRUSTED step where the VPs stop, after which the token's
+  value is the then-current state (unknown to the proof). Its place is
+  the partition unit, after `vp_set.stop()`; the unit sees only
+  `Box<dyn VmPartition>`, an `async_trait`, so this waits for **G5**
+  (decided 2026-10-28, user: option 1 of three: do the rest now; the
+  others were to resync on every save / restore, losing "restore then
+  save gives back the same state", or to do G5 first).
+- **`reset`, `scrub_vtl`, `accept_initial_pages`** also change the
+  partition's state, without the token (`VmPartition`'s methods, also
+  behind `async_trait`): the same TODO.
+- **Restore of a state whose elements differ from the partition's.**
+  `restore_all` overwrites only the elements present in the given state;
+  an element the partition has but the state lacks keeps its value. So
+  `WrappedPartition`'s restore contract ("the saved view becomes the
+  given state's") holds only when the given state has every element the
+  partition has (true when the snapshot comes from a partition of the
+  same configuration, as in the microVM). To settle when the bodies are
+  proved: require it, or weaken the contract.
+- **The link to the partition unit.** The unit holds
+  `Box<dyn VmPartition>` and its spec uses that box's `saved_blob()` (a
+  spec function of `ProtobufSaveRestore`, `VmPartition`'s supertrait).
+  Verus's `dyn` axiom does not carry a supertrait's spec function through
+  `dyn` (as for G1), so the unit's `saved_blob()` is not yet tied to
+  `WrappedPartition`'s view. As G1: a TRUSTED fact at the boxing point, or,
+  with G5, spec functions on `VmPartition` itself.
+- **aarch64**: `VmSavedState` keeps its placeholder view.
+- **VPs (G4)**: the same token scheme per VP, for `AccessVpState`
+  (`WrappedVp`, `BoundVp`).
+
 ### The trust audit
 
 Run 2026-10-28 (user), after a gap was found (the PIT's `SaveRestore`
@@ -1595,7 +1673,7 @@ resolvers, `dyn` traits, channels); a sweep for `assume(`, `admit()`,
 |---|---|---|
 | `StateUnit` | the 9 production units (vmtime, time-abi, input, chipset, line sets, partition, chipset device units, and the vmbus units, out of scope) | all `verus_verify` (bodies mostly `external_body`); only test units are plain |
 | `SaveRestore` | the PIT, PIC, RTC, portb, IOAPIC, shutdown, snapshot-request, virtio-MMIO | all `verus_verify` (the PIT since code change 60) |
-| `SaveRestore` | `WrappedPartition`, `WrappedVp` (`openvmm_core/src/partition.rs`) | **PLAIN: gaps G3, G4** |
+| `SaveRestore` | `WrappedPartition`, `WrappedVp` (`openvmm_core/src/partition.rs`) | `WrappedPartition`: CONTRACT (code change 73, G3); `WrappedVp`: **PLAIN: gap G4** |
 | `ProtobufSaveRestore` | the blanket impl for `SaveRestore` types | verified |
 | `ProtobufSaveRestore` | `ErasedChipsetDevice` (`chipset_device_resources`), `BoundVp` (`vp_set.rs`) | **PLAIN: gaps G1, G4** |
 | `ProtobufSaveRestore` | `ChipsetDeviceProxy` (`workers/`) | plain, **not on the path** (used only for the TPM, which the microVM excludes) |
@@ -1608,7 +1686,7 @@ resolvers, `dyn` traits, channels); a sweep for `assume(`, `admit()`,
 | a chipset device unit → its device: `dyn DynDevice` (`vmotherboard`, `backing/arc_mutex/state_unit.rs`) | the device's `ProtobufSaveRestore` | **fixed (G2, code change 61)**: `save` / `restore` moved into `DynDeviceState`, `DynDevice`'s supertrait, with contracts (the device's blob, from `DeviceSnapshot`); its blanket impl is verified from the device's `ProtobufSaveRestore` (negative check: a `restore` that skips restoring fails) |
 | resource-built devices: `ErasedChipsetDevice(Box<dyn DynChipsetDevice>)` (`base_chipset.rs:295`) | the PIT, PIC, IOAPIC, portb, shutdown, snapshot-request | **fixed (G1, code change 62)**, with one trusted fact: the wrapper's blob is its `dyn` device's, and its `save` / `restore` are verified; at the one erasure point (`From<T> for ResolvedChipsetDevice`) a trusted contract says the erased device's blob and `device_wf` are `t`'s (Verus cannot prove it while `DynChipsetDevice` is `async_trait`, G5) |
 | typed devices: `arc_mutex_device(..).add(..)` | the RTC (`base_chipset.rs:447`), virtio-MMIO (`dispatch/microvm.rs`) | connected (no erasure) |
-| the partition unit → `Box<dyn VmPartition>` | `WrappedPartition`'s `SaveRestore` | **gap G3** |
+| the partition unit → `Box<dyn VmPartition>` | `WrappedPartition`'s `SaveRestore` | gap G3: specified (code change 73); the `dyn VmPartition` dispatch itself still behind `async_trait` (G5) |
 | the partition unit → `VpSet` → VP threads → `BoundVp` → `WrappedVp` | the hypervisor getters | **gap G4**: the VP layer (the VPs' saved state is now defined from `VpSet`'s halves, "The VP protocol"; the layers below `VpSet` are to prove) |
 | virtio-MMIO → its device task → the inner device (net, console, fs, block) | the captured private state | recorded TODO (the inner devices' layer): the blob is opaque in the view |
 | `StateUnits` → each unit: `mesh` channels through the RPC wrapper | the unit's task | trusted boundary (`mesh_rpc_t.rs`), listed |
@@ -1639,7 +1717,7 @@ partition layer; G5 needs a Verus patch):
   lands, giving `DynChipsetDevice` spec functions with a verified
   blanket impl makes the fact provable.
 - **G2** `DynDevice`'s `save` / `restore`: no contract; blanket impl plain. **Fixed** (code change 61).
-- **G3** `WrappedPartition`'s `SaveRestore`: plain (placeholder view).
+- **G3** `WrappedPartition`'s `SaveRestore`: plain (placeholder view). **Specified** (code change 73, "The partition's state"): checked against the trait's contract, down to the handles; bodies to prove; open: the guest's writes while VPs run (waits for G5).
 - **G4** `WrappedVp`'s `SaveRestore`, `BoundVp`'s `ProtobufSaveRestore`:
   plain (the VP layer).
 - **G5** **the `async_trait` glue** (found 2026-10-28). The async methods
@@ -2193,11 +2271,13 @@ change preserves behavior: same results, same order of effects.
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | `VpSet::add` creates the VP's channel with a new private `vp_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`) instead of `mesh::channel()`; binding `let (mut send, recv)` with `cfg_attr(not(verus_keep_ghost), expect(unused_mut))`; new imports `vstd::prelude::Ghost`, `Tracked`. Same channel |
 | 66 | `vm/vmcore/vm_topology` (`processor.rs`) | `VpIndex::new` (`const fn`) moved, same body, into a `verus!` block (no longer cfg'd; normal builds: the same `const fn`), so that it can carry a contract (Verus's attribute form does not take a `const fn`). Same function |
 | 71 | `vmm_core` (`partition_unit/vp_set.rs`, `vp_set/boundary.rs`, `vp_set/time_abi.rs`), `mesh_rpc_verus` | `VpSet`'s VP events go through the mesh RPC wrapper instead of `mesh`'s calls: `vp.send.call(f, x).await` becomes `mesh_rpc_verus::call(&vp.send, f, x, ..).recv().await` (the ghost dropped from the result), `call_failable` the same with `recv_failable`, `send(VpEvent::Start)` the new `mesh_rpc_verus::send_msg` (`send.send(msg)`); in `start`, `stop`, `stop_at_io_boundary`, `reset`, `scrub`, `save`, `restore`, `set_initial_regs`, `get_dump_vp_state`, `check_one_shot_timers`, `advance_lapic_timers`. Placeholder ghosts (`Tracked::assume_new()`, `Ghost::assume_new()`), as in CC 31. Same messages, sent at the same time (the wrapper's `call` sends at once, as `mesh`'s does), same order, same errors. Imports: `RpcSend` only with `gdb` in `vp_set.rs`, dropped in `boundary.rs` and `time_abi.rs`; new test in `mesh_rpc_verus` |
+| 73 | `openvmm_core` (`partition.rs`) | the blanket `BasicPartitionStateAccess` impl's `save` / `restore`: the handle is opened with `open_vm_state` into a named variable, used (`save_all` / `restore_all`), closed with `close_vm_state`, then `.context(..)?` applied (before: one statement on a temporary from `access_state`). Same calls and order; the handle is dropped before `.context`, which only wraps the error. `WrappedPartition`'s `save` / `restore`: `let r = self.partition.save(); r.map_err(..)` (one binding added). `vstd::prelude::*` imported in both builds |
 | 48 | `vm/devices/chipset` (`microvm.rs`) | `MicrovmShutdown`'s and `MicrovmSnapshotRequest`'s `SaveRestore::restore` take `_state: Self::SavedState` instead of the pattern `NoSavedState: Self::SavedState` (Verus allows only identifier parameters; both bind and drop the unit value) |
 | 49 | `chipset` and the 22 crates below | a `vmcore::placeholder_view!(..)` line before each of 59 `impl SaveRestore for X` blocks (expands to nothing in normal builds) |
 | 49 | `vm/vmcore` | **`SaveRestore` gains the supertrait `SaveRestoreView`**: new public trait, in normal builds empty and implemented for every type (so no impl changes); in Verus builds `View` (see "`SaveRestore`'s contract on views"). New exported macro `vmcore::placeholder_view!` (expands to nothing in normal builds) |
 | 50 | `vm/vmcore` | **`SaveRestore::SavedState` gains the bound `SaveRestoreView`** (`type SavedState: SaveRestoreView;`; normal builds: an empty trait every type implements, so no impl changes) |
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | **`VpSet::restore`'s parameter type changes** from `impl IntoIterator<Item = (VpIndex, SavedStateBlob)>` to `Vec<(VpIndex, SavedStateBlob)>` (its one caller already passes a `Vec`) |
+| 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 
 **Dependencies and build**
 

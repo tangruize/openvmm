@@ -1005,6 +1005,51 @@ Baseline: upstream `nanvix/openvmm` commit
     Microsoft copyright header (the user: they are under a University of
     Chicago license), so they are skipped rather than given one.
 
+73. **Gap G3: the partition's VM state, through a state token** (small
+    executable change in `virt` and `openvmm_core`, behavior unchanged;
+    decided by the user, 2026-10-28: option B, then option 1; design doc,
+    "The partition's state"). Executable:
+    - `virt` (`generic.rs`): two new public functions,
+      `open_vm_state(partition, vtl)` (normal builds:
+      `partition.access_state(vtl)`) and `close_vm_state(access)` (normal
+      builds: `drop(access)`), with TRUSTED contracts (`external_body`):
+      the handle starts with the state the partition's token records and
+      holds the token; closing it returns the token with the handle's
+      final state.
+    - `openvmm_core` (`partition.rs`): the blanket
+      `BasicPartitionStateAccess` impl's `save` and `restore` open the
+      handle with `open_vm_state` into a named variable, call
+      `save_all` / `restore_all`, close it with `close_vm_state`, then
+      apply `.context(..)?` (before: one statement on a temporary from
+      `access_state`, dropped at the statement's end). Same calls, same
+      order; the handle is now dropped before `.context` (which only wraps
+      the error). `WrappedPartition`'s `save` / `restore` bind the inner
+      call's result before `map_err` (`let r = ..; r.map_err(..)`).
+      `partition.rs` imports `vstd::prelude::*` in both builds (for
+      `proof_with!`, which normal builds erase).
+    Verus only: `PartitionAccessState` is `verus_verify` (an
+    `external_trait_specification` with its generic associated type
+    crashes the compiler); the boundary macro (`state_trait!`) gains a
+    handle's `hv_id()`, `overwrite` on the saved-state type, and
+    contracts on `save_all` / `restore_all` (assumed until proved; trusted
+    doc); `VmSavedState` (x86) has a real view, `VmSavedStateView`
+    (`hypercall`, `reference_tsc_page`; `reftime` left out: the time
+    rule, (a)); `BasicPartitionStateAccess` is `verus_verify`, `save` /
+    `restore` take the token as a ghost parameter, with contracts (save
+    returns the token's state and keeps it; restore overwrites it); the
+    blanket impl's bodies are `external_body` (`anyhow`'s `Context` is not
+    supported), its other methods `external_body` without contracts;
+    `WrappedPartition` holds the token (ghost field `hv`, created by the
+    TRUSTED `new_vm_state_token` in `into_vm_partition`), has the view
+    `VmSavedStateView` (the token's state) and a `SaveRestoreSpecImpl`
+    (saved view the identity; `device_wf`: it holds the whole token), and
+    its `SaveRestore` impl is `verus_verify` (bodies `external_body`,
+    passing the token). `virt/src/generic.spec.rs` (new; no header,
+    skipped by the lint through `vmm_core/virt/src/.ignore`) declares
+    `Vtl` (transparent, moved from `vmm_core`'s `vp_set.proof.rs`),
+    `InitialVpStateSource`, `InitialPageImport`, `Hv1`, `Partition`,
+    `StateError`.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

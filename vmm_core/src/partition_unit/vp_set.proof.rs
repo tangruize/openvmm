@@ -8,7 +8,6 @@ use super::Inner;
 use super::RegisterSetError;
 use super::RegistersToSet;
 use super::VpRunner;
-use hvdef::Vtl;
 use vm_topology::processor::TargetVpInfo;
 use vstd::prelude::*;
 
@@ -40,10 +39,6 @@ pub struct ExRegisterSetError(RegisterSetError);
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExTargetVpInfo(TargetVpInfo);
-
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExVtl(Vtl);
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

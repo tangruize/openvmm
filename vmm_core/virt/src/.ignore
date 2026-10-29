@@ -1,0 +1,4 @@
+# Skipped by OpenVMM's lint (`cargo xtask fmt --pass lints`, whose file
+# walker honors `.ignore` files): spec files written for the Verus work,
+# which carry no copyright header.
+generic.spec.rs

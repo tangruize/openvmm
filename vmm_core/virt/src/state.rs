@@ -53,6 +53,15 @@ mod error_spec {
         pub trait ExError: core::fmt::Debug + core::fmt::Display {
             type ExternalTraitSpecificationFor: core::error::Error;
         }
+
+        /// `StateError`, as an opaque type (`save_all` / `restore_all`'s
+        /// errors).
+        #[verifier::external_type_specification]
+        #[verifier::external_body]
+        #[verifier::reject_recursive_types(T)]
+        pub struct ExStateError<T: 'static + core::fmt::Debug + core::error::Error>(
+            super::StateError<T>,
+        );
     }
 }
 
@@ -219,6 +228,16 @@ mod macros {
                             Self { $get: Some(value), ..self }
                         }
                     )*
+
+                    /// This state with every element present in `other` set
+                    /// to `other`'s value (what `restore_all(other)` does).
+                    pub closed spec fn overwrite(self, other: Self) -> Self {
+                        Self {
+                            $(
+                                $get: if other.$get is Some { other.$get } else { self.$get },
+                            )*
+                        }
+                    }
                 }
 
                 /// TRUSTED: the hypervisor boundary. A getter returns the
@@ -226,7 +245,13 @@ mod macros {
                 /// sets the element (and only it); `commit` changes nothing
                 /// (every host backend applies a set at once). On an error
                 /// from a getter, nothing changes; on an error from a
-                /// setter, the state is unspecified.
+                /// setter, the state is unspecified. None of them changes
+                /// the handle's `hv_id()`.
+                ///
+                /// `save_all` and `restore_all` (the trait's default
+                /// methods, generated above): contracts stated here, to
+                /// prove from the getters' and setters' (the trait is not
+                /// yet `verus_verify`, so their bodies are not checked).
                 #[verifier::external_trait_specification]
                 #[verifier::external_trait_extension(StateAccessSpec via StateAccessSpecImpl)]
                 pub trait ExStateAccess {
@@ -235,23 +260,45 @@ mod macros {
                     type Error: 'static + std::error::Error + Send + Sync;
 
                     /// The hypervisor's state, as each element's current
-                    /// value (TRUSTED: uninterpreted; the hypervisor's).
+                    /// value (`None` for an element not present: its
+                    /// `is_present` is false) (TRUSTED: uninterpreted; the
+                    /// hypervisor's).
                     spec fn hv_state(&self) -> $save_state;
+
+                    /// The id of the state token this handle was opened
+                    /// with (`open_vm_state`; uninterpreted).
+                    spec fn hv_id(&self) -> ::vstd::resource::Loc;
 
                     fn commit(&mut self) -> (result: Result<(), Self::Error>)
                         ensures
                             final(self).hv_state() == old(self).hv_state(),
+                            final(self).hv_id() == old(self).hv_id(),
+                    ;
+
+                    fn save_all(&mut self) -> (result: Result<$save_state, $crate::state::StateError<Self::Error>>)
+                        ensures
+                            final(self).hv_state() == old(self).hv_state(),
+                            final(self).hv_id() == old(self).hv_id(),
+                            result matches Ok(s) ==> s == old(self).hv_state(),
+                    ;
+
+                    fn restore_all(&mut self, state: &$save_state) -> (result: Result<(), $crate::state::StateError<Self::Error>>)
+                        ensures
+                            final(self).hv_id() == old(self).hv_id(),
+                            result is Ok ==> final(self).hv_state() == old(self).hv_state().overwrite(*state),
                     ;
 
                     $(
                         fn $get(&mut self) -> (result: Result<$ty, Self::Error>)
                             ensures
                                 final(self).hv_state() == old(self).hv_state(),
+                                final(self).hv_id() == old(self).hv_id(),
                                 result matches Ok(v) ==> old(self).hv_state().$get() == Some(v),
                         ;
 
                         fn $set(&mut self, value: &$ty) -> (result: Result<(), Self::Error>)
                             ensures
+                                final(self).hv_id() == old(self).hv_id(),
                                 result is Ok ==> final(self).hv_state() == old(self).hv_state().$set(*value),
                         ;
                     )*
