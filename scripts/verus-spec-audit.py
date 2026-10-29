@@ -64,7 +64,9 @@ def verus_files():
             text = open(f).read()
         except OSError:
             continue
-        if 'verus_keep_ghost' in text or 'verus!' in text:
+        # Any file that uses Verus or vstd (placeholders can appear in a file
+        # with no Verus attribute of its own).
+        if 'verus_keep_ghost' in text or 'verus!' in text or 'vstd' in text:
             files.append(f)
     return files
 

@@ -136,6 +136,11 @@ struct PartitionUnitRunner {
     /// The unit's share of its FracGhost (Verus only).
     #[cfg(verus_keep_ghost)]
     share: Tracked<vmcore::device_state::spec::DeviceGhostState>,
+    /// The authority of the stop tokens (Verus only): the ids of the
+    /// outstanding ones, one per stop reference (`vp_stop_count`); see the
+    /// request protocol (`partition_unit.spec.rs`).
+    #[cfg(verus_keep_ghost)]
+    stop_tokens: Tracked<vstd::resource::set::GhostSetAuth<u64>>,
 }
 
 impl InspectMut for PartitionUnitRunner {
@@ -168,6 +173,7 @@ impl InspectMut for PartitionUnitRunner {
     }
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 enum PartitionRequest {
     ClearHalt(Rpc<(), bool>), // TODO: remove this, and use DebugRequest::Resume
     SetInitialRegs(Rpc<(Vtl, Arc<InitialRegs>), Result<(), InitialRegError>>),
@@ -317,9 +323,10 @@ impl PartitionUnit {
     /// dropped.
     pub async fn temporarily_stop_vps(&mut self) -> StopGuard {
         // Through the mesh RPC wrapper.
-        // WAITS FOR PROTOCOL: `PartitionRequest`'s (not yet specified); then
-        // replace these `assume_new()`s with the ghost it defines for
-        // `StopVps` and its reply expectation, when this function is verified.
+        // PROOF TODO: replace these placeholders (`assume_new()`) with the
+        // real ghosts: none sent (`None`), and the protocol's reply
+        // expectation for `StopVps`; keep the returned stop token in the
+        // `StopGuard`.
         mesh_rpc_verus::call(
             &self.req_send,
             PartitionRequest::StopVps,
@@ -331,7 +338,13 @@ impl PartitionUnit {
         .await
         .unwrap();
 
-        StopGuard(self.req_send.clone())
+        StopGuard {
+            0: self.req_send.clone(),
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the stop token from `StopVps`'s reply.
+            #[cfg(verus_keep_ghost)]
+            1: Tracked::assume_new(),
+        }
     }
 
     /// Sets the register state for the VPs for initial boot.
@@ -435,6 +448,11 @@ impl PartitionUnitRunner {
             // in `KeeperUnit::new`).
             #[cfg(verus_keep_ghost)]
             share: Tracked::assume_new(),
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: a new stop-token authority, with no token
+            // outstanding, whose id is the request channel's constant.
+            #[cfg(verus_keep_ghost)]
+            stop_tokens: Tracked::assume_new(),
         }
     }
 }
@@ -536,9 +554,8 @@ impl PartitionUnitRunner {
                     PartitionRequest::StopVps(rpc) => {
                         let ((), rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
                         self.stop_vps().await;
-                        // WAITS FOR PROTOCOL: `PartitionRequest`'s (not yet
-                        // specified); then replace this `assume_new()` with the
-                        // reply ghost it defines for `StopVps`.
+                        // PROOF TODO: replace this placeholder (`assume_new()`) with the
+                        // real ghost: a new stop token, from `stop_tokens.insert`.
                         mesh_rpc_verus::complete(rpc, (), Tracked::<()>::assume_new());
                     }
                     PartitionRequest::Snapshot(req) => self.handle_snapshot(req).await,
@@ -740,10 +757,19 @@ impl PartitionUnitRunner {
 }
 
 #[must_use = "when dropped, the VPs will be resumed"]
-pub struct StopGuard(mesh::Sender<PartitionRequest>);
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+pub struct StopGuard(
+    mesh::Sender<PartitionRequest>,
+    /// The stop token (Verus only): while the guard holds it, the VPs are
+    /// stopped (the request protocol).
+    #[cfg(verus_keep_ghost)]
+    Tracked<vstd::resource::set::GhostSingleton<u64>>,
+);
 
 impl Drop for StopGuard {
     fn drop(&mut self) {
+        // PROOF TODO: send the stop token back with `StartVps` (through
+        // `mesh_rpc_verus::send_msg`, an executable change to approve).
         self.0.send(PartitionRequest::StartVps);
     }
 }

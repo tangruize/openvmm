@@ -22,6 +22,7 @@ use vstd::prelude::Ghost;
 use vstd::prelude::Tracked;
 
 /// Snapshot requests handled by the partition unit runner.
+#[cfg_attr(verus_keep_ghost, vstd::prelude::verus_verify)]
 pub(super) enum SnapshotRequest {
     StopVpsAtIoBoundary(FailableRpc<(mesh::OneshotSender<()>, mesh::OneshotReceiver<()>), ()>),
     #[cfg(guest_arch = "x86_64")]
@@ -70,12 +71,21 @@ impl PartitionUnit {
             &self.req_send,
             |rpc| PartitionRequest::Snapshot(SnapshotRequest::StopVpsAtIoBoundary(rpc)),
             (release_io, io_completed),
+            // PROOF TODO: replace these placeholders (`assume_new()`) with the real
+            // ghosts: none sent (`None`), and the protocol's reply expectation; keep
+            // the returned stop token in the `StopGuard`.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
         .recv_failable()
         .await?;
-        Ok(StopGuard(self.req_send.clone()))
+        Ok(StopGuard {
+            0: self.req_send.clone(),
+            // PROOF TODO: replace this placeholder (`assume_new()`) with the
+            // real ghost: the stop token from the reply.
+            #[cfg(verus_keep_ghost)]
+            1: Tracked::assume_new(),
+        })
     }
 
     /// Checks the LAPIC timer of every stopped vCPU for the NVX time ABI
@@ -86,6 +96,8 @@ impl PartitionUnit {
             &self.req_send,
             |rpc| PartitionRequest::Snapshot(SnapshotRequest::CheckTimers(rpc)),
             (),
+            // OUT OF SCOPE: keep these `assume_new()`s (a time-ABI request: guest time
+            // is out of scope; the protocol forbids verified code to send it).
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -107,6 +119,8 @@ impl PartitionUnit {
             &self.req_send,
             |rpc| PartitionRequest::Snapshot(SnapshotRequest::AdvanceLapic(rpc)),
             (downtime_ns, apic_hz),
+            // OUT OF SCOPE: keep these `assume_new()`s (a time-ABI request: guest time
+            // is out of scope; the protocol forbids verified code to send it).
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -124,6 +138,8 @@ impl PartitionUnit {
             &self.req_send,
             |rpc| PartitionRequest::Snapshot(SnapshotRequest::OmitSavedTsc(rpc)),
             (),
+            // OUT OF SCOPE: keep these `assume_new()`s (a time-ABI request: guest time
+            // is out of scope; the protocol forbids verified code to send it).
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -147,6 +163,8 @@ impl PartitionUnitRunner {
                     .stop_at_io_boundary(release_io, io_completed)
                     .await
                     .map_err(RemoteError::new);
+                // PROOF TODO: replace this placeholder (`assume_new()`) with the real
+                // ghost: a new stop token, from the runner's `stop_tokens.insert`.
                 complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
@@ -157,6 +175,8 @@ impl PartitionUnitRunner {
                     .check_one_shot_timers()
                     .await
                     .map_err(RemoteError::new);
+                // OUT OF SCOPE: keep this `assume_new()` (a time-ABI request: guest time is
+                // out of scope).
                 complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
@@ -167,12 +187,16 @@ impl PartitionUnitRunner {
                     .advance_lapic_timers(downtime_ns, apic_hz)
                     .await
                     .map_err(RemoteError::new);
+                // OUT OF SCOPE: keep this `assume_new()` (a time-ABI request: guest time is
+                // out of scope).
                 complete(rpc, r, Tracked::<()>::assume_new());
             }
             #[cfg(guest_arch = "x86_64")]
             SnapshotRequest::OmitSavedTsc(rpc) => {
                 let ((), rpc) = split::<_, _, ()>(rpc);
                 self.omit_saved_tsc = true;
+                // OUT OF SCOPE: keep this `assume_new()` (a time-ABI request: guest time is
+                // out of scope).
                 complete(rpc, (), Tracked::<()>::assume_new());
             }
         }

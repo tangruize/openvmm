@@ -1282,6 +1282,39 @@ Baseline: upstream `nanvix/openvmm` commit
       vmbus rows moved there. Not reverted (the user): the `StateUnit`
       trait requires the vmbus units to follow its protocol.
 
+87. **`PartitionRequest`'s protocol: stop tokens** (Verus only, except
+    for `StopGuard`'s two construction sites' syntax; decided by the
+    user, 2026-10-30; design doc, "The partition unit's request
+    protocol").
+    - `PartitionRequest` and `SnapshotRequest` are `verus_verify`; the
+      protocol (`MeshProtocol for PartitionRequest`,
+      `partition_unit.spec.rs`): `Const` is the stop-token authority's id,
+      the ghosts are `Option<GhostSingleton<u64>>`; `StopVps` and
+      `StopVpsAtIoBoundary` reply with a new stop token (the latter also on
+      `Err`); `StartVps` gives one back; the time-ABI and boot requests
+      cannot be sent by verified code. Declared: `InitialRegError`,
+      `AcceptInitialPagesError`.
+    - `PartitionUnitRunner` gets a Verus-only field `stop_tokens:
+      Tracked<GhostSetAuth<u64>>`, set in `new` with a placeholder (PROOF
+      TODO); its `wf()` gains: the authority's id is `req_recv`'s
+      constant; one outstanding token per stop reference; the VPs are
+      stopped while any is outstanding.
+    - `StopGuard` gets a Verus-only second field, its stop token, and is
+      `verus_verify` (its opaque declaration removed); `StopGuard::wf()`.
+      Its two construction sites (`temporarily_stop_vps`,
+      `temporarily_stop_vps_at_io_boundary`) are written
+      `StopGuard { 0: .., #[cfg(verus_keep_ghost)] 1: .. }` instead of
+      `StopGuard(..)` (EXECUTABLE in form only: the same value; a tuple
+      struct's constructor call cannot take a cfg'd argument), the token a
+      placeholder (PROOF TODO).
+    - Markers: the partition unit's `StopVps` placeholders change from
+      WAITS FOR PROTOCOL to PROOF TODO. 18 unmarked placeholders were
+      found once the audit script also scans files that use `vstd`
+      without Verus attributes: `snapshot.rs` (4 PROOF TODO for
+      `StopVpsAtIoBoundary`, 8 OUT OF SCOPE for the time-ABI requests)
+      and `openvmm_entry`'s `vm_controller/microvm.rs` (6 WAITS FOR
+      PROTOCOL, `VmRpc`).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

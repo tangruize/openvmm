@@ -1925,6 +1925,39 @@ about timers or the controller); out of scope (RAM, guest time, vmbus,
 the controller layer, roadmap step 3). What remains is proof: 91 bodies
 with stated contracts, for the proof agent.
 
+### The partition unit's request protocol
+
+Decided 2026-10-30 (user; code change 87). `PartitionRequest` is the
+partition unit's request channel (`PartitionUnit` and `StopGuard` to the
+runner's task). Its protocol was uninterpreted; on the snapshot path it is
+now written, around **stop tokens**: a stop token is a
+`GhostSingleton<u64>` of the runner's stop-token authority
+(`PartitionUnitRunner::stop_tokens`, a Verus-only `GhostSetAuth<u64>` whose
+id is the channel's constant). **Holding one is the guarantee that the VPs
+are stopped**: the runner's `wf()` says the authority holds one id per stop
+reference (`vp_stop_count`) and that the VPs are stopped while any is
+outstanding (`vp_stop_count > 0 ==> !vp_set@.started`).
+
+| Message | Sent with | Reply carries | Promise |
+|---|---|---|---|
+| `StopVps` | nothing | a new stop token | the VPs are stopped, and stay stopped while it is held |
+| `StartVps` (one-way) | a stop token, given back | (none) | (none): the VPs may run again once no token is outstanding |
+| `Snapshot(StopVpsAtIoBoundary(..))` | nothing | a new stop token, also on `Err` (a failed boundary keeps its stop reference) | as `StopVps`. On `Ok` the deferred I/O also completed after every VP had a queued stop: a fact about the guest, a comment only (the user) |
+| `Snapshot(CheckTimers)`, `AdvanceLapic`, `OmitSavedTsc` | | | out of scope (guest time): verified code cannot send them |
+| `ClearHalt`, `SetInitialRegs`, `AcceptInitialPages`, `BuildDumpPartitionState` | | | out of scope (boot, halts, dumps): verified code cannot send them |
+
+`StopGuard` holds its stop token (a Verus-only field; `StopGuard::wf()`:
+the token belongs to its channel's unit), so `SnapshotBoundary`'s `active`
+(`stop_guard is Some`) means the VPs are held stopped. To prove (PROOF
+TODO, marked in the code): the runner's handling (`handle_snapshot`,
+`stop_vps`, `resume_vps`, inside `run`), `temporarily_stop_vps` and
+`temporarily_stop_vps_at_io_boundary` keeping the reply's token in the
+`StopGuard`, `StopGuard`'s `Drop` sending it back with `StartVps` (through
+`send_msg`: an executable change, to approve), and `PartitionUnit::new`
+creating the channel with the authority's id. Not yet stated: that each
+`LoadedVm`'s boundary guard belongs to its own partition unit (a wf fact
+of `LoadedVm`).
+
 ### The VP protocol
 
 Proposed and reviewed 2026-10-28; **specified** (code changes 63 to 70;
@@ -2448,6 +2481,7 @@ change preserves behavior: same results, same order of effects.
 | 65 | `vmm_core` (`partition_unit/vp_set.rs`) | **`VpSet::restore`'s parameter type changes** from `impl IntoIterator<Item = (VpIndex, SavedStateBlob)>` to `Vec<(VpIndex, SavedStateBlob)>` (its one caller already passes a `Vec`) |
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 | 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
+| 87 | `vmm_core` (`partition_unit.rs`, `partition_unit/snapshot.rs`) | `StopGuard`'s two construction sites are written `StopGuard { 0: self.req_send.clone(), #[cfg(verus_keep_ghost)] 1: .. }` instead of `StopGuard(self.req_send.clone())`: the same value in normal builds (a tuple struct's constructor call cannot take a cfg'd argument; the second field is Verus-only) |
 
 **Dependencies and build**
 

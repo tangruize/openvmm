@@ -248,6 +248,9 @@ impl VmController {
             &self.vm_rpc,
             VmRpc::QuiesceForSnapshot,
             self.microvm.snapshot_quiesce_timeout,
+            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
+            // not yet specified); then replace these `assume_new()`s with the ghosts
+            // it defines, when this code is verified.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -524,6 +527,9 @@ impl VmController {
             &self.vm_rpc,
             VmRpc::ResumeAfterFailedSnapshot,
             self.microvm.snapshot_quiesce_timeout,
+            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
+            // not yet specified); then replace these `assume_new()`s with the ghosts
+            // it defines, when this code is verified.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -550,6 +556,9 @@ impl VmController {
             &self.vm_rpc,
             VmRpc::ReleaseSnapshotBoundary,
             (),
+            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
+            // not yet specified); then replace these `assume_new()`s with the ghosts
+            // it defines, when this code is verified.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
