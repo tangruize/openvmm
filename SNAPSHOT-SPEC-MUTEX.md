@@ -1,8 +1,9 @@
-# Verified mutex with a lock invariant
+# Verified locks with lock invariants
 
-A trusted Verus specification of `parking_lot::Mutex`, so that verified
-code can rely on a property of the value a mutex protects, while the
-runtime lock stays the real `parking_lot::Mutex`.
+Trusted Verus specifications of the two locks on the snapshot path, so
+that verified code can rely on a property of the value a lock protects,
+while the runtime locks stay the real ones: `parking_lot::Mutex` (below)
+and OpenVMM's `CloseableMutex` (its own section, at the end).
 
 Code: `vmm_core/state_unit/src/mutex_t.rs` (trusted). Its first user is
 `StateUnits`' registry (`InnerMutex = Mutex<Inner, InnerPred>` in
@@ -147,3 +148,49 @@ Everything in `mutex_t.rs` is trusted (also listed in
   ghost value like `RwLock` (as this one now takes its parameter), and would
   leave out the unverified `lock()` escape hatch, which exists here only so
   that unverified OpenVMM code could keep its call sites unchanged.
+
+## The other lock: `CloseableMutex` (chipset devices)
+
+Each chipset device sits behind OpenVMM's own lock, `CloseableMutex`
+(`support/closeable_mutex`), reached by the device's unit and by vCPU
+threads. Its trusted specification
+(`support/closeable_mutex/src/closeable_mutex_t.rs`) follows the same
+model as the box above, with two differences.
+
+**The rule's form comes from the value's type.** `CloseableMutex<T>` has
+no type parameter for a predicate, so the rule's form is given by `T`
+(`trait LockInvariant { type Param; spec fn inv(&self, param) }`); each
+mutex still gets its own parameter when it is created, as above
+(`new_verified(value, Ghost(param))`, `m.param()`). For a device, the
+parameter is the id of the device's own fractional ghost (and its
+`omit`), so each device's lock says "this slot holds this device's
+ghost" (code change 94).
+
+**It can be closed.** Besides locking, its holder can **close** it: a
+device's unit does, for each state operation (stop, save, restore, …), to
+have the device to itself; closing gives the value until the closed
+guard is reopened. While it is closed, `lock` **panics**, and so does
+closing it again. The specification states those panics as
+preconditions (code change 95), the way vstd states a `Vec` index bound:
+
+| Item | Contract |
+|---|---|
+| `CloseableMutex::new_verified(value, Ghost(param))` | requires `value.inv(param)`; returns the mutex and its **close token** (a `FracGhost<()>` with id `m.close_id()`), whole |
+| `CloseableMutex::close_verified(&m, token)` | requires the **whole** close token; gives a closed guard with the value (satisfying the rule), which keeps the token |
+| closed guard: `borrow`, `borrow_mut`, `release()` | read / change the value; `release` requires the rule, reopens the mutex, and gives the whole token back |
+| `m.lock_verified(&token)` | requires a **piece** of the close token; gives an open guard with the value (satisfying the rule) |
+| open guard: `borrow_mut`, `release()` | change the value; `release` requires the rule |
+| `lock`, `lock_if_open`, `close`, `new` (unverified code only) | as before, without contracts |
+
+Whoever holds a piece of the close token knows nobody holds the whole, so
+nobody has the mutex closed: `lock_verified` cannot panic, nor can
+`close_verified` (it needs the whole). Who holds which piece when (the
+unit, the vCPUs) is for the proof of the code that locks a device; it
+follows from the order in which units stop and start.
+
+What is trusted, as above: the lock is a lock (mutual exclusion; closing
+excludes everyone else until reopened), and unverified code keeps the
+rule. A closed guard dropped without `release` leaves the mutex closed
+(later `lock`s panic), and an open guard dropped without `release` leaves
+it locked: safe, not unsound.
+

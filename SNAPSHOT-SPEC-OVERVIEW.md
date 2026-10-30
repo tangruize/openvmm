@@ -489,7 +489,7 @@ How they relate to Verus's own lock, `vstd::rwlock::RwLock<V, Pred>`:
 
 The wrappers' specifications are trusted (we do not verify the locks
 themselves); the code that uses them is to be verified.
-`SNAPSHOT-SPEC-MUTEX.md` explains the mutex wrapper in detail.
+`SNAPSHOT-SPEC-MUTEX.md` explains both wrappers in detail.
 
 ## 5. What is trusted, and what is not done
 
@@ -499,7 +499,7 @@ Every assumption is listed in `SNAPSHOT-SPEC-TRUSTED.md`, in three groups:
 |---|---|---|
 | **Trusted base** | outside our code; not to be proved | the hypervisor (KVM, MSHV, WHP) and thin wrappers over it; the guest's behavior; mesh message delivery; protobuf encoding; the locks' runtime; the tools (Verus, the Rust compiler) |
 | **Deferred** | needs something Verus cannot express yet | contracts on methods of `async` trait objects and on futures: the vCPU threads' save and restore, the partition's handling of its other requests |
-| **Assumed until proved** | our code; contracts stated, proofs to come | the bodies of every function with a contract; a few facts, e.g. "a unit receives `Stop` only while running", and the stop order (section 2.3) |
+| **Assumed until proved** | our code; contracts stated, proofs to come | the bodies of every function with a contract; a few facts, e.g. "a unit receives `Stop` only while running". Among them, "a stopped device does not change" is part of what the contracts claim, so its proof is part of theirs; the fractional ghosts in the device locks (section 4.2.2) give the proof the means |
 
 Out of scope for now: guest RAM, guest time, the controller's own code,
 and the inner state of virtio devices (network, console, disks) beyond
@@ -513,4 +513,4 @@ what their transport saves.
 | `SNAPSHOT-SPEC-CODE-CHANGES.md` | every change made to OpenVMM's code for the spec, numbered ("code change N") |
 | `SNAPSHOT-SPEC-DESIGN.md` | the working log: every decision, its options and reasons, in the order they were made; the exact contracts; the open items (at its end) |
 | `SNAPSHOT-SPEC-MESH-RPC.md` | the mesh RPC wrapper: how ghosts travel with messages |
-| `SNAPSHOT-SPEC-MUTEX.md` | the mutex wrapper: locks with invariants |
+| `SNAPSHOT-SPEC-MUTEX.md` | the two lock wrappers (the registry's mutex, the devices' `CloseableMutex`): locks with invariants, and closing |

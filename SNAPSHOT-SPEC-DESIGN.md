@@ -1276,6 +1276,28 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
   `DeviceSlot::new`'s other half to the unit's sender, and the right
   `omit`.
 
+
+**Since code changes 94 and 95 (user, 2026-10-31).** Each device's lock
+has its own invariant, as in vstd: its parameter is the id of **this**
+device's FracGhost (and its `omit`), so the invariant says "this slot
+holds this device's share" (code change 94; there is no key any more).
+And the lock's "closed" state is in the trusted spec: a closed
+`CloseableMutex` panics on `lock` (and on a second `close`), so each lock
+has a **close token**; closing requires the whole token, locking a piece
+(code change 95).
+
+**"A stopped device does not change" is a property to prove** (the user,
+2026-10-31), not an assumption to keep: it is part of what the entrance
+contracts claim (the saved state equals each unit's state once stopped).
+The fractional ghosts give the proof the means: changing a device needs
+the whole share in its lock, which is there only while the device runs,
+and locking needs a piece of the close token. What the proof of the code
+that locks a device (the vCPUs' accesses, the line sets, the unit's
+poll) must show is that the device is running and where its piece comes
+from; both follow from the order in which units stop and start. Until
+that code is verified, it is assumed (`SNAPSHOT-SPEC-TRUSTED.md`, Part 3,
+"Stopped devices do not change").
+
 ### `SaveRestore`'s contract on views
 
 Decided 2026-10-27 (user), in two steps: first state the contract on the
@@ -2474,7 +2496,10 @@ against the protocol.
 ### Mutex wrapper
 
 A standalone explanation (mental model, how to use it, design choices) is
-in `SNAPSHOT-SPEC-MUTEX.md`.
+in `SNAPSHOT-SPEC-MUTEX.md`, which also covers the chipset devices' lock,
+`CloseableMutex`: its per-lock invariant (code change 94) and its close
+token, which turns "locking a closed mutex panics" into a precondition
+(code change 95).
 
 `StateUnits` uses `parking_lot::Mutex`. vstd has `RwLock` but not `Mutex`;
 vstd's `RwLock` is a spinlock that is not released on drop, so switching
