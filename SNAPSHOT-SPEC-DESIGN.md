@@ -562,7 +562,10 @@ paths, including its I/O handlers.
    (`support/closeable_mutex/src/closeable_mutex_t.rs`): a lock invariant
    given by the value's type (`LockInvariant`: `inv()`, and a `key()` that
    every holder keeps, for a device its FracGhost's id, so that verified
-   code relates the values it sees on different acquisitions). Verified
+   code relates the values it sees on different acquisitions). *Since code
+   change 94 (user, 2026-10-31):* each mutex's own invariant, as in vstd:
+   `inv(&self, param)` with a per-mutex ghost parameter `param()` given to
+   `new_verified`; no key. Verified
    code closes with `CloseableMutex::close_verified`, gets the value
    through the guard's `borrow` / `borrow_mut` (a `&mut` with a prophecy
    spec), and reopens with `release`, which requires `inv()` and the key
@@ -1198,7 +1201,9 @@ visible in four crates.
   fn saved_blob(&self)`, for every `ProtobufSaveRestore` type (blanket),
   and through `DynDevice` (a supertrait) for devices seen as `dyn`.
 - The lock invariant (`LockInvariant for DeviceSlot<T>`): key =
-  (the share's id, `omit`); invariant: the device is well formed
+  (the share's id, `omit`) (since code change 94: the lock's own
+  parameter `(id, omit)`, and the invariant says the slot's share has id
+  `id` and its `omit` is `omit`); invariant: the device is well formed
   (`device.device_wf()`), and the share follows the rule
   (`DeviceGhostState::follows_rule`) for `snapshot()` = `omit ?
   NoSavedState : Saved(device.saved_blob())`. (`CloseableMutex::key` is now declared for
@@ -2359,7 +2364,8 @@ Design:
    afterwards `StateUnits`' ghost state (`units_ghost`) covers exactly the
    registered units, which the view reads by name. The mutex wrapper's new
    `key()` (the shared record's id) ties the registry's half to this
-   `StateUnits` (`StateUnits::wf`). No registry axiom remains. One assumed
+   `StateUnits` (`StateUnits::wf`; since code change 94, the registry
+   mutex's own parameter, `param()`, plays this role). No registry axiom remains. One assumed
    fact (to prove, Part 3 of the trusted doc) remains for operations that
    lock the registry more than once (for their proofs): no unit is registered while an operation holds
    `&mut StateUnits` (registration needs `&StateUnits`).
@@ -2602,6 +2608,7 @@ change preserves behavior: same results, same order of effects.
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 | 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
 | 87 | `vmm_core` (`partition_unit.rs`, `partition_unit/snapshot.rs`) | `StopGuard`'s two construction sites are written `StopGuard { 0: self.req_send.clone(), #[cfg(verus_keep_ghost)] 1: .. }` instead of `StopGuard(self.req_send.clone())`: the same value in normal builds (a tuple struct's constructor call cannot take a cfg'd argument; the second field is Verus-only) |
+| 94 | `vmm_core/state_unit` (`mutex_t.rs`), `support/closeable_mutex` (`closeable_mutex_t.rs`, `lib.rs` tests) | the registry mutex's `Mutex::new(v)` moved, same body and signature, out of the `verus!` block (now hidden from Verus); new public `Mutex::new_verified(v, param: Ghost<_>)`; `CloseableMutex::new_verified(value)` gains a ghost parameter, `new_verified(value, param: Ghost<_>)` (erased at runtime; only tests call it, now with `Ghost::assume_new()`). Same behavior |
 | 91 | `vmm_core` (`partition_unit.rs`) | `StopGuard`'s `Drop` sends `StartVps` with `mesh_rpc_verus::send_msg(&self.0, PartitionRequest::StartVps, Tracked::assume_new())` instead of `self.0.send(PartitionRequest::StartVps)` (as in CC 71). Same message, sent at the same moment |
 | 89 | `openvmm_defs` (`rpc.rs`), `openvmm_entry` (`lib.rs`) | new public `openvmm_defs::rpc::vm_rpc_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`), in a `verus!` block; `openvmm_entry` creates `VmRpc`'s channel with it instead of `mesh::channel()`. New cfg'd imports in `rpc.rs`. Same channel |
 

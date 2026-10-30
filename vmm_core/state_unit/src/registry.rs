@@ -2,17 +2,14 @@
 // Licensed under the MIT License.
 
 //! The two changes to the registry's set of units, verified against the
-//! registry's lock invariant (`InnerPred`, `lib.proof.rs`): registering a
+//! registry's lock invariant (`InnerPred`, `Inner::registry_inv`,
+//! `lib.proof.rs`): registering a
 //! unit (from `UnitBuilder::build`) and removing one (from `UnitHandle`).
 //! Their callers are unverified; in a normal build the ghost parts are
 //! erased.
 
 use crate::Inner;
-#[cfg(verus_keep_ghost)]
-use crate::InnerPred;
 use crate::Unit;
-#[cfg(verus_keep_ghost)]
-use crate::mutex_t::MutexPredicate;
 #[cfg(verus_keep_ghost)]
 use mesh_rpc_verus::SenderAdditionalSpecFns;
 use mesh_rpc_verus::take_sender_ghost;
@@ -26,14 +23,14 @@ impl Inner {
     /// it. The caller (`UnitBuilder::build`) checks that the name is new.
     pub(crate) fn insert_unit(&mut self, id: u64, unit: Unit)
         requires
-            InnerPred::inv(*old(self)),
+            old(self).registry_inv(),
             !old(self).units@.contains_key(id),
             forall|other: u64| #[trigger] old(self).units@.contains_key(other)
                 ==> old(self).units@[other].name@ != unit.name@,
             unit.send.attached() matches Some(h) && h.valid(unit.send.constant(), 0.5real),
         ensures
-            InnerPred::inv(*final(self)),
-            InnerPred::key(*final(self)) == InnerPred::key(*old(self)),
+            final(self).registry_inv(),
+            final(self).record_id() == old(self).record_id(),
     {
         let mut unit = unit;
         let Tracked(half) = take_sender_ghost(&mut unit.send);
@@ -53,10 +50,10 @@ impl Inner {
     /// kept for it. Returns whether it was registered.
     pub(crate) fn remove_unit(&mut self, id: u64) -> (removed: bool)
         requires
-            InnerPred::inv(*old(self)),
+            old(self).registry_inv(),
         ensures
-            InnerPred::inv(*final(self)),
-            InnerPred::key(*final(self)) == InnerPred::key(*old(self)),
+            final(self).registry_inv(),
+            final(self).record_id() == old(self).record_id(),
             removed == old(self).units@.contains_key(id),
     {
         let ghost old_units = self.units@;

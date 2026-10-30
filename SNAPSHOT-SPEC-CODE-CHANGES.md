@@ -1448,6 +1448,49 @@ Baseline: upstream `nanvix/openvmm` commit
       `Seq<SavedStateUnit>`; their uses (`StateUnits::save`,
       `StateUnits::restore`, `SavedState`'s view and `wf`) updated.
 
+94. **Each lock's own invariant, as in vstd** (decided by the user,
+    2026-10-31, rejecting the per-type invariant plus key). Both lock
+    wrappers now give each lock its own invariant, chosen when it is
+    created: the invariant's form comes from a type, and each lock has its
+    own ghost parameter, which the invariant takes; the keys are gone.
+    - `mutex_t::Mutex<V, Pred>` (the registry's lock): `MutexPredicate`
+      has `type Param` and `inv(param, v)` (was `Key`, `key(v)`,
+      `inv(v)`); `m.param()`; new `new_verified(v, Ghost(param))`
+      (requires `Pred::inv(param, v)`); `acquire` / `release` use
+      `Pred::inv(m.param(), _)`. `Mutex::new(v)` stays for unverified code,
+      hidden from Verus (EXECUTABLE in form only: moved out of the
+      `verus!` block, the same body and signature). The registry's
+      `InnerPred`: parameter = the id of the registry's half of the shared
+      record; its invariant is "that half has this id" and
+      `Inner::registry_inv()` (the former invariant, now a spec function
+      on `Inner`, which `insert_unit` / `remove_unit` keep, still verified,
+      their proofs unchanged). `StateUnits::wf()` uses `inner.param()`.
+    - `CloseableMutex<T>` (each chipset device's lock): `LockInvariant` has
+      `type Param` and `inv(&self, param)` (was `Key`, `key()`, `inv()`);
+      `m.param()` and the guards' `param()`; `new_verified(value,
+      Ghost(param))` (EXECUTABLE: the extra parameter, erased at runtime;
+      called only by tests, now passing `Ghost::assume_new()`). The type
+      `CloseableMutex<T>` is unchanged.
+    - `DeviceSlot`: new closed spec functions `share_id()` and `omit()`;
+      its `LockInvariant`: parameter `(id, omit)`, the invariant says the
+      slot's share has id `id` and its `omit` is `omit`, plus the device's
+      `device_wf()` and the share's rule. `DeviceSlot::new`'s contract and
+      `ArcMutexChipsetDeviceUnit`'s spec (`id()`, `wf()`, `new`) use the
+      lock's `param()`.
+    - The example (`closeable_mutex/src/lib.proof.rs`): a counter whose
+      limit is the mutex's parameter, with a verified `example_new`.
+    - The two creators on the microVM's path, both unverified, keep
+      calling `new` (parameter unknown): `StateUnits::new` (the registry)
+      and `ArcMutexChipsetDeviceBuilder::inner_add` (every chipset
+      device's lock). Each has a PROOF TODO comment naming the
+      `new_verified` call and the parameter to pass once it is verified
+      (the registry's record id; the device's ghost id and `omit`). The
+      other creators (hot-plug, the fallback "missing device", OpenHCL,
+      VPCI, tests) are not on the path.
+    - Docs: `SNAPSHOT-SPEC-MUTEX.md` (how to use, API, design choices),
+      `SNAPSHOT-SPEC-TRUSTED.md`, the overview's 4.2.2, notes in the
+      design doc.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

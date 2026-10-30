@@ -248,6 +248,11 @@ where
             }
         }
 
+        // PROOF TODO: when this function is verified, create the lock with
+        // `CloseableMutex::new_verified(slot, Ghost((slot.share_id(),
+        // omit)))` (its parameter: the id of the device's FracGhost, whose
+        // share the slot keeps, and whether the unit omits the saved state),
+        // instead of `new`, whose parameter is unknown.
         let dev =
             this.arc_builder
                 .build(CloseableMutex::new(vmcore::device_state::DeviceSlot::new(

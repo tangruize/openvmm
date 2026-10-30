@@ -62,9 +62,9 @@ impl<T: DeviceSnapshot> DeviceSlot<T> {
             Ghost(omit): Ghost<bool>,
             Tracked(half): Tracked<&mut Option<vstd::resource::frac::FracGhost<crate::save_restore::spec::UnitSnapshot>>>,
         ensures
-            closeable_mutex::LockInvariant::inv(&slot),
-            closeable_mutex::LockInvariant::key(&slot).1 == omit,
-            *final(half) matches Some(h) && h.valid(closeable_mutex::LockInvariant::key(&slot).0, 0.5real)
+            slot.omit() == omit,
+            closeable_mutex::LockInvariant::inv(&slot, (slot.share_id(), omit)),
+            *final(half) matches Some(h) && h.valid(slot.share_id(), 0.5real)
                 && h@ is Unknown,
     ))]
     pub fn new(device: T) -> Self {

@@ -209,13 +209,11 @@ impl Inner {
     }
 }
 
-impl MutexPredicate<Inner> for InnerPred {
-    /// The id of the shared record of the collected units (`StateUnits`
-    /// holds the other half of it).
-    type Key = Loc;
-
-    open(crate) spec fn key(v: Inner) -> Loc {
-        v.registry_ghost@.collected.id()
+impl Inner {
+    /// The id of the registry's half of the shared record of the collected
+    /// units (`StateUnits` holds the other half).
+    pub(crate) open spec fn record_id(self) -> Loc {
+        self.registry_ghost@.collected.id()
     }
 
     /// The registry's ghost state matches its units: each registered unit
@@ -226,21 +224,21 @@ impl MutexPredicate<Inner> for InnerPred {
     /// since the last collection).
     ///
     /// Registration and removal keep it (`Inner::insert_unit`,
-    /// `Inner::remove_unit`, verified). Other unverified code that locks the
-    /// registry is trusted to keep it (it changes only units' states and
-    /// dependency lists, which the invariant does not mention).
-    open(crate) spec fn inv(v: Inner) -> bool {
-        let g = v.registry_ghost@;
-        &&& g.entries.dom() == v.units@.dom()
-        &&& forall|id: u64| #[trigger] v.units@.contains_key(id) ==> g.entries[id] == (
-            v.units@[id].name@,
-            v.units@[id].send.constant(),
-            v.units@[id].advances_time,
+    /// `Inner::remove_unit`, verified). Other code that locks the registry
+    /// is unverified and assumed to keep it, until verified (it changes only
+    /// units' states and dependency lists, which this does not mention).
+    pub(crate) open spec fn registry_inv(self) -> bool {
+        let g = self.registry_ghost@;
+        &&& g.entries.dom() == self.units@.dom()
+        &&& forall|id: u64| #[trigger] self.units@.contains_key(id) ==> g.entries[id] == (
+            self.units@[id].name@,
+            self.units@[id].send.constant(),
+            self.units@[id].advances_time,
         )
         // Registered units have distinct names (`build` checks `names`).
         &&& forall|a: u64, b: u64|
-            #[trigger] v.units@.contains_key(a) && #[trigger] v.units@.contains_key(b) && a != b
-                ==> v.units@[a].name@ != v.units@[b].name@
+            #[trigger] self.units@.contains_key(a) && #[trigger] self.units@.contains_key(b) && a != b
+                ==> self.units@[a].name@ != self.units@[b].name@
         &&& g.collected.frac() == 0.5real
         &&& g.halves.dom() <= g.entries.dom()
         &&& forall|id: u64| #[trigger] g.halves.contains_key(id)
@@ -249,6 +247,20 @@ impl MutexPredicate<Inner> for InnerPred {
             ||| g.collected@.contains_key(id) && g.collected@[id] == g.entries[id]
             ||| g.halves.contains_key(id)
         }
+    }
+}
+
+impl MutexPredicate<Inner> for InnerPred {
+    /// The registry's parameter: the id of its half of the shared record of
+    /// the collected units (`StateUnits` holds the other half).
+    type Param = Loc;
+
+    /// The registry's half of the shared record is this registry's (id
+    /// `record`), and the registry's ghost state matches its units
+    /// (`Inner::registry_inv`).
+    open(crate) spec fn inv(record: Loc, v: Inner) -> bool {
+        &&& v.record_id() == record
+        &&& v.registry_inv()
     }
 }
 

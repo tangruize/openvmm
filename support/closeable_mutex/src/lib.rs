@@ -38,7 +38,7 @@ mod proof {
 // it.
 #[cfg(not(verus_keep_ghost))]
 impl<T> LockInvariant for T {
-    type Key = ();
+    type Param = ();
 }
 
 use parking_lot::Mutex;
@@ -202,6 +202,7 @@ impl<T: ?Sized> DerefMut for ClosedGuard<T> {
 mod tests {
     use crate::CloseableMutex;
     use std::sync::Arc;
+    use vstd::prelude::Ghost;
 
     #[test]
     fn test_mutex() {
@@ -224,7 +225,9 @@ mod tests {
 
     #[test]
     fn test_verified_guard() {
-        let x = Arc::new(CloseableMutex::new_verified(0));
+        // OUT OF SCOPE: a test (not verified); its ghost parameter is a
+        // placeholder (`assume_new()`).
+        let x = Arc::new(CloseableMutex::new_verified(0, Ghost::assume_new()));
 
         // Released: the mutex is open again.
         let mut g = CloseableMutex::close_verified(&x);
@@ -240,7 +243,9 @@ mod tests {
 
     #[test]
     fn test_verified_open_guard() {
-        let x = Arc::new(CloseableMutex::new_verified(0));
+        // OUT OF SCOPE: a test (not verified); its ghost parameter is a
+        // placeholder (`assume_new()`).
+        let x = Arc::new(CloseableMutex::new_verified(0, Ghost::assume_new()));
         let mut g = x.lock_verified();
         *g.borrow_mut() = 5;
         g.release();

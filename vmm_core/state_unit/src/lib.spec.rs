@@ -118,7 +118,7 @@ impl StateUnits {
             ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
         // `StateUnits`' half of the shared record of the collected units
         // belongs to its registry, and records the collected units.
-        &&& self.units_ghost@.collected.valid((*self.inner).key(), 0.5real)
+        &&& self.units_ghost@.collected.valid((*self.inner).param(), 0.5real)
         &&& self.units_ghost@.collected@ == self.units_ghost@.registry
         &&& forall|a: u64, b: u64|
             #[trigger] self.units_ghost@.registry.contains_key(a)

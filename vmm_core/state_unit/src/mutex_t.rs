@@ -2,8 +2,12 @@
 // Licensed under the MIT License.
 
 //! Trusted wrapper around `parking_lot::Mutex` with a lock invariant, in the
-//! style of `vstd::rwlock::RwLock`. Used only for Verus; the runtime lock is
-//! the real `parking_lot::Mutex`.
+//! style of `vstd::rwlock::RwLock`: each mutex has its own invariant, chosen
+//! when it is created. Its form is given by the predicate type
+//! (`MutexPredicate::inv(param, v)`), and each mutex has its own ghost
+//! parameter (`param()`, given to `new_verified`), so a mutex's invariant can
+//! name that mutex's own ghost state. Used only for Verus; the runtime lock
+//! is the real `parking_lot::Mutex`.
 //!
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
 //! the contracts here; the wrapper is a lock primitive we do not verify, over
@@ -22,10 +26,11 @@
 //!   value that breaks the invariant.
 //! - Unverified code calls `lock`, which returns an ordinary guard. It is
 //!   hidden from Verus, so verified code cannot call it. ASSUMPTION:
-//!   unverified code keeps the invariant and the key.
-//! - A mutex has a key, `Pred::key` of its value, which every holder keeps
-//!   (`release` requires it), so that verified code can relate the values it
-//!   sees on different acquisitions (as `closeable_mutex::LockInvariant`).
+//!   unverified code keeps the invariant.
+//! - Unverified code may also create a mutex with `new` (hidden from Verus);
+//!   its parameter is then unknown. ASSUMPTION: its value satisfies the
+//!   invariant for its parameter. Verified code creates one with
+//!   `new_verified`, which requires it.
 
 use parking_lot::MappedMutexGuard;
 use parking_lot::MutexGuard;
@@ -35,17 +40,18 @@ use vstd::prelude::*;
 
 verus! {
 
-/// The invariant of a `Mutex<V, Pred>`'s value while unlocked, and its key.
+/// The invariant of a `Mutex<V, Pred>`'s value while unlocked, given each
+/// mutex's own parameter.
 pub trait MutexPredicate<V> {
-    /// A constant of the value that every holder keeps.
-    type Key;
+    /// The parameter each mutex gives the invariant when it is created.
+    type Param;
 
-    spec fn key(v: V) -> Self::Key;
-
-    spec fn inv(v: V) -> bool;
+    /// The invariant, for a mutex with parameter `param`.
+    spec fn inv(param: Self::Param, v: V) -> bool;
 }
 
-/// A mutex whose value satisfies `Pred::inv` while unlocked.
+/// A mutex whose value satisfies `Pred::inv(self.param(), _)` while
+/// unlocked.
 #[verifier::external_body]
 #[verifier::reject_recursive_types(V)]
 #[verifier::reject_recursive_types(Pred)]
@@ -64,15 +70,17 @@ pub struct MutexHandle<'a, V, Pred> {
 }
 
 impl<V, Pred: MutexPredicate<V>> Mutex<V, Pred> {
-    /// The key of the value, the same on every acquisition.
-    pub uninterp spec fn key(&self) -> Pred::Key;
+    /// The mutex's parameter of its invariant, given when it was created.
+    pub uninterp spec fn param(&self) -> Pred::Param;
 
+    /// Creates a mutex holding `v`, whose invariant has parameter `param`.
     #[verifier::external_body]
-    pub fn new(v: V) -> (s: Self)
+    #[allow(unused_variables)]  // the ghost parameter is erased at runtime
+    pub fn new_verified(v: V, param: Ghost<Pred::Param>) -> (s: Self)
         requires
-            Pred::inv(v),
+            Pred::inv(param@, v),
         ensures
-            s.key() == Pred::key(v),
+            s.param() == param@,
     {
         Mutex { inner: parking_lot::Mutex::new(Some(v)), _pred: PhantomData }
     }
@@ -81,9 +89,8 @@ impl<V, Pred: MutexPredicate<V>> Mutex<V, Pred> {
     #[verifier::external_body]
     pub fn acquire(&self) -> (ret: (V, MutexHandle<'_, V, Pred>))
         ensures
-            Pred::inv(ret.0),
-            Pred::key(ret.0) == self.key(),
-            ret.1.key() == self.key(),
+            Pred::inv(self.param(), ret.0),
+            ret.1.param() == self.param(),
     {
         let mut guard = self.inner.lock();
         let v = guard.take().expect("mutex value not released");
@@ -92,15 +99,14 @@ impl<V, Pred: MutexPredicate<V>> Mutex<V, Pred> {
 }
 
 impl<'a, V, Pred: MutexPredicate<V>> MutexHandle<'a, V, Pred> {
-    /// The key of the mutex.
-    pub uninterp spec fn key(&self) -> Pred::Key;
+    /// The mutex's parameter of its invariant.
+    pub uninterp spec fn param(&self) -> Pred::Param;
 
-    /// Puts `v` back and unlocks; requires the invariant and the key.
+    /// Puts `v` back and unlocks; requires the invariant.
     #[verifier::external_body]
     pub fn release(self, v: V)
         requires
-            Pred::inv(v),
-            Pred::key(v) == self.key(),
+            Pred::inv(self.param(), v),
     {
         let mut guard = self.guard;
         *guard = Some(v);
@@ -113,10 +119,20 @@ impl<'a, V, Pred: MutexPredicate<V>> MutexHandle<'a, V, Pred> {
 // satisfies it.
 #[cfg(not(verus_keep_ghost))]
 impl<V, T> MutexPredicate<V> for T {
-    type Key = ();
+    type Param = ();
 }
 
 impl<V, Pred> Mutex<V, Pred> {
+    /// Creates a mutex, for unverified code. ASSUMPTION: `v` satisfies the
+    /// invariant for the mutex's (unknown) parameter.
+    #[cfg_attr(verus_keep_ghost, verifier::external)]
+    pub fn new(v: V) -> Self {
+        Mutex {
+            inner: parking_lot::Mutex::new(Some(v)),
+            _pred: PhantomData,
+        }
+    }
+
     /// Locks, for unverified code. ASSUMPTION: the caller keeps the invariant.
     #[cfg_attr(verus_keep_ghost, verifier::external)]
     pub fn lock(&self) -> MappedMutexGuard<'_, V> {

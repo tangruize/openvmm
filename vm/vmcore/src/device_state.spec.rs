@@ -69,6 +69,16 @@ impl<T: ProtobufSaveRestore> DeviceSnapshot for T {
 }
 
 impl<T: ?Sized + DeviceSnapshot> DeviceSlot<T> {
+    /// The id of the unit's FracGhost, whose share the slot keeps.
+    pub closed spec fn share_id(&self) -> Loc {
+        self.share@.frac.id()
+    }
+
+    /// Whether the unit omits the device's saved state.
+    pub closed spec fn omit(&self) -> bool {
+        self.omit@
+    }
+
     /// The device's snapshot: what its unit's save returns (nothing if the
     /// unit omits the device's saved state).
     pub closed spec fn snapshot(&self) -> UnitSnapshot {
@@ -80,21 +90,20 @@ impl<T: ?Sized + DeviceSnapshot> DeviceSlot<T> {
     }
 }
 
-/// The lock invariant of a chipset device's lock: the device is well formed
-/// (`device_wf()`), and the unit's share, kept in the slot, follows the rule
-/// (`DeviceGhostState::follows_rule`) for the device's snapshot. The key is
-/// the share's id (the unit's channel constant) and whether the unit omits
-/// the saved state; every holder keeps it.
+/// The lock invariant of a chipset device's lock, for the lock's own
+/// parameter `(id, omit)` (given when the lock is created): the slot keeps
+/// the share of **this** unit's FracGhost (id `id`), and records whether
+/// the unit omits the saved state (`omit`); the device is well formed
+/// (`device_wf()`); and the share follows the rule
+/// (`DeviceGhostState::follows_rule`) for the device's snapshot.
 impl<T: ?Sized + DeviceSnapshot> LockInvariant for DeviceSlot<T> {
-    type Key = (Loc, bool);
+    type Param = (Loc, bool);
 
-    closed spec fn key(&self) -> (Loc, bool) {
-        (self.share@.frac.id(), self.omit@)
-    }
-
-    closed spec fn inv(&self) -> bool {
+    closed spec fn inv(&self, param: (Loc, bool)) -> bool {
+        &&& self.share_id() == param.0
+        &&& self.omit() == param.1
         &&& self.device.device_wf()
-        &&& self.share@.follows_rule(self.share@.frac.id(), self.snapshot())
+        &&& self.share@.follows_rule(param.0, self.snapshot())
     }
 }
 

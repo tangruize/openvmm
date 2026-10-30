@@ -917,6 +917,11 @@ impl StateUnits {
         #[cfg(verus_keep_ghost)]
         let (registry_ghost, units_ghost) = spec::proof::new_ghosts();
         Self {
+            // PROOF TODO: when this function is verified, create the mutex
+            // with `InnerMutex::new_verified(inner, Ghost(registry_ghost@
+            // .collected.id()))` (its parameter: the id of the registry's
+            // half of the shared record), instead of `new`, whose parameter
+            // is unknown.
             inner: Arc::new(InnerMutex::new(Inner {
                 next_id: 0,
                 units: BTreeMap::new(),

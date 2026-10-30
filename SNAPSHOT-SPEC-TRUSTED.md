@@ -83,7 +83,7 @@ Explained in `SNAPSHOT-SPEC-MUTEX.md`: a trusted wrapper over
 
 | Item | What is assumed |
 |---|---|
-| `Mutex::new`, `acquire`, `MutexHandle::release` | The value satisfies `Pred::inv` while unlocked, and keeps the mutex's key (`Pred::key`): `new` and `release` require it, `acquire` provides it. Runtime: `parking_lot::Mutex<Option<V>>`; a handle dropped without `release` leaves `None` and the next lock panics. |
+| `Mutex::new_verified`, `acquire`, `MutexHandle::release` | The value satisfies `Pred::inv(m.param(), _)` while unlocked, for the mutex's own parameter (given to `new_verified`; since code change 94, in place of a key): `new_verified` and `release` require it, `acquire` provides it. `Mutex::new` (unverified code only): the parameter is unknown; assumed that the value satisfies the invariant for it (Part 3, "The locks' unverified users"). Runtime: `parking_lot::Mutex<Option<V>>`; a handle dropped without `release` leaves `None` and the next lock panics. |
 
 ## `CloseableMutex` (`support/closeable_mutex/src/closeable_mutex_t.rs`)
 
@@ -93,7 +93,7 @@ unverified users are listed in Part 3 ("The locks' unverified users").
 
 | Item | What is assumed |
 |---|---|
-| `CloseableMutex::new_verified`, `close_verified`, `VerifiedClosedGuard::borrow`, `borrow_mut`, `release` | While neither locked nor closed, the value satisfies its type's `LockInvariant::inv`, and its `key()` is the mutex's `key()`: `new_verified` and `release` require it, `close_verified` provides it; `borrow_mut` gives the guard's value to change. Runtime: the real `CloseableMutex`; a `VerifiedClosedGuard` dropped without `release` leaves the mutex closed, so later `lock` / `close` panic. |
+| `CloseableMutex::new_verified`, `close_verified`, `VerifiedClosedGuard::borrow`, `borrow_mut`, `release` | While neither locked nor closed, the value satisfies its type's `LockInvariant::inv(param)` for the mutex's own parameter `param()` (given to `new_verified`; since code change 94, in place of a key): `new_verified` and `release` require it, `close_verified` provides it; `borrow_mut` gives the guard's value to change. Runtime: the real `CloseableMutex`; a `VerifiedClosedGuard` dropped without `release` leaves the mutex closed, so later `lock` / `close` panic. |
 | `CloseableMutex::lock_verified`, `VerifiedOpenGuard::borrow_mut`, `release` | As for `close_verified`, for a lock that does not close the mutex. A `VerifiedOpenGuard` dropped without `release` leaves the mutex locked (later lockers wait forever). |
 
 ## The hypervisor and the guest
@@ -213,8 +213,8 @@ work is not lost if vmbus comes back into scope (the user's decision,
 |---|---|
 | Protocols of `VmRpc` and `PartitionRequest` | None assumed. `PartitionRequest`'s protocol is written since 2026-10-30 (design doc, "The partition unit's request protocol"): stop tokens; the time-ABI and boot requests cannot be sent by verified code. `VmRpc`'s protocol is written since code change 89 (design doc, "The VM worker's request protocol"): the snapshot requests move the state units' halves, `Pause` (code change 90) moves nothing, and the other 18 requests cannot be sent by verified code. |
 | Normal-build blanket impl | In a non-Verus build every type implements `MeshProtocol` with `()` ghosts (the trait's spec function is erased). No effect on verification. |
-| Normal-build blanket impl | In a non-Verus build every type implements `MutexPredicate`. No effect on verification. |
-| Normal-build blanket impl | In a non-Verus build every type implements `LockInvariant` (with `Key = ()`). No effect on verification. |
+| Normal-build blanket impl | In a non-Verus build every type implements `MutexPredicate` (with `Param = ()`). No effect on verification. |
+| Normal-build blanket impl | In a non-Verus build every type implements `LockInvariant` (with `Param = ()`). No effect on verification. |
 | `reply`'s two builds | `lib.rs`: The verification pass (`cfg(verus_keep_ghost_body)`) calls `complete` with the reply ghost; other builds make the same call with `Tracked::assume_new()` (the ghost is erased). |
 | Error conversion | `lib.rs`: `anyhow_error`, `save_error`, `restore_error`: `external_body` with no contract (`RemoteError::new`); nothing assumed beyond termination. |
 

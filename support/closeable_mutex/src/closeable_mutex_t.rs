@@ -2,8 +2,13 @@
 // Licensed under the MIT License.
 
 //! Verus specification of [`CloseableMutex`]: a lock invariant on the
-//! value, given by the value's type ([`LockInvariant`]). Used only for Verus;
-//! the runtime mutex is the real [`CloseableMutex`].
+//! value, chosen for each mutex when it is created, as for
+//! `vstd::rwlock::RwLock`. Its form is given by the value's type
+//! ([`LockInvariant`]: `inv(&self, param)`), and each mutex has its own
+//! ghost parameter (`param()`, given to `new_verified`), so a mutex's
+//! invariant can name that mutex's own ghost state (for a device: its
+//! FracGhost's id). Used only for Verus; the runtime mutex is the real
+//! [`CloseableMutex`].
 //!
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
 //! the contracts here. `CloseableMutex` is a lock primitive we do not verify
@@ -38,18 +43,15 @@ use vstd::prelude::*;
 verus! {
 
 /// The invariant of a [`CloseableMutex<Self>`]'s value while the mutex is
-/// neither locked nor closed.
+/// neither locked nor closed, given each mutex's own parameter.
 pub trait LockInvariant {
-    /// A constant of the value that holders of the lock keep (for a device:
-    /// the id of its FracGhost), so that verified code can relate the values
-    /// it sees on different acquisitions.
-    type Key;
+    /// The parameter each mutex gives the invariant when it is created
+    /// (for a device: the id of its FracGhost, and whether its unit omits
+    /// its saved state).
+    type Param;
 
-    /// The value's key.
-    spec fn key(&self) -> Self::Key;
-
-    /// The invariant.
-    spec fn inv(&self) -> bool;
+    /// The invariant, for a mutex with parameter `param`.
+    spec fn inv(&self, param: Self::Param) -> bool;
 }
 
 #[cfg(verus_keep_ghost)]
@@ -68,19 +70,22 @@ pub struct VerifiedClosedGuard<T> {
 }
 
 impl<T: ?Sized + LockInvariant> CloseableMutex<T> {
-    /// The key of the value, the same on every acquisition. (Also for an
-    /// unsized value, such as a device seen through a trait object.)
-    pub uninterp spec fn key(&self) -> T::Key;
+    /// The mutex's parameter of its invariant, given when it was created.
+    /// (Also for an unsized value, such as a device seen through a trait
+    /// object.)
+    pub uninterp spec fn param(&self) -> T::Param;
 }
 
 impl<T: LockInvariant> CloseableMutex<T> {
-    /// Creates a mutex holding `value`, with `value`'s key.
+    /// Creates a mutex holding `value`, whose invariant has parameter
+    /// `param`.
     #[verifier::external_body]
-    pub fn new_verified(value: T) -> (m: Self)
+    #[allow(unused_variables)]  // the ghost parameter is erased at runtime
+    pub fn new_verified(value: T, param: Ghost<T::Param>) -> (m: Self)
         requires
-            value.inv(),
+            value.inv(param@),
         ensures
-            m.key() == value.key(),
+            m.param() == param@,
     {
         CloseableMutex::new(value)
     }
@@ -89,9 +94,8 @@ impl<T: LockInvariant> CloseableMutex<T> {
     #[verifier::external_body]
     pub fn close_verified(m: &Arc<Self>) -> (g: VerifiedClosedGuard<T>)
         ensures
-            g.key() == (**m).key(),
-            g.value().key() == (**m).key(),
-            g.value().inv(),
+            g.param() == (**m).param(),
+            g.value().inv(g.param()),
     {
         VerifiedClosedGuard { guard: Some(m.clone().close()) }
     }
@@ -111,17 +115,16 @@ impl<T: LockInvariant> CloseableMutex<T> {
     #[verifier::external_body]
     pub fn lock_verified(&self) -> (g: VerifiedOpenGuard<'_, T>)
         ensures
-            g.key() == self.key(),
-            g.value().key() == self.key(),
-            g.value().inv(),
+            g.param() == self.param(),
+            g.value().inv(g.param()),
     {
         VerifiedOpenGuard { guard: Some(self.lock()) }
     }
 }
 
 impl<'a, T: LockInvariant> VerifiedOpenGuard<'a, T> {
-    /// The key of the mutex.
-    pub uninterp spec fn key(&self) -> T::Key;
+    /// The mutex's parameter of its invariant.
+    pub uninterp spec fn param(&self) -> T::Param;
 
     /// The value in the mutex.
     pub uninterp spec fn value(&self) -> T;
@@ -132,17 +135,16 @@ impl<'a, T: LockInvariant> VerifiedOpenGuard<'a, T> {
         ensures
             *r == old(self).value(),
             final(self).value() == *final(r),
-            final(self).key() == old(self).key(),
+            final(self).param() == old(self).param(),
     {
         self.guard.as_mut().unwrap()
     }
 
-    /// Unlocks the mutex; requires the invariant, and the key unchanged.
+    /// Unlocks the mutex; requires the invariant.
     #[verifier::external_body]
     pub fn release(self)
         requires
-            self.value().inv(),
-            self.value().key() == self.key(),
+            self.value().inv(self.param()),
     {
         let mut this = self;
         drop(this.guard.take());
@@ -150,8 +152,8 @@ impl<'a, T: LockInvariant> VerifiedOpenGuard<'a, T> {
 }
 
 impl<T: LockInvariant> VerifiedClosedGuard<T> {
-    /// The key of the mutex.
-    pub uninterp spec fn key(&self) -> T::Key;
+    /// The mutex's parameter of its invariant.
+    pub uninterp spec fn param(&self) -> T::Param;
 
     /// The value in the mutex.
     pub uninterp spec fn value(&self) -> T;
@@ -171,19 +173,18 @@ impl<T: LockInvariant> VerifiedClosedGuard<T> {
         ensures
             *r == old(self).value(),
             final(self).value() == *final(r),
-            final(self).key() == old(self).key(),
+            final(self).param() == old(self).param(),
     {
         self.guard.as_mut().unwrap()
     }
 
-    /// Reopens the mutex; requires the invariant, and the key unchanged.
+    /// Reopens the mutex; requires the invariant.
     #[verifier::external_body]
     pub fn release(self) -> (m: Arc<CloseableMutex<T>>)
         requires
-            self.value().inv(),
-            self.value().key() == self.key(),
+            self.value().inv(self.param()),
         ensures
-            (*m).key() == self.key(),
+            (*m).param() == self.param(),
     {
         let mut this = self;
         this.guard.take().unwrap().open()

@@ -441,8 +441,8 @@ to each lock:
 
 | Lock | Wrapper | The invariant comes from | Taking / releasing |
 |---|---|---|---|
-| `parking_lot::Mutex` (the registry) | `Mutex<V, Pred>`, `vmm_core/state_unit/src/mutex_t.rs` | a predicate type `Pred` (`MutexPredicate`) chosen when the mutex is created | `acquire` gives the value, with the invariant to assume; `release` requires it again |
-| `CloseableMutex` (each chipset device) | `support/closeable_mutex/src/closeable_mutex_t.rs` | the protected value's type (`LockInvariant`), since the mutex is created by generic, unverified code | `lock_verified` / `close_verified` give the value with its invariant; `release` requires it again (and the same key: for a device, its ghost's id) |
+| `parking_lot::Mutex` (the registry) | `Mutex<V, Pred>`, `vmm_core/state_unit/src/mutex_t.rs` | its form: the predicate type `Pred` (`MutexPredicate`); its parameter: given to each mutex when it is created | `acquire` gives the value, with the invariant to assume; `release` requires it again |
+| `CloseableMutex` (each chipset device) | `support/closeable_mutex/src/closeable_mutex_t.rs` | its form: the protected value's type (`LockInvariant`); its parameter: given to each mutex when it is created (for a device, its ghost's id) | `lock_verified` / `close_verified` give the value with its invariant; `release` requires it again |
 
 How they relate to Verus's own lock, `vstd::rwlock::RwLock<V, Pred>`:
 
@@ -460,15 +460,19 @@ How they relate to Verus's own lock, `vstd::rwlock::RwLock<V, Pred>`:
   registry's wrapper is a thin type holding a `parking_lot::Mutex` (a
   change to OpenVMM's code, with the same behavior), and `CloseableMutex`
   is unchanged.
-- **The invariant: per type today, per lock next.** In vstd, the
-  invariant is a ghost value given when the lock is created, so each lock
-  has its own (e.g. "the value's parity is this lock's parity"). Our
-  wrappers currently take the invariant from a type instead, the same for
-  every lock of that type, plus a **key** (a constant of the protected
-  value that every holder keeps; for a chipset device, its ghost's id) to
-  tie each lock to its own ghost. This is being changed to vstd's way
-  (decided 2026-10-31): each lock's own invariant, given as a ghost value
-  when it is created, naming that lock's ghost directly, with no key.
+- **Each lock's own invariant.** In vstd, the invariant is a ghost value
+  given when the lock is created, so each lock has its own (e.g. "the
+  value's parity is this lock's parity"). Ours work the same way, split
+  into two parts: the invariant's **form** comes from a type (`Pred` for
+  the registry's mutex; the value's type, `LockInvariant`, for
+  `CloseableMutex`, whose type has no slot for it), and each lock gets its
+  own ghost **parameter** when it is created (`new_verified(v,
+  Ghost(param))`), which the invariant takes. For a chipset device, the
+  parameter is the id of the device's own fractional ghost, so the
+  invariant of each device's lock says "this slot holds **this** device's
+  ghost". Locks created by unverified code (with `new`, as all of them are
+  today) have an unknown parameter; that they satisfy their invariant is
+  assumed until that code is verified.
 
 The wrappers' specifications are trusted (we do not verify the locks
 themselves); the code that uses them is to be verified.

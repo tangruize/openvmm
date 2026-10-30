@@ -160,10 +160,10 @@ impl ArcMutexChipsetDeviceUnit {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(unit =>
         requires
-            (*device).key().1 == omit_saved_state,
+            (*device).param().1 == omit_saved_state,
         ensures
             unit.wf(),
-            unit.id() == (*device).key().0,
+            unit.id() == (*device).param().0,
             !unit.running(),
     ))]
     pub fn new(
