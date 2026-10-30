@@ -4030,6 +4030,27 @@ impl LoadedVm {
         Ok(true)
     }
 
+    /// Stops the VM's state units, if they are running. Returns whether
+    /// they were.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+        ensures
+            final(self).wf(),
+            result == old(self)@.runtime.running,
+            // If running: now stopped, each unit has recorded its state, and
+            // the state units hold every half (`StateUnits::stop`).
+            result ==> {
+                &&& !final(self)@.runtime.running
+                &&& final(self)@.recorded
+                &&& final(self)@.runtime.holds_halves()
+                &&& final(self)@.snapshot.inventory == old(self)@.snapshot.inventory
+                &&& final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary
+            },
+            // Otherwise nothing changes.
+            !result ==> final(self)@ == old(self)@,
+    ))]
     async fn pause(&mut self) -> bool {
         if !self.running {
             return false;

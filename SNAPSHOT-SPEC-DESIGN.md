@@ -1861,7 +1861,7 @@ to the docs by name; then each was checked by hand.
 | `uninterp spec fn` | 21 (was 34; `VmRpc`'s `request_ok` defined, code change 89; virtio's `interrupt_status()` removed, code change 84; the vmbus ones now counted as out of scope; `view_str` removed with the patched vstd, code change 88) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
 | `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 28 (30 until code change 83) | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
 | `external_body` with a contract, deferred (marked `PROOF DEFERRED`) | 8 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 68 (64 after the vmbus files were marked out of scope, 2026-10-30; 89 before; +4 with `VmRpc`'s protocol, code change 89: `lend_halves`, `return_halves`, `lend_unit_halves`, `return_unit_halves`) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` with a contract, body to prove (our code) | 68 (64 after the vmbus files were marked out of scope, 2026-10-30; 89 before; +4 with `VmRpc`'s protocol, code change 89: `lend_halves`, `return_halves`, `lend_unit_halves`, `return_unit_halves`; +1, `LoadedVm::pause`, code change 90: 69) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
 | `external_body` without a contract of its own | 92 (2026-10-30, after the vmbus files were marked out of scope; was 87 on 2026-10-29) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | out of scope (files headed `// OUT OF SCOPE`, the vmbus spec) | 47 | parked; not counted as trusted or to prove (2026-10-30) |
@@ -1951,8 +1951,9 @@ the token belongs to its channel's unit), so `SnapshotBoundary`'s `active`
 TODO, marked in the code): the runner's handling (`handle_snapshot`,
 `stop_vps`, `resume_vps`, inside `run`), `temporarily_stop_vps` and
 `temporarily_stop_vps_at_io_boundary` keeping the reply's token in the
-`StopGuard`, `StopGuard`'s `Drop` sending it back with `StartVps` (through
-`send_msg`: an executable change, to approve), and `PartitionUnit::new`
+`StopGuard`, `StopGuard`'s `Drop` sending it back with `StartVps` (it
+sends through `send_msg` since code change 91, the token a placeholder),
+and `PartitionUnit::new`
 creating the channel with the authority's id. Not yet stated: that each
 `LoadedVm`'s boundary guard belongs to its own partition unit (a wf fact
 of `LoadedVm`).
@@ -1997,7 +1998,8 @@ lent units).
 | `QuiesceForSnapshot` | nothing | on `Ok` and `Err(RollbackSafe)`: the halves; otherwise nothing | on `Ok`: the response's saved state encodes a well-formed `SavedState` whose units are what the halves record (`LentHalves::saved_units`), and whose inventory is the response's unit names |
 | `ResumeAfterFailedSnapshot` | the halves, given back | nothing | (none) |
 | `ReleaseSnapshotBoundary` | nothing | nothing | (none): sent when no halves are out (a rejected request, a failed preflight) |
-| `Pause`, `Resume`, `Reset` | | | **not specified yet; next** (the microVM accepts them outside a snapshot boundary): verified code cannot send them until then |
+| `Pause` (code change 90) | nothing | nothing | (none): the worker stops the units and keeps the halves (`LoadedVm::pause`'s contract); the reply says whether they were running |
+| `Resume`, `Reset` | | | **not specified yet; next** (the microVM accepts them outside a snapshot boundary; "Roadmap"): verified code cannot send them until then |
 | `Save`, `PulseSaveRestore` | | | not specified: the microVM worker always rejects them (`filter_vm_rpc`) |
 | `ClearHalt`, `Nmi`, `ReadMemory`, `WriteMemory`, `AddVmbusDevice`, `ConnectHvsock`, `StartReloadIgvm`, `CompleteReloadIgvm`, `UpdateCliParams`, `AddPcieDevice`, `RemovePcieDevice`, `AddVpciDevice`, `RemoveVpciDevice`, `DumpState` | | | not specified, not planned yet: the microVM worker accepts them outside a snapshot boundary (`ReadMemory` also during one; `snapshot_rpc::filter`) |
 
@@ -2478,15 +2480,16 @@ preparation, `restore`, then guest-clock adjustment) and
 ("Restore from snapshot").
 
 **After save and restore: `Pause`, `Resume`, `Reset`** (planned with the
-user, 2026-10-30; not started). The microVM worker accepts these `VmRpc`
+user, 2026-10-30; `Pause` done; `Resume` and `Reset` wait until the proof
+of save and restore is done, the user). The microVM worker accepts these `VmRpc`
 requests outside a snapshot boundary; their protocol cases are `false`
 for now ("The VM worker's request protocol"). None needs ghosts on the
 channel: the halves stay with the worker. What each needs, in order:
 
 | Step | Request | What the worker does | What exists | Spec to write |
 |---|---|---|---|---|
-| 1 | `Pause` | if running: `state_units.stop()`, `running = false` (`LoadedVm::pause`, `dispatch.rs`) | `StateUnits::stop`'s contract | its protocol case (nothing sent, nothing in the reply); one small contract on `LoadedVm::pause` (the result is whether it was running; afterwards stopped, recorded, the halves held; if not running, nothing changes) |
-| 2 | `Resume` | if stopped: `start_state_units()` (the post-restore input gate, `state_units.start()`, the restore readiness event, releasing the restore's `StopGuard`), `running = true` (`LoadedVm::resume`) | nothing: `StateUnits::start` and `start_with_rollback` have no contracts | its protocol case; contracts for `StateUnits::start` (requires stopped and the halves held; `Ok`: running; `Err`: nothing promised, a unit may be left in a terminal state), `start_state_units`, `LoadedVm::resume`. Together with the open item on `StopGuard`'s `Drop` sending its stop token back (an executable change, to approve) |
+| 1 | `Pause` | if running: `state_units.stop()`, `running = false` (`LoadedVm::pause`, `dispatch.rs`) | `StateUnits::stop`'s contract | **done** (code change 90): its protocol case (nothing sent, nothing in the reply); a contract on `LoadedVm::pause` (the result is whether it was running; afterwards stopped, recorded, the halves held; if not running, nothing changes), its body `external_body`, to prove |
+| 2 | `Resume` | if stopped: `start_state_units()` (the post-restore input gate, `state_units.start()`, the restore readiness event, releasing the restore's `StopGuard`), `running = true` (`LoadedVm::resume`) | nothing: `StateUnits::start` and `start_with_rollback` have no contracts | its protocol case; contracts for `StateUnits::start` (requires stopped and the halves held; `Ok`: running; `Err`: nothing promised, a unit may be left in a terminal state), `start_state_units`, `LoadedVm::resume`. `StopGuard`'s `Drop` sends `StartVps` through the wrapper (code change 91); proving it hands back the stop token is part of this step |
 | 3 | `Reset` | `pause`, `state_units.reset()`, optionally a firmware reload (`assign_pci_resources`, `load_firmware`), then `resume` if it was running (`LoadedVm::reset`) | `StateUnits::reset`'s contract; steps 1 and 2 | its protocol case; a contract on `LoadedVm::reset`; weak `external_body` contracts for the firmware reload, which is boot code (it writes guest memory and sets the vCPUs' initial registers through `PartitionRequest::SetInitialRegs`, which the partition's protocol forbids): afterwards the units' saved states are unknown |
 
 ## Executable code changes (normal builds)
@@ -2565,6 +2568,7 @@ change preserves behavior: same results, same order of effects.
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 | 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
 | 87 | `vmm_core` (`partition_unit.rs`, `partition_unit/snapshot.rs`) | `StopGuard`'s two construction sites are written `StopGuard { 0: self.req_send.clone(), #[cfg(verus_keep_ghost)] 1: .. }` instead of `StopGuard(self.req_send.clone())`: the same value in normal builds (a tuple struct's constructor call cannot take a cfg'd argument; the second field is Verus-only) |
+| 91 | `vmm_core` (`partition_unit.rs`) | `StopGuard`'s `Drop` sends `StartVps` with `mesh_rpc_verus::send_msg(&self.0, PartitionRequest::StartVps, Tracked::assume_new())` instead of `self.0.send(PartitionRequest::StartVps)` (as in CC 71). Same message, sent at the same moment |
 | 89 | `openvmm_defs` (`rpc.rs`), `openvmm_entry` (`lib.rs`) | new public `openvmm_defs::rpc::vm_rpc_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`), in a `verus!` block; `openvmm_entry` creates `VmRpc`'s channel with it instead of `mesh::channel()`. New cfg'd imports in `rpc.rs`. Same channel |
 
 **Dependencies and build**

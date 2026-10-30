@@ -1392,6 +1392,29 @@ Baseline: upstream `nanvix/openvmm` commit
       in all our comments and docs (87 lines). OpenVMM's own uses of the
       word are unchanged.
 
+90. **`Pause`: its protocol case and `LoadedVm::pause`'s contract**
+    (planned with the user, 2026-10-30; design doc, "Roadmap", step 1).
+    Verus only. `VmRpc::Pause`: nothing sent, nothing in the reply (the
+    worker keeps the halves). `LoadedVm::pause` gets a contract (the result
+    is whether the units were running; if so, afterwards they are stopped,
+    recorded, and the state units hold every half, from
+    `StateUnits::stop`'s contract; otherwise nothing changes), its body
+    `external_body`, to prove. `Resume` and `Reset` remain next.
+
+91. **`StopGuard`'s `Drop` sends through the mesh RPC wrapper** (approved
+    by the user, 2026-10-30). A `StopGuard` is a hold on the VPs: while it
+    exists they stay stopped; dropping it (Rust's `Drop`, when the guard
+    is destroyed) sends `StartVps`, and the runner runs the VPs again once
+    no guard holds them. EXECUTABLE: `self.0.send(PartitionRequest::StartVps)`
+    becomes `mesh_rpc_verus::send_msg(&self.0, PartitionRequest::StartVps,
+    Tracked::assume_new())`, as `VpSet::start` (code change 71): the same
+    message at the same moment (`send_msg` is `send.send(msg)`). The ghost
+    is a placeholder (PROOF TODO): the guard's stop token, which `drop`
+    must take out of `&mut self` (e.g. an `Option` field). Needed for
+    `Resume` (design doc, "Roadmap", step 2), which releases the restore's
+    guard. Checks: `vmm_core` spec-checks; workspace builds; `vmm_core`
+    tests pass (40).
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

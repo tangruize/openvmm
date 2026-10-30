@@ -767,10 +767,15 @@ pub struct StopGuard(
 );
 
 impl Drop for StopGuard {
+    /// Releases the hold: sends `StartVps` with the guard's stop token, so
+    /// the runner may run the VPs again once no other guard holds them.
     fn drop(&mut self) {
-        // PROOF TODO: send the stop token back with `StartVps` (through
-        // `mesh_rpc_verus::send_msg`, an executable change to approve).
-        self.0.send(PartitionRequest::StartVps);
+        // Through the mesh RPC wrapper.
+        // PROOF TODO: replace this placeholder (`assume_new()`) with the
+        // real ghost: `Some(token)`, the guard's stop token (`self.1`; `drop`
+        // has only `&mut self`, so the field must give it up, e.g. as an
+        // `Option`).
+        mesh_rpc_verus::send_msg(&self.0, PartitionRequest::StartVps, Tracked::assume_new());
     }
 }
 

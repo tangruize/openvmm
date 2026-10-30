@@ -166,14 +166,16 @@ impl SnapshotHalves {
 ///   reply.
 /// - `ReleaseSnapshotBoundary`: nothing either way (no halves are out:
 ///   sent after a rejected request or a failed preflight).
+/// - `Pause`: nothing either way (the worker stops the units and keeps the
+///   halves; the reply says whether they were running).
 ///
-/// The other 19 variants are not specified yet: `request_ok` is `false`,
+/// The other 18 variants are not specified yet: `request_ok` is `false`,
 /// so verified code cannot send them (unverified code still can). The
 /// microVM worker rejects some of them (`filter_vm_rpc`;
 /// `snapshot_rpc::filter` during a snapshot boundary):
 ///
 /// - Next to specify (the microVM accepts them outside a snapshot
-///   boundary): `Pause`, `Resume`, `Reset`.
+///   boundary): `Resume`, `Reset` (design doc, "Roadmap").
 /// - Always rejected by the microVM worker: `Save`, `PulseSaveRestore`.
 /// - Accepted by the microVM worker outside a snapshot boundary, not
 ///   planned yet: `ClearHalt`, `Nmi`, `ReadMemory` (also during a
@@ -229,8 +231,12 @@ impl MeshProtocol for VmRpc {
                 &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
                     gout is None ==> #[trigger] rpc.reply_ok(r, gout)
             },
+            VmRpc::Pause(rpc) => {
+                &&& gin is None
+                &&& forall|r: bool, gout: Self::GhostOut|
+                    gout is None ==> #[trigger] rpc.reply_ok(r, gout)
+            },
             // Next to specify.
-            VmRpc::Pause(_) => false,
             VmRpc::Resume(_) => false,
             VmRpc::Reset(_) => false,
             // Always rejected by the microVM worker.
