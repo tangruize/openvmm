@@ -426,14 +426,15 @@ The spec uses lock invariants for:
 |---|---|---|
 | a chipset device's lock (`CloseableMutex`) | the device's state, reached by its unit and by vCPU threads (section 2.3) | the device's state is well formed, and **its piece of the unit's fractional ghost** is kept here: the ghost's value is the device's state |
 | `StateUnits`' registry (a mutex) | the list of registered units, shared by `StateUnits` and the code that registers units | each registered unit has an entry with its name and its ghost's id; names are distinct; the record of which units `StateUnits` has collected agrees with `StateUnits`' own |
-| (planned) the same registry | each unit's state and dependency list | **the stop order**: if a unit is stopped, every unit that depends on it is stopped too (section 2.3); not yet in the spec, next to be specified |
 
 The first row combines the two tools: since the device's piece of the
 ghost lives in its lock, any code that changes the device under the lock
 (a vCPU, the unit) must also update the ghost, which it can only do while
 holding the whole ghost, that is, while the device is running. A vCPU
-never reaches a stopped device because of the stop order (the third
-row).
+never reaches a stopped device because of the order in which units stop
+and start (section 2.3); showing that is part of the proof (of the
+contracts above, down to the vCPU's device-access code), not a separate
+spec.
 
 **The lock wrappers.** Verus has no model of OpenVMM's locks, so, as for
 mesh, we wrap them with trusted specifications that attach an invariant
@@ -442,7 +443,19 @@ to each lock:
 | Lock | Wrapper | The invariant comes from | Taking / releasing |
 |---|---|---|---|
 | `parking_lot::Mutex` (the registry) | `Mutex<V, Pred>`, `vmm_core/state_unit/src/mutex_t.rs` | its form: the predicate type `Pred` (`MutexPredicate`); its parameter: given to each mutex when it is created | `acquire` gives the value, with the invariant to assume; `release` requires it again |
-| `CloseableMutex` (each chipset device) | `support/closeable_mutex/src/closeable_mutex_t.rs` | its form: the protected value's type (`LockInvariant`); its parameter: given to each mutex when it is created (for a device, its ghost's id) | `lock_verified` / `close_verified` give the value with its invariant; `release` requires it again |
+| `CloseableMutex` (each chipset device) | `support/closeable_mutex/src/closeable_mutex_t.rs` | its form: the protected value's type (`LockInvariant`); its parameter: given to each mutex when it is created (for a device, its ghost's id) | `lock_verified` / `close_verified` give the value with its invariant; `release` requires it again. Closing needs the mutex's whole **close token**, locking a piece of it (below) |
+
+**Closing.** `CloseableMutex` has one more operation than a usual lock:
+its holder can **close** it (a device's unit does, for each state
+operation, to have the device to itself), and while it is closed, `lock`
+**panics**, as does closing it again. The trusted spec states those panics
+as preconditions, the way vstd states a `Vec` index bound: each mutex has
+a **close token**, a fractional ghost handed out whole when the mutex is
+created. Closing requires the whole token (and keeps it until reopened);
+locking requires a piece. So whoever holds a piece knows the mutex is not
+closed. The proof of the code that locks a device, such as a vCPU's
+access, must show where its piece comes from, which in turn needs the
+order in which units stop and start (section 2.3).
 
 How they relate to Verus's own lock, `vstd::rwlock::RwLock<V, Pred>`:
 

@@ -1491,6 +1491,34 @@ Baseline: upstream `nanvix/openvmm` commit
       `SNAPSHOT-SPEC-TRUSTED.md`, the overview's 4.2.2, notes in the
       design doc.
 
+95. **`CloseableMutex`'s panics as preconditions: the close token** (asked
+    by the user, 2026-10-31). A closed `CloseableMutex` panics on `lock`,
+    and closing a closed one panics; the trusted spec said nothing about
+    it, so a verified caller could panic without Verus noticing (as if
+    `Vec` indexing had no bound). Now each mutex has a close token, a
+    `FracGhost<()>` with id `close_id()`:
+    - `new_verified` hands it out whole (returns `(mutex, token)`);
+      `close_verified(m, token)` requires the whole token and the closed
+      guard keeps it (`VerifiedClosedGuard::close_id()`);
+      `VerifiedClosedGuard::release` gives it back (returns
+      `(mutex, token)`); `lock_verified(&self, token)` requires a piece
+      (`token@.id() == close_id()`). Whoever holds a piece knows nobody
+      holds the whole, so the mutex is not closed: neither call can panic.
+      EXECUTABLE in form: the new ghost parameters and results, erased at
+      runtime; only tests call these functions (updated, placeholders
+      marked OUT OF SCOPE). The trusted bodies hand out the token with
+      `Tracked::assume_new()` (marked TRUSTED).
+    - The example: `example_new` returns the token, `example_increment`
+      closes with it and gets it back, new `example_read` locks with a
+      piece (verified; negative check: without the piece, its
+      `lock_verified` call fails).
+    - Who gives the pieces to the code that locks a device (the vCPUs'
+      accesses, the unit's poll) is for the proof of that code; it needs
+      the order in which units stop and start. `inner_add`'s PROOF TODO
+      comment mentions the token.
+    - Docs: `SNAPSHOT-SPEC-TRUSTED.md` (the `CloseableMutex` rows), the
+      overview's 4.2.2 ("Closing"), notes in the design doc.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

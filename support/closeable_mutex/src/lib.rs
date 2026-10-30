@@ -203,6 +203,7 @@ mod tests {
     use crate::CloseableMutex;
     use std::sync::Arc;
     use vstd::prelude::Ghost;
+    use vstd::prelude::Tracked;
 
     #[test]
     fn test_mutex() {
@@ -225,28 +226,30 @@ mod tests {
 
     #[test]
     fn test_verified_guard() {
-        // OUT OF SCOPE: a test (not verified); its ghost parameter is a
-        // placeholder (`assume_new()`).
-        let x = Arc::new(CloseableMutex::new_verified(0, Ghost::assume_new()));
+        // OUT OF SCOPE: a test (not verified); its ghost parameter and
+        // close tokens are placeholders (`assume_new()`).
+        let (x, _token) = CloseableMutex::new_verified(0, Ghost::assume_new());
+        let x = Arc::new(x);
 
         // Released: the mutex is open again.
-        let mut g = CloseableMutex::close_verified(&x);
+        let mut g = CloseableMutex::close_verified(&x, Tracked::assume_new());
         *g.borrow_mut() = 5;
         assert!(x.lock_if_open().is_none());
-        let x = g.release();
+        let (x, _token) = g.release();
         assert_eq!(*x.lock(), 5);
 
         // Dropped without release: the mutex stays closed.
-        drop(CloseableMutex::close_verified(&x));
+        drop(CloseableMutex::close_verified(&x, Tracked::assume_new()));
         assert!(x.lock_if_open().is_none());
     }
 
     #[test]
     fn test_verified_open_guard() {
-        // OUT OF SCOPE: a test (not verified); its ghost parameter is a
-        // placeholder (`assume_new()`).
-        let x = Arc::new(CloseableMutex::new_verified(0, Ghost::assume_new()));
-        let mut g = x.lock_verified();
+        // OUT OF SCOPE: a test (not verified); its ghost parameter and
+        // close token are placeholders (`assume_new()`).
+        let (x, _token) = CloseableMutex::new_verified(0, Ghost::assume_new());
+        let x = Arc::new(x);
+        let mut g = x.lock_verified(Tracked::assume_new());
         *g.borrow_mut() = 5;
         g.release();
         assert_eq!(*x.lock(), 5);

@@ -463,7 +463,12 @@ on the chipset devices, and `stop` / `quiesce_for_save` stop dependants
 first, so the vCPUs stop before any device does and stay stopped until
 `start`. (`CloseableMutex::lock` panics if the mutex is closed, so a vCPU
 access during a unit operation would crash; the design relies on this
-order.)
+order.) *Since code change 95 (user, 2026-10-31)*, the trusted spec states
+those panics as preconditions, like a `Vec` index bound: each mutex has a
+close token; closing requires the whole token, locking a piece of it.
+The proof of the code that locks a device (the vCPUs' accesses, the
+unit) must therefore show where its piece comes from, which needs this
+order.
 
 **Every change to a chipset device goes through its `CloseableMutex`**
 (checked): the device object is stored only inside
@@ -569,7 +574,9 @@ paths, including its I/O handlers.
    code closes with `CloseableMutex::close_verified`, gets the value
    through the guard's `borrow` / `borrow_mut` (a `&mut` with a prophecy
    spec), and reopens with `release`, which requires `inv()` and the key
-   unchanged. A guard dropped without `release` leaves the mutex closed
+   unchanged (since code change 95, closing also requires the mutex's
+   whole close token, and locking a piece of it). A guard dropped without
+   `release` leaves the mutex closed
    (later locks panic): safe, not unsound. The predicate comes from the
    type because `CloseableMutex<T>` has no parameter for one and is created
    by unverified, generic code. No verified `lock` yet: the vCPU paths that
@@ -2615,6 +2622,7 @@ change preserves behavior: same results, same order of effects.
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 | 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
 | 87 | `vmm_core` (`partition_unit.rs`, `partition_unit/snapshot.rs`) | `StopGuard`'s two construction sites are written `StopGuard { 0: self.req_send.clone(), #[cfg(verus_keep_ghost)] 1: .. }` instead of `StopGuard(self.req_send.clone())`: the same value in normal builds (a tuple struct's constructor call cannot take a cfg'd argument; the second field is Verus-only) |
+| 95 | `support/closeable_mutex` (`closeable_mutex_t.rs`, `lib.rs` tests) | `CloseableMutex::new_verified` returns `(mutex, Tracked<FracGhost<()>>)` (the close token); `close_verified(m, token: Tracked<FracGhost<()>>)`; `lock_verified(&self, token: Tracked<&FracGhost<()>>)`; `VerifiedClosedGuard::release` returns `(Arc<..>, Tracked<FracGhost<()>>)`. The tokens are erased at runtime; only tests call these (now with placeholders). Same behavior |
 | 94 | `vmm_core/state_unit` (`mutex_t.rs`), `support/closeable_mutex` (`closeable_mutex_t.rs`, `lib.rs` tests) | the registry mutex's `Mutex::new(v)` moved, same body and signature, out of the `verus!` block (now hidden from Verus); new public `Mutex::new_verified(v, param: Ghost<_>)`; `CloseableMutex::new_verified(value)` gains a ghost parameter, `new_verified(value, param: Ghost<_>)` (erased at runtime; only tests call it, now with `Ghost::assume_new()`). Same behavior |
 | 91 | `vmm_core` (`partition_unit.rs`) | `StopGuard`'s `Drop` sends `StartVps` with `mesh_rpc_verus::send_msg(&self.0, PartitionRequest::StartVps, Tracked::assume_new())` instead of `self.0.send(PartitionRequest::StartVps)` (as in CC 71). Same message, sent at the same moment |
 | 89 | `openvmm_defs` (`rpc.rs`), `openvmm_entry` (`lib.rs`) | new public `openvmm_defs::rpc::vm_rpc_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`), in a `verus!` block; `openvmm_entry` creates `VmRpc`'s channel with it instead of `mesh::channel()`. New cfg'd imports in `rpc.rs`. Same channel |

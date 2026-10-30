@@ -19,6 +19,14 @@
 //! users"); once verified, Verus checks the invariant at each `release` and
 //! at `new_verified`.
 //!
+//! - **Closing, and the panics.** A closed mutex panics on `lock`, and
+//!   closing a closed one panics too. To make "not closed" provable, each
+//!   mutex has a **close token** (a `FracGhost<()>`, id `close_id()`),
+//!   handed out whole by `new_verified`. Closing requires the whole token
+//!   and keeps it in the closed guard until it is reopened, which gives it
+//!   back; locking requires a piece of it. So whoever holds a piece knows
+//!   the mutex is not closed: neither `lock_verified` nor `close_verified`
+//!   can panic.
 //! - Verified code closes the mutex with [`CloseableMutex::close_verified`],
 //!   which gives a [`VerifiedClosedGuard`] whose value satisfies the
 //!   invariant, and reopens it with [`VerifiedClosedGuard::release`], which
@@ -39,6 +47,8 @@ use super::ClosedGuard;
 use super::OpenGuard;
 use std::sync::Arc;
 use vstd::prelude::*;
+use vstd::resource::Loc;
+use vstd::resource::frac::FracGhost;
 
 verus! {
 
@@ -74,27 +84,40 @@ impl<T: ?Sized + LockInvariant> CloseableMutex<T> {
     /// (Also for an unsized value, such as a device seen through a trait
     /// object.)
     pub uninterp spec fn param(&self) -> T::Param;
+
+    /// The id of the mutex's close token: the whole token is needed to
+    /// close the mutex, a piece of it to lock it.
+    pub uninterp spec fn close_id(&self) -> Loc;
 }
 
 impl<T: LockInvariant> CloseableMutex<T> {
     /// Creates a mutex holding `value`, whose invariant has parameter
-    /// `param`.
+    /// `param`, and hands out its whole close token.
     #[verifier::external_body]
     #[allow(unused_variables)]  // the ghost parameter is erased at runtime
-    pub fn new_verified(value: T, param: Ghost<T::Param>) -> (m: Self)
+    pub fn new_verified(value: T, param: Ghost<T::Param>) -> (r: (Self, Tracked<FracGhost<()>>))
         requires
             value.inv(param@),
         ensures
-            m.param() == param@,
+            r.0.param() == param@,
+            r.1@.valid(r.0.close_id(), 1real),
     {
-        CloseableMutex::new(value)
+        // TRUSTED: keep this `assume_new()`. This trusted function's
+        // contract hands out the close token; its body has none to give.
+        (CloseableMutex::new(value), Tracked::assume_new())
     }
 
-    /// Closes the mutex, for verified code. Panics if it is already closed.
+    /// Closes the mutex, for verified code. Requires the whole close token
+    /// (so the mutex is not closed: closing a closed mutex panics), which
+    /// the closed guard keeps until it is reopened.
     #[verifier::external_body]
-    pub fn close_verified(m: &Arc<Self>) -> (g: VerifiedClosedGuard<T>)
+    #[allow(unused_variables)]  // the token is erased at runtime
+    pub fn close_verified(m: &Arc<Self>, token: Tracked<FracGhost<()>>) -> (g: VerifiedClosedGuard<T>)
+        requires
+            token@.valid((**m).close_id(), 1real),
         ensures
             g.param() == (**m).param(),
+            g.close_id() == (**m).close_id(),
             g.value().inv(g.param()),
     {
         VerifiedClosedGuard { guard: Some(m.clone().close()) }
@@ -111,9 +134,14 @@ pub struct VerifiedOpenGuard<'a, T> {
 }
 
 impl<T: LockInvariant> CloseableMutex<T> {
-    /// Locks the mutex, for verified code. Panics if it is closed.
+    /// Locks the mutex, for verified code. Requires a piece of the close
+    /// token, so the mutex is not closed (locking a closed mutex panics):
+    /// nobody else can hold the whole token, which closing needs.
     #[verifier::external_body]
-    pub fn lock_verified(&self) -> (g: VerifiedOpenGuard<'_, T>)
+    #[allow(unused_variables)]  // the token is erased at runtime
+    pub fn lock_verified(&self, token: Tracked<&FracGhost<()>>) -> (g: VerifiedOpenGuard<'_, T>)
+        requires
+            token@.id() == self.close_id(),
         ensures
             g.param() == self.param(),
             g.value().inv(g.param()),
@@ -155,6 +183,9 @@ impl<T: LockInvariant> VerifiedClosedGuard<T> {
     /// The mutex's parameter of its invariant.
     pub uninterp spec fn param(&self) -> T::Param;
 
+    /// The id of the mutex's close token, which the guard keeps.
+    pub uninterp spec fn close_id(&self) -> Loc;
+
     /// The value in the mutex.
     pub uninterp spec fn value(&self) -> T;
 
@@ -178,16 +209,21 @@ impl<T: LockInvariant> VerifiedClosedGuard<T> {
         self.guard.as_mut().unwrap()
     }
 
-    /// Reopens the mutex; requires the invariant.
+    /// Reopens the mutex; requires the invariant. Gives back the whole
+    /// close token.
     #[verifier::external_body]
-    pub fn release(self) -> (m: Arc<CloseableMutex<T>>)
+    pub fn release(self) -> (r: (Arc<CloseableMutex<T>>, Tracked<FracGhost<()>>))
         requires
             self.value().inv(self.param()),
         ensures
-            (*m).param() == self.param(),
+            (*r.0).param() == self.param(),
+            (*r.0).close_id() == self.close_id(),
+            r.1@.valid(self.close_id(), 1real),
     {
         let mut this = self;
-        this.guard.take().unwrap().open()
+        // TRUSTED: keep this `assume_new()`. This trusted function's
+        // contract gives back the close token; its body has none to give.
+        (this.guard.take().unwrap().open(), Tracked::assume_new())
     }
 }
 
