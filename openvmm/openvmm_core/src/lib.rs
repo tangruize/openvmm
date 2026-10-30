@@ -10,7 +10,7 @@
 //! time.
 
 #![forbid(unsafe_code)]
-#![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene))]
+#![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene, sized_hierarchy))]
 
 // Verus requires every verified crate to import vstd.
 #[cfg(verus_keep_ghost)]

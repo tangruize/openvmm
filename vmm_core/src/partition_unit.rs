@@ -79,6 +79,7 @@ mod proof {
 }
 
 /// The control point for managing a partition unit.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct PartitionUnit {
     handle: SpawnedUnit<PartitionUnitRunner>,
     req_send: mesh::Sender<PartitionRequest>,

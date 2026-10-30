@@ -1954,9 +1954,14 @@ TODO, marked in the code): the runner's handling (`handle_snapshot`,
 `StopGuard`, `StopGuard`'s `Drop` sending it back with `StartVps` (it
 sends through `send_msg` since code change 91, the token a placeholder),
 and `PartitionUnit::new`
-creating the channel with the authority's id. Not yet stated: that each
-`LoadedVm`'s boundary guard belongs to its own partition unit (a wf fact
-of `LoadedVm`).
+creating the channel with the authority's id. Each `LoadedVm`'s boundary
+guard belongs to its own partition unit (code change 92): `LoadedVm::wf()`
+says `snapshot_boundary.wf(inner.partition_unit.id())`, i.e. an active
+boundary's `StopGuard` is well formed and sends to that VM's
+`partition_unit` (`StopGuard::partition_id`, `PartitionUnit::id`: the
+request channel's id). For this, `LoadedVmInner` is visible to Verus
+(`verus_verify`), its field types declared by name only. The restore's
+guard (`SnapshotRestore::start_guard`) has no such fact yet.
 
 ### The VM worker's request protocol
 

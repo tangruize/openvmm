@@ -138,6 +138,14 @@ impl View for SnapshotBoundary {
     }
 }
 
+impl SnapshotBoundary {
+    /// Well formed for the partition unit with id `partition`: an active
+    /// boundary's guard is well formed and holds that unit's VPs stopped.
+    pub(super) closed spec fn wf(&self, partition: vstd::resource::Loc) -> bool {
+        self.stop_guard matches Some(g) ==> g.wf() && g.partition_id() == partition
+    }
+}
+
 } // verus!
 
 /// Guest-requested snapshot boundary state of a [`LoadedVm`].

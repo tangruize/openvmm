@@ -962,6 +962,7 @@ struct DynamicVpciDeviceEntry {
 
 /// Most of the VM state for [`LoadedVm`], excluding things that are necessary
 /// for state machine transitions.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct LoadedVmInner {
     driver_source: VmTaskDriverSource,
     resolver: ResourceResolver,

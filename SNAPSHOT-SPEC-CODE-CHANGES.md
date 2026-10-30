@@ -1415,6 +1415,26 @@ Baseline: upstream `nanvix/openvmm` commit
     guard. Checks: `vmm_core` spec-checks; workspace builds; `vmm_core`
     tests pass (40).
 
+92. **`LoadedVm`'s boundary guard belongs to its own partition unit**
+    (asked by the user, 2026-10-30, who chose to make `LoadedVmInner`
+    visible to Verus over a ghost field or moving the field). Verus only.
+    - `LoadedVmInner` is `verus_verify` (was declared by name only), so
+      specs can name its fields; the types of its fields that Verus did
+      not know are declared by name only (`dispatch.proof.rs`: 29 types,
+      among them `GuestMemoryManager`, `ChipsetDevices`, `IgvmFile`,
+      `ProcessorTopology`, the cfg'd `TimeAbiState` and the two VFIO
+      clients), and the traits behind its trait objects and generic
+      fields (`HvlitePartition` with its supertraits `RequestYield` and
+      `MicrovmPartition`, `ArchTopology`, std's `AsRef`; no claims).
+      `openvmm_core` enables `sized_hierarchy` in Verus builds (for
+      `AsRef`'s `PointeeSized` bound). `state_unit` declares
+      `SpawnedUnit`; `vmm_core`'s `PartitionUnit` is `verus_verify`.
+    - New spec functions: `PartitionUnit::id()` (its request channel's
+      id), `StopGuard::partition_id()`, `SnapshotBoundary::wf(partition)`
+      (an active boundary's guard is well formed and holds that
+      partition unit's VPs). `LoadedVm::wf()` adds
+      `snapshot_boundary.wf(inner.partition_unit.id())`.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

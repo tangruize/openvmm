@@ -68,6 +68,13 @@ pub struct ExStateTransitionError(crate::StateTransitionError);
 
 // (`anyhow::Error` is declared in vmcore, `save_restore.proof.rs`.)
 
+/// Declares `SpawnedUnit` to Verus by name only (fields hidden; it is a
+/// field of `LoadedVmInner` and of `PartitionUnit`).
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(T)]
+pub struct ExSpawnedUnit<T>(crate::SpawnedUnit<T>);
+
 #[verifier::external_type_specification]
 pub struct ExSavedStateUnit(crate::SavedStateUnit);
 

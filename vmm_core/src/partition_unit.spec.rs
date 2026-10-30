@@ -5,6 +5,7 @@
 // unit), for human review.
 
 use super::PartitionRequest;
+use super::PartitionUnit;
 use super::PartitionUnitRunner;
 use super::StopGuard;
 use mesh_rpc_verus::ReceiverAdditionalSpecFns;
@@ -135,6 +136,20 @@ impl StopGuard {
     /// (so while it is held, that unit's VPs are stopped).
     pub closed spec fn wf(&self) -> bool {
         self.1@.id() == self.0.constant()
+    }
+
+    /// The partition unit whose VPs the guard holds stopped: the id of its
+    /// request channel (`PartitionUnit::id`).
+    pub closed spec fn partition_id(&self) -> Loc {
+        self.0.constant()
+    }
+}
+
+impl PartitionUnit {
+    /// The id of the partition unit's request channel, which is its
+    /// runner's stop-token authority (`PartitionRequest`'s protocol).
+    pub closed spec fn id(&self) -> Loc {
+        self.req_send.constant()
     }
 }
 
