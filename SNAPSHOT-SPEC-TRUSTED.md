@@ -22,8 +22,8 @@ Uninterpreted spec functions claim nothing by themselves; they are listed
 only where an item gives them meaning.
 
 **Placeholder ghosts.** Every `assume_new()` in the code is marked
-(`PROOF TODO:`, `TRUSTED:`, `WAITS FOR PROTOCOL:`, `OUT OF SCOPE:`; design
-doc, "The completeness audit"). Only the `TRUSTED:` ones are part of the
+(`PROOF TODO:`, `TRUSTED:`, `WAITS FOR PROTOCOL:` (none left since code
+change 89), `OUT OF SCOPE:`; design doc, "The completeness audit"). Only the `TRUSTED:` ones are part of the
 trusted base, through the contracts of the (external-boundary) functions
 they are in; `scripts/verus-spec-audit.py` checks that every one is marked
 and none is in verified code.
@@ -130,6 +130,8 @@ prove this until ...`, naming what it waits for (since 2026-10-30).
 | `validate_inventory` (free function) | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same. |
 | `LoadedVm::quiesce_for_snapshot`, `resume_after_failed_snapshot`, `establish_snapshot_boundary`, `release_snapshot_boundary`, `handle_snapshot_boundary` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). |
 | `StateUnits::resume_after_failed_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. (`QuiesceForSaveError::has_uncertain_state` is verified since 2026-10-30: the error's view is defined from its `uncertain` field.) |
+| Lending the state units' halves (since code change 89): `StateUnits::lend_halves`, `return_halves`; `LoadedVm::lend_unit_halves`, `return_unit_halves` (Verus only) | `vmm_core/state_unit/src/quiesce.rs`; `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (`external_body`, PROOF TODO; design doc, "The VM worker's request protocol"). |
+| `LoadedVm::pause` (since code change 90) | `openvmm/openvmm_core/src/worker/dispatch.rs` | Same (design doc, "Roadmap", step 1). |
 | `LoadedVm::quiesce_and_save`, `LoadedVm::capture_time_abi` | `openvmm/openvmm_core/src/worker/dispatch/microvm.rs` | Same (design doc, "Quiesce and save"). `capture_time_abi`'s contract (the view is unchanged) is a claim about the VPs' timer check and the partition's time records. |
 | `StateUnits::quiesce_for_save` | `vmm_core/state_unit/src/quiesce.rs` | Same. Its `Stop` requests go through the unverified `state_change` path. |
 | `LoadedVm::restore_from_snapshot`, `begin_snapshot_restore`, `finish_snapshot_restore` | `openvmm/openvmm_core/src/worker/dispatch/restore.rs` | Same (design doc, "Restore from snapshot"). |
@@ -209,7 +211,7 @@ work is not lost if vmbus comes back into scope (the user's decision,
 
 | Item | What it is |
 |---|---|
-| Protocols of `VmRpc` and `PartitionRequest` | None assumed. `PartitionRequest`'s protocol is written since 2026-10-30 (design doc, "The partition unit's request protocol"): stop tokens; the time-ABI and boot requests cannot be sent by verified code. `VmRpc`'s `request_ok` is still uninterpreted (the controller layer, roadmap step 3): verified code can neither send it nor learn from it. |
+| Protocols of `VmRpc` and `PartitionRequest` | None assumed. `PartitionRequest`'s protocol is written since 2026-10-30 (design doc, "The partition unit's request protocol"): stop tokens; the time-ABI and boot requests cannot be sent by verified code. `VmRpc`'s protocol is written since code change 89 (design doc, "The VM worker's request protocol"): the snapshot requests move the state units' halves, `Pause` (code change 90) moves nothing, and the other 18 requests cannot be sent by verified code. |
 | Normal-build blanket impl | In a non-Verus build every type implements `MeshProtocol` with `()` ghosts (the trait's spec function is erased). No effect on verification. |
 | Normal-build blanket impl | In a non-Verus build every type implements `MutexPredicate`. No effect on verification. |
 | Normal-build blanket impl | In a non-Verus build every type implements `LockInvariant` (with `Key = ()`). No effect on verification. |
