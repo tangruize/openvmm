@@ -534,7 +534,7 @@ Baseline: upstream `nanvix/openvmm` commit
     `chipset/src/microvm.spec.rs` (`SaveRestoreSpecImpl` for
     `MicrovmShutdown` and `MicrovmSnapshotRequest`: saved state
     `NoSavedState`, `device_wf()` true) and `microvm.proof.rs` (both
-    devices declared as opaque types); a cfg'd `spec` module and `vstd`
+    devices declared by name only (fields hidden)); a cfg'd `spec` module and `vstd`
     import in `microvm.rs`. Both devices' `SaveRestore` impls are
     `verus_verify` and verify against the trait's contract. Their
     `restore` takes `_state` instead of the pattern `NoSavedState`
@@ -613,7 +613,7 @@ Baseline: upstream `nanvix/openvmm` commit
       `BUFFER_MAX`. `MicrovmPortb`, `BUFFER_MAX`, `GENERATION_ID_SIZE`
       get cfg'd `verus_verify`; its `SaveRestore` impl is `verus_verify`
       with `external_body` methods; declared: `MicrovmPortbSavedState`,
-      and as opaque types `PortbTimeAbi`, `MicrovmPortbDrain`,
+      and by name only (fields hidden) `PortbTimeAbi`, `MicrovmPortbDrain`,
       `std::task::Waker`, the traits `SerialIo`, `futures::AsyncRead`,
       `futures::AsyncWrite`. Executable: `chipset` gets the dependency
       `mesh_rpc_verus` (its declarations of `mesh::Receiver` and `Rpc`),
@@ -627,7 +627,7 @@ Baseline: upstream `nanvix/openvmm` commit
       `IrqEntry`, `RedirectionEntry` (with a closed `bits()` accessor in
       the register module) and the saved `SavedState` get cfg'd
       `verus_verify`; its `SaveRestore` impl is `verus_verify` with
-      `external_body` methods; declared: `IndexRegister`, and as opaque
+      `external_body` methods; declared: `IndexRegister`, and by name only
       `IoApicStats` and the trait `IoApicRouting`.
     - Rule (user, 2026-10-27): a saved-state type's view is its meaning,
       what `restore` makes of it; both IOAPIC normalizations are
@@ -686,7 +686,7 @@ Baseline: upstream `nanvix/openvmm` commit
     `MmioTransport` get cfg'd `verus_verify`; the `SaveRestore` impl is
     `verus_verify` with `external_body` methods. Declared: the transport
     core, `QueueData`, `QueueParams`, `QueueState`, the saved-state types
-    (transparent), and as opaque types `TransportRestore`, the feature and
+    (transparent), and by name only (fields hidden) `TransportRestore`, the feature and
     status bitfields, `DeviceCommand`, `TransportState`, `VirtioDoorbells`,
     `StalledIo`, `InterruptState`, `InterruptAck`, `GuestMemory`,
     `DeferredWrite`, `pal_event::Event`, `async_task::Task`,
@@ -721,7 +721,7 @@ Baseline: upstream `nanvix/openvmm` commit
     inside `save_restore`; `state::Partition` and `state::Vp` get cfg'd
     `verus_verify`. Trusted accessors: `VpSet::saved_vps` (until the VP
     layer), `PartitionSavedView::encode_halt`. Declared: the trait
-    `VmPartition`, and as opaque `VpSet`, `InternalHaltReason`,
+    `VmPartition`, and by name only `VpSet`, `InternalHaltReason`,
     `Topology`, `InitialRegs`, and `HaltReason` (moved here from
     `openvmm_core`'s `dispatch.proof.rs`). Executable: the runner's
     `topology` field is wrapped in a new private struct `Topology` (built
@@ -770,8 +770,8 @@ Baseline: upstream `nanvix/openvmm` commit
 59. **The hypervisor boundary** (Verus only; no executable change; design
     doc, "The hypervisor boundary"). `state_trait!`
     (`vmm_core/virt/src/state.rs`) emits, under `cfg(verus_keep_ghost)`,
-    a module `state_spec` per invocation: the element types declared as
-    opaque, closed spec accessors on the saved-state type (`$get()`,
+    a module `state_spec` per invocation: the element types declared by
+    name only, closed spec accessors on the saved-state type (`$get()`,
     `$set(v)`), and the trait's `external_trait_specification` with the
     extension `StateAccessSpec` (`hv_state()`, uninterpreted; trusted
     contracts on each getter, setter, and `commit`). The saved-state
@@ -883,7 +883,7 @@ Baseline: upstream `nanvix/openvmm` commit
     `partition_unit.spec.rs`: the trusted, uninterpreted
     `VpSet::saved_vps()` is replaced by `VpSetView::saved_vps()`, defined
     from `VpSet`'s halves; `partition_unit.proof.rs` no longer declares
-    `VpSet` opaque. `openvmm_core`'s `dispatch.proof.rs` no longer
+    `VpSet` by name only. `openvmm_core`'s `dispatch.proof.rs` no longer
     declares `mesh::RecvError` (now declared in `vmm_core`, upstream; two
     declarations are an error).
 
@@ -902,7 +902,7 @@ Baseline: upstream `nanvix/openvmm` commit
     dependency `vstd` (`Cargo.lock`), new `build.rs` (declares the
     `verus_keep_ghost` cfg). Verus only: a cfg'd module
     `verus_declarations` at the end of `lib.rs` declares `GuestMemory` to
-    Verus (opaque), once for every crate that names it. virtio's
+    Verus (by name only), once for every crate that names it. virtio's
     declaration (`transport/mmio.proof.rs`) is removed: two declarations
     of a type crash Verus. With it, `VpSet::new` gets its contract
     (`external_body`): `wf()`, not started, no VPs (code change 65 had
@@ -1087,7 +1087,7 @@ Baseline: upstream `nanvix/openvmm` commit
     `ArcMutexChipsetDeviceUnit::inspect_mut` (likewise); `state_unit`'s
     `UnitHandle::remove_if`, `Inspect` for `StateUnits` and
     `StateUnitsInspector`, `StateUnits::run_op`, `run_input_op`,
-    `start_with_rollback`. Declared to Verus (opaque) for their
+    `start_with_rollback`. Declared to Verus (by name only) for their
     signatures: `IoRanges`, `LookupResult`, `LineSetTargetDevice`,
     `PciConflict`, `ArcMutexChipsetServices`, `FinalizeError`
     (`vmotherboard`, next to their definitions); `UnitHandle`,
@@ -1110,7 +1110,7 @@ Baseline: upstream `nanvix/openvmm` commit
     statements, same order; `#[instrument(.. fields(device =
     self.dev_name ..))]` still reads the parameter `self`. The four are
     then `verus_verify(external_body)` (no contract, to prove); declared
-    to Verus (opaque) for their signatures: `UnitBuilder`, `NameInUse`
+    to Verus (by name only) for their signatures: `UnitBuilder`, `NameInUse`
     (`state_unit`'s `lib.proof.rs`), `ArcMutexChipsetDeviceBuilder`,
     `AddDeviceError` (next to their definitions), and the trait
     `address_filter::RangeKey` (for `IoRanges::lookup`'s `impl`).
@@ -1146,7 +1146,7 @@ Baseline: upstream `nanvix/openvmm` commit
     - `QuiesceForSaveError` (`state_unit`, `quiesce.rs`): the struct is
       `verus_verify` (with `verifier::external_derive`); its view, next to
       it, is `uncertain: self.uncertain`. `has_uncertain_state` is now
-      **verified** (its body was `external_body`). Its opaque declaration
+      **verified** (its body was `external_body`). Its by-name-only declaration
       in `lib.proof.rs` is removed.
     - `SnapshotRestore` (`openvmm_core`, `dispatch/restore.rs`): the
       struct is `verus_verify`; view `clock_restore_pending:
@@ -1300,7 +1300,7 @@ Baseline: upstream `nanvix/openvmm` commit
       constant; one outstanding token per stop reference; the VPs are
       stopped while any is outstanding.
     - `StopGuard` gets a Verus-only second field, its stop token, and is
-      `verus_verify` (its opaque declaration removed); `StopGuard::wf()`.
+      `verus_verify` (its by-name-only declaration removed); `StopGuard::wf()`.
       Its two construction sites (`temporarily_stop_vps`,
       `temporarily_stop_vps_at_io_boundary`) are written
       `StopGuard { 0: .., #[cfg(verus_keep_ghost)] 1: .. }` instead of
@@ -1333,6 +1333,64 @@ Baseline: upstream `nanvix/openvmm` commit
     3 remain, rustc's "negative impls are experimental" (`impl !Sync` /
     `!Send` in vstd's `invariant.rs` and `thread.rs`), which are not lints.
     README: "vstd patches".
+
+89. **`VmRpc`'s protocol: the state units' halves go to the controller**
+    (decided by the user, 2026-10-30; design doc, "The VM worker's
+    request protocol"). After a `QuiesceForSnapshot` that leaves the units
+    stopped, the worker lends the state units' halves to the controller;
+    `ResumeAfterFailedSnapshot` brings them back. While the controller
+    holds them, no unit can change its state.
+    - `VmRpc`'s channel is created through the mesh RPC wrapper: new
+      `openvmm_defs::rpc::vm_rpc_channel()` (normal builds:
+      `mesh::channel()`, through `mesh_rpc_verus::channel`), called in
+      `openvmm_entry`'s `lib.rs` instead of `mesh::channel()`
+      (EXECUTABLE: the same channel). In Verus builds it creates the
+      protocol's ledger (a `GhostVarAuth` / `GhostVar` pair, no units
+      lent), attached to the receiver; the channel's constant is its id.
+      Verified. New imports in `rpc.rs`: `vstd::prelude::Ghost` and
+      `Tracked` in normal builds, the rest cfg'd. A new trust-base row
+      (`SNAPSHOT-SPEC-TRUSTED.md`, mesh): the receiver reaches the VM
+      worker through its launch parameters, possibly in another process,
+      with its constant and attached ghost.
+    - `openvmm_defs` (`rpc.spec.rs`): the protocol (`request_ok` was
+      uninterpreted); `SnapshotHalves` (the halves with the ledger's
+      `GhostVar`); `VmRpc` declared with its variants (was declared by
+      name only), so the protocol can `match` on it: all 22 variants
+      listed, the 19 not specified mapped to `false` (`Pause`, `Resume`,
+      `Reset` next). The types inside its variants that Verus did not
+      know are declared by name only (`external_body`, no claims):
+      `DeviceVtl`, `PulseSaveRestoreError`, `Guid`, `CancelContext`,
+      `File`, `UnixStream`, `Resource` (and its trait `ResourceKind`), the
+      two handle kinds. `File`'s declaration moves here from `openvmm_core`'s
+      `dispatch.proof.rs` (Verus allows one).
+    - `state_unit`: the view gains `missing_halves` (the collected units
+      whose half `StateUnits` does not hold) and `holds_halves()`. `wf()`
+      no longer says "stopped ⇒ holds every half" (false while lent):
+      `stop` and `quiesce_for_save` ensure `holds_halves()`; `reset`,
+      `restore`, `advance_time`, `resume_after_failed_save` require and
+      keep it. `collect_halves` (verified) ensures no half goes missing,
+      its proof adjusted. New `LentHalves` (spec) and the Verus-only
+      `StateUnits::lend_halves` / `return_halves` (`external_body`,
+      PROOF TODO).
+    - `openvmm_core`: `LoadedVm`'s view gains `runtime.missing_halves`;
+      `load` ensures the halves are held; `restore`,
+      `restore_from_snapshot`, `finish_snapshot_restore`,
+      `time_abi_restore`, `resume_after_failed_snapshot` require it;
+      `quiesce_and_save` and `quiesce_for_snapshot` ensure it on `Ok` and
+      `RollbackSafe`; `establish_snapshot_boundary`,
+      `release_snapshot_boundary`, `handle_snapshot_boundary` keep the
+      halves where they are. Verus-only `LoadedVm::lend_unit_halves` /
+      `return_unit_halves` (`external_body`, PROOF TODO), for the request
+      loop.
+    - Markers: the 6 `VmRpc` placeholders (the worker's request loop, the
+      controller) change from WAITS FOR PROTOCOL to PROOF TODO, naming the
+      ghosts to pass.
+    - Wording (comments and docs only; the user: misleading next to
+      Verus's `opaque` keyword, which hides a spec function's body): a type
+      declared with `external_type_specification` + `external_body` is
+      now called "declared by name only (fields hidden)", not "opaque",
+      in all our comments and docs (87 lines). OpenVMM's own uses of the
+      word are unchanged.
 
 ### Planned: mesh RPC trusted spec
 

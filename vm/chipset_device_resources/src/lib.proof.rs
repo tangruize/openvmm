@@ -35,7 +35,7 @@ pub(crate) trait ExDynChipsetDevice: chipset_device::ChipsetDevice + vmcore::sav
     type ExternalTraitSpecificationFor: DynChipsetDevice;
 }
 
-/// The PCI configuration-space types, declared to Verus as opaque types
+/// The PCI configuration-space types, declared to Verus by name only (fields hidden)
 /// (for `vmotherboard`'s PCI dispatch, which is `external_body`).
 #[verifier::external_type_specification]
 #[verifier::external_body]

@@ -2968,7 +2968,9 @@ async fn run_control_inner(
     };
 
     // spin up the VM
-    let (vm_rpc, rpc_recv) = mesh::channel();
+    // Through the mesh RPC wrapper, which in Verus builds also creates the
+    // ledger of `VmRpc`'s protocol (attached to `rpc_recv`, for the worker).
+    let (vm_rpc, rpc_recv) = openvmm_defs::rpc::vm_rpc_channel();
     let (notify_send, notify_recv) = mesh::channel();
     let (snapshot_boundary_requests, snapshot_ready, snapshot_requests) =
         microvm.snapshot_channels();

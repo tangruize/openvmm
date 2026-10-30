@@ -8,6 +8,7 @@ use super::microvm::SnapshotBoundary;
 use super::restore::SnapshotRestore;
 use openvmm_defs::worker::spec::SavedStateView;
 use vstd::prelude::*;
+use vstd::resource::Loc;
 
 verus! {
 
@@ -42,6 +43,18 @@ pub struct VmRuntime {
     /// held stopped at an I/O boundary and host input is gated, until the
     /// boundary is released.
     pub snapshot_boundary: bool,
+    /// The state units whose half the state units do not hold
+    /// (`StateUnitsView::missing_halves`): while running, the running
+    /// units; while stopped, none, unless they are lent to the controller
+    /// with a snapshot (`VmRpc`'s protocol).
+    pub missing_halves: Map<u64, (Seq<char>, Loc, bool)>,
+}
+
+impl VmRuntime {
+    /// The state units hold every unit's half (none missing).
+    pub open spec fn holds_halves(self) -> bool {
+        self.missing_halves.dom().is_empty()
+    }
 }
 
 /// The view of a `SnapshotRestore`.
@@ -87,6 +100,7 @@ impl View for LoadedVm {
             runtime: VmRuntime {
                 running: units.running,
                 snapshot_boundary: self.snapshot_boundary@.active,
+                missing_halves: units.missing_halves,
             },
         }
     }

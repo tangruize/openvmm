@@ -2710,7 +2710,7 @@ mod tests {
     }
 }
 
-/// Declares `GuestMemory` to Verus, as an opaque type, once for every
+/// Declares `GuestMemory` to Verus, by name only (fields hidden), once for every
 /// crate that names it (virtio, vmm_core).
 #[cfg(verus_keep_ghost)]
 mod verus_declarations {

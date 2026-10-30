@@ -985,6 +985,8 @@ impl LoadedVm {
         requires
             old(self).wf(),
             !old(self)@.runtime.running,
+            // It advances the state units' time (`StateUnits::advance_time`).
+            old(self)@.runtime.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,

@@ -46,9 +46,9 @@ pub struct ExSavedTimerState(SavedTimerState);
 #[verifier::external_type_specification]
 pub struct ExSavedCountState(SavedCountState);
 
-// Runtime glue and time, as opaque types.
+// Runtime glue and time, by name only (fields hidden).
 
-/// Declares `std::task::Context` to Verus, as an opaque type (the PIT's
+/// Declares `std::task::Context` to Verus, by name only (fields hidden; the PIT's
 /// `poll` takes one).
 #[verifier::external_type_specification]
 #[verifier::external_body]

@@ -20,7 +20,7 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExSavedState(SavedState);
 
-// The types of the RTC's other fields, as opaque types (`LineInterrupt`
+// The types of the RTC's other fields, by name only (fields hidden; `LineInterrupt`
 // and `VmTimeAccess` are declared with the PIT).
 
 #[verifier::external_type_specification]

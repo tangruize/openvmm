@@ -12,17 +12,17 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Declares `SavedStateBlob` to Verus, as an opaque type.
+/// Declares `SavedStateBlob` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExSavedStateBlob(SavedStateBlob);
 
-/// Declares `SaveError` to Verus, as an opaque type.
+/// Declares `SaveError` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExSaveError(SaveError);
 
-/// Declares `RestoreError` to Verus, as an opaque type.
+/// Declares `RestoreError` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExRestoreError(RestoreError);

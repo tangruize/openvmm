@@ -11,12 +11,12 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExVtl(Vtl);
 
-/// Declares `InitialVpStateSource` to Verus, as an opaque type.
+/// Declares `InitialVpStateSource` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExInitialVpStateSource(super::InitialVpStateSource);
 
-/// Declares `InitialPageImport` to Verus, as an opaque type.
+/// Declares `InitialPageImport` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExInitialPageImport(super::InitialPageImport);

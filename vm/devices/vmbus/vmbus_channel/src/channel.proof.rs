@@ -31,14 +31,14 @@ pub trait ExIntoAny {
 #[verifier::external_type_specification]
 pub(crate) struct ExStateRequest(StateRequest);
 
-/// Declares `ChannelHandle` to Verus, as an opaque type (its
+/// Declares `ChannelHandle` to Verus, by name only (fields hidden; its
 /// `PhantomData<fn() -> Box<T>>` field is not supported).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub struct ExChannelHandle<T: ?Sized>(super::ChannelHandle<T>);
 
-/// Declares the channel task's state (`Device`) to Verus, as an opaque type.
+/// Declares the channel task's state (`Device`) to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(crate) struct ExDevice(super::Device);
@@ -55,7 +55,7 @@ pub trait ExSpawn: Send + Sync {
     type ExternalTraitSpecificationFor: pal_async::task::Spawn;
 }
 
-/// Declares `GenericChannelHandle` to Verus, as an opaque type.
+/// Declares `GenericChannelHandle` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(crate) struct ExGenericChannelHandle(super::GenericChannelHandle);

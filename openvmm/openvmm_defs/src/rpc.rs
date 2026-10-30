@@ -33,6 +33,40 @@ mod trusted {
     include!("rpc_t.rs");
 }
 
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::ReceiverAdditionalSpecFns;
+#[cfg(verus_keep_ghost)]
+use mesh_rpc_verus::SenderAdditionalSpecFns;
+#[cfg(not(verus_keep_ghost))]
+use vstd::prelude::Ghost;
+#[cfg(not(verus_keep_ghost))]
+use vstd::prelude::Tracked;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::Loc;
+#[cfg(verus_keep_ghost)]
+use vstd::resource::ghost_var::GhostVarAuth;
+
+vstd::prelude::verus! {
+
+/// Creates the VM worker's RPC channel (`VmController` to the worker). In
+/// Verus builds it also creates the ledger of `VmRpc`'s protocol, recording
+/// no lent halves, and attaches both its pieces to the receiver (the worker
+/// takes them); the channel's constant is the ledger's id.
+pub fn vm_rpc_channel() -> (result: (mesh::Sender<VmRpc>, mesh::Receiver<VmRpc>))
+    ensures
+        result.0.constant() == result.1.constant(),
+        result.1.attached() matches Some((auth, var)) && auth.id() == result.1.constant()
+            && var.id() == auth.id() && auth@ == Map::<u64, (Seq<char>, Loc, bool)>::empty(),
+{
+    let tracked (auth, var) = GhostVarAuth::<Map<u64, (Seq<char>, Loc, bool)>>::new(Map::empty());
+    let ghost id = auth.id();
+    mesh_rpc_verus::channel(Ghost(id), Tracked(()), Tracked((auth, var)))
+}
+
+} // verus!
+
 #[derive(MeshPayload)]
 pub enum VmRpc {
     Save(FailableRpc<(), ProtobufMessage>),

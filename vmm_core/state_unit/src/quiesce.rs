@@ -128,10 +128,14 @@ impl StateUnits {
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
             final(self)@.units.dom() == old(self)@.units.dom(),
-            // On success the units are stopped and each has recorded its
-            // state (each received `Stop`); on failure they are still
-            // marked running.
-            result is Ok ==> !final(self)@.running && final(self)@.all_recorded(),
+            // On success the units are stopped, each has recorded its state
+            // and given back its half (each received `Stop`); on failure
+            // they are still marked running.
+            result is Ok ==> {
+                &&& !final(self)@.running
+                &&& final(self)@.all_recorded()
+                &&& final(self)@.holds_halves()
+            },
             result is Err ==> final(self)@.running,
             // Every failure is uncertain: a unit fails only when its `Stop`
             // fails or times out (uncertain), or when a unit depending on it
@@ -237,6 +241,8 @@ impl StateUnits {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             old(self).wf(),
+            // It holds the halves it gives back to the units (none lent).
+            old(self)@.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.inventory == old(self)@.inventory,
@@ -337,4 +343,69 @@ impl StateUnits {
         self.running = true;
         Ok(())
     }
+}
+
+/// Lending the units' halves (Verus only). A stopped `StateUnits` lends all
+/// its halves to whoever must know that no unit changes its state until they
+/// come back: the VM worker lends them to the VM controller with a snapshot
+/// (`VmRpc`'s protocol). While they are out, `StateUnits` holds none
+/// (`missing_halves` is every unit), so it cannot restart, reset, restore,
+/// or save the units.
+#[cfg(verus_keep_ghost)]
+#[verus_verify]
+impl StateUnits {
+    /// Lends out every unit's half. The units, stopped, keep their own
+    /// halves; the view no longer knows what they record (`Unknown`); the
+    /// lent halves record what it knew.
+    #[verus_verify(external_body)]
+    #[verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.running,
+            old(self)@.holds_halves(),
+        ensures
+            final(self).wf(),
+            final(self)@.running == old(self)@.running,
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.units == old(self)@.units.map_values(
+                |snapshot: crate::spec::UnitSnapshot| crate::spec::UnitSnapshot::Unknown,
+            ),
+            result@.wf(),
+            final(self)@.missing_halves == result@.units,
+            result@.records() == old(self)@.units,
+    )]
+    pub fn lend_halves(&mut self) -> Tracked<crate::spec::LentHalves> {
+        // PROOF TODO: replace this placeholder (`assume_new()`) with the
+        // real ghost: the halves taken out of `units_ghost`, with their
+        // entries in its registry.
+        Tracked::assume_new()
+    }
+
+    /// Takes back lent halves: those of the units missing their half (the
+    /// lent ones still collected; the halves of units removed since are
+    /// dropped). Afterwards it holds every unit's half, and the returned
+    /// units record what their halves record.
+    #[verus_verify(external_body)]
+    #[verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.running,
+            lent@.wf(),
+            old(self)@.missing_halves.submap_of(lent@.units),
+        ensures
+            final(self).wf(),
+            final(self)@.running == old(self)@.running,
+            final(self)@.inventory == old(self)@.inventory,
+            final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.holds_halves(),
+            final(self)@.units == old(self)@.units.union_prefer_right(
+                lent@.records().restrict(
+                    old(self)@.missing_halves.values().map(
+                        |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0,
+                    ),
+                ),
+            ),
+    )]
+    pub fn return_halves(&mut self, lent: Tracked<crate::spec::LentHalves>) {}
 }

@@ -13,7 +13,7 @@ use vstd::prelude::*;
 
 verus! {
 
-// The devices, as opaque types: their saved state does not depend on their
+// The devices, by name only (fields hidden): their saved state does not depend on their
 // fields.
 
 #[verifier::external_type_specification]
@@ -29,7 +29,7 @@ pub struct ExMicrovmSnapshotRequest(MicrovmSnapshotRequest);
 #[verifier::external_type_specification]
 pub struct ExMicrovmPortbSavedState(MicrovmPortbSavedState);
 
-// The types of portb's other fields, as opaque types (`mesh::Receiver` and
+// The types of portb's other fields, by name only (fields hidden; `mesh::Receiver` and
 // `Rpc` are declared in `mesh_rpc_verus`, `Waker` in vmcore).
 
 #[verifier::external_type_specification]

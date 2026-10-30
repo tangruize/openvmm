@@ -229,6 +229,7 @@ impl LoadedVm {
             final(self)@.snapshot == old(self)@.snapshot,
             final(self)@.recorded == old(self)@.recorded,
             final(self)@.runtime.running == old(self)@.runtime.running,
+            final(self)@.runtime.missing_halves == old(self)@.runtime.missing_halves,
             // An active boundary stays active; a new one only on success.
             old(self)@.runtime.snapshot_boundary ==> final(self)@.runtime.snapshot_boundary,
             final(self)@.runtime.snapshot_boundary && !old(self)@.runtime.snapshot_boundary ==> result,
@@ -329,6 +330,7 @@ impl LoadedVm {
             final(self)@.snapshot == old(self)@.snapshot,
             final(self)@.recorded == old(self)@.recorded,
             final(self)@.runtime.running == old(self)@.runtime.running,
+            final(self)@.runtime.missing_halves == old(self)@.runtime.missing_halves,
             result is Ok ==> !final(self)@.runtime.snapshot_boundary,
     ))]
     pub(super) async fn release_snapshot_boundary(&mut self) -> anyhow::Result<()> {
@@ -376,6 +378,7 @@ impl LoadedVm {
             result matches Ok(response) ==> {
                 &&& !final(self)@.runtime.running
                 &&& final(self)@.recorded
+                &&& final(self)@.runtime.holds_halves()
                 &&& exists|saved: openvmm_defs::worker::SavedState|
                     saved.wf() && saved@ == final(self)@.snapshot
                         && #[trigger] openvmm_defs::rpc::spec::ProtobufMessageView::of(saved)
@@ -392,7 +395,8 @@ impl LoadedVm {
             // them. After an uncertain failure nothing more is promised;
             // the VM must be terminated.
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
-                ==> !final(self)@.runtime.running && final(self)@.recorded,
+                ==> !final(self)@.runtime.running && final(self)@.recorded
+                    && final(self)@.runtime.holds_halves(),
     ))]
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
@@ -450,6 +454,7 @@ impl LoadedVm {
             result matches Ok((saved, _time)) ==> {
                 &&& !final(self)@.runtime.running
                 &&& final(self)@.recorded
+                &&& final(self)@.runtime.holds_halves()
                 &&& saved.wf()
                 &&& saved@ == final(self)@.snapshot
             },
@@ -462,7 +467,8 @@ impl LoadedVm {
             // them. After an uncertain failure nothing more is promised;
             // the VM must be terminated.
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
-                ==> !final(self)@.runtime.running && final(self)@.recorded,
+                ==> !final(self)@.runtime.running && final(self)@.recorded
+                    && final(self)@.runtime.holds_halves(),
     ))]
     pub(super) async fn quiesce_and_save(
         &mut self,
@@ -558,6 +564,9 @@ impl LoadedVm {
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             old(self).wf(),
+            // The state units hold the halves to give back to the units
+            // (the controller has returned them).
+            old(self)@.runtime.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
@@ -590,6 +599,10 @@ impl LoadedVm {
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             // When the worker must stop, the VM has been stopped.
             !result ==> !final(self)@.runtime.running,
+            // The halves stay where they are, unless the running units are
+            // stopped here (they give back their halves).
+            final(self)@.runtime.missing_halves == old(self)@.runtime.missing_halves
+                || (old(self)@.runtime.running && final(self)@.runtime.holds_halves()),
     ))]
     pub(super) async fn handle_snapshot_boundary(&mut self, event: SnapshotBoundaryEvent) -> bool {
         match event {
@@ -646,6 +659,65 @@ impl LoadedVm {
             message => Some(message),
         }
     }
+}
+
+/// Lending the state units' halves to the controller with a snapshot, and
+/// taking them back for a rollback (Verus only; `VmRpc`'s protocol, design
+/// doc "The VM worker's request protocol"). The worker's request loop
+/// (`LoadedVm::run`) lends them after a `QuiesceForSnapshot` that leaves the
+/// units stopped (`Ok`, `RollbackSafe`), and takes them back when
+/// `ResumeAfterFailedSnapshot` brings them, before restarting the units.
+#[cfg(verus_keep_ghost)]
+#[verus_verify]
+impl LoadedVm {
+    /// Lends out the state units' halves (`StateUnits::lend_halves`): they
+    /// record the VM's snapshot state; the VM, stopped, no longer knows it.
+    #[verus_verify(external_body)]
+    #[verus_spec(result =>
+        requires
+            old(self).wf(),
+            !old(self)@.runtime.running,
+            old(self)@.runtime.holds_halves(),
+        ensures
+            final(self).wf(),
+            final(self)@.runtime.running == old(self)@.runtime.running,
+            final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary,
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            result@.wf(),
+            final(self)@.runtime.missing_halves == result@.units,
+            result@.saved_units() == old(self)@.snapshot.units,
+    )]
+    pub(super) fn lend_unit_halves(&mut self) -> Tracked<state_unit::spec::LentHalves> {
+        // PROOF TODO: replace this placeholder (`assume_new()`) with the
+        // real ghost: `self.state_units.lend_halves()`.
+        Tracked::assume_new()
+    }
+
+    /// Takes back lent halves (`StateUnits::return_halves`): afterwards the
+    /// state units hold every half again, and the returned units record
+    /// what their halves record.
+    #[verus_verify(external_body)]
+    #[verus_spec(
+        requires
+            old(self).wf(),
+            !old(self)@.runtime.running,
+            lent@.wf(),
+            old(self)@.runtime.missing_halves.submap_of(lent@.units),
+        ensures
+            final(self).wf(),
+            final(self)@.runtime.running == old(self)@.runtime.running,
+            final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary,
+            final(self)@.runtime.holds_halves(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.snapshot.units == old(self)@.snapshot.units.union_prefer_right(
+                lent@.saved_units().restrict(
+                    old(self)@.runtime.missing_halves.values().map(
+                        |entry: (Seq<char>, vstd::resource::Loc, bool)| entry.0,
+                    ),
+                ),
+            ),
+    )]
+    pub(super) fn return_unit_halves(&mut self, lent: Tracked<state_unit::spec::LentHalves>) {}
 }
 
 fn virtio_mmio_config(

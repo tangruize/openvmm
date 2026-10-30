@@ -16,8 +16,8 @@ Every new item must be added to the right part. Design rationale is in
 `SNAPSHOT-SPEC-CODE-CHANGES.md`.
 
 Not listed: `external_type_specification` declarations (`Ex...` proxies).
-Transparent ones are checked by Verus against the real type; opaque ones
-(`external_body`) only declare that a type exists and claim nothing.
+Transparent ones are checked by Verus against the real type; those by
+name only (`external_body`, fields hidden) only declare that a type exists and claim nothing.
 Uninterpreted spec functions claim nothing by themselves; they are listed
 only where an item gives them meaning.
 
@@ -73,6 +73,7 @@ contracts are assumptions about mesh. See the file header, and
 | `split`, `complete` | `split` returns the `Rpc`'s input (`Rpc::spec_input()`, uninterpreted: the input `call` put in it) and keeps its reply contract; `complete` requires the reply contract. |
 | Reply ghost type | `Rpc::reply_ok::<G>` is uninterpreted for every `G`; the only facts about it come from `call`, for `G = M::GhostOut`. Argument that a mismatched type cannot be used: file header. **Needs soundness review.** |
 | Attached ghosts | `channel(k, gs, gr)` attaches `gs`/`gr` to the ends; `take_sender_ghost` / `take_receiver_ghost` return them once; `clone_sender` carries none; `recv_msg` keeps the receiver's. |
+| An end passed to the VM worker (since code change 89) | `VmRpc`'s receiver, created by `vm_rpc_channel` with the protocol's ledger attached, reaches the VM worker through its launch parameters (`VmWorkerParameters`, sent by `mesh_worker`, possibly to another process). Assumed: it arrives as the same end, with its constant and its attached ghost, and messages on it are delivered as for an in-process channel (row "Delivery"). |
 
 ## The lock's runtime (`vmm_core/state_unit/src/mutex_t.rs`)
 

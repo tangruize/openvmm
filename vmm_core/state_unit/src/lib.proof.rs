@@ -31,7 +31,7 @@ pub(crate) struct ExInner(Inner);
 #[verifier::external_type_specification]
 pub(crate) struct ExUnit(Unit);
 
-/// Declared opaque (for their `external_body` functions, which lock the
+/// Declared by name only (for their `external_body` functions, which lock the
 /// registry).
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -320,13 +320,16 @@ impl StateUnits {
     /// Collects the halves of the units registered since the last
     /// collection, and forgets the units removed since: afterwards
     /// `StateUnits`' ghost state covers exactly the registered units. Ghost
-    /// only (its call sites are Verus-only); it locks the registry.
+    /// only (its call sites are Verus-only); it locks the registry. No half
+    /// goes missing: the units whose half is missing afterwards were missing
+    /// it before, with the same entry.
     pub fn collect_halves(&mut self)
         requires
             old(self).wf(),
         ensures
             final(self).wf(),
             final(self)@.running == old(self)@.running,
+            final(self)@.missing_halves.submap_of(old(self)@.missing_halves),
     {
         let (mut inner, handle) = self.inner.acquire();
         proof {
@@ -363,16 +366,18 @@ impl StateUnits {
                     assert(old_registry[id] == entries[id]);
                 }
             }
-            if !self.running {
-                assert forall|id: u64| #[trigger] entries.contains_key(id)
-                    implies ug.halves.contains_key(id) by {
-                    if !pending.contains_key(id) {
-                        assert(old_registry.contains_key(id));
-                        assert(old_halves.contains_key(id));
-                    }
-                }
-                assert(ug.halves.dom() =~= entries.dom());
+            // A unit missing its half now was collected before, missing its
+            // half, with the same entry (a unit registered since has its half
+            // taken here; a collected unit keeps its half).
+            assert forall|id: u64| #[trigger] entries.contains_key(id) && !ug.halves.contains_key(id)
+                implies old_registry.contains_key(id) && !old_halves.contains_key(id)
+                    && old_registry[id] == entries[id] by {
+                assert(!pending.contains_key(id));
+                assert(old_registry.contains_key(id));
             }
+            assert(entries.remove_keys(ug.halves.dom()).submap_of(
+                old_registry.remove_keys(old_halves.dom()),
+            ));
             assert forall|a: u64, b: u64|
                 #[trigger] entries.contains_key(a) && #[trigger] entries.contains_key(b) && a != b
                     implies entries[a].0 != entries[b].0 by {

@@ -24,7 +24,7 @@ pub trait ExVmPartition: 'static + Send + Sync + inspect::InspectMut + vmcore::s
 #[verifier::external_body]
 pub(super) struct ExInternalHaltReason(InternalHaltReason);
 
-/// Declares `HaltReason` to Verus, as an opaque type (here, for the
+/// Declares `HaltReason` to Verus, by name only (fields hidden; here, for the
 /// partition unit and its users, `openvmm_core`).
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -40,7 +40,7 @@ pub struct ExInitialRegs(InitialRegs);
 
 // (`StopGuard` is `verus_verify` itself, `partition_unit.rs`.)
 
-/// The partition requests' error types, declared to Verus as opaque types
+/// The partition requests' error types, declared to Verus by name only (fields hidden)
 /// (`PartitionRequest`'s variants).
 #[verifier::external_type_specification]
 #[verifier::external_body]

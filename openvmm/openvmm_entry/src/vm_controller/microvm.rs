@@ -242,15 +242,16 @@ impl VmController {
             }
         }
 
-        // Through the mesh RPC wrapper, with placeholder ghosts (`VmRpc`'s
-        // protocol is not yet specified).
+        // Through the mesh RPC wrapper, with placeholder ghosts until this
+        // code is verified (`VmRpc`'s protocol, `openvmm_defs`).
         let response = match mesh_rpc_verus::call(
             &self.vm_rpc,
             VmRpc::QuiesceForSnapshot,
             self.microvm.snapshot_quiesce_timeout,
-            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
-            // not yet specified); then replace these `assume_new()`s with the ghosts
-            // it defines, when this code is verified.
+            // PROOF TODO: replace these `assume_new()`s with the ghosts of
+            // `VmRpc`'s protocol, when this code is verified: send `None`; expect
+            // the protocol's reply; keep the reply's halves (`_ghost` below) for
+            // `rollback_failed_guest_snapshot`.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -527,9 +528,9 @@ impl VmController {
             &self.vm_rpc,
             VmRpc::ResumeAfterFailedSnapshot,
             self.microvm.snapshot_quiesce_timeout,
-            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
-            // not yet specified); then replace these `assume_new()`s with the ghosts
-            // it defines, when this code is verified.
+            // PROOF TODO: replace these `assume_new()`s with the ghosts of
+            // `VmRpc`'s protocol, when this code is verified: send the halves
+            // that `QuiesceForSnapshot`'s reply lent; expect a `None` reply.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )
@@ -556,9 +557,9 @@ impl VmController {
             &self.vm_rpc,
             VmRpc::ReleaseSnapshotBoundary,
             (),
-            // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, roadmap step 3;
-            // not yet specified); then replace these `assume_new()`s with the ghosts
-            // it defines, when this code is verified.
+            // PROOF TODO: replace these `assume_new()`s with the ghosts of
+            // `VmRpc`'s protocol, when this code is verified: send `None`;
+            // expect a `None` reply.
             Tracked::assume_new(),
             Ghost::assume_new(),
         )

@@ -31,7 +31,7 @@ pub(super) trait ExDynDevice: inspect::InspectMut + Send + super::DynDeviceState
     type ExternalTraitSpecificationFor: super::DynDevice;
 }
 
-/// Declares `PollEvent` to Verus, as an opaque type.
+/// Declares `PollEvent` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(super) struct ExPollEvent(super::PollEvent);

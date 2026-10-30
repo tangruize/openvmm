@@ -15,7 +15,7 @@ use vstd::prelude::*;
 
 verus! {
 
-// The types of `LoadedVm`'s fields, declared to Verus as opaque types.
+// The types of `LoadedVm`'s fields, declared to Verus by name only (fields hidden).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]
@@ -23,10 +23,8 @@ pub(in crate::worker::dispatch) struct ExLoadedVmInner(LoadedVmInner);
 
 // (`SnapshotRestore` is `verus_verify` itself, `dispatch/restore.rs`.)
 
-// `SnapshotRestore`'s other field types, declared to Verus as opaque types.
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExFile(std::fs::File);
+// `SnapshotRestore`'s other field types, declared to Verus by name only (fields hidden).
+// (`std::fs::File` is declared in `openvmm_defs`, `rpc.spec.rs`.)
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

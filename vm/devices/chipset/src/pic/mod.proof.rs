@@ -29,7 +29,7 @@ pub struct ExSavedPic(SavedPic);
 #[verifier::external_type_specification]
 pub struct ExSavedInitStage(SavedInitStage);
 
-// Runtime glue, as opaque types (`LineInterrupt` is declared with the PIT).
+// Runtime glue, by name only (fields hidden; `LineInterrupt` is declared with the PIT).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

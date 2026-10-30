@@ -55,24 +55,24 @@ pub trait ExInspect {
     type ExternalTraitSpecificationFor: inspect::Inspect;
 }
 
-/// Declares `std::task::Waker` to Verus, as an opaque type (devices keep
+/// Declares `std::task::Waker` to Verus, by name only (fields hidden; devices keep
 /// wakers; here, in a crate every device crate depends on).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExWaker(std::task::Waker);
 
-/// Declares `anyhow::Error` to Verus, as an opaque type.
+/// Declares `anyhow::Error` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExAnyhowError(anyhow::Error);
 
-/// Declares `inspect::Deferred` (a deferred inspect request) to Verus, as an
-/// opaque type.
+/// Declares `inspect::Deferred` (a deferred inspect request) to Verus, by name
+/// only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExDeferred(inspect::Deferred);
 
-/// Declares `inspect::Request` to Verus, as an opaque type (`inspect_mut`'s
+/// Declares `inspect::Request` to Verus, by name only (fields hidden; `inspect_mut`'s
 /// parameter).
 #[verifier::external_type_specification]
 #[verifier::external_body]

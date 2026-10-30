@@ -171,8 +171,8 @@ pub trait ExSavedStateRoot: DescribedProtobuf {
     type ExternalTraitSpecificationFor: SavedStateRoot;
 }
 
-/// Declares `mesh::payload::Error` (a decoding error) to Verus, as an
-/// opaque type.
+/// Declares `mesh::payload::Error` (a decoding error) to Verus, by name
+/// only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExPayloadError(mesh::payload::Error);

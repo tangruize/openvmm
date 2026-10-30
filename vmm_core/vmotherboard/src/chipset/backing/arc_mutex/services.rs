@@ -376,7 +376,7 @@ mod device_range {
 }
 
 // Verus: declarations of this file's types used in Verus-visible
-// signatures, as opaque types.
+// signatures, by name only (fields hidden).
 #[cfg(verus_keep_ghost)]
 vstd::prelude::verus! {
 

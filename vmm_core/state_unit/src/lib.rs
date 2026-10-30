@@ -986,8 +986,9 @@ impl StateUnits {
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
             final(self)@.units.dom() == old(self)@.units.dom(),
-            // Each unit has recorded its state.
+            // Each unit has recorded its state, and given back its half.
             final(self)@.all_recorded(),
+            final(self)@.holds_halves(),
     ))]
     pub async fn stop(&mut self) {
         assert!(self.running);
@@ -1015,11 +1016,13 @@ impl StateUnits {
         requires
             old(self).wf(),
             !old(self)@.running,
+            old(self)@.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.holds_halves(),
             // The units' states may have changed (they are reset).
             final(self)@.units.dom() == old(self)@.units.dom(),
     ))]
@@ -1097,11 +1100,13 @@ impl StateUnits {
         requires
             old(self).wf(),
             !old(self)@.running,
+            old(self)@.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.holds_halves(),
             final(self)@.units.dom() == old(self)@.units.dom(),
             // Each unit in `states` (by name, once each, and registered)
             // records its saved state; the others keep theirs.

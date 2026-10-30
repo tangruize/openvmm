@@ -1058,7 +1058,7 @@ path). Done for the channels (`vmbus_channel`, code change 47); the server
   gives the half, no reply; `Stop` returns a known half; `Save` lends;
   `Restore` / `Reset` give one and get one back; `Inspect` none).
   `request_ok` is closed (`StateRequest` is private).
-- *The task*: `Device` (the task's state) is opaque to Verus (private fields
+- *The task*: `Device` (the task's state) is declared to Verus by name only (private fields
   of undeclared types), with an uninterpreted view `DeviceView { running }`
   (trusted: `state is DeviceState::Running`, the task handles the guest's
   requests only then, and queues them otherwise). The task's share is a
@@ -1076,7 +1076,7 @@ path). Done for the channels (`vmbus_channel`, code change 47); the server
   contracts on `start`, `stop`, `reset`, `save`, `restore`, with the half
   as a ghost input, mirroring the outer protocol (`external_body`).
   `GenericChannelHandle::id` and `ChannelHandle::id` are uninterpreted,
-  trusted to be the internal sender's constant (the types are opaque:
+  trusted to be the internal sender's constant (the types are declared by name only:
   `GenericChannelHandle` holds a `pal_async` `Task`, an alias of an
   `async_task` type; `ChannelHandle`'s `PhantomData<fn() -> Box<T>>` is a
   function-pointer type, which Verus does not support);
@@ -1346,7 +1346,7 @@ microVM's devices get real views; the others placeholders from vmcore's
 `placeholder_view!` macro, a line before the impl:
 
 - `placeholder_view!(pub ExX, X)` (or `ExX<T>, X<T>` for a generic type)
-  declares the device `X` to Verus as an opaque type and gives it the
+  declares the device `X` to Verus by name only (fields hidden) and gives it the
   view `()`.
 - `placeholder_view!(external[FDC: Bound] X<FDC>)` gives `X` the view `()`
   in a plain Rust impl outside `verus!` (so external to Verus), without
@@ -1573,7 +1573,7 @@ and event-flag pages are guest memory (out of scope).
 
 **How (Verus only).** The macro emits, per invocation, a module
 `state_spec`: one small module per element declaring its type to Verus
-as opaque (`macro_rules!` cannot make new identifiers), the spec
+by name only (`macro_rules!` cannot make new identifiers), the spec
 accessors on the saved-state type, and the trait's
 `external_trait_specification` with an extension (so the backends, which
 are not Verus crates, need no changes). The saved-state struct gets
@@ -1724,7 +1724,7 @@ resolvers, `dyn` traits, channels); a sweep for `assume(`, `admit()`,
 | typed devices: `arc_mutex_device(..).add(..)` | the RTC (`base_chipset.rs:447`), virtio-MMIO (`dispatch/microvm.rs`) | connected (no erasure) |
 | the partition unit → `Box<dyn VmPartition>` | `WrappedPartition`'s `SaveRestore` | gap G3: specified (code change 73); the `dyn VmPartition` dispatch itself still behind `async_trait` (G5) |
 | the partition unit → `VpSet` → VP threads → `BoundVp` → `WrappedVp` | the hypervisor getters | **gap G4**: the VP layer (the VPs' saved state is now defined from `VpSet`'s halves, "The VP protocol"; the layers below `VpSet` are to prove) |
-| virtio-MMIO → its device task → the inner device (net, console, fs, block) | the captured private state | recorded TODO (the inner devices' layer): the blob is opaque in the view |
+| virtio-MMIO → its device task → the inner device (net, console, fs, block) | the captured private state | recorded TODO (the inner devices' layer): the view has the blob only as a whole, not its contents |
 | `StateUnits` → each unit: `mesh` channels through the RPC wrapper | the unit's task | trusted boundary (`mesh_rpc_t.rs`), listed |
 
 **In-code assumptions** (outside the `_t.rs` trusted files): no `assume`
@@ -1734,9 +1734,9 @@ in verified code (the one there was, in `StateRequest::apply`'s `Stop`,
 either inside an `external_body` body (a placeholder the proof replaces:
 `DeviceSlot::new`, the units' constructors, `TimeAbiMsrs`, the partition
 runner's `new`) or a recorded placeholder ghost at an RPC call site in
-plain code (`VmRpc`'s and `PartitionRequest`'s protocols, uninterpreted:
-`dispatch.rs`, `partition_unit/snapshot.rs`, `partition_unit.rs`, the
-controller's `vm_controller/microvm.rs`).
+plain code (`VmRpc`'s and `PartitionRequest`'s protocols, placeholders
+until that code is verified: `dispatch.rs`, `partition_unit/snapshot.rs`,
+`partition_unit.rs`, the controller's `vm_controller/microvm.rs`).
 
 **Silent gaps found** (the plan: fix G1 and G2 first, they disconnect the
 chipset devices' specs from their units; G3 and G4 with the VP /
@@ -1777,7 +1777,7 @@ partition layer; G5 needs a Verus patch):
     `omit_saved_tsc`); `tsc_deadline` out (a TSC value, meaningless
     without `tsc`); `apic` out as a whole for now (it holds the LAPIC
     timer, which the time ABI's `advance_lapic_timers` changes after
-    restore, (b); the element is opaque, so only all of it can be left
+    restore, (b); the element is declared by name only, so only all of it can be left
     out, unless the APIC registers get a spec); `synic_timers` kept
     (stored values; the time ABI does not change them); the other 17
     elements kept.
@@ -1858,14 +1858,14 @@ to the docs by name; then each was checked by hand.
 | `assume_new()` (placeholder ghost) | 59 | **None in verified code**: 41 in `external_body` bodies (6 are trusted functions that hand out a ghost, e.g. `recv_msg`; the other 35, bodies still to prove, are each marked `PROOF TODO:` with the real ghost to put there), 7 in plain (unverified) functions, 10 in tests, 1 (`reply`) only in builds other than the verification pass |
 | `assume(..)` | 0 (was 1) | the one in `StateRequest::apply`'s `Stop` ("Recorded unit states are real"): first relabelled from trusted to `PROOF TODO:`, then (2026-10-30, user) removed: `apply` is `external_body`, to prove with a running token shared by `StateUnits` and each unit |
 | `assume_specification` | 5 (was 8) | documented: saved-state blobs and protobuf (external). The 3 about our registry code were removed 2026-10-30 (code change 74): `Inner::ready_set` is `external_body`, `ReadySet`'s `Clone` is written out and verified, `State`'s `==` needed none |
-| `uninterp spec fn` | 23 (was 34; virtio's `interrupt_status()` removed, code change 84; the vmbus ones now counted as out of scope; `view_str` removed with the patched vstd, code change 88) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
+| `uninterp spec fn` | 21 (was 34; `VmRpc`'s `request_ok` defined, code change 89; virtio's `interrupt_status()` removed, code change 84; the vmbus ones now counted as out of scope; `view_str` removed with the patched vstd, code change 88) | 32 were in the trusted doc; added: `view_str` (`Arc<str>`'s view), `Rpc::spec_input` (mesh RPC). On 2026-10-30 (user: avoid uninterpreted views of our own types; code change 78) the views of `QuiesceForSaveError`, `SnapshotRestore`, `SnapshotBoundary` were defined from their fields; `VmTimeKeeper`'s stays uninterpreted by decision (it needs two Verus-only `vmcore` dependencies; guest time is out of scope) |
 | `external_body` with a contract, in the trusted base (external only, since 2026-10-29) | 28 (30 until code change 83) | all in the trusted doc, Part 1: `mesh` (11), protobuf (3), the guest's interrupt status (2), the hypervisor (3), and the lock primitives we do not verify (user, 2026-10-30): `mutex_t`'s wrapper over `parking_lot` (3), `CloseableMutex` (8). Their unverified callers' assumptions are in Part 3 |
 | `external_body` with a contract, deferred (marked `PROOF DEFERRED`) | 8 | `ArcMutexChipsetDeviceUnit::next_event` (`select!`), `From<T> for ResolvedChipsetDevice` (G1, `dyn` of an `async_trait`): trusted doc, Part 2 |
-| `external_body` with a contract, body to prove (our code) | 64 (2026-10-30, after the vmbus files were marked out of scope; 89 before) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
+| `external_body` with a contract, body to prove (our code) | 68 (64 after the vmbus files were marked out of scope, 2026-10-30; 89 before; +4 with `VmRpc`'s protocol, code change 89: `lend_halves`, `return_halves`, `lend_unit_halves`, `return_unit_halves`) | rows were missing for `VpSet`'s methods, `PartitionUnitRunner::run`, the partition's state above the handles, `unit_channel_for`: added to "Contracts assumed until verified" |
 | `external_body` without a contract of its own | 92 (2026-10-30, after the vmbus files were marked out of scope; was 87 on 2026-10-29) | trait impl methods (they take the trait's contract) and helpers; the ones on the path without any contract are documented (`VpSet::teardown`, `get_dump_vp_state`; the partition's `reset`, `scrub_vtl`, `accept_initial_pages`; `poll_now`; the error conversions) |
 | `verus_verify(external)` | 1 | `SimpleDeviceHandle::inspector` (vmbus, out of scope; hidden from Verus) |
 | out of scope (files headed `// OUT OF SCOPE`, the vmbus spec) | 47 | parked; not counted as trusted or to prove (2026-10-30) |
-| `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items"; vmbus, out of scope) |
+| `TODO` | 86 | 82 are OpenVMM's (by `git blame`); our 4 are documented (the partition's state; `PartitionRequest`'s and `VmRpc`'s protocols, "Other open items", both since written, code changes 87 and 89; vmbus, out of scope) |
 
 **The trust rule** (decided 2026-10-29, user). The trusted base is only
 external things: the hypervisor, the guest, the hardware clock, protobuf,
@@ -1890,7 +1890,7 @@ script fails if one has none (or is in verified code):
 |---|---|---|
 | `PROOF TODO:` | **replace** with the real ghost the comment names, when proving that body | 34 |
 | `TRUSTED:` | **keep**: the body of a trusted function that hands out a ghost (`recv`, `recv_failable`, `recv_msg`, `take_sender_ghost`, `take_receiver_ghost`, `new_vm_state_token`); the trust is its contract | 6 |
-| `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol (`PartitionRequest`'s, `VmRpc`'s) is specified and the code is verified | 6 |
+| `WAITS FOR PROTOCOL:` | **replace later**, once the named protocol is specified and the code is verified | 0 (the last 6, `VmRpc`'s, became `PROOF TODO:` when its protocol was written, code change 89) |
 | `OUT OF SCOPE:` | **keep**: nothing to prove: the RPC wrapper's tests (10), `reply`'s build other than the verification pass (1), the vmbus units (2) | 13 |
 
 **Trusted code** (2026-10-30, user). Verus uses only a trusted
@@ -1920,8 +1920,7 @@ the trust boundaries, and what is not done is documented: deferred until
 after G5 (G4, the VP thread's side, the partition runner's other events,
 the "guest ran" step of the partition's state); open concerns in "The VP
 protocol" and "The partition's state"; protocols of `PartitionRequest`
-and `VmRpc` (not needed by the current contracts, which promise nothing
-about timers or the controller); out of scope (RAM, guest time, vmbus,
+and `VmRpc` (both since written, code changes 87 and 89); out of scope (RAM, guest time, vmbus,
 the controller layer, roadmap step 3). What remains is proof: 91 bodies
 with stated contracts, for the proof agent.
 
@@ -1957,6 +1956,78 @@ TODO, marked in the code): the runner's handling (`handle_snapshot`,
 creating the channel with the authority's id. Not yet stated: that each
 `LoadedVm`'s boundary guard belongs to its own partition unit (a wf fact
 of `LoadedVm`).
+
+### The VM worker's request protocol
+
+Decided 2026-10-30 (user; code change 89). `VmRpc` is the VM worker's
+request channel: `VmController` (`openvmm_entry`, `vm_controller/`) sends,
+and the worker's request loop (`LoadedVm::run`) answers. The two are
+separate: the controller sees the worker only through these messages. For
+a guest's snapshot (`handle_guest_snapshot_request`), the controller sends
+`QuiesceForSnapshot`, gets back the encoded saved state, copies the
+scratch disk, and writes the snapshot; if writing fails before it
+commits, it sends `ResumeAfterFailedSnapshot`; after a commit the source
+VM terminates.
+
+**The idea.** Each state unit holds a FracGhost for its state, and needs
+the whole of it to change its state ("Request protocol"). Stopping a unit
+(`stop`, or `quiesce_for_save`, which sends the same `Stop`) gives one
+half back to `StateUnits`, which records the unit's state. The worker
+**lends those halves to the controller** with the snapshot: while the
+controller holds them, no unit can change its state (the units are
+stopped, and `StateUnits`, holding none, cannot restart, reset, or
+restore them). So the VM cannot run between the snapshot and the
+controller's copy of the disk. The halves come back with
+`ResumeAfterFailedSnapshot`, before the units restart. Restore needs
+none of this: it runs in a new VM, whose units get new FracGhosts.
+
+**The ledger.** The worker must know that halves coming back are the
+ones it lent (a unit can only rejoin a half of its own FracGhost), and
+the protocol (`request_ok`) can only refer to the channel's constant,
+fixed before the units exist. So the channel is created with a ledger
+(`openvmm_defs::rpc::vm_rpc_channel`): a `GhostVarAuth` / `GhostVar`
+pair whose id is the channel's constant, attached to the receiver for
+the worker. The worker keeps the `GhostVarAuth`; the `GhostVar` travels
+with the halves (`SnapshotHalves`) and records whose they are
+(`SnapshotHalves::wf(k)`: the ledger is the channel's, and records the
+lent units).
+
+| Message | Sent with | Reply carries | Promise |
+|---|---|---|---|
+| `QuiesceForSnapshot` | nothing | on `Ok` and `Err(RollbackSafe)`: the halves; otherwise nothing | on `Ok`: the response's saved state encodes a well-formed `SavedState` whose units are what the halves record (`LentHalves::saved_units`), and whose inventory is the response's unit names |
+| `ResumeAfterFailedSnapshot` | the halves, given back | nothing | (none) |
+| `ReleaseSnapshotBoundary` | nothing | nothing | (none): sent when no halves are out (a rejected request, a failed preflight) |
+| `Pause`, `Resume`, `Reset` | | | **not specified yet; next** (the microVM accepts them outside a snapshot boundary): verified code cannot send them until then |
+| `Save`, `PulseSaveRestore` | | | not specified: the microVM worker always rejects them (`filter_vm_rpc`) |
+| `ClearHalt`, `Nmi`, `ReadMemory`, `WriteMemory`, `AddVmbusDevice`, `ConnectHvsock`, `StartReloadIgvm`, `CompleteReloadIgvm`, `UpdateCliParams`, `AddPcieDevice`, `RemovePcieDevice`, `AddVpciDevice`, `RemoveVpciDevice`, `DumpState` | | | not specified, not planned yet: the microVM worker accepts them outside a snapshot boundary (`ReadMemory` also during one; `snapshot_rpc::filter`) |
+
+"Not specified" means `request_ok` is `false` for it: verified code
+cannot send it; unverified code still can. To write the `match` on
+`VmRpc`, Verus must know every type inside its variants; the 9 it did
+not know (in the not-specified variants: `File`, `Guid`, `UnixStream`,
+`CancelContext`, `DeviceVtl`, `PulseSaveRestoreError`, `Resource`, the two
+device handle kinds) are declared to it by name only (`external_body`:
+their fields hidden), which says nothing about them.
+
+**Which halves `StateUnits` holds** is not part of its `wf()` (the user
+chose this): the view says (`StateUnitsView::missing_halves`, the
+collected units whose half it does not hold; `holds_halves()` when none).
+The functions that need the halves require `holds_halves()` (`reset`,
+`restore`, `advance_time`, `resume_after_failed_save`, `lend_halves`),
+and those that collect them ensure it (`stop`, `quiesce_for_save`).
+`LoadedVm`'s view carries it as `runtime.missing_halves`; `load`
+ensures the halves are held, and the restore functions and
+`resume_after_failed_snapshot` require it. `save` needs no new
+precondition: `recorded` implies the halves are held. The request loop
+knows whether the halves are out: its invariant, when it is verified,
+is "stopped ⇒ the state units hold every half, or the controller has
+them, as the ledger records".
+
+The ghost steps (Verus only, `external_body`, PROOF TODO):
+`StateUnits::lend_halves` and `return_halves`, and `LoadedVm`'s wrappers
+`lend_unit_halves` and `return_unit_halves` for the loop. The request
+loop and the controller are not verified; their placeholders (PROOF
+TODO) name the ghosts to pass.
 
 ### The VP protocol
 
@@ -2406,6 +2477,18 @@ preparation, `restore`, then guest-clock adjustment) and
 `LoadedVm` and calls `restore_from_snapshot`). Both now have contracts
 ("Restore from snapshot").
 
+**After save and restore: `Pause`, `Resume`, `Reset`** (planned with the
+user, 2026-10-30; not started). The microVM worker accepts these `VmRpc`
+requests outside a snapshot boundary; their protocol cases are `false`
+for now ("The VM worker's request protocol"). None needs ghosts on the
+channel: the halves stay with the worker. What each needs, in order:
+
+| Step | Request | What the worker does | What exists | Spec to write |
+|---|---|---|---|---|
+| 1 | `Pause` | if running: `state_units.stop()`, `running = false` (`LoadedVm::pause`, `dispatch.rs`) | `StateUnits::stop`'s contract | its protocol case (nothing sent, nothing in the reply); one small contract on `LoadedVm::pause` (the result is whether it was running; afterwards stopped, recorded, the halves held; if not running, nothing changes) |
+| 2 | `Resume` | if stopped: `start_state_units()` (the post-restore input gate, `state_units.start()`, the restore readiness event, releasing the restore's `StopGuard`), `running = true` (`LoadedVm::resume`) | nothing: `StateUnits::start` and `start_with_rollback` have no contracts | its protocol case; contracts for `StateUnits::start` (requires stopped and the halves held; `Ok`: running; `Err`: nothing promised, a unit may be left in a terminal state), `start_state_units`, `LoadedVm::resume`. Together with the open item on `StopGuard`'s `Drop` sending its stop token back (an executable change, to approve) |
+| 3 | `Reset` | `pause`, `state_units.reset()`, optionally a firmware reload (`assign_pci_resources`, `load_firmware`), then `resume` if it was running (`LoadedVm::reset`) | `StateUnits::reset`'s contract; steps 1 and 2 | its protocol case; a contract on `LoadedVm::reset`; weak `external_body` contracts for the firmware reload, which is boot code (it writes guest memory and sets the vCPUs' initial registers through `PartitionRequest::SetInitialRegs`, which the partition's protocol forbids): afterwards the units' saved states are unknown |
+
 ## Executable code changes (normal builds)
 
 Every change to code that a normal (non-Verus) build compiles: code,
@@ -2482,6 +2565,7 @@ change preserves behavior: same results, same order of effects.
 | 73 | `vmm_core/virt` (`generic.rs`) | new public functions `open_vm_state(partition, vtl)` (normal builds: `partition.access_state(vtl)`) and `close_vm_state(access)` (normal builds: `drop(access)`) |
 | 82 | `vmm_core/virt` (`generic.rs`, new `generic/generic_t.rs`) | `open_vm_state` and `close_vm_state` moved, unchanged, into the new module `generic_t` (`pub use generic_t::*;`, so their paths are unchanged) |
 | 87 | `vmm_core` (`partition_unit.rs`, `partition_unit/snapshot.rs`) | `StopGuard`'s two construction sites are written `StopGuard { 0: self.req_send.clone(), #[cfg(verus_keep_ghost)] 1: .. }` instead of `StopGuard(self.req_send.clone())`: the same value in normal builds (a tuple struct's constructor call cannot take a cfg'd argument; the second field is Verus-only) |
+| 89 | `openvmm_defs` (`rpc.rs`), `openvmm_entry` (`lib.rs`) | new public `openvmm_defs::rpc::vm_rpc_channel()` (normal builds: `mesh::channel()`, through `mesh_rpc_verus::channel`), in a `verus!` block; `openvmm_entry` creates `VmRpc`'s channel with it instead of `mesh::channel()`. New cfg'd imports in `rpc.rs`. Same channel |
 
 **Dependencies and build**
 
@@ -2520,7 +2604,7 @@ device-level spec. The PIT's files are the example: `pit/mod.spec.rs`
    have this (code change 49).
 2. **Declare the device's types to Verus** (`external_type_specification`):
    its state types with their fields visible (for the view), its runtime
-   glue as opaque types, and its saved-state types with their fields
+   glue by name only (fields hidden), and its saved-state types with their fields
    visible.
 3. **Views and `saved_view`**: a view of the snapshotable state (and the
    configuration that affects `save` / `restore`), its `inv()`; a view of
@@ -2569,7 +2653,7 @@ unit's task dispatches it to its `StateUnit::save`/`restore` (`run_unit` and
 An RPC can be reasoned about like a local call (plus a failure case), but the
 caller never holds the callee's `self`: the callee's postcondition (e.g. "the
 blob describes the PIT's state") talks about an object the caller has no way to
-name. Treating the units as opaque and trusting their save/restore would prove
+name. Treating the units as black boxes and trusting their save/restore would prove
 only the thin `LoadedVm` layer, which is the weakness of the earlier spec
 (everything abstracted away, little proved, no bugs found).
 
@@ -3198,8 +3282,8 @@ important first.
 - **virtio-MMIO's other accessors**: resolved 2026-10-28 (user), now
   defined, not trusted. `TransportRestore::captured()` is a closed spec
   function on the real field (`transport/core/restore.rs`): the validator,
-  a `Box<dyn Fn>` that Verus cannot declare, moved into its own opaque
-  struct `Validator` (code change 54), so `TransportRestore` is
+  a `Box<dyn Fn>` that Verus cannot declare, moved into its own struct
+  `Validator`, declared by name only (code change 54), so `TransportRestore` is
   `verus_verify`. The feature banks and the status come from
   `VirtioDeviceFeatures::bits()` / `bank_bits(i)` and
   `VirtioDeviceStatus::bits()`, closed spec accessors in `virtio_spec`

@@ -17,7 +17,7 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExIndexRegister(IndexRegister);
 
-// Runtime glue, as opaque types.
+// Runtime glue, by name only (fields hidden).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

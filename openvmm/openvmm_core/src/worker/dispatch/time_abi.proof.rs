@@ -12,7 +12,7 @@ verus! {
 #[verifier::external_type_specification]
 pub(in crate::worker::dispatch) struct ExTimeAbiUnit(TimeAbiUnit);
 
-/// Declares `TimeAbiReport` to Verus, as an opaque type.
+/// Declares `TimeAbiReport` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(in crate::worker::dispatch) struct ExTimeAbiReport(super::TimeAbiReport);

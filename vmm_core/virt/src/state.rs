@@ -54,7 +54,7 @@ mod error_spec {
             type ExternalTraitSpecificationFor: core::error::Error;
         }
 
-        /// `StateError`, as an opaque type (`save_all` / `restore_all`'s
+        /// `StateError`, by name only (fields hidden; `save_all` / `restore_all`'s
         /// errors).
         #[verifier::external_type_specification]
         #[verifier::external_body]
@@ -196,7 +196,7 @@ mod macros {
                 use super::*;
                 use ::vstd::prelude::*;
 
-                // The element types, declared to Verus as opaque types
+                // The element types, declared to Verus by name only (fields hidden)
                 // (values the hypervisor holds; their contents are not
                 // specified).
                 $(

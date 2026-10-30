@@ -55,7 +55,7 @@ pub struct ExCommonSavedState(CommonSavedState);
 #[verifier::external_type_specification]
 pub struct ExCommonQueueState(CommonQueueState);
 
-// Runtime glue and opaque state, as opaque types.
+// Runtime glue and private state, by name only (fields hidden).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

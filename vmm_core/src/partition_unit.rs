@@ -111,7 +111,7 @@ pub trait VmPartition: 'static + Send + Sync + InspectMut + ProtobufSaveRestore 
 /// An object to run the VM partition state unit.
 /// The partition's processor topology, in a struct of its own. (Verus:
 /// `ProcessorTopology`'s generic bound needs `AsRef`, which this toolchain's
-/// Verus cannot declare, so this struct is declared opaque instead.)
+/// Verus cannot declare, so this struct is declared by name only instead.)
 struct Topology(ProcessorTopology);
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]

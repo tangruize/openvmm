@@ -71,7 +71,7 @@ use vstd::prelude::*;
 verus! {
 
 #[cfg(verus_keep_ghost)]
-/// Declares `mesh::Sender` to Verus, as an opaque type.
+/// Declares `mesh::Sender` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
@@ -79,20 +79,20 @@ pub struct ExSender<T>(Sender<T>);
 
 #[cfg(verus_keep_ghost)]
 /// Declares `mesh::error::RemoteError` (an `Rpc`'s remote error) to Verus,
-/// as an opaque type.
+/// by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExRemoteError(mesh::error::RemoteError);
 
 #[cfg(verus_keep_ghost)]
-/// Declares `mesh::Receiver` to Verus, as an opaque type.
+/// Declares `mesh::Receiver` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub struct ExReceiver<T>(Receiver<T>);
 
 #[cfg(verus_keep_ghost)]
-/// Declares `mesh::rpc::Rpc` to Verus, as an opaque type.
+/// Declares `mesh::rpc::Rpc` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(I)]
@@ -100,7 +100,7 @@ pub struct ExReceiver<T>(Receiver<T>);
 pub struct ExRpc<I, R>(Rpc<I, R>);
 
 #[cfg(verus_keep_ghost)]
-/// Declares `mesh::rpc::RpcError` to Verus, as an opaque type.
+/// Declares `mesh::rpc::RpcError` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(E)]

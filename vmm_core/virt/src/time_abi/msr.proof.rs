@@ -15,12 +15,12 @@ verus! {
 #[verifier::external_type_specification]
 pub struct ExTimeAbiSavedState(TimeAbiSavedState);
 
-/// Declares `DeclaredRates` to Verus, as an opaque type.
+/// Declares `DeclaredRates` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExDeclaredRates(DeclaredRates);
 
-/// Declares `OnceLock` to Verus, as an opaque type.
+/// Declares `OnceLock` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]

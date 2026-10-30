@@ -14,7 +14,7 @@ use vstd::prelude::*;
 verus! {
 
 // `VpSet`, `Vp`, `VpEvent`, and `StateEvent` are `verus_verify` themselves;
-// the types of their fields, declared to Verus, as opaque types.
+// the types of their fields, declared to Verus, by name only (fields hidden).
 
 #[verifier::external_type_specification]
 #[verifier::external_body]

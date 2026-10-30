@@ -12,23 +12,23 @@ verus! {
 #[verifier::external_type_specification]
 pub(super) struct ExInner(Inner);
 
-/// Declares `Forwarder` to Verus, as an opaque type.
+/// Declares `Forwarder` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub(super) struct ExForwarder<T>(super::Forwarder<T>);
 
-/// Declares `KeyboardData` to Verus, as an opaque type.
+/// Declares `KeyboardData` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExKeyboardData(input_core::KeyboardData);
 
-/// Declares `MouseData` to Verus, as an opaque type.
+/// Declares `MouseData` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExMouseData(input_core::MouseData);
 
-/// Declares `InputDistributor` to Verus, as an opaque type.
+/// Declares `InputDistributor` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExInputDistributor(super::InputDistributor);

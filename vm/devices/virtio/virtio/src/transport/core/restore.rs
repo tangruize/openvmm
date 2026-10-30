@@ -46,7 +46,7 @@ use vstd::prelude::*;
 /// The device's validator of restored private state, in a struct of its
 /// own. (Verus: a `Box<dyn Fn>` cannot be declared to Verus, so as a field
 /// of `TransportRestore` it would hide the other fields; this struct is
-/// declared opaque instead.)
+/// declared by name only instead.)
 pub(crate) struct Validator(DeviceStateValidator);
 
 /// Device-private state and queue kick state of the transport core.

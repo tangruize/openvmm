@@ -17,7 +17,7 @@ verus! {
 // (The channel units' device-type bounds, `VmbusDevice`, `SimpleVmbusDevice`,
 // `RingMem`, `GpadlRingMem`, `Any`, are declared in `vmbus_channel`.)
 
-/// Declares `VmbusServerUnit` to Verus, as an opaque type.
+/// Declares `VmbusServerUnit` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub(super) struct ExVmbusServerUnit(VmbusServerUnit);

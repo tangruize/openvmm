@@ -1755,8 +1755,9 @@ impl InitializedVm {
         ensures
             result matches Ok(vm) ==> {
                 &&& vm.wf()
-                // Loaded stopped.
+                // Loaded stopped, the state units holding every half.
                 &&& !vm@.runtime.running
+                &&& vm@.runtime.holds_halves()
                 &&& match saved_state {
                     // A fresh VM: no unit's state is recorded yet.
                     None => {
@@ -4209,14 +4210,19 @@ impl LoadedVm {
                             .await
                     }
                     // The snapshot requests reply through the mesh RPC
-                    // wrapper, with placeholder ghosts (`VmRpc`'s protocol is
-                    // not yet specified).
+                    // wrapper, with placeholder ghosts until this loop is
+                    // verified (`VmRpc`'s protocol, `openvmm_defs`).
                     VmRpc::QuiesceForSnapshot(rpc) => {
                         let (timeout, rpc) = mesh_rpc_verus::split::<_, _, ()>(rpc);
                         let r = self.quiesce_for_snapshot(timeout).await;
-                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
-                        // yet specified); then replace this `assume_new()` with
-                        // the reply ghost it defines, when this loop is verified.
+                        // PROOF TODO: replace this `assume_new()` with the reply
+                        // ghost of `VmRpc`'s protocol, when this loop is verified:
+                        // on `Ok` and `Err(RollbackSafe)`, the lent halves,
+                        // `Some(SnapshotHalves { ledger, lent })`, with `lent` from
+                        // `self.lend_unit_halves()` and `ledger` the ledger's
+                        // `GhostVar` (taken from `rpc_recv` when the loop starts,
+                        // `take_receiver_ghost`; updated to `lent.units`);
+                        // otherwise `None`.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ResumeAfterFailedSnapshot(rpc) => {
@@ -4225,9 +4231,12 @@ impl LoadedVm {
                             .resume_after_failed_snapshot(timeout)
                             .await
                             .map_err(RemoteError::new);
-                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
-                        // yet specified); then replace this `assume_new()` with
-                        // the reply ghost it defines, when this loop is verified.
+                        // PROOF TODO: replace this `assume_new()` with the reply
+                        // ghost of `VmRpc`'s protocol, `None`, when this loop is
+                        // verified; before resuming, take back the halves the
+                        // request brings (`self.return_unit_halves(h.lent)`, after
+                        // checking `h.ledger` against the ledger's `GhostVarAuth`),
+                        // received with `recv_msg`.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::ReleaseSnapshotBoundary(rpc) => {
@@ -4236,9 +4245,9 @@ impl LoadedVm {
                             .release_snapshot_boundary()
                             .await
                             .map_err(RemoteError::new);
-                        // WAITS FOR PROTOCOL: `VmRpc`'s (the controller layer, not
-                        // yet specified); then replace this `assume_new()` with
-                        // the reply ghost it defines, when this loop is verified.
+                        // PROOF TODO: replace this `assume_new()` with the reply
+                        // ghost of `VmRpc`'s protocol, `None`, when this loop is
+                        // verified.
                         mesh_rpc_verus::complete(rpc, r, Tracked::<()>::assume_new());
                     }
                     VmRpc::Nmi(rpc) => rpc.handle_sync(|vpindex| {
@@ -4726,6 +4735,7 @@ impl LoadedVm {
         requires
             old(self).wf(),
             !old(self)@.runtime.running,
+            old(self)@.runtime.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,

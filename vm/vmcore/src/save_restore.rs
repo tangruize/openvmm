@@ -90,8 +90,8 @@ impl<T: ?Sized> SaveRestoreView for T {}
 #[cfg(verus_keep_ghost)]
 pub use spec::SaveRestoreView;
 
-/// Verus builds: declares the `SaveRestore` type `$t` to Verus (as the
-/// opaque type `$ex`) and gives it the placeholder view `()`, for a device
+/// Verus builds: declares the `SaveRestore` type `$t` to Verus (as `$ex`, by
+/// name only) and gives it the placeholder view `()`, for a device
 /// whose save/restore is not yet specified (`SaveRestore` needs a view).
 /// `placeholder_view!(saved T)` gives the saved-state type `T` of such a
 /// device a placeholder view, also outside Verus (`SaveRestore::SavedState`
@@ -124,7 +124,7 @@ macro_rules! placeholder_view {
     ($vis:vis $ex:ident < $($lt:lifetime,)* $($g:ident),+ >, $t:ty) => {
         #[cfg(verus_keep_ghost)]
         ::vstd::prelude::verus! {
-            /// Verus: the type, declared as opaque (placeholder view).
+            /// Verus: the type, declared by name only (placeholder view).
             #[verifier::external_type_specification]
             #[verifier::external_body]
             $(#[verifier::reject_recursive_types($g)])+
@@ -142,7 +142,7 @@ macro_rules! placeholder_view {
     ($vis:vis $ex:ident, $t:ty) => {
         #[cfg(verus_keep_ghost)]
         ::vstd::prelude::verus! {
-            /// Verus: the type, declared as opaque (placeholder view).
+            /// Verus: the type, declared by name only (placeholder view).
             #[verifier::external_type_specification]
             #[verifier::external_body]
             $vis struct $ex($t);

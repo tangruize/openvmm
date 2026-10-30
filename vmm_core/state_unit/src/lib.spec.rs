@@ -10,6 +10,7 @@ use vmcore::save_restore::spec::SavedStateBlobView;
 pub use vmcore::save_restore::spec::UnitSnapshot;
 use vstd::prelude::*;
 use vstd::resource::Loc;
+use vstd::resource::frac::FracGhost;
 
 verus! {
 
@@ -29,9 +30,21 @@ pub struct StateUnitsView {
     pub advances_time: Set<Seq<char>>,
     /// Whether the units are running.
     pub running: bool,
+    /// The collected units whose half `StateUnits` does not hold, by unit
+    /// id, with their entries (name, the id of the unit's FracGhost, whether
+    /// it advances time). While running: the running units. While stopped:
+    /// none, unless the halves are lent out (`StateUnits::lend_halves`).
+    pub missing_halves: Map<u64, (Seq<char>, Loc, bool)>,
 }
 
 impl StateUnitsView {
+    /// `StateUnits` holds every collected unit's half (`missing_halves` is
+    /// empty), as `reset`, `restore`, `advance_time`,
+    /// `resume_after_failed_save`, and `lend_halves` need.
+    pub open spec fn holds_halves(self) -> bool {
+        self.missing_halves.dom().is_empty()
+    }
+
     /// The inventory lists each unit once, and the units that advance time
     /// are among them.
     pub open spec fn inv(self) -> bool {
@@ -78,17 +91,20 @@ impl SavedStateUnit {
 impl StateUnits {
     /// Well formed: the view's invariant holds; `StateUnits` holds halves of
     /// collected units' FracGhosts only, each belonging to that unit's
-    /// channel, and while stopped it holds one for every collected unit;
-    /// collected units have distinct names; and its half of the record of
-    /// the collected units, shared with its registry, records them.
+    /// channel; collected units have distinct names; and its half of the
+    /// record of the collected units, shared with its registry, records them.
     ///
-    /// (While running, a unit holds its whole FracGhost, so `StateUnits`
-    /// holds no half for it; it holds halves for units added while running,
-    /// which are stopped until `start_stopped_units`.)
+    /// Which halves it holds is not part of `wf` but of the view
+    /// (`missing_halves`): the functions that need them all require
+    /// `holds_halves()`, and those that collect them (`stop`,
+    /// `quiesce_for_save`) ensure it. (While running, a unit holds its whole
+    /// FracGhost, so `StateUnits` holds no half for it; it holds halves for
+    /// units added while running, which are stopped until
+    /// `start_stopped_units`. While stopped, it holds them all, unless they
+    /// are lent out: `lend_halves`, `return_halves`.)
     pub closed spec fn wf(&self) -> bool {
         &&& self@.inv()
         &&& self.units_ghost@.halves.dom() <= self.units_ghost@.registry.dom()
-        &&& !self.running ==> self.units_ghost@.halves.dom() == self.units_ghost@.registry.dom()
         &&& forall|id: u64| #[trigger] self.units_ghost@.halves.contains_key(id)
             ==> self.units_ghost@.halves[id].valid(self.units_ghost@.registry[id].1, 0.5real)
         // `StateUnits`' half of the shared record of the collected units
@@ -133,7 +149,55 @@ impl View for StateUnits {
                 |entry: (Seq<char>, Loc, bool)| entry.2,
             ).map(|entry: (Seq<char>, Loc, bool)| entry.0),
             running: self.running,
+            missing_halves: self.units_ghost@.registry.remove_keys(self.units_ghost@.halves.dom()),
         }
+    }
+}
+
+/// The halves of a stopped `StateUnits`, lent out (`StateUnits::lend_halves`)
+/// to whoever must know that no unit changes its state until they come back
+/// (`StateUnits::return_halves`): the VM worker lends them to the VM
+/// controller with a snapshot (`VmRpc`'s protocol, `openvmm_defs`).
+pub tracked struct LentHalves {
+    /// The lent units, by unit id: name, the id of the unit's FracGhost,
+    /// whether it advances time (their entries in `StateUnits`).
+    pub ghost units: Map<u64, (Seq<char>, Loc, bool)>,
+    /// The half of each lent unit, by unit id.
+    pub tracked halves: Map<u64, FracGhost<UnitSnapshot>>,
+}
+
+impl LentHalves {
+    /// Well formed: one half per lent unit, each belonging to that unit's
+    /// FracGhost; the lent units have distinct names.
+    pub open spec fn wf(&self) -> bool {
+        &&& self.halves.dom() == self.units.dom()
+        &&& forall|id: u64| #[trigger] self.halves.contains_key(id)
+            ==> self.halves[id].valid(self.units[id].1, 0.5real)
+        &&& forall|a: u64, b: u64|
+            #[trigger] self.units.contains_key(a) && #[trigger] self.units.contains_key(b) && a != b
+                ==> self.units[a].0 != self.units[b].0
+    }
+
+    /// What each lent unit's half records, by unit name (as
+    /// `StateUnitsView::units`).
+    pub open spec fn records(&self) -> Map<Seq<char>, UnitSnapshot> {
+        Map::new(
+            self.units.values().map(|entry: (Seq<char>, Loc, bool)| entry.0),
+            |name: Seq<char>| {
+                let id = choose|id: u64| #[trigger] self.units.contains_key(id)
+                    && self.units[id].0 == name;
+                self.halves[id]@
+            },
+        )
+    }
+
+    /// The lent units that record a saved state, with that state, by name
+    /// (as `StateUnitsView::saved_units`).
+    pub open spec fn saved_units(&self) -> Map<Seq<char>, SavedStateBlobView> {
+        Map::new(
+            self.records().dom().filter(|name: Seq<char>| self.records()[name] is Saved),
+            |name: Seq<char>| self.records()[name]->Saved_0,
+        )
     }
 }
 

@@ -22,11 +22,13 @@ impl StateUnits {
         requires
             old(self).wf(),
             !old(self)@.running,
+            old(self)@.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.running == old(self)@.running,
             final(self)@.inventory == old(self)@.inventory,
             final(self)@.advances_time == old(self)@.advances_time,
+            final(self)@.holds_halves(),
             // Advancing time changes only time, which the units' views
             // leave out (`SavedStateBlobView::of`): nothing changes in the
             // view.

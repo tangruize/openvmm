@@ -301,6 +301,7 @@ impl LoadedVm {
         requires
             old(self).wf(),
             !old(self)@.runtime.running,
+            old(self)@.runtime.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,
@@ -366,6 +367,7 @@ impl LoadedVm {
         requires
             old(self).wf(),
             !old(self)@.runtime.running,
+            old(self)@.runtime.holds_halves(),
         ensures
             final(self).wf(),
             final(self)@.runtime == old(self)@.runtime,

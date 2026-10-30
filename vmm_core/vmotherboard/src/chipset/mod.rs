@@ -378,7 +378,7 @@ impl std::fmt::Display for PcieConflict {
 }
 
 // Verus: declarations of this file's types used in Verus-visible
-// signatures, as opaque types.
+// signatures, by name only (fields hidden).
 #[cfg(verus_keep_ghost)]
 vstd::prelude::verus! {
 

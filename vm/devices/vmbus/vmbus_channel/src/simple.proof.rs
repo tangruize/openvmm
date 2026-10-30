@@ -23,7 +23,7 @@ pub trait ExRingMem: Send {
     type ExternalTraitSpecificationFor: RingMem;
 }
 
-/// Declares `GpadlRingMem` to Verus, as an opaque type.
+/// Declares `GpadlRingMem` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExGpadlRingMem(GpadlRingMem);
@@ -37,18 +37,18 @@ pub trait ExSimpleVmbusDevice<M: RingMem = GpadlRingMem>: 'static + Send {
     type Runner: 'static + Send;
 }
 
-/// Declares `SimpleDeviceWrapper` to Verus, as an opaque type.
+/// Declares `SimpleDeviceWrapper` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 #[verifier::reject_recursive_types(T)]
 pub struct ExSimpleDeviceWrapper<T: SimpleVmbusDevice>(SimpleDeviceWrapper<T>);
 
-/// Declares `VmTaskDriverSource` to Verus, as an opaque type.
+/// Declares `VmTaskDriverSource` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExVmTaskDriverSource(vmcore::vm_task::VmTaskDriverSource);
 
-/// Declares `InitialDeviceState` to Verus, as an opaque type.
+/// Declares `InitialDeviceState` to Verus, by name only (fields hidden).
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExInitialDeviceState(crate::simple::InitialDeviceState);

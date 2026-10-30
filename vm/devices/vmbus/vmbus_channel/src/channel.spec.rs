@@ -141,7 +141,7 @@ impl GenericChannelHandle {
     /// The id of the channel unit's FracGhost. Trusted: the constant of its
     /// internal channel, `self.state_req.constant()`. (Uninterpreted:
     /// `GenericChannelHandle` holds a `pal_async::task::Task`, an alias of a
-    /// type of the `async_task` crate, so the type is opaque to Verus.)
+    /// type of the `async_task` crate, so the type is declared to Verus by name only.)
     pub uninterp spec fn id(&self) -> Loc;
 }
 
@@ -149,7 +149,7 @@ impl<T: ?Sized> ChannelHandle<T> {
     /// The id of the channel unit's FracGhost. Trusted: `self.0.id()`.
     /// (Uninterpreted: `ChannelHandle`'s `PhantomData<fn() -> Box<T>>`
     /// field is a function-pointer type, which Verus does not support, so
-    /// the type is opaque to Verus.)
+    /// the type is declared to Verus by name only.)
     pub uninterp spec fn id(&self) -> Loc;
 }
 
