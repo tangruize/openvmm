@@ -1519,6 +1519,22 @@ Baseline: upstream `nanvix/openvmm` commit
     - Docs: `SNAPSHOT-SPEC-TRUSTED.md` (the `CloseableMutex` rows), the
       overview's 4.2.2 ("Closing"), notes in the design doc.
 
+96. **`Resume`: its protocol case and `LoadedVm::resume`'s contract**
+    (the user, 2026-10-31: done now, so the restore's specified part
+    reaches the VM's start; design doc, "Roadmap", step 2). Verus only;
+    entrance-level only: the helpers (`start_state_units`,
+    `StateUnits::start`, `start_with_rollback`) get no contracts here,
+    their specs are for the proof agent.
+    - `VmRpc::Resume`: nothing sent, nothing in the reply.
+    - `LoadedVm::resume` (body `external_body`, to prove): requires, if
+      stopped, that the state units hold every unit's half (not lent);
+      `Ok(true)`: it was stopped and now runs; `Ok(false)`: it was running
+      and nothing changes; `Err`: it was stopped and is stopped again
+      (`start_with_rollback` stops the units that did start); the
+      inventory and the snapshot boundary are unchanged.
+    - Docs: the overview (sections 1, 2.6 with the wider specified box,
+      3), the design doc's protocol table and roadmap, the trusted doc.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`

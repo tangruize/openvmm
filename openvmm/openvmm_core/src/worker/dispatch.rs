@@ -4022,6 +4022,28 @@ impl LoadedVmInner {
 }
 
 impl LoadedVm {
+    /// Starts the VM's state units, if they are stopped (after a restore:
+    /// with the input gate, the readiness event, and releasing the
+    /// restore's hold on the vCPUs). Returns whether they were stopped.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            old(self).wf(),
+            // To start the units, the state units give each its half back:
+            // they must hold them all (not lent to the controller).
+            !old(self)@.runtime.running ==> old(self)@.runtime.holds_halves(),
+        ensures
+            final(self).wf(),
+            final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
+            final(self)@.runtime.snapshot_boundary == old(self)@.runtime.snapshot_boundary,
+            // Already running: nothing changes.
+            result matches Ok(false) ==> old(self)@.runtime.running && final(self)@ == old(self)@,
+            // Started.
+            result matches Ok(true) ==> !old(self)@.runtime.running && final(self)@.runtime.running,
+            // Failed: the units are stopped again (a unit whose start failed
+            // may be left stuck; the VM must then be ended).
+            result is Err ==> !old(self)@.runtime.running && !final(self)@.runtime.running,
+    ))]
     async fn resume(&mut self) -> anyhow::Result<bool> {
         if self.running {
             return Ok(false);

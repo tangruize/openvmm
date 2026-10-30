@@ -45,7 +45,9 @@ VmController <──── reply: saved state ────┘        LoadedVm::r
   to write the snapshot): the worker restarts the VM.
 - **Restore** (a new worker, started with the saved state): the worker
   builds the VM with every device and processor stopped, and gives each
-  its saved state. The spec: each then has the state it was saved with.
+  its saved state; then, on the controller's `Resume`, starts them. The
+  spec: each then has the state it was saved with, and once started, all
+  run.
 
 Together, saving and then restoring into a VM with the same devices gives
 back the same saved state. This is equality of the state **as the spec
@@ -304,10 +306,10 @@ A restore starts a **new** VM, with a new VM worker:
      │                                ┆         │ snapshot: each unit gets its  ┆
      │                                ┆         │ saved state; the guest's      ┆
      │                                ┆         │ clocks are adjusted           ┆
+     │                                ┆         │                               ┆
+     │ VmRpc::Resume ───────────────────────>   │ LoadedVm::resume: starts      ┆
+     │                                ┆         │ every unit: the VM runs       ┆
                                       └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-     │                                          │
-     │ VmRpc::Resume ─────────────────────────> │ starts every unit: the VM runs
-     │                                          │ (not yet specified)
 ```
 
 The controller reads the snapshot files and launches a new worker with
@@ -315,8 +317,9 @@ the saved state. The worker builds the VM with every unit stopped
 (`InitializedVm::load`), gives each unit its saved state
 (`LoadedVm::restore_from_snapshot`), and adjusts the guest's clocks
 (which kept running since the snapshot). Then the controller starts the
-VM with `VmRpc::Resume` (unless asked to leave it paused); `Resume` is
-not specified yet.
+VM with `VmRpc::Resume` (unless asked to leave it paused):
+`LoadedVm::resume` starts every unit. As in section 2.5, for the
+`VmRpc` messages the protocol is specified, not the controller's code.
 
 ## 3. What we prove
 
@@ -330,6 +333,7 @@ One contract per step of the transaction (section 1), in words:
 | rollback | `LoadedVm::resume_after_failed_snapshot` | the VM runs again, and the boundary is released |
 | save | `LoadedVm::save` (called by `quiesce_for_snapshot`) | with the VM stopped: returns the state of every unit, and changes nothing |
 | restore | `InitializedVm::load`, `LoadedVm::restore_from_snapshot` | the VM is built with every unit stopped; afterwards each unit has the state it was saved with (a unit missing from the saved state keeps its own), and the saved list of units matches the VM's |
+| start | `LoadedVm::resume` (the controller's `Resume`) | with every unit's half held: afterwards every unit runs; if starting fails, the units are stopped again (the VM must then be ended) |
 
 These rest on contracts at the layers below: `StateUnits`, each unit,
 each chipset device, the partition and its vCPUs, and the channels

@@ -193,4 +193,3 @@ excludes everyone else until reopened), and unverified code keeps the
 rule. A closed guard dropped without `release` leaves the mutex closed
 (later `lock`s panic), and an open guard dropped without `release` leaves
 it locked: safe, not unsound.
-
