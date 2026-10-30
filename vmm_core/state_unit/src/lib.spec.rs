@@ -69,22 +69,31 @@ impl StateUnitsView {
     }
 }
 
-impl SavedStateUnit {
-    /// The saved states in `units`, by unit name. If two entries have the
+/// Spec functions of a list of saved units (the view of the `Vec` that
+/// `StateUnits::save` returns, `StateUnits::restore` takes, and
+/// `SavedState` holds).
+pub trait SavedStateUnits {
+    /// The saved states in the list, by unit name. If two entries have the
     /// same name, the map holds one of them.
-    pub open spec fn map_of(units: Seq<SavedStateUnit>) -> Map<Seq<char>, SavedStateBlobView> {
+    spec fn by_name(&self) -> Map<Seq<char>, SavedStateBlobView>;
+
+    /// The list's entries have distinct names.
+    spec fn distinct_names(&self) -> bool;
+}
+
+impl SavedStateUnits for Seq<SavedStateUnit> {
+    open spec fn by_name(&self) -> Map<Seq<char>, SavedStateBlobView> {
         Map::new(
-            units.map_values(|unit: SavedStateUnit| unit.name@).to_set(),
+            self.map_values(|unit: SavedStateUnit| unit.name@).to_set(),
             |name: Seq<char>|
-                units[choose|i: int| 0 <= i < units.len() && #[trigger] units[i].name@ == name].state@,
+                self[choose|i: int| 0 <= i < self.len() && #[trigger] self[i].name@ == name].state@,
         )
     }
 
-    /// The entries of `units` have distinct names.
-    pub open spec fn distinct_names(units: Seq<SavedStateUnit>) -> bool {
+    open spec fn distinct_names(&self) -> bool {
         forall|i: int, j: int|
-            0 <= i < units.len() && 0 <= j < units.len() && i != j ==> #[trigger] units[i].name@
-                != #[trigger] units[j].name@
+            0 <= i < self.len() && 0 <= j < self.len() && i != j ==> #[trigger] self[i].name@
+                != #[trigger] self[j].name@
     }
 }
 

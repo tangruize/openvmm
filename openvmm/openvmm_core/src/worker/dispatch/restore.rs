@@ -133,6 +133,15 @@ impl View for SnapshotRestore {
     }
 }
 
+impl SnapshotRestore {
+    /// Well formed for the partition unit with id `partition`: the
+    /// restore's guard, while held (until the VM first starts), is well
+    /// formed and holds that unit's VPs stopped.
+    pub(super) closed spec fn wf(&self, partition: vstd::resource::Loc) -> bool {
+        self.start_guard matches Some(g) ==> g.wf() && g.partition_id() == partition
+    }
+}
+
 } // verus!
 
 /// Snapshot-restore state of a [`LoadedVm`].

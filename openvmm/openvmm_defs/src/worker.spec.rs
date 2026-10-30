@@ -4,7 +4,7 @@
 // High-level spec of the VM worker's saved state, for human review.
 
 use super::SavedState;
-use state_unit::SavedStateUnit;
+use state_unit::spec::SavedStateUnits;
 use vmcore::save_restore::spec::SavedStateBlobView;
 use vstd::prelude::*;
 
@@ -39,7 +39,7 @@ impl SavedState {
     /// duplicates itself.
     pub closed spec fn wf(&self) -> bool {
         &&& self@.inv()
-        &&& SavedStateUnit::distinct_names(self.units@)
+        &&& self.units@.distinct_names()
     }
 }
 
@@ -50,7 +50,7 @@ impl View for SavedState {
     /// (Restore rejects such a saved state.)
     closed spec fn view(&self) -> SavedStateView {
         SavedStateView {
-            units: SavedStateUnit::map_of(self.units@),
+            units: self.units@.by_name(),
             inventory: self.inventory@.map_values(|name: String| name@),
         }
     }

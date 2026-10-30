@@ -79,11 +79,13 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
 
 Places that do not yet follow the conventions above:
 
-- **`SavedStateUnit::map_of` and `SavedStateUnit::distinct_names`**
-  (`vmm_core/state_unit/src/lib.spec.rs`) are spec functions on
-  `SavedStateUnit` that take a sequence of units rather than `self`. They
-  could become the view and `wf()` of a type for the list of units (used by
-  `StateUnits::save`, `StateUnits::restore`, and `SavedState`'s view).
+- *Done (code change 93):* `SavedStateUnit::map_of(units)` and
+  `distinct_names(units)` took a sequence of units rather than `self`.
+  They are now methods of the list itself, `units@.by_name()` and
+  `units@.distinct_names()` (the spec trait `SavedStateUnits`, implemented
+  for `Seq<SavedStateUnit>`, `vmm_core/state_unit/src/lib.spec.rs`). A
+  view and `wf()` of a list type would need a new type in place of the
+  `Vec` (an executable change), so the list's view, a `Seq`, carries them.
 - **Trusted wrapper types** have spec functions besides a view: mesh
   `Sender`/`Receiver` (`constant()`, `attached()`), `Rpc` (`spec_input()`,
   `reply_ok()`), `PendingCall` (`reply_ok()`) in
@@ -231,8 +233,8 @@ units (later registrations: see `SNAPSHOT-SPEC-TRUSTED.md`). Bodies are
 |---|---|---|
 | `stop` | `wf`, running | stopped; same units and inventory; every unit recorded (`all_recorded`) |
 | `reset` | `wf`, stopped | same units and inventory (states may change) |
-| `save` | `wf`, stopped, `all_recorded` | `final@ == old@`; on `Ok(states)`: distinct names, and `SavedStateUnit::map_of(states) == old@.saved_units()` |
-| `restore(states)` | `wf`, stopped | same units and inventory; on `Ok`: distinct, registered names, and `units == old.units.union_prefer_right(map_of(states) as Saved)` |
+| `save` | `wf`, stopped, `all_recorded` | `final@ == old@`; on `Ok(states)`: distinct names, and `states@.by_name() == old@.saved_units()` |
+| `restore(states)` | `wf`, stopped | same units and inventory; on `Ok`: distinct, registered names, and `units == old.units.union_prefer_right(states@.by_name() as Saved)` |
 | `inventory()` | `wf` | the names, as strings, are `self@.inventory` |
 | `validate_inventory(saved)` | `wf` | on `Ok`, `saved` is `self@.inventory` |
 
@@ -1961,7 +1963,8 @@ boundary's `StopGuard` is well formed and sends to that VM's
 `partition_unit` (`StopGuard::partition_id`, `PartitionUnit::id`: the
 request channel's id). For this, `LoadedVmInner` is visible to Verus
 (`verus_verify`), its field types declared by name only. The restore's
-guard (`SnapshotRestore::start_guard`) has no such fact yet.
+guard (`SnapshotRestore::start_guard`, held until the VM first starts)
+has the same fact (code change 93): `snapshot_restore.wf(..)`.
 
 ### The VM worker's request protocol
 

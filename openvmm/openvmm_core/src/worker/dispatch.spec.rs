@@ -76,9 +76,9 @@ pub struct SnapshotBoundaryView {
 impl LoadedVm {
     /// Well formed: the view's invariant holds, the state units are well
     /// formed, the VM's running flag is the state units' (the view's
-    /// `runtime.running`), and an active snapshot boundary holds this VM's
-    /// own partition unit's VPs stopped (its `StopGuard` sends to
-    /// `inner.partition_unit`). Every function that changes one changes the other
+    /// `runtime.running`), and an active snapshot boundary and a restore's
+    /// guard hold this VM's own partition unit's VPs stopped (their
+    /// `StopGuard`s send to `inner.partition_unit`). Every function that changes one changes the other
     /// before it returns (`resume`, `pause`, `quiesce_and_save`,
     /// `resume_after_failed_snapshot`, and the error paths that stop the
     /// units).
@@ -87,6 +87,7 @@ impl LoadedVm {
         &&& self.state_units.wf()
         &&& self.running == self.state_units@.running
         &&& self.snapshot_boundary.wf(self.inner.partition_unit.id())
+        &&& self.snapshot_restore.wf(self.inner.partition_unit.id())
     }
 }
 

@@ -61,6 +61,8 @@ use mesh_rpc_verus::ReceiverAdditionalSpecFns;
 #[cfg(verus_keep_ghost)]
 use mesh_rpc_verus::RpcAdditionalSpecFns;
 #[cfg(verus_keep_ghost)]
+use spec::SavedStateUnits;
+#[cfg(verus_keep_ghost)]
 pub use spec::StateUnitSpec;
 #[cfg(verus_keep_ghost)]
 use spec::UnitSnapshot;
@@ -1061,8 +1063,8 @@ impl StateUnits {
             final(self)@ == old(self)@,
             // One entry per unit with saved state, holding that state.
             result matches Ok(states) ==> {
-                &&& SavedStateUnit::distinct_names(states@)
-                &&& SavedStateUnit::map_of(states@) == old(self)@.saved_units()
+                &&& states@.distinct_names()
+                &&& states@.by_name() == old(self)@.saved_units()
             },
     ))]
     pub async fn save(&mut self) -> Result<Vec<SavedStateUnit>, StateTransitionError> {
@@ -1111,10 +1113,10 @@ impl StateUnits {
             // Each unit in `states` (by name, once each, and registered)
             // records its saved state; the others keep theirs.
             result is Ok ==> {
-                &&& SavedStateUnit::distinct_names(states@)
-                &&& SavedStateUnit::map_of(states@).dom() <= old(self)@.units.dom()
+                &&& states@.distinct_names()
+                &&& states@.by_name().dom() <= old(self)@.units.dom()
                 &&& final(self)@.units == old(self)@.units.union_prefer_right(
-                    SavedStateUnit::map_of(states@).map_values(
+                    states@.by_name().map_values(
                         |blob: SavedStateBlobView| UnitSnapshot::Saved(blob),
                     ),
                 )

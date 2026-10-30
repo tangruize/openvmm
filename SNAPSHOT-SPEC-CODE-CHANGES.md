@@ -1435,6 +1435,19 @@ Baseline: upstream `nanvix/openvmm` commit
       partition unit's VPs). `LoadedVm::wf()` adds
       `snapshot_boundary.wf(inner.partition_unit.id())`.
 
+93. **Two small spec items** (asked by the user, 2026-10-30). Verus only.
+    - The restore's guard belongs to its own partition unit:
+      `SnapshotRestore::wf(partition)` (the guard, while held, is well
+      formed and holds that partition unit's VPs stopped);
+      `LoadedVm::wf()` adds `snapshot_restore.wf(inner.partition_unit.id())`,
+      as for the boundary's guard (code change 92).
+    - A convention TODO: `SavedStateUnit::map_of(units)` and
+      `distinct_names(units)` (which took a sequence instead of `self`)
+      become `units@.by_name()` and `units@.distinct_names()`, methods of
+      the new spec trait `SavedStateUnits`, implemented for
+      `Seq<SavedStateUnit>`; their uses (`StateUnits::save`,
+      `StateUnits::restore`, `SavedState`'s view and `wf`) updated.
+
 ### Planned: mesh RPC trusted spec
 
 From the draft in `verus-patches/verus-rpc-prototype/src/mesh_rpc_t.rs`
