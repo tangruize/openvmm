@@ -631,7 +631,8 @@ below as the record of the first device worked through. (Later, 2026-10-27,
   `SaveRestoreSpecImpl::saved_state` is the view's; `snapshot()` is
   `Saved(of(saved_state()))`. `wf()`: the view's invariant, and the ghost
   field follows the rule for `snapshot()`. `LockInvariant`: key `id`,
-  invariant `wf()`.
+  invariant `wf()` (since code change 94: no key; the lock's parameter
+  carries the id).
 - **Entry points with contracts** (`external_body`: stated, not proved).
   The trait methods delegate to inherent methods: `start_device`, `poll`,
   `pio_read`, `pio_write` require `wf()` and running and keep both;
@@ -693,7 +694,8 @@ below as the record.
   neither state nor ghost; on `Ok`, the snapshot is `Saved(blob@)`). Each
   keeps `device_inv()`, the rule, and the id. Two lemmas each device
   proves: `lemma_lock_inv` (its `CloseableMutex` invariant is
-  `device_inv()` plus the rule, and the key is its id) and, in
+  `device_inv()` plus the rule, and the key is its id; since code change
+  94, the lock's parameter is its id) and, in
   `DeviceGhost`, `lemma_snapshot_known` (its snapshot is never `Unknown`,
   needed for `Stop`).
 - **The PIT implements it** (`pit/mod.proof.rs`, verified), calling
@@ -923,7 +925,9 @@ one atomic MSR value (`TimeAbiMsrs::tsc_invariant_control`, a control
 setting, not time), which VPs write; in Verus builds it is vstd's atomic
 with ghost (`vstd::atomic_ghost::AtomicU64`), whose invariant
 (`TscControlPred`) ties the share to the value. The unit's id is the
-atomic's key (as `DeviceUnit`'s is its mutex's key). The VP write path
+atomic's key (vstd's `AtomicU64` key, a per-atomic ghost constant; as
+`DeviceUnit`'s was its mutex's key, now its lock's parameter, code change
+94). The VP write path
 must change the value and the share together, which needs the whole,
 that is, the unit running (as for the PIT's handlers). Still
 uninterpreted: the vmbus units, `PartitionUnitRunner`.
@@ -1217,7 +1221,8 @@ visible in four crates.
   `wf()` = the key's `omit` part equals the unit's `omit_saved_state` (so
   the lock's snapshot and the unit's `save` agree), `running()` = its
   `running` field. `ArcMutexChipsetDeviceUnit::new` (`external_body`):
-  requires the key's `omit` part to match. Its two spawn sites use
+  requires the key's `omit` part to match. (Since code change 94: the
+  lock's parameter, `param()`, in place of the key, for both parts.) Its two spawn sites use
   `spawn_with_channel(.., unit_channel_for(), ..)`.
 
 **The type change** (code change 44): every place that names a device's
@@ -2468,8 +2473,10 @@ in `SNAPSHOT-SPEC-MUTEX.md`.
 vstd's `RwLock` is a spinlock that is not released on drop, so switching
 would change runtime behavior. Instead, a trusted wrapper,
 `vmm_core/state_unit/src/mutex_t.rs` (first drafted in the prototype; the
-`state_unit` version names the invariant by a static `MutexPredicate`
-instead of a ghost value):
+`state_unit` version named the invariant by a static `MutexPredicate`
+instead of a ghost value; since code change 94, each mutex also gets its
+own ghost parameter at creation, which the invariant takes, as with
+vstd's ghost value; `SNAPSHOT-SPEC-MUTEX.md`):
 
 - Runtime: `parking_lot::Mutex<Option<V>>`; the real lock is unchanged.
 - Verified code: `acquire(&self) -> (V, MutexHandle)` gives the value, which
