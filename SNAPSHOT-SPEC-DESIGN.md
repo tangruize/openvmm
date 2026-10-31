@@ -1567,7 +1567,7 @@ is only the guest-memory access (`GuestMemory`, in
 `SharedInterruptStatus::update`) and that the guest does not run while
 stopped. The same contracts hold in the legacy modes (the value is then
 the locked field), but there they are a stand-in for the lock protocol
-(TODO in "Other open items").
+(TODO in `SNAPSHOT-SPEC-OPEN-ITEMS.md`).
 
 **Code change (58):** `restore`'s inline block (lock the interrupt state,
 `restore_status`) moved into the new `MmioTransport::restore_interrupt_status`
@@ -3297,76 +3297,4 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 ### Other open items
 
-What is still open, as of code change 93 (2026-10-30), most important
-first. Resolved items (G1, G2, the protocols of `PartitionRequest` and
-`VmRpc`, virtio-MMIO's accessors and its `save` of the captured state, the
-`cargo xtask fmt` lint failures of 2026-10-27, `SavedStateUnit`'s sequence
-helpers) are recorded in their sections and in
-`SNAPSHOT-SPEC-CODE-CHANGES.md`.
-
-1. **Prove the contracts** (the proof agent). Every contract on the
-   snapshot path has an unverified body (`external_body`; 69 in the
-   audit's "to prove"): `SNAPSHOT-SPEC-TRUSTED.md`, Part 3, "Contracts
-   whose bodies are not yet proved"; the placeholders to replace are
-   marked `PROOF TODO:` (56). Also the facts about our code in Part 3
-   (e.g. "Recorded unit states are real", "Stopped devices do not
-   change", the locks' unverified users) and the pending lemma
-   `StateUnits::lemma_view_inv`.
-2. **Waiting for G5** (a Verus patch for `async_trait` and postconditions
-   of futures; not to be done for now, the user, 2026-10-30; "The trust
-   audit"):
-   - G3's open part: the guest's writes to the partition's state while
-     its VPs run ("The partition's state"), and the same "guest ran"
-     refresh for virtio-MMIO's `ghost_status`;
-   - G4, the VP layer: `WrappedVp`'s `SaveRestore`, `BoundVp`'s
-     `ProtobufSaveRestore`, the backends' VP-state access
-     (`AccessVpState`, PROOF DEFERRED);
-   - the partition runner's other events (decided 2026-10-28, user; part
-     of them calls `VmPartition`'s methods, `reset`, `scrub_vtl`,
-     `accept_initial_pages`, behind `async_trait`). Besides state
-     requests, `PartitionUnitRunner::run` handles halt events and
-     partition requests (`ClearHalt`, `SetInitialRegs`,
-     `AcceptInitialPages`, ...). Those that change the saved state (the
-     halt reason, VP registers) must keep the share's rule: allowed while
-     running or before the first stop or restore (snapshot `Unknown`);
-     while stopped after a snapshot is recorded, only if the change is
-     reflected in the share, which the stopped unit cannot do alone. To
-     check per request in the proof, or in `PartitionRequest`'s protocol
-     (written for the snapshot requests, code change 87; these requests
-     are forbidden there for now). The runner's `stop` also handles
-     pending halt requests after stopping the VPs, so the halt reason is
-     settled at `stop`;
-   - the erasure point `From<T> for ResolvedChipsetDevice` (G1's one
-     deferred fact), `ArcMutexChipsetDeviceUnit::next_event`.
-3. **After the proof of save and restore** (the user, 2026-10-30):
-   `VmRpc`'s `Resume` and `Reset` ("Roadmap": steps 2 and 3; `Pause` is
-   done).
-4. **Soundness review** of the mesh RPC wrapper's reply-ghost type
-   argument (`mesh_rpc_t.rs`; trusted doc, Part 1, "Reply ghost type").
-5. **virtio-MMIO's legacy interrupt modes** (not used by the microVM,
-   which uses the shared-status mode: "virtio-MMIO's interrupt status:
-   the guest-memory boundary"): the interrupt-state lock protocol. In the
-   legacy modes the status is `InterruptState.status`, behind
-   `Arc<parking_lot::Mutex<InterruptState>>`, written by the transport,
-   the device task's interrupt closures, and (legacy with accelerated
-   acks, on Linux) the acknowledgement worker. To verify it: a lock with
-   an invariant (an executable type change, as for `StateUnits`, code
-   change 9) and a FracGhost share for the status (the lock's half and
-   the transport's, the transport's half in the lock while the device
-   runs), with ghost state through the interrupt closures. Also to check
-   there: a guest acknowledgement written just before `stop` may be
-   handled by the acknowledgement worker after `stop`, changing the
-   status of a stopped device.
-6. **Later layers, out of scope for now**: the controller
-   (`VmController::handle_guest_snapshot_request`, roadmap item 3; its
-   channel's protocol is written, code change 89); the inner virtio
-   devices' state (net, console, fs, block); the time capture's content
-   (guest time).
-7. **A clean design document** (requested 2026-10-27, user; once the
-   design settles): a fresh document, separate from this working log,
-   stating the device-level spec (views, saved-state views, `saved_view`,
-   `device_wf`), the `SaveRestore` trait spec (and `ProtobufSaveRestore`,
-   where blobs enter), the RPC (the mesh RPC wrapper and the protocols),
-   `LoadedVm` (save, restore, quiesce, restore from snapshot), and the
-   FracGhost (the units' shares, `DeviceSlot`, the lock invariant, the
-   lent halves).
+See `SNAPSHOT-SPEC-OPEN-ITEMS.md`.
