@@ -28,6 +28,36 @@ source ../tools/activate   # or put tools/vargo/target/release on PATH
 vargo build --release
 ```
 
+### On a new machine
+
+From scratch: Verus at `426d8b0` with the five patches, then the
+snapshot spec's check. Cloning into `~/programs/verus` matches the default
+of `scripts/verify-snapshot-spec.sh` (otherwise set `VERUS_BIN_DIR`).
+Needs rustup; Verus's `rust-toolchain.toml` selects Rust 1.98.1.
+
+```sh
+git clone https://github.com/verus-lang/verus.git ~/programs/verus
+cd ~/programs/verus
+git checkout 426d8b0
+for p in 0001 0002 0003 0004 0005-trait; do
+    git apply /path/to/openvmm/verus-patches/$p*.patch
+done
+cd source
+./tools/get-z3.sh          # downloads the Z3 solver Verus uses
+source ../tools/activate   # puts vargo on PATH
+vargo build --release      # the verifier, in target-verus/release
+```
+
+The patched `vstd` and `verus_builtin_macros` need no step: OpenVMM's
+workspace `Cargo.toml` uses the copies in this directory
+(`[patch.crates-io]`). Then, from the OpenVMM checkout:
+
+```sh
+cargo xflowey restore-packages   # once (protoc; needs bsdtar)
+export PATH=~/programs/verus/source/target-verus/release:$PATH
+RUSTUP_TOOLCHAIN=1.98.1 scripts/verify-snapshot-spec.sh vmm_core
+```
+
 ## 0001-async-fn-unnamed-return-keeps-ensures.patch
 
 **Bug.** An `async fn` without a named return value loses its postconditions
