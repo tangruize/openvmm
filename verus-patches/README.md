@@ -101,7 +101,7 @@ return values passes: 302 passed, 0 failed, 1 ignored.
 
 The full `rust_verify_test` suite has not been run.
 
-**Found by.** The async state-unit prototype (`verus-rpc-prototype`,
+**Found by.** The async state-unit prototype (since removed;
 `two_units_async.rs`): the unit's request loop could not keep its invariant
 after awaiting `handle(&mut self, ...)`.
 

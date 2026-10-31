@@ -3,6 +3,4 @@
 # (third-party code, under the Verus project's license), and files written
 # for the Verus work, which do not carry OpenVMM's copyright header.
 verus_builtin_macros/
-verus-rpc-prototype/Cargo.toml
-verus-rpc-prototype/rust-toolchain.toml
 vstd/

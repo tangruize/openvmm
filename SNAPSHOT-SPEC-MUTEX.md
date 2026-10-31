@@ -136,12 +136,8 @@ Everything in `mutex_t.rs` is trusted (also listed in
 
 ## Status and limitations
 
-- **Tested**: in the prototype (`verus-patches/verus-rpc-prototype`,
-  `mutex_unit.rs`): a registry whose units leave FracGhost halves in the
-  mutex verifies; dropping a precondition breaks the rule and fails; runtime
-  tests cover `acquire`/`release` and the unverified `lock()`. In
-  `state_unit`, the registry uses it (`collect_halves` verifies with it);
-  the `state_unit` tests pass.
+- **Tested**: in `state_unit`, the registry uses it (`collect_halves`
+  verifies with it); the `state_unit` tests pass.
 - **No `try_lock`, no condition variables**; only what `StateUnits` needed.
 - **Where it should live.** A vstd version would specify
   `std::sync::Mutex` rather than `parking_lot`, would take its rule as a

@@ -115,9 +115,7 @@ The state-unit request protocol (`MeshProtocol for StateRequest`,
 `vmm_core/state_unit/src/lib.proof.rs`) and its verified examples:
 `example_save_call` (a caller lends a FracGhost half with `Save` and learns
 the blob matches it) and `ExampleUnit::handle` (a server answering `Start`, `Stop`,
-`Save`, `Restore`). A standalone version with a two-unit interrupt-pin
-example is in `verus-patches/verus-rpc-prototype` (`mesh_unit.rs`,
-`two_units_async.rs`; there the channel type is the prototype's own).
+`Save`, `Restore`).
 
 ## API
 

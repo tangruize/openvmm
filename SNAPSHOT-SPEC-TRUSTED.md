@@ -8,13 +8,6 @@ Two parts (rule decided by the user, 2026-10-29):
 2. **Deferred**: what Verus cannot yet express (a Verus limit). Not
    trusted: each waits for a Verus patch or a workaround.
 
-Our own code (OpenVMM's and ours) is in neither part: it is to be proved
-(`SNAPSHOT-SPEC-OPEN-ITEMS.md`, section 2).
-
-Every new item must be added to the right part. Design rationale is in
-`SNAPSHOT-SPEC-DESIGN.md`; code changes are in
-`SNAPSHOT-SPEC-CODE-CHANGES.md`.
-
 Not listed: `external_type_specification` declarations (`Ex...` proxies).
 Transparent ones are checked by Verus against the real type; those by
 name only (`external_body`, fields hidden) only declare that a type exists and claim nothing.
@@ -149,9 +142,3 @@ work is not lost if vmbus comes back into scope (the user's decision,
 | Normal-build blanket impl | In a non-Verus build every type implements `LockInvariant` (with `Param = ()`). No effect on verification. |
 | `reply`'s two builds | `lib.rs`: The verification pass (`cfg(verus_keep_ghost_body)`) calls `complete` with the reply ghost; other builds make the same call with `Tracked::assume_new()` (the ghost is erased). |
 | Error conversion | `lib.rs`: `anyhow_error`, `save_error`, `restore_error`: `external_body` with no contract (`RemoteError::new`); nothing assumed beyond termination. |
-
-## Prototype only (`verus-patches/verus-rpc-prototype`, not part of OpenVMM)
-
-`rpc_t.rs`, `rpc_async_t.rs`, `mesh_rpc_t.rs` (draft without attached
-ghosts), `mutex_t.rs` (draft with a ghost predicate value): trusted wrappers
-for the experiments, under the assumptions stated in each file's header.
