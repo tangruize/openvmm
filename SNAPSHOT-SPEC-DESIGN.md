@@ -86,14 +86,6 @@ Places that do not yet follow the conventions above:
   for `Seq<SavedStateUnit>`, `vmm_core/state_unit/src/lib.spec.rs`). A
   view and `wf()` of a list type would need a new type in place of the
   `Vec` (an executable change), so the list's view, a `Seq`, carries them.
-- **Trusted wrapper types** have spec functions besides a view: mesh
-  `Sender`/`Receiver` (`constant()`, `attached()`), `Rpc` (`spec_input()`,
-  `reply_ok()`), `PendingCall` (`reply_ok()`) in
-  `support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`, and the mutex wrapper
-  (`vmm_core/state_unit/src/mutex_t.rs`). They describe what the trusted
-  layer guarantees rather than an abstraction of the data; decide whether
-  to keep them or recast them as views. Recommendation (2026-10-30, not
-  yet decided by the user): keep them.
 
 ### Naming
 
@@ -3349,14 +3341,9 @@ helpers) are recorded in their sections and in
 3. **After the proof of save and restore** (the user, 2026-10-30):
    `VmRpc`'s `Resume` and `Reset` ("Roadmap": steps 2 and 3; `Pause` is
    done).
-4. **To decide (the user): the trusted wrapper types' spec functions**
-   ("Convention TODOs"). Recommendation (not yet decided): keep them;
-   they state what the trusted layer guarantees (`constant()`,
-   `attached()`, `reply_ok()`, `spec_input()`), not an abstraction of the
-   data, which a view would be.
-5. **Soundness review** of the mesh RPC wrapper's reply-ghost type
+4. **Soundness review** of the mesh RPC wrapper's reply-ghost type
    argument (`mesh_rpc_t.rs`; trusted doc, Part 1, "Reply ghost type").
-6. **virtio-MMIO's legacy interrupt modes** (not used by the microVM,
+5. **virtio-MMIO's legacy interrupt modes** (not used by the microVM,
    which uses the shared-status mode: "virtio-MMIO's interrupt status:
    the guest-memory boundary"): the interrupt-state lock protocol. In the
    legacy modes the status is `InterruptState.status`, behind
@@ -3370,12 +3357,12 @@ helpers) are recorded in their sections and in
    there: a guest acknowledgement written just before `stop` may be
    handled by the acknowledgement worker after `stop`, changing the
    status of a stopped device.
-7. **Later layers, out of scope for now**: the controller
+6. **Later layers, out of scope for now**: the controller
    (`VmController::handle_guest_snapshot_request`, roadmap item 3; its
    channel's protocol is written, code change 89); the inner virtio
    devices' state (net, console, fs, block); the time capture's content
    (guest time).
-8. **A clean design document** (requested 2026-10-27, user; once the
+7. **A clean design document** (requested 2026-10-27, user; once the
    design settles): a fresh document, separate from this working log,
    stating the device-level spec (views, saved-state views, `saved_view`,
    `device_wf`), the `SaveRestore` trait spec (and `ProtobufSaveRestore`,
