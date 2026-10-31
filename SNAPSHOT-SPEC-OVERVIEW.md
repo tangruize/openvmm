@@ -488,6 +488,8 @@ what their transport saves.
 |---|---|
 | `SNAPSHOT-SPEC-TRUSTED.md` | every assumption, in the three groups above |
 | `SNAPSHOT-SPEC-CODE-CHANGES.md` | every change made to OpenVMM's code for the spec, numbered ("code change N") |
-| `SNAPSHOT-SPEC-DESIGN.md` | the working log: every decision, its options and reasons, in the order they were made; the exact contracts; the open items (at its end) |
+| `SNAPSHOT-SPEC-OPEN-ITEMS.md` | what is still open, grouped by who or what each item waits for |
+| `SNAPSHOT-SPEC-CONVENTIONS.md` | the style rules of the spec: views and `wf()`, file layout, naming |
+| `SNAPSHOT-SPEC-DESIGN.md` | the working log: every decision, its options and reasons, in the order they were made; the exact contracts |
 | `SNAPSHOT-SPEC-MESH-RPC.md` | the mesh RPC wrapper: how ghosts travel with messages |
 | `SNAPSHOT-SPEC-MUTEX.md` | the two lock wrappers (the registry's mutex, the devices' `CloseableMutex`): locks with invariants, and closing |

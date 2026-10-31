@@ -125,8 +125,8 @@ objects (`async_trait`) or on futures. Not to be done for now (the user,
 
 ## 6. Documentation
 
-   **The rest of the document split**: a contracts reference 
-   (`SNAPSHOT-SPEC-CONTRACTS.md`), a conventions
-   document (`SNAPSHOT-SPEC-CONVENTIONS.md`), and the design doc renamed
-   as the decision log, with its executable-changes table moved to
-   `SNAPSHOT-SPEC-CODE-CHANGES.md`.
+   **The rest of the document split**: a contracts reference
+   (`SNAPSHOT-SPEC-CONTRACTS.md`), and the design doc renamed as the
+   decision log, with its executable-changes table moved to
+   `SNAPSHOT-SPEC-CODE-CHANGES.md`. (The conventions are done:
+   `SNAPSHOT-SPEC-CONVENTIONS.md`.)
