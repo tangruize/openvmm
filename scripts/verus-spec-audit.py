@@ -5,10 +5,11 @@ audit").
 Usage (from the repo root): scripts/verus-spec-audit.py [--list]
 
 Scans every tracked .rs file with Verus code (outside verus-patches/) for
-the trust markers and TODOs, classifies them, and checks them against the
-docs (SNAPSHOT-SPEC-TRUSTED.md, -DESIGN.md, -CODE-CHANGES.md). Prints a
+the trust markers and TODOs, classifies them, and checks that every
+trusted, deferred, or uninterpreted function is named in
+SNAPSHOT-SPEC-TRUSTED.md (our code to prove is listed in no doc). Prints a
 summary; with --list, every item. Doc matching is by name, so it finds
-items the docs never mention; an item it reports as documented may still
+items the doc never mentions; an item it reports as documented may still
 need a human check.
 
 Sections:
@@ -41,9 +42,6 @@ _spec = importlib.util.spec_from_file_location(
     'classify', os.path.join(HERE, 'verus-trust-classify.py'))
 classify = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(classify)
-
-DOCS = ['SNAPSHOT-SPEC-TRUSTED.md', 'SNAPSHOT-SPEC-DESIGN.md',
-        'SNAPSHOT-SPEC-CODE-CHANGES.md']
 
 FN_RE = re.compile(
     r'^\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?'
@@ -157,7 +155,7 @@ def placeholders(files):
     return rows
 
 
-def functions(files, docs):
+def functions(files):
     trusted_doc = open('SNAPSHOT-SPEC-TRUSTED.md').read()
     rows = []
     for f in files:
@@ -204,10 +202,9 @@ def functions(files, docs):
             word = re.compile(r'\b' + re.escape(name) + r'\b')
             if kind in ('EB-TRUSTED', 'EB-DEFERRED', 'UNINTERP'):
                 documented = bool(word.search(trusted_doc))
-            elif kind == 'OUT-OF-SCOPE':
-                documented = True
             else:
-                documented = bool(word.search(docs))
+                # Out of scope, or our code to prove: no doc lists them.
+                documented = True
             rows.append((kind, f'{f}:{i + 1}', name, documented))
     return rows
 
@@ -260,7 +257,6 @@ def summarize(title, rows, key=0):
 def main():
     list_all = '--list' in sys.argv[1:]
     files = verus_files()
-    docs = ''.join(open(d).read() for d in DOCS)
     print(f'files with Verus code: {len(files)}')
 
     p = placeholders(files)
@@ -270,7 +266,7 @@ def main():
     for r in (p if list_all else bad):
         print('   ', *r, sep='\t')
 
-    fns = functions(files, docs)
+    fns = functions(files)
     summarize('functions', fns)
     undoc = [r for r in fns if not r[3]]
     print(f'   not named in the docs: {len(undoc)}')

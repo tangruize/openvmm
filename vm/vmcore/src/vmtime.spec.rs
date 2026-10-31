@@ -43,8 +43,8 @@ impl View for SavedState {
 impl View for VmTimeKeeper {
     type V = VmTimeKeeperView;
 
-    /// ASSUMED (uninterpreted, by the user's decision, 2026-10-30; see
-    /// `SNAPSHOT-SPEC-TRUSTED.md`, Part 3): `running` is meant to be
+    /// ASSUMED (uninterpreted, by the user's decision, 2026-10-30):
+    /// `running` is meant to be
     /// `self.time.is_started()`. Defining it from the fields needs two new
     /// `vmcore` dependencies, used only for Verus (`async-task`,
     /// `mesh_rpc_verus`), to declare the field types; guest time is out of

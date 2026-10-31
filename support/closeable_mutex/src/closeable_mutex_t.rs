@@ -15,8 +15,7 @@
 //! (the user's decision, 2026-10-30), so these contracts are in the trusted
 //! base (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). Its unverified users (plain
 //! `lock`, `lock_if_open`, `close`, `new`) are not: they are
-//! `external_body` functions, to prove (Part 3, "The locks' unverified
-//! users"); once verified, Verus checks the invariant at each `release` and
+//! `external_body` functions, to prove; once verified, Verus checks the invariant at each `release` and
 //! at `new_verified`.
 //!
 //! - **Closing, and the panics.** A closed mutex panics on `lock`, and

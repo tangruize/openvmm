@@ -31,8 +31,8 @@ verus! {
 /// `VpSet` holds its half, the half records what the VP's save returns
 /// (the rule, kept by the VP thread).
 ///
-/// ASSUMED, by the user's decision (C1; `SNAPSHOT-SPEC-TRUSTED.md`, Part 3;
-/// about our own code, so not part of the trusted base): VP runners are
+/// ASSUMED, by the user's decision (C1; about our own code, so not part of
+/// the trusted base): VP runners are
 /// never dropped while
 /// their `VpSet` is in use, so no call on this channel fails with a channel
 /// error, which would lose `VpSet`'s half (a failed call returns no ghost).

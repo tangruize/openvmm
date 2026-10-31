@@ -469,13 +469,14 @@ vstd's lock, in detail.
 
 ## 5. What is trusted, and what is not done
 
-Every assumption is listed in `SNAPSHOT-SPEC-TRUSTED.md`, in three groups:
+What the proof assumes, in three groups; `SNAPSHOT-SPEC-TRUSTED.md` lists
+the first two, and `SNAPSHOT-SPEC-OPEN-ITEMS.md` (section 2) the third:
 
 | Group | Meaning | Examples |
 |---|---|---|
 | **Trusted base** | outside our code; not to be proved | the hypervisor (KVM, MSHV, WHP) and thin wrappers over it; the guest's behavior; mesh message delivery; protobuf encoding; the locks' runtime; the tools (Verus, the Rust compiler) |
 | **Deferred** | needs something Verus cannot express yet | contracts on methods of `async` trait objects and on futures: the vCPU threads' save and restore, the partition's handling of its other requests |
-| **Assumed until proved** | our code; contracts stated, proofs to come | the bodies of every function with a contract; a few facts, e.g. "a unit receives `Stop` only while running". Among them, "a stopped device does not change" is part of what the contracts claim, so its proof is part of theirs; the fractional ghosts in the device locks (section 4.2.2) give the proof the means |
+| **To prove** | our code; contracts stated, proofs to come | the bodies of every function with a contract; a few facts, e.g. "a unit receives `Stop` only while running". Among them, "a stopped device does not change" is part of what the contracts claim, so its proof is part of theirs; the fractional ghosts in the device locks (section 4.2.2) give the proof the means |
 
 Out of scope for now: guest RAM, guest time, the controller's own code,
 and the inner state of virtio devices (network, console, disks) beyond

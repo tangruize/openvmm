@@ -52,9 +52,8 @@ Properties that belong in an entrance contract and are not there yet.
      today;
    - important internal properties, such as: the units stop, start, and
      restore in dependency order (the overview, 2.3), which is why a vCPU
-     never reaches a stopped device; and the facts about our code that
-     the trusted doc, Part 3, assumes until proved (e.g. "Stopped devices
-     do not change").
+     never reaches a stopped device; and that stopped devices do not
+     change.
 
 ## 3. Waiting for Verus (not to be done for now)
 
