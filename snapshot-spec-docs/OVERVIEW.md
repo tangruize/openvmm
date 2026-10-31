@@ -363,6 +363,15 @@ device, how do we know a vCPU is not changing it?
 To answer these questions, the spec uses two tools: **fractional ghosts**
 (4.2.1) and **lock invariants** (4.2.2).
 
+Both are explained, with small verified examples, in the Verus
+concurrency tutorial, online at
+https://people.cs.uchicago.edu/~shanlu/verus-concurrency/ and copied in
+`snapshot-spec-docs/verus-concurrency-tutorial/` (open `index.html`; the
+example programs are the `my_*.rs` files there). Fractional ghosts:
+chapter 3, "Ghost resources: recording what happened"
+(`ch25_ghost_resources.html`). Lock invariants: chapter 2.2, "Atomic
+invariants for lock-protected data" (`ch24_2_locks.html`).
+
 #### 4.2.1 Fractional ghosts
 
 A **fractional ghost** (`FracGhost`, from Verus's standard library,

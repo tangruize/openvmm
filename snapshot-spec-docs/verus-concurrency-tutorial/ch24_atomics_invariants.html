@@ -1,0 +1,626 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Sharing an atomic variable with an invariant - Verus concurrency chapters (draft preview)</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-c7b7cb9e.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-edf7f784.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Verus concurrency chapters (draft preview)</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="sharing-an-atomic-variable-with-an-invariant"><a class="header" href="#sharing-an-atomic-variable-with-an-invariant">Sharing an atomic variable with an invariant</a></h1>
+<p>In the last chapter every thread had its own data. Now the threads will write to the <em>same</em>
+variable at the same time. That is what makes concurrency hard to verify, and this chapter
+introduces the tool that handles it: the atomic invariant.</p>
+<p>This chapter and the next one (locks) are independent. Read them in either order.</p>
+<h2 id="the-problem"><a class="header" href="#the-problem">The problem</a></h2>
+<p>Keep the window <code>[lo, hi]</code> from the last chapter, but now picture a sensor that reports
+readings from many threads. The program keeps the smallest and the largest reading seen so far
+in two shared variables, <code>lo</code> and <code>hi</code>. We want to prove that <code>lo &lt;= hi</code> always holds, whatever
+order the threads run in.</p>
+<p>We start with an even simpler variable: a counter that always changes by 2. We want to prove
+that the counter is always even.</p>
+<h2 id="background-how-threads-share-and-change-data-in-rust"><a class="header" href="#background-how-threads-share-and-change-data-in-rust">Background: how threads share and change data in Rust</a></h2>
+<p>Rust normally allows many readers or one writer, never both at once. Sharing a value between
+threads means putting it in an <code>Arc</code> (an atomically reference-counted pointer). But an <code>Arc</code>
+shares <em>ownership</em>, not the right to change the value: through an <code>Arc</code> you only get a shared
+reference, which is read-only.</p>
+<p>To change a shared value, the value’s type must have <em>interior mutability</em>, which means it can
+be changed through a shared reference. Rust offers three kinds:</p>
+<ul>
+<li>an <strong>atomic</strong> type such as <code>AtomicU64</code>: each operation is one indivisible hardware step;</li>
+<li>a <strong>lock</strong> (<code>Mutex</code>, <code>RwLock</code>): one thread at a time may change the data (next chapter);</li>
+<li><code>Cell</code> and <code>RefCell</code>: not safe across threads.</li>
+</ul>
+<p>This chapter uses atomics. Verus wraps Rust’s atomics in types such as <code>PAtomicU64</code>.</p>
+<h2 id="why-verus-needs-something-new"><a class="header" href="#why-verus-needs-something-new">Why Verus needs something new</a></h2>
+<p>With one owner, Verus knows the value of a variable by following ownership: a <code>&amp;mut</code> reference
+means nobody else can change it, so the value before and after a call can be written in a
+specification.</p>
+<p>A shared atomic is different. Any thread can change it at any moment. So a specification
+cannot say “the counter is 5”, because it may no longer be 5 a moment later.</p>
+<p>What a specification <em>can</em> say is something that is true in every state: “the counter is
+even”. Such a statement is called an <em>invariant</em>. If every step that changes the variable
+keeps the statement true, then it is true whenever anyone looks.</p>
+<h2 id="the-idea-a-key-and-a-box"><a class="header" href="#the-idea-a-key-and-a-box">The idea: a key and a box</a></h2>
+<p>Verus models this with two things.</p>
+<ul>
+<li>The <strong>permission</strong> is a proof-only key to the variable. You cannot touch the real variable
+without holding its key. There is only one key, and it cannot be copied.</li>
+<li>The <strong>atomic invariant</strong> is a shared box with a rule written on it. The key sits in the box.</li>
+</ul>
+<p>To change the variable, a thread takes the key out of the box, changes the variable with one
+atomic operation, and puts the key back. When the key goes back in, Verus checks that the rule
+still holds. If it does not, the program does not verify.</p>
+<p>Because the key is only ever out of the box for one atomic step, and one atomic step cannot be
+interrupted, no other thread ever sees a half-finished change.</p>
+<p>The key and the box exist only while Verus checks the program. They are erased when the
+program is compiled, so they cost nothing at run time.</p>
+<h2 id="the-rule-invariantpredicate"><a class="header" href="#the-rule-invariantpredicate">The rule: <code>InvariantPredicate</code></a></h2>
+<p>The rule on the box is written as a function. This is the whole definition, from vstd:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait InvariantPredicate&lt;K, V&gt; {
+    spec fn inv(k: K, v: V) -&gt; bool;
+}
+<span class="boring">}</span></code></pre>
+<p>It says: there is a function <code>inv</code> that takes a <code>k</code> and a <code>v</code> and answers true or false. True
+means “the box is acceptable”.</p>
+<ul>
+<li><code>V</code> is the type of what sits in the box. It is the <em>variable</em> part: every time the box is
+opened and closed, a possibly different <code>V</code> is put back.</li>
+<li><code>K</code> is a <em>constant</em>: one value of any type, given when the box is created and never changed
+afterwards. Anyone may read it without opening the box. It is the first input of <code>inv</code>, and
+that is all it is for. Typically it holds ids. (A way to remember it: K for Constant,
+V for Variable.)</li>
+</ul>
+<p>A box needs a name for its rule. We use an empty struct as a label, and write the rule inside
+an <code>impl</code>:</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct EvenInv;
+
+impl InvariantPredicate&lt;int, PermissionU64&gt; for EvenInv {
+    open spec fn inv(x_id: int, perm: PermissionU64) -&gt; bool {
+        &amp;&amp;&amp; perm@.patomic == x_id  // the permission belongs to our atomic variable
+        &amp;&amp;&amp; perm@.value % 2 == 0  // the property we care about
+    }
+}
+
+type Inv = AtomicInvariant&lt;int, PermissionU64, EvenInv&gt;;
+<span class="boring">}</span></code></pre>
+<p>Read the <code>impl</code> line as: “<code>EvenInv</code> is the name of a rule for boxes whose constant is an
+<code>int</code> and whose contents are a <code>PermissionU64</code>. Here is the rule.”</p>
+<p>This rule says two things. The key belongs to our variable (<code>perm@.patomic == x_id</code>), and the
+value is even (<code>perm@.value % 2 == 0</code>). The first line is bookkeeping that ties the key to the
+variable. The second is the property we care about.</p>
+<p>The last line, <code>type Inv = ...</code>, gives a short name to the box’s type. The box type mentions
+all three parts: <code>AtomicInvariant&lt;constant type, contents type, label&gt;</code>.</p>
+<h2 id="the-variable-and-its-key"><a class="header" href="#the-variable-and-its-key">The variable and its key</a></h2>
+<p><code>PAtomicU64::new(v)</code> creates the real atomic variable and, at the same time, its key:</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    let (x, Tracked(perm)) = PAtomicU64::new(0);
+    let tracked inv = Inv::new(x.id(), perm, 1);
+    let x = Arc::new(x);
+    let inv = Arc::new(Tracked(inv));
+<span class="boring">}</span></code></pre>
+<ul>
+<li>The two <code>Arc</code> lines at the end only prepare the variable and the box for sharing; they are
+explained in the section on sharing below.</li>
+<li><code>Tracked(...)</code> marks a proof-only value that Verus tracks so that it cannot be copied.</li>
+<li><code>x.id()</code> is the variable’s id, and <code>perm@.patomic</code> is the id of the variable the key belongs
+to. The rule above says these must match.</li>
+<li><code>Inv::new(x.id(), perm, 1)</code> creates the box. It takes the constant (the id), the contents (the
+key), and a number called the namespace, which you can ignore for now.</li>
+</ul>
+<p>Creating the box checks that the rule holds for the starting contents: the value 0 is even.</p>
+<p>Every operation on the variable takes the key as an argument, written <code>Tracked(&amp;mut perm)</code>.
+That is how Verus makes sure nobody touches the variable without holding the key.</p>
+<h2 id="an-operation-one-atomic-step"><a class="header" href="#an-operation-one-atomic-step">An operation: one atomic step</a></h2>
+<p>Here is the operation “add 2”, using the hardware instruction <code>fetch_add</code>:</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// One physical step (fetch_add), so one open/close of the invariant.
+pub fn add_two(x: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;)
+    requires
+        inv.constant() == x.id(),
+{
+    open_atomic_invariant!(inv =&gt; perm =&gt; {
+        x.fetch_add_wrapping(Tracked(&amp;mut perm), 2);
+    });
+}
+<span class="boring">}</span></code></pre>
+<ul>
+<li>The <code>requires</code> line says that this box is the box for this variable <code>x</code>. We need it because
+the rule talks about the id in the constant.</li>
+<li><code>open_atomic_invariant!(inv =&gt; perm =&gt; { ... })</code> takes the key out of the box and calls it
+<code>perm</code> inside the braces. At the closing brace the key goes back, and Verus checks the rule.</li>
+<li>Only <em>one</em> atomic operation is allowed between the braces. That is what makes the opening
+safe, as explained above.</li>
+</ul>
+<p>Where is the proof? There is none. At the closing brace Verus must show that the new value is
+even. It knows two things: the old value was even (the rule, assumed when the box was opened),
+and the instruction added 2 (the instruction’s specification). Adding 2 to an even number gives
+an even number, and Verus’s solver sees that on its own.</p>
+<p>Another operation, “reset to 0”, uses <code>store</code>:</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// One physical step (store), so one open/close of the invariant.
+pub fn reset(x: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;)
+    requires
+        inv.constant() == x.id(),
+{
+    open_atomic_invariant!(inv =&gt; perm =&gt; {
+        x.store(Tracked(&amp;mut perm), 0);
+    });
+}
+<span class="boring">}</span></code></pre>
+<h2 id="sharing-the-variable-and-the-box-between-threads"><a class="header" href="#sharing-the-variable-and-the-box-between-threads">Sharing the variable and the box between threads</a></h2>
+<p>To give every thread the variable and the box, each goes into an <code>Arc</code>, and every thread gets
+its own clone of both. (The <code>Arc</code> is plumbing; it is not part of the idea.)</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn_adder(x: &amp;Arc&lt;PAtomicU64&gt;, inv: &amp;Arc&lt;Tracked&lt;Inv&gt;&gt;) -&gt; (h: JoinHandle&lt;()&gt;)
+    requires
+        inv@.constant() == x.id(),
+{
+    let (x, inv) = (x.clone(), inv.clone());
+    spawn(move || -&gt; (r: ()) { add_two(&amp;x, Tracked(inv.borrow())) })
+}
+<span class="boring">}</span></code></pre>
+<p>The parent starts the threads, waits for all of them, and then reads the counter by opening the
+box once more:</p>
+<!-- source: my_atomic_counter_fetch_add.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    if ok {
+        let result;
+        open_atomic_invariant!(inv.borrow() =&gt; perm =&gt; {
+            result = x.load(Tracked(&amp;perm));
+        });
+        Ok(result)
+    } else {
+        Err(())
+    }
+<span class="boring">}</span></code></pre>
+<p>The function <code>run_threads</code> promises <code>out.unwrap() % 2 == 0</code>. It can promise this because
+<code>load</code> returns the value inside the key, and the rule says that value is even. The parent never
+needed to know how many threads ran, or in which order.</p>
+<h2 id="when-the-rule-is-broken"><a class="header" href="#when-the-rule-is-broken">When the rule is broken</a></h2>
+<p>Change the operation to add 1 instead of 2. Verus rejects the program:</p>
+<pre><code>error: Cannot show invariant holds at end of block
+  --&gt; f24.rs:41:5
+   |
+41 | /     open_atomic_invariant!(inv =&gt; perm =&gt; {
+42 | |         x.fetch_add_wrapping(Tracked(&amp;mut perm), 1);
+43 | |     });
+   | |______^
+</code></pre>
+<p>The message points at the whole block, because that is where the key goes back. The step
+itself is fine. What fails is the promise made at the end: the new value might be odd. When you
+see this message, compare the rule with the value the block leaves behind.</p>
+<h2 id="two-variables"><a class="header" href="#two-variables">Two variables</a></h2>
+<p>Now the window: two variables, <code>lo</code> and <code>hi</code>, with the rule <code>lo &lt;= hi</code>.</p>
+<p>A rule can only talk about what is in its own box. So to relate two variables, one box holds
+both keys. Its constant holds two ids, and its contents are two permissions:</p>
+<!-- source: my_atomic_two_vars.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct K {
+    pub lo_id: int,
+    pub hi_id: int,
+}
+
+pub struct V {
+    pub lo: PermissionU64,
+    pub hi: PermissionU64,
+}
+
+// A permission is linear: each one lives in exactly one invariant, so we cannot also
+// give `lo` or `hi` its own separate invariant. Properties of a single variable
+// (e.g. `lo &lt;= 100`) are simply extra clauses in this joint predicate.
+pub struct WindowInv;
+
+impl InvariantPredicate&lt;K, V&gt; for WindowInv {
+    open spec fn inv(k: K, v: V) -&gt; bool {
+        &amp;&amp;&amp; v.lo@.patomic == k.lo_id
+        &amp;&amp;&amp; v.hi@.patomic == k.hi_id
+        &amp;&amp;&amp; v.lo@.value &lt;= v.hi@.value  // the relation between the two variables
+    }
+}
+
+type Inv = AtomicInvariant&lt;K, V, WindowInv&gt;;
+<span class="boring">}</span></code></pre>
+<p>Notice the comment above the label: a key lives in exactly one box, so <code>lo</code> cannot also get a
+box of its own. A property of just one variable, such as <code>lo &lt;= 100</code>, becomes an extra line of
+this rule.</p>
+<p>The operations touch one variable each. They use <code>fetch_min</code> and <code>fetch_max</code>, which are single
+hardware instructions that store the smaller (or larger) of the old value and the argument:</p>
+<!-- source: my_atomic_two_vars.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// One physical step (fetch_min on lo), so one open/close of the invariant.
+pub fn widen_down(lo: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;, n: u64)
+    requires
+        inv.constant().lo_id == lo.id(),
+{
+    open_atomic_invariant!(inv =&gt; v =&gt; {
+        let tracked V { lo: mut lo_perm, hi: hi_perm } = v;
+        lo.fetch_min(Tracked(&amp;mut lo_perm), n);
+        proof {
+            v = V { lo: lo_perm, hi: hi_perm };
+        }
+    });
+}
+<span class="boring">}</span></code></pre>
+<!-- source: my_atomic_two_vars.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// One physical step (fetch_max on hi), so one open/close of the invariant.
+pub fn widen_up(hi: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;, n: u64)
+    requires
+        inv.constant().hi_id == hi.id(),
+{
+    open_atomic_invariant!(inv =&gt; v =&gt; {
+        let tracked V { lo: lo_perm, hi: mut hi_perm } = v;
+        hi.fetch_max(Tracked(&amp;mut hi_perm), n);
+        proof {
+            v = V { lo: lo_perm, hi: hi_perm };
+        }
+    });
+}
+<span class="boring">}</span></code></pre>
+<p>Each operation opens the same shared box and gets <em>both</em> keys. It uses one and puts both back.</p>
+<p>Why does this keep <code>lo &lt;= hi</code>? Because each step moves its variable in the safe direction: <code>lo</code>
+only goes down and <code>hi</code> only goes up.</p>
+<p><code>fetch_min</code> does the comparison “is <code>n</code> smaller than <code>lo</code>?” and the update as one indivisible
+step. You could be tempted to write the comparison yourself, with a <code>load</code> followed by a
+<code>store</code>. Do not: another thread could change <code>lo</code> between your two steps, and your decision
+would be stale.</p>
+<p>An operation that does both, widen the window to contain <code>v</code>, is just the two steps in order:</p>
+<!-- source: my_atomic_two_vars.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Widen the window so that it contains v: two physical steps, each one safe by itself.
+// The fetch_min / fetch_max instructions ARE the "if v &lt; lo" / "if v &gt; hi" checks, done
+// atomically; writing `load` then `store` by hand would let the decision go stale.
+// At most one of the two steps changes anything (v &lt; lo implies v &lt; hi, and so on), so
+// from the outside this behaves like one step, but the invariant proof does not need that.
+pub fn widen(lo: &amp;PAtomicU64, hi: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;, v: u64)
+    requires
+        inv.constant().lo_id == lo.id(),
+        inv.constant().hi_id == hi.id(),
+{
+    widen_down(lo, Tracked(inv), v);
+    widen_up(hi, Tracked(inv), v);
+}
+<span class="boring">}</span></code></pre>
+<p>This is two atomic steps, each safe by itself. At most one of them changes anything (if <code>v</code> is
+below <code>lo</code>, it is also below <code>hi</code>), so from the outside it looks like one step. The proof does
+not need that fact, though. It only needs each step to keep the rule.</p>
+<h3 id="reading-both-variables"><a class="header" href="#reading-both-variables">Reading both variables</a></h3>
+<p>With two variables there is one thing you cannot do: read both in a single atomic step. After
+the threads are done, the program can load <code>lo</code> and load <code>hi</code>, but another thread could have
+changed one of them in between. So the final claim <code>lo &lt;= hi</code> is stated in proof mode, as a
+fact about the two keys, by opening the box inside a <code>proof</code> block:</p>
+<!-- source: my_atomic_two_vars.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>    // Exec code cannot read two atomics in one atomic step, so the relation is stated
+    // about the ghost permissions, in proof mode, by opening the invariant there.
+    let Tracked(credit) = vstd::invariant::create_open_invariant_credit();
+    proof {
+        open_atomic_invariant_in_proof!(credit =&gt; inv.borrow() =&gt; v =&gt; {
+            assert(v.lo@.value &lt;= v.hi@.value);
+        });
+    }
+<span class="boring">}</span></code></pre>
+<p>It is a true statement, but a weaker one than the single-variable case: it is about the
+proof-only keys, not about two numbers the program holds. The next chapter shows how a lock
+gives you a statement about real values.</p>
+<h2 id="several-steps-a-compare-and-swap-loop"><a class="header" href="#several-steps-a-compare-and-swap-loop">Several steps: a compare-and-swap loop</a></h2>
+<p>Suppose “add 2” were not one hardware instruction. A standard technique builds an update from
+a <em>compare-and-swap</em>:</p>
+<ol>
+<li>read the current value;</li>
+<li>compute the new value;</li>
+<li>ask the hardware to write the new value only if the variable still holds what you read;</li>
+<li>if someone changed it in the meantime, go back to step 1.</li>
+</ol>
+<p><code>compare_exchange_weak(perm, expected, new)</code> is the hardware operation in step 3. It returns
+<code>Ok(_)</code> if the swap happened and <code>Err(latest_value)</code> if not. (“Weak” means that it may
+sometimes fail even when the value matched; in a retry loop that is harmless.)</p>
+<p>Here is “add 2” written that way. It has several atomic steps, so it opens the box once for
+each step:</p>
+<!-- source: my_atomic_cas_even.rs -->
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Add 2 with a compare-and-swap loop.
+pub fn add_two(x: &amp;PAtomicU64, Tracked(inv): Tracked&lt;&amp;Inv&gt;)
+    requires
+        inv.constant() == x.id(),
+{
+    // step 1: read the current value
+    let mut curr;
+    open_atomic_invariant!(inv =&gt; perm =&gt; {
+        curr = x.load(Tracked(&amp;perm));
+    });
+
+    loop {
+        let next = curr.wrapping_add(2);
+        // step 2: swap `next` in, but only if the value is still `curr`
+        let res;
+        open_atomic_invariant!(inv =&gt; perm =&gt; {
+            res = x.compare_exchange_weak(Tracked(&amp;mut perm), curr, next);
+        });
+        match res {
+            Ok(_) =&gt; {
+                return ;
+            },
+            // somebody changed the counter first: `new` is its latest value, try again
+            Err(new) =&gt; {
+                curr = new;
+            },
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>Between the first step and the second, other threads may run and change the counter. That is
+fine, because the rule is about every state, and each step keeps it.</p>
+<p>Notice something about this function: it opens the box itself. So it is written for <em>this</em> box
+and this rule, and it can only be used by programs that keep the key in this box. Chapter 27
+shows what to do when a function must work for owners whose boxes it cannot see.</p>
+<h2 id="small-notes"><a class="header" href="#small-notes">Small notes</a></h2>
+<ul>
+<li><strong>Namespaces.</strong> The number given to <code>Inv::new</code> (the <code>1</code> above) is a namespace. Verus uses
+it to forbid opening a box while it is already open, which would let one thread hold the key
+twice. It only matters when boxes nest, so you can pick any number for now.</li>
+<li><strong>Other uses of the rule.</strong> <code>InvariantPredicate</code> is not specific to the atomic box. vstd
+also uses it for <code>LocalInvariant</code> (a box that cannot be shared between threads), inside
+<code>RwLock</code>, and in <code>atomic_ghost</code>.</li>
+<li><strong>Why <code>Arc&lt;Tracked&lt;Inv&gt;&gt;</code>.</strong> Threads need to own what they share, so the box goes in an
+<code>Arc</code> like the variable. In chapter 26 we will use <code>Shared</code>, vstd’s tracked equivalent.</li>
+</ul>
+<h2 id="what-is-and-is-not-proved"><a class="header" href="#what-is-and-is-not-proved">What is and is not proved</a></h2>
+<ul>
+<li>In every state that any thread can observe, the rule holds. The final reads prove it for
+the end of the program.</li>
+<li>Nothing is claimed about <em>which</em> value the counter has, only that it is even.</li>
+<li>All of this relies on vstd’s atomic wrappers being correct. Their specifications are trusted,
+not proved.</li>
+<li>Only sequentially consistent atomics are modeled.</li>
+</ul>
+<h2 id="what-comes-next"><a class="header" href="#what-comes-next">What comes next</a></h2>
+<p>The next chapter keeps the same window but protects it with a lock instead, which lets the
+program hold both variables at once. After that, chapter 26 shows how to prove facts about
+<em>history</em>, such as “both threads have added 1, so the counter is exactly 2”.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="ch23_threads_no_sharing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="ch25_locks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="ch23_threads_no_sharing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="ch25_locks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

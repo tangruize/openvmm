@@ -20,4 +20,5 @@ Start with the overview.
 | `MUTEX.md` | the two lock wrappers: locks with invariants, and closing |
 | `CODE-CHANGES.md` | every change made to OpenVMM's code for the spec, numbered ("code change N") |
 | `DESIGN.md` | the working log: every decision, its options and reasons; the exact contracts |
+| `verus-concurrency-tutorial/` | a copy of the Verus concurrency tutorial (online: https://people.cs.uchicago.edu/~shanlu/verus-concurrency/): fractional ghosts, atomic and lock invariants, with examples; open `index.html` |
 | `../verus-patches/README.md` | the patches to Verus and `vstd`, how to build the patched Verus, and two OpenVMM patches for OpenVMM's developers |

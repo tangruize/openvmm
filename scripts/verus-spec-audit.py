@@ -4,8 +4,9 @@ audit").
 
 Usage (from the repo root): scripts/verus-spec-audit.py [--list]
 
-Scans every tracked .rs file with Verus code (outside verus-patches/) for
-the trust markers and TODOs, classifies them, and checks that every
+Scans every tracked .rs file with Verus code (outside verus-patches/ and
+snapshot-spec-docs/) for the trust markers and TODOs, classifies them,
+and checks that every
 trusted, deferred, or uninterpreted function is named in
 snapshot-spec-docs/TRUSTED.md (our code to prove is listed in no doc). Prints a
 summary; with --list, every item. Doc matching is by name, so it finds
@@ -56,7 +57,7 @@ def verus_files():
                          text=True, check=True).stdout.split()
     files = []
     for f in out:
-        if f.startswith('verus-patches/'):
+        if f.startswith(('verus-patches/', 'snapshot-spec-docs/')):
             continue
         try:
             text = open(f).read()
