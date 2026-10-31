@@ -33,7 +33,7 @@ pub struct ExRestoreError(RestoreError);
 /// `of_view::<T>(value@)`: a blob is determined by the saved state's view.
 ///
 /// A saved-state type's view keeps every field except guest time, which is
-/// out of the spec's scope (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope for
+/// out of the spec's scope (`snapshot-spec-docs/DESIGN.md`, "Out of scope for
 /// now"): the time-keeping units' time fields (the partition's VPs: TSC
 /// and LAPIC timers; vmtime; the RTC's clock) are not in their saved
 /// states' views. Each saved-state type's view is reviewed for this (in its
@@ -88,7 +88,7 @@ pub trait SaveRestoreView: View {}
 impl<T: View + ?Sized> SaveRestoreView for T {}
 
 /// The contract of every `SaveRestore` implementation (the unit-side
-/// contract at the device level; see `SNAPSHOT-SPEC-DESIGN.md`), on views:
+/// contract at the device level; see `snapshot-spec-docs/DESIGN.md`), on views:
 /// `save` does not change the object's view, and returns a saved state
 /// whose view is `saved_view(view)`; after a successful `restore(state)`,
 /// `saved_view(view)` is `state`'s view. No blobs: those are generic

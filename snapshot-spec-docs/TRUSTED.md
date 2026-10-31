@@ -52,7 +52,7 @@ Protobuf encoding and decoding are not verified.
 
 All functions are `external_body` wrappers around the real `mesh` API; their
 contracts are assumptions about mesh. See the file header, and
-`SNAPSHOT-SPEC-MESH-RPC.md` for an explanation of the wrapper.
+`MESH-RPC.md` for an explanation of the wrapper.
 
 | Item | What is assumed |
 |---|---|
@@ -70,7 +70,7 @@ contracts are assumptions about mesh. See the file header, and
 
 ## The lock's runtime (`vmm_core/state_unit/src/mutex_t.rs`)
 
-Explained in `SNAPSHOT-SPEC-MUTEX.md`: a trusted wrapper over
+Explained in `MUTEX.md`: a trusted wrapper over
 `parking_lot::Mutex`, a lock primitive we do not verify (as
 `CloseableMutex`). Its unverified users are to be proved.
 

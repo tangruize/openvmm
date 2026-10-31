@@ -263,7 +263,7 @@ impl ArcMutexChipsetDeviceUnit {
     }
 
     /// Polls the device. Verus: `external_body`, to prove: a user of the
-    /// device's lock (`SNAPSHOT-SPEC-TRUSTED.md`, "The locks' unverified
+    /// device's lock (`snapshot-spec-docs/TRUSTED.md`, "The locks' unverified
     /// users"); once verified through `lock_verified` / `release` and
     /// `poll_device`'s contract, Verus checks the device's invariant at
     /// `release`.

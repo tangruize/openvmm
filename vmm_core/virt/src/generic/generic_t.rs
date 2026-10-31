@@ -1,8 +1,8 @@
-//! The partition's VM-state handles (`SNAPSHOT-SPEC-DESIGN.md`, "The
+//! The partition's VM-state handles (`snapshot-spec-docs/DESIGN.md`, "The
 //! partition's state").
 //!
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
-//! the contracts here (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). They are thin
+//! the contracts here (`snapshot-spec-docs/TRUSTED.md`, Part 1). They are thin
 //! wrappers (`access_state`, a drop) that state how a partition's VM state,
 //! which the hypervisor holds, relates to its handles and to the
 //! partition's state token: all handles see one state, which the token

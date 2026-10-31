@@ -3,7 +3,7 @@
 # Licensed under the MIT License.
 
 """Classify functions/impls by their Verus status, for the trust audit
-(SNAPSHOT-SPEC-DESIGN.md, "The trust audit").
+(snapshot-spec-docs/DESIGN.md, "The trust audit").
 
 A plain-Rust impl of a trait that has a Verus contract is assumed to meet
 it, silently; this script finds such code along a path. It is a

@@ -1,8 +1,8 @@
 # Snapshot spec: code changes
 
 Code changes made for the snapshot save/restore verification, to OpenVMM and
-to Verus. Design rationale is in `SNAPSHOT-SPEC-DESIGN.md`; the trusted base
-is in `SNAPSHOT-SPEC-TRUSTED.md`.
+to Verus. Design rationale is in `DESIGN.md`; the trusted base
+is in `TRUSTED.md`.
 
 Every OpenVMM change must keep the code compiling and behaving the same in a
 normal (non-Verus) build. Ghost (`Ghost`/`Tracked`) arguments are zero-sized
@@ -1349,7 +1349,7 @@ Baseline: upstream `nanvix/openvmm` commit
       lent), attached to the receiver; the channel's constant is its id.
       Verified. New imports in `rpc.rs`: `vstd::prelude::Ghost` and
       `Tracked` in normal builds, the rest cfg'd. A new trust-base row
-      (`SNAPSHOT-SPEC-TRUSTED.md`, mesh): the receiver reaches the VM
+      (`TRUSTED.md`, mesh): the receiver reaches the VM
       worker through its launch parameters, possibly in another process,
       with its constant and attached ghost.
     - `openvmm_defs` (`rpc.spec.rs`): the protocol (`request_ok` was
@@ -1487,8 +1487,8 @@ Baseline: upstream `nanvix/openvmm` commit
       (the registry's record id; the device's ghost id and `omit`). The
       other creators (hot-plug, the fallback "missing device", OpenHCL,
       VPCI, tests) are not on the path.
-    - Docs: `SNAPSHOT-SPEC-MUTEX.md` (how to use, API, design choices),
-      `SNAPSHOT-SPEC-TRUSTED.md`, the overview's 4.2.2, notes in the
+    - Docs: `MUTEX.md` (how to use, API, design choices),
+      `TRUSTED.md`, the overview's 4.2.2, notes in the
       design doc.
 
 95. **`CloseableMutex`'s panics as preconditions: the close token** (asked
@@ -1516,7 +1516,7 @@ Baseline: upstream `nanvix/openvmm` commit
       accesses, the unit's poll) is for the proof of that code; it needs
       the order in which units stop and start. `inner_add`'s PROOF TODO
       comment mentions the token.
-    - Docs: `SNAPSHOT-SPEC-TRUSTED.md` (the `CloseableMutex` rows), the
+    - Docs: `TRUSTED.md` (the `CloseableMutex` rows), the
       overview's 4.2.2 ("Closing"), notes in the design doc.
 
 96. **`Resume`: its protocol case and `LoadedVm::resume`'s contract**

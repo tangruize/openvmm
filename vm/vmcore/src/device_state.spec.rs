@@ -20,7 +20,7 @@ verus! {
 /// with the unit's state: in a ghost field of the unit, in a chipset
 /// device's lock (`DeviceSlot`), or in an atomic's invariant (the time-ABI
 /// MSRs). See "Design change: the FracGhost lives with the device" in
-/// `SNAPSHOT-SPEC-DESIGN.md`.
+/// `snapshot-spec-docs/DESIGN.md`.
 pub tracked struct DeviceGhostState {
     /// The device's share: the whole while running, one half while stopped.
     pub tracked frac: FracGhost<UnitSnapshot>,

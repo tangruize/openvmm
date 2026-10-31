@@ -159,7 +159,7 @@ pub struct ErasedChipsetDevice(Box<dyn DynChipsetDevice>);
 // are the device's. This is how `dyn` dispatch works in Rust, but Verus
 // cannot prove it here: its `dyn` axiom covers only spec functions of the
 // `dyn` trait itself with an impl visible to Verus, and `DynChipsetDevice`
-// is `async_trait` (gap G5, `SNAPSHOT-SPEC-DESIGN.md`, "The trust audit").
+// is `async_trait` (gap G5, `snapshot-spec-docs/DESIGN.md`, "The trust audit").
 // To remove with the G5 Verus patch.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 impl<T: ChangeDeviceState + ChipsetDevice + ProtobufSaveRestore + InspectMut> From<T>

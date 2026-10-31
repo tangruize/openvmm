@@ -1,6 +1,6 @@
 // TRUSTED, do not attempt to prove anything in this file: Verus uses only
 // what is stated here, a claim about protobuf encoding, which is external
-// (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1).
+// (`snapshot-spec-docs/TRUSTED.md`, Part 1).
 
 use super::spec::PartitionSavedView;
 use vmm_core_defs::HaltReason;

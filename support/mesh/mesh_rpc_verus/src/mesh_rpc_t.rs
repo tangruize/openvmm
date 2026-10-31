@@ -6,7 +6,7 @@
 //!
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
 //! the contracts here (the bodies are `external_body`), and they are claims
-//! about `mesh`, which is external (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). The
+//! about `mesh`, which is external (`snapshot-spec-docs/TRUSTED.md`, Part 1). The
 //! `tests` module at the end is ordinary test code.
 //!
 //! Everything in this file is TRUSTED. The exec functions are `external_body`

@@ -27,7 +27,7 @@ vstd has no `Mutex`; this fills that gap for `parking_lot::Mutex`.
 A lock invariant only gives a property that holds whenever the lock is
 free, not exact knowledge of the contents: others may change them between
 your acquisitions. For exact knowledge, hold a FracGhost half outside the
-lock (see `SNAPSHOT-SPEC-DESIGN.md`).
+lock (see `DESIGN.md`).
 
 ## How to use it
 
@@ -96,7 +96,7 @@ the wrapper without changing any of its existing `.lock()` call sites.
 ## What is trusted
 
 Everything in `mutex_t.rs` is trusted (also listed in
-`SNAPSHOT-SPEC-TRUSTED.md`):
+`TRUSTED.md`):
 
 - **The lock is a lock**: `parking_lot::Mutex` gives mutual exclusion, so
   the contents seen by `acquire` are those left by the last `release` (or

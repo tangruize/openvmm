@@ -3,7 +3,7 @@
 
 //! A trusted Verus specification of mesh RPC: calls and replies that carry
 //! ghost values, with a per-message-type protocol (`MeshProtocol`). See
-//! `SNAPSHOT-SPEC-MESH-RPC.md` at the repository root.
+//! `snapshot-spec-docs/MESH-RPC.md` at the repository root.
 
 mod mesh_rpc_t;
 

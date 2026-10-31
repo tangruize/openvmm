@@ -19,7 +19,7 @@ verus! {
 /// It covers the units `StateUnits` has collected (taken the FracGhost half
 /// of). Collection happens before the VM is first used (`make_ids`), so these
 /// are all registered units; units registered later must be collected before
-/// the next `stop`, `save`, or `restore` (see `SNAPSHOT-SPEC-TRUSTED.md`).
+/// the next `stop`, `save`, or `restore` (see `snapshot-spec-docs/TRUSTED.md`).
 pub struct StateUnitsView {
     /// What each unit's FracGhost records, by unit name.
     pub units: Map<Seq<char>, UnitSnapshot>,
@@ -223,7 +223,7 @@ pub struct QuiesceForSaveErrorView {
 /// What `StateUnit`'s contract needs to know about a unit (a supertrait of
 /// `StateUnit` in Verus builds; empty in normal builds). The contract itself
 /// is on `StateUnit`'s methods, in `lib.rs`: the request protocol ("Request
-/// protocol" in `SNAPSHOT-SPEC-DESIGN.md`), with the FracGhost halves passed
+/// protocol" in `snapshot-spec-docs/DESIGN.md`), with the FracGhost halves passed
 /// through each method as a ghost input.
 ///
 /// Each unit keeps its own share of its FracGhost where its state is (a

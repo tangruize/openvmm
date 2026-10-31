@@ -139,7 +139,7 @@ Spec functions on mesh's own types come from traits implemented for them:
 
 Everything in `mesh_rpc_verus` (`src/mesh_rpc_t.rs`) is trusted: the functions are
 `external_body` wrappers around the real mesh API, and their contracts are
-assumptions about it (also listed in `SNAPSHOT-SPEC-TRUSTED.md`):
+assumptions about it (also listed in `TRUSTED.md`):
 
 - **Delivery**: each message is delivered at most once, unchanged, to the
   receiver of the channel it was sent on (in-process channels), so a ghost

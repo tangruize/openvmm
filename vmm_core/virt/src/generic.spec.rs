@@ -1,5 +1,5 @@
 // The partition's VM state: declarations, and the token's trusted
-// creation (`SNAPSHOT-SPEC-DESIGN.md`, "The partition's state").
+// creation (`snapshot-spec-docs/DESIGN.md`, "The partition's state").
 
 use hvdef::Vtl;
 use vstd::prelude::*;

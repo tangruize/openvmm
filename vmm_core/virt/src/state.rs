@@ -185,7 +185,7 @@ mod macros {
             }
 
             /// Verus: the trusted contract of the hypervisor boundary for
-            /// this state (`SNAPSHOT-SPEC-DESIGN.md`, "The hypervisor
+            /// this state (`snapshot-spec-docs/DESIGN.md`, "The hypervisor
             /// boundary"). Each backend's implementation of the trait above
             /// talks to the hypervisor; its state is the abstract
             /// `hv_state()`, a value of the saved-state type: each element's

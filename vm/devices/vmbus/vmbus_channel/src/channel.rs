@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 // OUT OF SCOPE (vmbus): the Verus spec in this file is parked. vmbus is not
-// on the microVM's snapshot path (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope
+// on the microVM's snapshot path (`snapshot-spec-docs/DESIGN.md`, "Out of scope
 // for now"). Do not attempt to prove anything here. (Kept because the
 // `StateUnit` trait requires the vmbus units to follow its protocol, and so
 // that the work is not lost if vmbus comes back into scope.)
@@ -83,7 +83,7 @@ pub type ChannelOpenError = anyhow::Error;
 ///
 /// (A supertrait of [`VmbusDevice`] in place of `Any` itself: Verus does not
 /// accept trait objects of a trait whose supertrait has an unsized blanket
-/// impl, as `Any` does; see `SNAPSHOT-SPEC-DESIGN.md`, "The vmbus units".)
+/// impl, as `Any` does; see `snapshot-spec-docs/DESIGN.md`, "The vmbus units".)
 pub trait IntoAny {
     /// `self`, as a `Box<dyn Any>`.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;

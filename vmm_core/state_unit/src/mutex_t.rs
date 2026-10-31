@@ -11,7 +11,7 @@
 //!
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
 //! the contracts here; the wrapper is a lock primitive we do not verify, over
-//! `parking_lot`, which is external (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1).
+//! `parking_lot`, which is external (`snapshot-spec-docs/TRUSTED.md`, Part 1).
 //! Its unverified users are `external_body`, to prove.
 //!
 //! Everything in this file is TRUSTED.

@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 // OUT OF SCOPE (vmbus): the Verus spec in this file is parked. vmbus is not
-// on the microVM's snapshot path (`SNAPSHOT-SPEC-DESIGN.md`, "Out of scope
+// on the microVM's snapshot path (`snapshot-spec-docs/DESIGN.md`, "Out of scope
 // for now"). Do not attempt to prove anything here. (Kept because the
 // `StateUnit` trait requires the vmbus units to follow its protocol, and so
 // that the work is not lost if vmbus comes back into scope.)
@@ -22,7 +22,7 @@ verus! {
 
 /// TODO (per-unit spec): where the unit keeps its share of its FracGhost,
 /// and its invariant (`wf`). Uninterpreted until then; the impl's method
-/// bodies are `external_body` meanwhile (`SNAPSHOT-SPEC-TRUSTED.md`).
+/// bodies are `external_body` meanwhile (`snapshot-spec-docs/TRUSTED.md`).
 impl StateUnitSpec for VmbusServerUnit {
     uninterp spec fn wf(&self) -> bool;
 

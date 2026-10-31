@@ -7,7 +7,7 @@ Usage (from the repo root): scripts/verus-spec-audit.py [--list]
 Scans every tracked .rs file with Verus code (outside verus-patches/) for
 the trust markers and TODOs, classifies them, and checks that every
 trusted, deferred, or uninterpreted function is named in
-SNAPSHOT-SPEC-TRUSTED.md (our code to prove is listed in no doc). Prints a
+snapshot-spec-docs/TRUSTED.md (our code to prove is listed in no doc). Prints a
 summary; with --list, every item. Doc matching is by name, so it finds
 items the doc never mentions; an item it reports as documented may still
 need a human check.
@@ -156,7 +156,7 @@ def placeholders(files):
 
 
 def functions(files):
-    trusted_doc = open('SNAPSHOT-SPEC-TRUSTED.md').read()
+    trusted_doc = open('snapshot-spec-docs/TRUSTED.md').read()
     rows = []
     for f in files:
         lines = open(f).read().split('\n')
@@ -171,7 +171,7 @@ def functions(files):
                 continue
             name = m.group(1)
             # (The docs' file name is not a label.)
-            a = attrs_of(lines, i).replace('SNAPSHOT-SPEC-TRUSTED', '')
+            a = attrs_of(lines, i).replace('TRUSTED.md', '')
             j, sig = i, l
             while ('{' not in lines[j] and not lines[j].rstrip().endswith(';')
                    and j + 1 < len(lines)):

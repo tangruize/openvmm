@@ -33,7 +33,7 @@ impl<T: ?Sized> DeviceSnapshot for T {}
 /// Verus builds, its state unit's share of its FracGhost, kept with the
 /// device's state so that whoever changes the device under the lock can
 /// update the share in the same step (see "Chipset devices: the share in
-/// the device's lock" in `SNAPSHOT-SPEC-DESIGN.md`). Normal builds hold just
+/// the device's lock" in `snapshot-spec-docs/DESIGN.md`). Normal builds hold just
 /// the device. Dereferences to the device.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct DeviceSlot<T: ?Sized> {

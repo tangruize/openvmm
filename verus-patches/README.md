@@ -284,7 +284,7 @@ Lets a trait method take ghost inputs (`#[verus_spec(with Tracked(..))]`),
 including an `async fn` and a default method, so that `StateUnit`'s
 contract can pass the FracGhost halves of the request protocol through its
 methods (see "Production units: the contract on `StateUnit`" in
-`SNAPSHOT-SPEC-DESIGN.md`). Three fixes.
+`snapshot-spec-docs/DESIGN.md`). Three fixes.
 
 **Bug 1.** `#[verus_spec(with ...)]` on a trait method declaration is
 refused: "`with` does not support trait" (`builtin_macros/src/attr_rewrite.rs`).
@@ -384,7 +384,7 @@ for the other patches.
 
 These change OpenVMM's executable Rust code (not Verus). This branch
 already contains each change (as a code change in
-`SNAPSHOT-SPEC-CODE-CHANGES.md`); the patch here is the same change against
+`snapshot-spec-docs/CODE-CHANGES.md`); the patch here is the same change against
 `origin/main`, to show OpenVMM developers. Apply from an OpenVMM checkout of
 `origin/main` with `git apply`.
 

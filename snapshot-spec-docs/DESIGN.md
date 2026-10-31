@@ -10,9 +10,9 @@ and all `verus_spec` contracts. It remains available in git at commit
 It is not a design reference.
 
 Code changes to OpenVMM (relative to upstream `7f225e2`) and to Verus, made
-and planned, are listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`. Everything the
+and planned, are listed in `CODE-CHANGES.md`. Everything the
 proof trusts (axioms, assumed specifications, trusted wrappers, assumptions)
-is listed in `SNAPSHOT-SPEC-TRUSTED.md`.
+is listed in `TRUSTED.md`.
 
 Provenance (from the removed `SNAPSHOT-SPEC.md` reading guide):
 
@@ -34,7 +34,7 @@ describe its targets, not the current plan.
 
 ## Conventions
 
-See `SNAPSHOT-SPEC-CONVENTIONS.md`.
+See `CONVENTIONS.md`.
 
 Configuration: microVM machine profile, Linux host, x86_64 guest.
 
@@ -132,7 +132,7 @@ On `StateUnits`' view (`vmm_core/state_unit/src/lib.spec.rs`): `units`
 (each collected unit's recorded `UnitSnapshot`, by name), `inventory` (their
 names, in id order, which is registration order), `running`. Collection
 happens in `make_ids` before `LoadedVm` exists, so the view covers all
-units (later registrations: see `SNAPSHOT-SPEC-TRUSTED.md`). Bodies are
+units (later registrations: see `TRUSTED.md`). Bodies are
 `external_body`; every operation keeps `wf()`, and all but `stop` keep
 `running`.
 
@@ -187,7 +187,7 @@ from which it proves it was stopped.
 **How it is established: open.** Two options:
 
 - **Assume it** (current choice): one assumed fact about our code (to
-  prove, not trusted: `SNAPSHOT-SPEC-TRUSTED.md`, Part 3, "Recorded unit
+  prove, not trusted: `TRUSTED.md`, Part 3, "Recorded unit
   states are real"), stated where it is used, as a precondition of the
   unit's handling of `Stop` ("a unit receives `Stop` only while
   running"). `StateUnits`' side (the registry updates in `run_op`) can be
@@ -262,7 +262,7 @@ Concerns:
   `Stop` does. (Its error cases are now specified; see "The error paths".)
 - **`capture_time_abi`'s contract says it does not change the view**
   (assumed until its body is proved, not trusted: Part 3 of
-  `SNAPSHOT-SPEC-TRUSTED.md`): it sends `CheckTimers` to every VP
+  `TRUSTED.md`): it sends `CheckTimers` to every VP
   (`check_one_shot_timers`) and reads time records from the partition.
 - **After `quiesce_and_save` the VM stays stopped**; resuming or ending it
   is the caller's (controller's) business.
@@ -487,7 +487,7 @@ paths, including its I/O handlers.
    type because `CloseableMutex<T>` has no parameter for one and is created
    by unverified, generic code. No verified `lock` yet: the vCPU paths that
    lock are unverified, assumed to keep the invariant until verified (not
-   trusted: `SNAPSHOT-SPEC-TRUSTED.md`, Part 3, "The locks' unverified
+   trusted: `TRUSTED.md`, Part 3, "The locks' unverified
    users"). Example
    `ExampleCounter` (`support/closeable_mutex/src/lib.proof.rs`) verifies;
    three negative checks (breaking the invariant twice, changing the key)
@@ -799,7 +799,7 @@ verified, including the three default bodies, against it); negative
 check: a default `advance_time` that drops the half fails. The ten
 production impls are converted (code change 39): each takes the ghost
 input, its bodies are `external_body`, and its `StateUnitSpec` is
-uninterpreted (listed in `SNAPSHOT-SPEC-TRUSTED.md`). `StateRequest::apply`,
+uninterpreted (listed in `TRUSTED.md`). `StateRequest::apply`,
 `run_unit`, and `run_unit_step` were verified (code change 40): `apply`
 passes each request's half to the unit's method and replies with what
 comes back; `Stop` assumed the unit runs (as in `DeviceUnit::handle`).
@@ -1174,7 +1174,7 @@ patches (0001 to 0005), the `SavedStateBlob` contract, and the
   its lock (the vCPU I/O dispatch, line sets, the unit's poll) must hold
   the whole share and update it (`Saved(device.saved_blob())` after the
   call); it is unverified today, assumed until verified ("The locks'
-  unverified users", Part 3 of `SNAPSHOT-SPEC-TRUSTED.md`; not trusted).
+  unverified users", Part 3 of `TRUSTED.md`; not trusted).
 - **`Deref` / `DerefMut`** give unverified code the device without the
   share; covered by the same assumption.
 - **The half reaching `unit_channel_for`**: the builder (unverified) is
@@ -1201,7 +1201,7 @@ and locking needs a piece of the close token. What the proof of the code
 that locks a device (the vCPUs' accesses, the line sets, the unit's
 poll) must show is that the device is running and where its piece comes
 from; both follow from the order in which units stop and start. Until
-that code is verified, it is assumed (`SNAPSHOT-SPEC-TRUSTED.md`, Part 3,
+that code is verified, it is assumed (`TRUSTED.md`, Part 3,
 "Stopped devices do not change").
 
 ### `SaveRestore`'s contract on views
@@ -1481,7 +1481,7 @@ is only the guest-memory access (`GuestMemory`, in
 `SharedInterruptStatus::update`) and that the guest does not run while
 stopped. The same contracts hold in the legacy modes (the value is then
 the locked field), but there they are a stand-in for the lock protocol
-(TODO in `SNAPSHOT-SPEC-OPEN-ITEMS.md`).
+(TODO in `OPEN-ITEMS.md`).
 
 **Code change (58):** `restore`'s inline block (lock the interrupt state,
 `restore_status`) moved into the new `MmioTransport::restore_interrupt_status`
@@ -1780,7 +1780,7 @@ partition layer; G5 needs a Verus patch):
 
 **What the audit does not cover:** whether each contract says the right
 thing (that is review of the `.spec.rs` files), and the contents of the
-trusted items (`SNAPSHOT-SPEC-TRUSTED.md`); paths other than the microVM's
+trusted items (`TRUSTED.md`); paths other than the microVM's
 save/restore (e.g. the VM's normal running, which no contract here
 covers).
 
@@ -1793,7 +1793,7 @@ handled like any other unverified function: `external_body` (no
 contract), to prove; once it is verified, Verus checks the lock's
 invariant at each release, as for any user of a lock with an invariant
 (vstd's `RwLock`, for example). This replaces rows in
-`SNAPSHOT-SPEC-TRUSTED.md` that assumed these users keep the invariants.
+`TRUSTED.md` that assumed these users keep the invariants.
 `CloseableMutex`'s and `mutex_t`'s own specifications stay trusted: lock
 primitives we do not verify (the user). Done in code changes 75 and 76
 (the list is in the trusted doc, "The locks' unverified users").
@@ -1843,10 +1843,10 @@ pass of this audit had labelled several such facts trusted (e.g. the
 `assume` in `StateRequest::apply`, the registry's
 `assume_specification`s, `CloseableMutex`'s specification, uninterpreted
 views of our own types); they are relabelled in the code and moved in
-`SNAPSHOT-SPEC-TRUSTED.md`, which is now in three parts (trusted base,
+`TRUSTED.md`, which is now in three parts (trusted base,
 deferred, assumed until proved). This document's earlier sections were
 reworded to match (2026-10-30); where they differ,
-`SNAPSHOT-SPEC-TRUSTED.md` is authoritative. Sections that describe an
+`TRUSTED.md` is authoritative. Sections that describe an
 earlier design say so ("was trusted", "superseded").
 
 **Placeholder markers** (2026-10-29, for the proof agent's tooling,
@@ -2163,7 +2163,7 @@ Concerns found while specifying (for review):
   recorded `Unknown`), with a mesh fact that a channel error means the
   receiver is gone for good. Decided: (A). The fact, "VP runners are
   never dropped while their `VpSet` is in use", is in
-  `SNAPSHOT-SPEC-TRUSTED.md` (Part 3, "Facts about our code") and noted in the VP
+  `TRUSTED.md` (Part 3, "Facts about our code") and noted in the VP
   protocol (`vp_set.spec.rs`); the proofs of `VpSet`'s calls (`stop`,
   `stop_at_io_boundary`, `save`, `restore`, `reset`, `scrub`,
   `set_initial_regs`) may use it for a call's channel-error case. The
@@ -2380,7 +2380,7 @@ half it receives that it was stopped. Negative checks, each failing:
 (earlier version); dropping the `Stop`-while-running precondition; dropping
 the proof that a unit receiving `Start` was stopped.
 
-New assumptions (where each is now: `SNAPSHOT-SPEC-TRUSTED.md`; the
+New assumptions (where each is now: `TRUSTED.md`; the
 blob's `clone` is trusted, Part 1, protobuf; the other two are assumed
 until proved, Part 3):
 
@@ -2403,7 +2403,7 @@ against the protocol.
 ### Mutex wrapper
 
 A standalone explanation (mental model, how to use it, design choices) is
-in `SNAPSHOT-SPEC-MUTEX.md`, which also covers the chipset devices' lock,
+in `MUTEX.md`, which also covers the chipset devices' lock,
 `CloseableMutex`: its per-lock invariant (code change 94) and its close
 token, which turns "locking a closed mutex panics" into a precondition
 (code change 95).
@@ -2415,7 +2415,7 @@ would change runtime behavior. Instead, a trusted wrapper,
 `state_unit` version named the invariant by a static `MutexPredicate`
 instead of a ghost value; since code change 94, each mutex also gets its
 own ghost parameter at creation, which the invariant takes, as with
-vstd's ghost value; `SNAPSHOT-SPEC-MUTEX.md`):
+vstd's ghost value; `MUTEX.md`):
 
 - Runtime: `parking_lot::Mutex<Option<V>>`; the real lock is unchanged.
 - Verified code: `acquire(&self) -> (V, MutexHandle)` gives the value, which
@@ -2486,7 +2486,7 @@ Every change to code that a normal (non-Verus) build compiles: code,
 data types, signatures, and dependencies. Changes that exist only in Verus
 builds (`cfg(verus_keep_ghost)` items, spec and proof files, ghost fields,
 `verus_spec` attributes) are not listed. Each row names its entry in
-`SNAPSHOT-SPEC-CODE-CHANGES.md` ("CC n"). Unless a row says otherwise, the
+`CODE-CHANGES.md` ("CC n"). Unless a row says otherwise, the
 change preserves behavior: same results, same order of effects.
 
 **Data types and public signatures**
@@ -2761,12 +2761,12 @@ Also expected on the Verus side:
   `StateUnit` is a trait with many implementations and the request types
   derive `MeshPayload`. The mesh RPC spec avoids changing those types by
   using wrapper functions, at the cost of small source changes at the call
-  sites (listed in `SNAPSHOT-SPEC-CODE-CHANGES.md`).
+  sites (listed in `CODE-CHANGES.md`).
 
 ### Mesh RPC trusted spec
 
 A standalone explanation, starting from the mental model (`thread::spawn`
-for RPC) and how to use it, is in `SNAPSHOT-SPEC-MESH-RPC.md`.
+for RPC) and how to use it, is in `MESH-RPC.md`.
 
 Now in crate `mesh_rpc_verus` (`support/mesh/mesh_rpc_verus/src/mesh_rpc_t.rs`;
 first a module of `state_unit`; first drafted in
@@ -3133,7 +3133,7 @@ concurrent per-pin writes into the PIC and IOAPIC.
    `LoadedVmView::time_units`; that is gone since the views leave out
    time.)
 3. **Replace the RPC calls with the mesh RPC wrapper**
-   (`SNAPSHOT-SPEC-MESH-RPC.md`): `state_change` / `run_op` on the caller
+   (`MESH-RPC.md`): `state_change` / `run_op` on the caller
    side (in `verus!` style, as on branch `system-proof/run-op-proof-attempt`)
    and `StateRequest::apply` on the unit side (without async closures).
    Needed for the proofs; the current direct mesh calls are correct but give
@@ -3211,4 +3211,4 @@ concurrent per-pin writes into the PIC and IOAPIC.
 
 ### Other open items
 
-See `SNAPSHOT-SPEC-OPEN-ITEMS.md`.
+See `OPEN-ITEMS.md`.

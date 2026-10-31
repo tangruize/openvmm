@@ -13,7 +13,7 @@
 //! TRUSTED, do not attempt to prove anything in this file: Verus uses only
 //! the contracts here. `CloseableMutex` is a lock primitive we do not verify
 //! (the user's decision, 2026-10-30), so these contracts are in the trusted
-//! base (`SNAPSHOT-SPEC-TRUSTED.md`, Part 1). Its unverified users (plain
+//! base (`snapshot-spec-docs/TRUSTED.md`, Part 1). Its unverified users (plain
 //! `lock`, `lock_if_open`, `close`, `new`) are not: they are
 //! `external_body` functions, to prove; once verified, Verus checks the invariant at each `release` and
 //! at `new_verified`.

@@ -323,7 +323,7 @@ impl StateUnits {
     /// once).
     ///
     /// PROOF PENDING (`external_body`): to be proved from vstd's
-    /// `to_sorted_seq` lemmas. Listed in `SNAPSHOT-SPEC-TRUSTED.md`.
+    /// `to_sorted_seq` lemmas. Listed in `snapshot-spec-docs/TRUSTED.md`.
     #[verifier::external_body]
     pub(crate) proof fn lemma_view_inv(&self)
         requires
@@ -512,7 +512,7 @@ impl ExampleUnit {
     ///
     /// Requires that `Stop` arrives only while the unit runs. This is the
     /// trusted fact that `StateUnits`' recorded unit states are the units'
-    /// real states (`SNAPSHOT-SPEC-DESIGN.md`); every other request proves
+    /// real states (`snapshot-spec-docs/DESIGN.md`); every other request proves
     /// the unit's running state from the ghost it carries.
     pub(crate) fn handle(&mut self, msg: StateRequest, gin: Tracked<Option<FracGhost<UnitSnapshot>>>)
         requires
