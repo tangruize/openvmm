@@ -363,30 +363,28 @@ To answer these questions, the spec uses two tools: **fractional ghosts**
 A **fractional ghost** (`FracGhost`, from Verus's standard library,
 `vstd::resource::frac`) is a ghost resource built on a partial commutative
 monoid (PCM) of fractions; like every ghost resource, it can be moved
-but never duplicated.
+but never duplicated. It can be considered as a ghost variable guarded
+by a splittable permission:
 
-The high-level idea, like read and write permissions:
-
-- A fractional ghost conceptually holds a splittable **permission** and 
-  a **value** guarded by the permission. 
-- The fractional ghost can be split into pieces (e.g. two halves), each owned 
-  by a different thread or task. 
-- All pieces of one ghost always **agree** on the value.
+- A fractional ghost conceptually holds a splittable **permission** and
+  a **value** guarded by the permission.
+- The fractional ghost can be split into pieces (e.g. two halves), each owned
+  by a different thread or task.
 - The pieces' fractional permissions add up to 1. Holding the **whole** (1)
-  permission allows you to **change** the value; holding a piece lets you 
+  permission allows you to **change** the value; holding a piece lets you
   **read** the value.
-- So if you hold a piece, nobody else holds the whole, and hence **nobody 
+- So if you hold a piece, nobody else holds the whole, and hence **nobody
   can change the value** while you keep your piece.
+- All pieces of one ghost always **agree** on the value. Together with
+  the previous bullet, this makes it easier to reason about and prove shared
+  variables in concurrent programs.
 
-The spec ties such a value to real state, e.g. "this ghost's value is the
-device's current state". Then a piece is proof of what the state is, and
-holding one is proof that nobody is changing it.
-
-**Each unit's state.** Each unit has one fractional ghost, and the proof
-annotations should make sure the value of this fractional ghost always matches
-the unit's state as a snapshot (`Unknown`, or the abstract value of
-its saved state). Its pieces move between `StateUnits` and the unit with
-the `StateRequest` RPCs:
+**Using a fractional ghost for a unit's state.** We give each unit a dedicated
+fractional ghost, and we expect the proof annotations (to be written) to make
+sure the value of this fractional ghost always matches the unit's state as
+a snapshot (`Unknown`, or the abstract value of its saved state). Then, this
+fractional ghost's pieces can move between `StateUnits` and the unit through
+RPCs at different phases of the execution:
 
 | Phase | Who holds the ghost | What it guarantees |
 |---|---|---|
@@ -398,9 +396,9 @@ the `StateRequest` RPCs:
 
 The state that `save`'s result is compared with ("the state of every
 unit once stopped", section 3) is read from the halves `StateUnits`
-holds. That is how we can allow `save`'s contract to talk about the 
-units' real state (assuming proof annotations have maintained the value 
-in `StateUnits` to be the same as the unit's real state), not a value
+holds. That is how we can allow `save`'s contract to talk about the
+units' real state (assuming the proof annotations keep the value
+in `StateUnits` equal to the unit's real state), not a value
 the spec makes up. And in verified code, "a stopped unit does not change"
 follows from the accounting: changing a unit's state needs the whole
 ghost, which a stopped unit does not have.
@@ -422,7 +420,7 @@ protocols on the snapshot path:
 
 A **lock invariant** is a property of the data a lock protects. Whoever
 takes the lock may assume it, and must re-establish it before releasing
-the lock.
+the lock (similar to the concept of `vstd::RwLock`).
 
 The spec uses lock invariants for:
 
@@ -440,8 +438,8 @@ and start (section 2.3); showing that is part of the proof (of the
 contracts above, down to the vCPU's device-access code), not a separate
 spec.
 
-**The lock wrappers.** Verus has no model of OpenVMM's locks, so, as for
-mesh, we wrap them with trusted specifications that attach an invariant
+**The lock wrappers.** Verus has no model of OpenVMM's locks, so,
+we wrap them with trusted specifications that attach an invariant
 to each lock:
 
 | Lock | Wrapper | The invariant comes from | Taking / releasing |
@@ -461,39 +459,13 @@ closed. The proof of the code that locks a device, such as a vCPU's
 access, must show where its piece comes from, which in turn needs the
 order in which units stop and start (section 2.3).
 
-How they relate to Verus's own lock, `vstd::rwlock::RwLock<V, Pred>`:
-
-- **The same interface.** Like vstd's `RwLock` (`acquire_write` gives the
-  value and a handle; `release_write(v)` requires the invariant of `v`),
-  taking one of our locks gives the value with its invariant, and
-  releasing it requires the invariant again. A reader who knows vstd's
-  lock can read our contracts the same way.
-- **A different implementation.** vstd's `RwLock` is written in Verus and
-  verified, from a cell, atomics, and a token state machine. Using it
-  would replace OpenVMM's locks with a different implementation, changing
-  executable code and behavior, and vstd has nothing like
-  `CloseableMutex`'s "close" operation. So we keep OpenVMM's real locks
-  underneath and give them trusted specifications instead: the
-  registry's wrapper is a thin type holding a `parking_lot::Mutex` (a
-  change to OpenVMM's code, with the same behavior), and `CloseableMutex`
-  is unchanged.
-- **Each lock's own invariant.** In vstd, the invariant is a ghost value
-  given when the lock is created, so each lock has its own (e.g. "the
-  value's parity is this lock's parity"). Ours work the same way, split
-  into two parts: the invariant's **form** comes from a type (`Pred` for
-  the registry's mutex; the value's type, `LockInvariant`, for
-  `CloseableMutex`, whose type has no slot for it), and each lock gets its
-  own ghost **parameter** when it is created (`new_verified(v,
-  Ghost(param))`), which the invariant takes. For a chipset device, the
-  parameter is the id of the device's own fractional ghost, so the
-  invariant of each device's lock says "this slot holds **this** device's
-  ghost". Locks created by unverified code (with `new`, as all of them are
-  today) have an unknown parameter; that they satisfy their invariant is
-  assumed until that code is verified.
-
-The wrappers' specifications are trusted (we do not verify the locks
-themselves); the code that uses them is to be verified.
-`SNAPSHOT-SPEC-MUTEX.md` explains both wrappers in detail.
+Our lock interface is similar to Verus's own lock,
+`vstd::rwlock::RwLock<V, Pred>`, but not exactly the same (for example,
+the locks underneath are OpenVMM's own, and `CloseableMutex` can be
+closed). The wrappers' specifications are trusted (we do not verify the
+locks themselves); the code that uses them is to be verified.
+`SNAPSHOT-SPEC-MUTEX.md` explains both wrappers, and how they differ from
+vstd's lock, in detail.
 
 ## 5. What is trusted, and what is not done
 
