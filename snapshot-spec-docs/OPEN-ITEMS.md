@@ -1,6 +1,6 @@
 # OpenVMM snapshot spec: open items
 
-What is still open, as of code change 96 (2026-10-31), grouped by who or
+What is still open, as of code change 96 (2026-11-01), grouped by who or
 what each item waits for. For the terms used here, see
 `OVERVIEW.md`; for the details of each item, the sections of
 `DESIGN.md` named in parentheses.
@@ -20,6 +20,20 @@ Properties that belong in an entrance contract and are not there yet.
    gated during the boundary, and releasing the boundary completes the
    guest's request. Not easy: it needs a model of the guest's requests
    and of what devices do while only the vCPUs are stopped.
+
+2. **When each entrance function may fail.** Today the contracts say what
+   holds on Ok, and the state left after each kind of error, but not
+   **when** an error may happen. So a function that always returns an
+   error satisfies its contract: e.g. a `quiesce_for_snapshot` that
+   always returns `Rejected` changes nothing, which is all its contract
+   asks. Each entrance contract should say under what conditions it may
+   fail (or, equivalently, must succeed): typically an external failure
+   (the hypervisor, a mesh channel, the deadline) or a bad input (e.g. a
+   saved state that does not match the VM). Which kind of error is
+   returned matters less and need not be specified in detail.
+   `InitializedVm::load` has no Err clause at all. (Found by comparing
+   with another spec, `COMPARISON.md`; the user, 2026-11-01.) The
+   convention: `CONVENTIONS.md`, "Errors".
 
 ## 2. TODOs for the proof agent
 

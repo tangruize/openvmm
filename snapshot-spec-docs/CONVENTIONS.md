@@ -47,6 +47,16 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
     assumptions they state), as in verified-storage. Each such file begins
     with what it assumes.
 
+- **Errors.** A contract says not only what holds on Ok but also **when
+  the function may fail** (or, equivalently, when it must succeed), e.g.
+  `result is Err ==> (some unit's Stop failed || the deadline passed)`.
+  Otherwise a function that always returns an error satisfies its
+  contract. The conditions are typically external failures (the
+  hypervisor, a mesh channel, a deadline) or bad inputs. Which kind of
+  error is returned need not be specified in detail, unless callers act
+  on it (e.g. `SnapshotQuiesceError`'s `Rejected`, `RollbackSafe` and
+  `Uncertain`, which decide whether a rollback is possible).
+
 ## Naming
 
 Following verified-storage:
