@@ -2294,9 +2294,39 @@ How the record handled this:
   periodic; virtio-MMIO: no captured state, or save not supported; the
   others: never). The partition unit's `wf()`, as above.
 
+**Quiesce** (2026-11-01, part 2). The guest-requested snapshot,
+`quiesce_for_snapshot` (and its first half, `quiesce_and_save`), fails
+only for one of these reasons, checked in this order by the code:
+
+1. The VM is not a microVM, or is not running. This is the only
+   reason for `Rejected`: `Rejected` ⇔ this reason. Nothing changes.
+2. Stopping the units fails: a unit's `Stop` fails on its channel, or
+   the deadline passes. This is an external failure. Units never refuse
+   to stop (`Stop`'s reply has no error), so `StateUnits::quiesce_for_save`
+   now says: `Err` ⇒ an external failure.
+3. The time ABI capture fails. Guest time is out of scope, so this is a
+   separate fact, `LoadedVm::time_capture_failed()` (uninterpreted), set
+   only by `capture_time_abi`'s contract on its errors.
+4. Some unit's save fails (`save_fails` is not empty).
+5. Flushing guest RAM fails (the host OS): an external failure.
+6. The VM does not boot Linux with an MP table, so there is no command
+   line to record.
+
+For this the VM's view gained two configuration facts, in
+`runtime`: `microvm` (the machine profile; `MachineProfile`'s variants
+are now visible to Verus) and `linux_mptable` (the load mode;
+uninterpreted for now, `LoadedVm::boots_linux_mptable`, a PROOF TODO:
+`LoadMode`'s field types are not declared to Verus).
+
+Example: a microVM that is running, whose PIT counts periodically under
+the time ABI. Reasons 1 to 3 do not hold; the PIT's record is
+`SaveFails`, so reason 4 allows the failure. If none of the six
+reasons holds, the contract requires success.
+
 Still to do (open item 1.2): the Err clauses of the other entrance
-functions (quiesce, the boundary, load, resume) and the external
-wrappers' `Err ⇒ ExternalFailure::happened()`.
+functions (the snapshot boundary, load, resume), and the trusted
+contracts that establish `ExternalFailure::happened()` for the deadline
+(`CancelContext`), the RAM flush, and the hypervisor calls.
 
 ### The microVM's units: what is specified
 

@@ -52,6 +52,13 @@ pub struct VmRuntime {
     /// units; while stopped, none, unless they are lent to the controller
     /// with a snapshot (`VmRpc`'s protocol).
     pub missing_halves: Map<u64, (Seq<char>, Loc, bool)>,
+    /// Whether the VM has the microVM machine profile (a guest-requested
+    /// snapshot needs it).
+    pub microvm: bool,
+    /// Whether the VM boots Linux directly with an MP table, so that a
+    /// snapshot can record its effective command line (a guest-requested
+    /// snapshot needs it).
+    pub linux_mptable: bool,
 }
 
 impl VmRuntime {
@@ -95,6 +102,21 @@ impl LoadedVm {
     }
 }
 
+impl LoadedVm {
+    /// Whether the VM's load mode is Linux direct boot with an MP table
+    /// (`LoadMode::Linux` with `boot_mode: LinuxDirectBootMode::MpTable`).
+    /// PROOF TODO: define it from `inner.load_mode`'s fields, once
+    /// `LoadMode`'s field types are declared to Verus (it is declared by
+    /// name only, fields hidden). Our code, not trusted.
+    pub uninterp spec fn boots_linux_mptable(&self) -> bool;
+
+    /// The time ABI capture failed (`capture_time_abi`: no time ABI, the
+    /// LAPIC timers' check, the guest's declared rates, the hypervisor's or
+    /// the host's clock). OUT OF SCOPE (guest time): established only by
+    /// `capture_time_abi`'s contract, on its errors.
+    pub uninterp spec fn time_capture_failed() -> bool;
+}
+
 impl View for LoadedVm {
     type V = LoadedVmView;
 
@@ -110,6 +132,9 @@ impl View for LoadedVm {
                 running: units.running,
                 snapshot_boundary: self.snapshot_boundary@.active,
                 missing_halves: units.missing_halves,
+                microvm: self.inner.machine_profile
+                    == openvmm_defs::microvm::MachineProfile::Microvm,
+                linux_mptable: self.boots_linux_mptable(),
             },
         }
     }

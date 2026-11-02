@@ -89,8 +89,8 @@ pub(crate) struct ExChipsetMmioRanges(crate::worker::memory_layout::ChipsetMmioR
 #[verifier::external_body]
 pub struct ExFirmwareEvent(get_resources::ged::FirmwareEvent);
 
+// Its variants are visible (`LoadedVmView`'s `microvm` names them).
 #[verifier::external_type_specification]
-#[verifier::external_body]
 pub struct ExMachineProfile(openvmm_defs::microvm::MachineProfile);
 
 #[verifier::external_type_specification]

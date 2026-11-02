@@ -141,6 +141,10 @@ impl StateUnits {
             // fails or times out (uncertain), or when a unit depending on it
             // did not stop, which in turn started with an uncertain one.
             result matches Err(e) ==> e@.uncertain,
+            // It fails only after an external failure: a unit's `Stop`
+            // fails on its channel, or the deadline passes (units never
+            // refuse to stop: `Stop`'s reply carries no error).
+            result is Err ==> mesh_rpc_verus::ExternalFailure::happened(),
     ))]
     pub async fn quiesce_for_save(&mut self, timeout: Duration) -> Result<(), QuiesceForSaveError> {
         assert!(self.running);

@@ -405,6 +405,23 @@ impl LoadedVm {
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
                 ==> !final(self)@.runtime.running && final(self)@.recorded
                     && final(self)@.runtime.holds_halves(),
+            // Rejected exactly when the VM is not a microVM or is not
+            // running.
+            (result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_)))
+                <==> (!old(self)@.runtime.microvm || !old(self)@.runtime.running),
+            // When it may fail: rejected (above); an external failure (a
+            // unit's `Stop`, the deadline, the guest RAM flush, ...); the
+            // time ABI capture (out of scope); some unit's save fails; or
+            // the VM does not boot Linux with an MP table (no command line
+            // to record).
+            result is Err ==> {
+                ||| !old(self)@.runtime.microvm
+                ||| !old(self)@.runtime.running
+                ||| mesh_rpc_verus::ExternalFailure::happened()
+                ||| LoadedVm::time_capture_failed()
+                ||| !final(self)@.save_fails.is_empty()
+                ||| !old(self)@.runtime.linux_mptable
+            },
     ))]
     pub(super) async fn quiesce_for_snapshot(
         &mut self,
@@ -477,6 +494,17 @@ impl LoadedVm {
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
                 ==> !final(self)@.runtime.running && final(self)@.recorded
                     && final(self)@.runtime.holds_halves(),
+            // As `quiesce_for_snapshot`, without the RAM flush and the
+            // command line.
+            (result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_)))
+                <==> (!old(self)@.runtime.microvm || !old(self)@.runtime.running),
+            result is Err ==> {
+                ||| !old(self)@.runtime.microvm
+                ||| !old(self)@.runtime.running
+                ||| mesh_rpc_verus::ExternalFailure::happened()
+                ||| LoadedVm::time_capture_failed()
+                ||| !final(self)@.save_fails.is_empty()
+            },
     ))]
     pub(super) async fn quiesce_and_save(
         &mut self,
@@ -534,7 +562,7 @@ impl LoadedVm {
     /// specification).
     #[cfg(guest_arch = "x86_64")]
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             old(self).wf(),
         ensures
@@ -542,6 +570,7 @@ impl LoadedVm {
             // change the VM's view.
             final(self).wf(),
             final(self)@ == old(self)@,
+            result is Err ==> LoadedVm::time_capture_failed(),
     ))]
     async fn capture_time_abi(&mut self) -> anyhow::Result<openvmm_defs::time_abi::TimeCapture> {
         let state = self
@@ -555,12 +584,13 @@ impl LoadedVm {
 
     #[cfg(not(guest_arch = "x86_64"))]
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         requires
             old(self).wf(),
         ensures
             final(self).wf(),
             final(self)@ == old(self)@,
+            result is Err ==> LoadedVm::time_capture_failed(),
     ))]
     async fn capture_time_abi(&mut self) -> anyhow::Result<openvmm_defs::time_abi::TimeCapture> {
         anyhow::bail!("microVM snapshots require an x86-64 guest")

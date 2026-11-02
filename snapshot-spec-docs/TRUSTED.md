@@ -111,6 +111,7 @@ prove this until ...`, naming what it waits for (since 2026-10-30).
 | `ArcMutexChipsetDeviceBuilder::try_add`, `try_add_async` (not marked) | `vmotherboard`, `chipset/backing/arc_mutex/device.rs` | DEFERRED: their bounds name `dyn std::error::Error + Send + Sync` (a `dyn` of more than one trait); they lock no mutex themselves but call `inner_add`, which is marked. |
 | `std::sync::Weak<T>` (the PCI paths' lock users, not marked) | `base_chipset.rs` (`weak_mutex_pci`), `dispatch.rs` (`WeakMutexPciBusDevice`) | DEFERRED (and not on the microVM's path): this vstd cannot declare `Weak<T, A: Allocator>` without the unstable `allocator_api`; code change 77. |
 | `VmTimeKeeper`'s view and methods (deferred by the user's decision, 2026-10-30, not by a Verus limit) | `vm/vmcore/src/vmtime.spec.rs` (view, uninterpreted), `vmtime.rs` (`save`, `restore`, `advance`, `reset`, `start`, `stop`: `external_body` with contracts) | The view is the keeper's running flag (meant: `time` is `Started`); `save`'s result has view `VmTimeKeeperView::saved_blob()`; the others change `running` as named. Left uninterpreted: defining it from the fields needs two new `vmcore` dependencies used only for Verus (`async-task`, `mesh_rpc_verus`), and guest time is out of scope. The keeper's own methods cannot be proved until then; the vmtime unit and its other users are still verified against these contracts. |
+| `LoadedVm::boots_linux_mptable` (deferred: `LoadMode`'s field types are not declared to Verus; since 2026-11-01) | `openvmm_core`, `dispatch.spec.rs` (uninterpreted; the view's `runtime.linux_mptable`) | Meant: `inner.load_mode` is `LoadMode::Linux` with `boot_mode: LinuxDirectBootMode::MpTable`. Our code, marked PROOF TODO: to define from the fields once `LoadMode` (declared by name only, fields hidden) and its field types are declared. |
 
 # Out of scope (parked: neither trusted nor to prove)
 
@@ -132,6 +133,14 @@ work is not lost if vmbus comes back into scope (the user's decision,
 |---|---|---|
 | vmbus channels (`vm/devices/vmbus/vmbus_channel`) | `channel.rs`, `simple.rs`, `channel.spec.rs`; `external_body` | `View for Device` (uninterpreted): `running` is `state is DeviceState::Running`. `GenericChannelHandle::id`, `ChannelHandle::id` (uninterpreted): the internal sender's constant. The handles' `start` / `stop` / `reset` / `save` / `restore`, the `offer_*` functions, and `Device::handle_state_request` meet their contracts. `Device::run_channel` (no contract yet) passes the task's share to `handle_state_request` and keeps `keeps_share`; the guest-traffic handlers change the device only while the task holds the whole share. OPEN: a new channel's task starts `Running` (design doc, "The vmbus units"). |
 | vmbus channel's half reaches `unit_channel_for` | `vmm_core`'s three offer functions (`vmbus_unit.rs`), unverified | The half the `offer_*` function gives back is the one attached to the unit's sender. |
+
+**Guest time** (out of scope; since 2026-11-01, the errors of the
+microVM snapshot): `LoadedVm::time_capture_failed()` (`openvmm_core`,
+`dispatch.spec.rs`, uninterpreted) is the fact "the time ABI capture
+failed". Only `capture_time_abi`'s contract establishes it, on its errors
+(no time ABI, the LAPIC timers' check, the guest's declared rates, the
+hypervisor's or the host's clock). The quiesce contracts' error clauses
+name it.
 
 # Notes (not assumptions)
 

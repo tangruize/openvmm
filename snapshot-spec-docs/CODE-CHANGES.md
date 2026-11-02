@@ -1557,6 +1557,17 @@ Baseline: upstream `nanvix/openvmm` commit
     - The partition unit's `wf()`: with fewer VPs than the topology
       (partial restore, C3), the record is `SaveFails(whole restored
       blob)` instead of `Saved(..)`.
+98. **Errors: when the guest-requested snapshot may fail** (the user,
+    2026-11-01; open item 1.2; design doc, "Errors: when a save may
+    fail", "Quiesce"). Verus only; no normal-build change.
+    - `quiesce_for_snapshot`, `quiesce_and_save`: `Rejected` ⇔ not a
+      microVM or not running; `Err` ⇒ one of the listed reasons.
+    - `StateUnits::quiesce_for_save`: `Err` ⇒ an external failure.
+    - `capture_time_abi`: `Err` ⇒ `LoadedVm::time_capture_failed()`
+      (uninterpreted, out of scope: guest time).
+    - `VmRuntime` gains `microvm` and `linux_mptable`;
+      `MachineProfile`'s declaration shows its variants;
+      `LoadedVm::boots_linux_mptable` (uninterpreted, PROOF TODO).
 
 ### Planned: mesh RPC trusted spec
 
