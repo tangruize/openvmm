@@ -66,6 +66,11 @@ impl SaveRestoreSpecImpl for MicrovmPortb {
         view
     }
 
+    /// Never: its save always succeeds.
+    closed spec fn refuses_save(view: MicrovmPortbView) -> bool {
+        false
+    }
+
     /// Portb is well formed (`wf()`).
     closed spec fn device_wf(&self) -> bool {
         self.wf()
@@ -87,6 +92,11 @@ impl SaveRestoreSpecImpl for MicrovmShutdown {
         NoSavedState
     }
 
+    /// Never: its save always succeeds.
+    open spec fn refuses_save(view: ()) -> bool {
+        false
+    }
+
     open spec fn device_wf(&self) -> bool {
         true
     }
@@ -106,6 +116,11 @@ impl View for MicrovmSnapshotRequest {
 impl SaveRestoreSpecImpl for MicrovmSnapshotRequest {
     open spec fn saved_view(view: ()) -> NoSavedState {
         NoSavedState
+    }
+
+    /// Never: its save always succeeds.
+    open spec fn refuses_save(view: ()) -> bool {
+        false
     }
 
     open spec fn device_wf(&self) -> bool {

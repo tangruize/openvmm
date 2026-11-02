@@ -155,11 +155,13 @@ impl PartitionUnit {
 
 /// The partition unit keeps its share of its FracGhost in its `share`
 /// field; it runs while started. Its snapshot is its saved state's blob,
-/// except after a restore with fewer VPs instantiated than the topology's
-/// (MSHV's restore-time VP prefix, set at creation: `active_vp_count`):
-/// then the recorded blob is the whole restored one, of which the unit
-/// holds the VPs it instantiated (and `save` fails: a prefix cannot give
-/// a complete snapshot). See the design doc, "The VP protocol", C3.
+/// except with fewer VPs instantiated than the topology's (MSHV's
+/// restore-time VP prefix, set at creation: `active_vp_count`): then its
+/// `save` fails (a prefix cannot give a complete snapshot), so the record
+/// is `SaveFails`, with the whole restored blob, of which the unit holds
+/// the VPs it instantiated. Every update of the record must keep this, as
+/// the VPs' states change. See the design doc, "The VP protocol", C3, and
+/// "Errors: when a save may fail".
 impl StateUnitSpec for PartitionUnitRunner {
     closed spec fn wf(&self) -> bool {
         // The request protocol's stop tokens: the authority's id is the
@@ -174,7 +176,7 @@ impl StateUnitSpec for PartitionUnitRunner {
         )
         &&& self.vp_set@.vps.len() < self.vp_set@.capacity ==> exists|v: PartitionSavedView|
             #[trigger] v.restrict_vps(self.vp_set@.vps.len()) == self.saved_view()
-                && self.share@.follows_rule(self.id(), UnitSnapshot::Saved(v.blob()))
+                && self.share@.follows_rule(self.id(), UnitSnapshot::SaveFails(v.blob()))
         &&& self.share@.running == self.unit_started
     }
 

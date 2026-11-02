@@ -118,6 +118,11 @@ impl SaveRestoreSpecImpl for IoApicDevice {
         view.with_delivered()
     }
 
+    /// Never: its save always succeeds.
+    closed spec fn refuses_save(view: IoApicView) -> bool {
+        false
+    }
+
     /// The IOAPIC is well formed (`wf()`).
     closed spec fn device_wf(&self) -> bool {
         self.wf()

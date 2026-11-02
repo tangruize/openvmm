@@ -321,6 +321,8 @@ impl LoadedVm {
                 // the units' views leave out.)
                 &&& final(self)@.snapshot.units
                     == old(self)@.snapshot.units.union_prefer_right(saved_state@.units)
+                &&& final(self)@.save_fails.difference(saved_state@.units.dom())
+                    == old(self)@.save_fails.difference(saved_state@.units.dom())
                 // The saved inventory, if any, matches the VM's.
                 &&& saved_state@.inventory.len() == 0
                     || saved_state@.inventory == old(self)@.snapshot.inventory

@@ -60,6 +60,7 @@ contracts are assumptions about mesh. See the file header, and
 | Replies | Each `Rpc`'s reply goes only to the `PendingCall` created with it; `complete` consumes the `Rpc`, so it is answered at most once. |
 | Failure | If the message or the `Rpc` is dropped, the caller gets `Err` and no ghost. |
 | `call` / `PendingCall::recv` | On `Ok`, the reply and its ghost satisfy the caller's expectation `post`; the caller had to establish `request_ok` for the message built by `f`. |
+| `PendingCall::recv`'s `Err` (since code change 97) | It establishes `ExternalFailure::happened()` (`external_failure_t.rs`, uninterpreted): the channel failed (the peer is gone or closed the channel). Only trusted contracts of external calls establish that fact; error clauses ("fails only if ... or an external failure happened") use it. |
 | `PendingCall::recv_failable` | As `RpcSend::call_failable`: a remote `Err(e)` becomes `RpcError::Call(e)`; on `Ok(t)`, `post(Ok(t), gout)`. |
 | `recv_msg` | The received message and ghost satisfy `request_ok` for the channel's constant. |
 | `send_msg` (one-way, since code change 71) | It sends `msg` with `send.send(msg)`; the caller must establish `request_ok` for `msg` and its ghost `gin`, which the receiver then gets through `recv_msg` (as `call`, without a reply). Used by `VpSet::start` (`VpEvent::Start`). |

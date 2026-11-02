@@ -404,6 +404,11 @@ impl vmcore::save_restore::spec::SaveRestoreSpecImpl for WrappedPartition {
         view
     }
 
+    /// Never: its save fails only if the hypervisor's does (external).
+    closed spec fn refuses_save(view: virt::vm::VmSavedStateView) -> bool {
+        false
+    }
+
     closed spec fn device_wf(&self) -> bool {
         self.hv@ matches Some(t) && t.frac() == 1real
     }

@@ -34,6 +34,9 @@ Properties that belong in an entrance contract and are not there yet.
    `InitializedVm::load` has no Err clause at all. (Found by comparing
    with another spec, `COMPARISON.md`; the user, 2026-11-01.) The
    convention: `CONVENTIONS.md`, "Errors".
+   *Progress (2026-11-01):* save and restore done (design doc, "Errors:
+   when a save may fail"). Still to do: quiesce, the snapshot boundary,
+   `InitializedVm::load`, `resume`, and the external wrappers' errors.
 
 ## 2. TODOs for the proof agent
 

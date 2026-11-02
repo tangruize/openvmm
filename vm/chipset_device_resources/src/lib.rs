@@ -264,6 +264,10 @@ vstd::prelude::verus! {
             vmcore::save_restore::spec::ProtobufSaveRestoreSpec::saved_blob(&*self.0)
         }
 
+        closed spec fn save_fails(&self) -> bool {
+            vmcore::save_restore::spec::ProtobufSaveRestoreSpec::save_fails(&*self.0)
+        }
+
         closed spec fn device_wf(&self) -> bool {
             vmcore::save_restore::spec::ProtobufSaveRestoreSpec::device_wf(&*self.0)
         }

@@ -4765,6 +4765,10 @@ impl LoadedVm {
             final(self).wf(),
             final(self)@ == old(self)@,
             result matches Ok(saved) ==> saved.wf() && saved@ == old(self)@.snapshot,
+            // It fails only if some unit's save fails, or after an external
+            // failure.
+            result is Err ==> !old(self)@.save_fails.is_empty()
+                || mesh_rpc_verus::ExternalFailure::happened(),
     ))]
     async fn save(&mut self) -> anyhow::Result<SavedState> {
         Ok(SavedState {
@@ -4786,8 +4790,14 @@ impl LoadedVm {
             final(self)@.snapshot.inventory == old(self)@.snapshot.inventory,
             result is Ok ==> {
                 // Units with saved state take it; the others keep theirs.
+                // (A restored unit may refuse to save its restored state,
+                // e.g. the partition unit after a partial restore: it is
+                // then in `save_fails`.)
                 &&& final(self)@.snapshot.units
                     == old(self)@.snapshot.units.union_prefer_right(state@.units)
+                // The others keep whether their save fails.
+                &&& final(self)@.save_fails.difference(state@.units.dom())
+                    == old(self)@.save_fails.difference(state@.units.dom())
                 // The saved inventory, if any, matches the VM's.
                 &&& state@.inventory.len() == 0
                     || state@.inventory == old(self)@.snapshot.inventory

@@ -2205,6 +2205,98 @@ Concerns found while specifying (for review):
   (Considered and dropped: keeping the dropped VPs in a ghost field, as if
   restored; a new recorded value `Partial(blob)`, which would weaken the
   generic rule.)
+  **Revised 2026-11-01 (user):** with fewer VPs, the record is now
+  `SaveFails(whole blob)`, not `Saved(whole blob)`, because the new Err
+  rule allows a save to fail only if the record says so. See "Errors:
+  when a save may fail" below.
+
+### Errors: when a save may fail
+
+Decided 2026-11-01 (user; open item 1.2). Until now, contracts said what
+holds on `Ok`, but not when an `Err` may happen, so a `save` that always
+fails met its contract. The new rule: **a save may fail only if some
+unit's record says its save fails, or after an external failure.**
+
+**Two ways a save may fail.**
+
+- **The unit refuses to save its current state.** Its record says so: a
+  new value, `UnitSnapshot::SaveFails(blob)`. Example: the PIT counting
+  periodically under the time ABI.
+- **An external call failed:** mesh, the hypervisor, the host OS, or the
+  clock. `ExternalFailure::happened()` (`mesh_rpc_verus`,
+  `external_failure_t.rs`, uninterpreted) is one fact for all of them.
+  Only the trusted wrappers of external calls establish it, on their
+  errors (e.g. mesh `PendingCall::recv`).
+
+**The record follows the unit's state.** Each unit has one record (its
+FracGhost's value): what its `save` would return now. The record is
+updated with every state change: while running, the unit holds the
+whole FracGhost, and its rule (the lock invariant, or the unit's
+`wf()`) says that the record equals the unit's snapshot of its current
+state. Each unit defines its snapshot once:
+
+- a chipset device (`DeviceSlot::snapshot`): `NoSavedState` if its unit
+  omits its state; else `SaveFails(blob)` if the device refuses to save
+  (`refuses_save` on `SaveRestore`, `save_fails` on
+  `ProtobufSaveRestore`); else `Saved(blob)`;
+- the partition unit (its `wf()`): `Saved(blob)` with all VPs, and
+  `SaveFails(whole restored blob)` with fewer (below).
+
+The proof agent writes the proof annotations that update the record. It
+cannot get the value wrong: every function must keep the rule, and
+Verus rejects an annotation that writes another value.
+
+**Why `SaveFails` carries a blob.** So that a restore stays checked. A
+restore records the blob it restored (`Saved(blob)`), or, if the unit
+refuses to save that state, `SaveFails(blob)`, with the same blob. The
+loaded VM's `snapshot` holds both kinds; its `save_fails` names the
+units whose save fails.
+
+**The case that forced the blob: partial VP restore (C3).**
+
+- With MSHV, a restore may instantiate only some VPs (e.g. 2 of 4):
+  the restore parameter `restore_vp_count` is used when the partition
+  unit is created, so the unit has only VP0 and VP1, for its whole
+  life (VPs are created only with the partition).
+- The snapshot has all 4 VPs, and `StateUnits` gives the partition all
+  4. The partition itself drops VP2 and VP3, and restores VP0 and VP1.
+- Its later `save` fails on purpose (`validate_save_vp_count`: it has
+  only 2 of the 4 VPs).
+
+How the record handled this:
+
+- *Before:* the record was `Saved({VP0..VP3})`. This was allowed because
+  no rule said when `save` may fail. But the record said "save returns
+  a blob" while `save` failed.
+- *With the new Err rule:* that `Err` is not allowed, because the record
+  does not say `SaveFails`.
+- *Considered: `SaveFails` with no blob.* Then nothing would check that
+  VP0 and VP1 got their saved states. A bug restoring VP0 with VP2's
+  state would go unnoticed.
+- *Chosen:* `SaveFails({VP0..VP3})`. The Err rule holds, and the
+  partition's `wf()` still ties the VPs it holds to the restored blob
+  (`PartitionSavedView::restrict_vps`). The record stays
+  `SaveFails` as the VPs' states change, because the partition always
+  has 2 of 4 VPs.
+
+**What changed** (specs only; one dependency, code change 97):
+
+- `UnitSnapshot::SaveFails(blob)` (`vmcore`).
+- The state-unit protocol (`StateRequest`) and the `StateUnit` trait:
+  save `Err` ⇒ the record is `SaveFails`, or an external failure;
+  restore `Ok` ⇒ `Saved(blob)` or `SaveFails(blob)`.
+- `StateUnits::save` and `LoadedVm::save`: `Err` ⇒ some unit's save
+  fails, or an external failure. `StateUnits::restore`,
+  `LoadedVm::restore`, `restore_from_snapshot`: a restored unit records
+  `Saved` or `SaveFails` of its blob; the other units keep whether their
+  save fails.
+- Each device's `refuses_save` (PIT: time ABI on and channel 0
+  periodic; virtio-MMIO: no captured state, or save not supported; the
+  others: never). The partition unit's `wf()`, as above.
+
+Still to do (open item 1.2): the Err clauses of the other entrance
+functions (quiesce, the boundary, load, resume) and the external
+wrappers' `Err ⇒ ExternalFailure::happened()`.
 
 ### The microVM's units: what is specified
 
@@ -2581,6 +2673,7 @@ change preserves behavior: same results, same order of effects.
 | 49 | `amd_iommu`, `chipset_legacy`, `cxl_spec`, `firmware_pcat`, `floppy`, `floppy_pcat_stub`, `framebuffer`, `generation_id`, `hcl_compat_uefi_nvram_storage`, `ide`, `intel_vtd`, `missing_dev`, `pci_bus`, `pci_core`, `pcie`, `smmu`, `uefi_nvram_storage`, `vfio_assigned_device`, `vga`, `virtio`, `vpci`, `watchdog_core` | Verus-enabled: `[package.metadata.verus]`, dependency `vstd` (for `vfio_assigned_device`, in its Linux-only dependencies), new `build.rs` (declares the `verus_keep_ghost` cfg), a cfg'd `use vstd::prelude::verus as _;` in `lib.rs` |
 | 38 | workspace `Cargo.toml` | `[patch.crates-io] verus_builtin_macros` = the patched copy in `verus-patches/verus_builtin_macros` (used by normal builds too; the change affects only `verus_spec(with ...)` on traits and `cfg_attr`'d `verus_spec`, which normal builds strip); `Cargo.lock` follows |
 | 40 | `vmm_core/state_unit` | `vstd::prelude` imported in both builds (its macros erase ghost code in normal builds) |
+| 97 | `vm/vmcore` | new dependency `mesh_rpc_verus` (`Cargo.lock`), for `ExternalFailure` in the save traits' contracts |
 
 ## Recipe: verifying another device
 

@@ -17,6 +17,10 @@ pub struct LoadedVmView {
     /// The snapshotable state: what `save` captures and `restore` sets.
     /// Meaningful while the state units are stopped.
     pub snapshot: SavedStateView,
+    /// The units whose save fails, by name: their state is one they refuse
+    /// to save (e.g. the partition unit after a partial restore). `save`
+    /// fails if there is one; `snapshot` still holds their state.
+    pub save_fails: Set<Seq<char>>,
     /// Whether every state unit's snapshotable state is known (each has been
     /// stopped or restored since it was created); `snapshot` is complete
     /// only then.
@@ -95,11 +99,12 @@ impl View for LoadedVm {
     type V = LoadedVmView;
 
     /// From the state units' view: the snapshot holds the units whose
-    /// FracGhost records a saved state.
+    /// FracGhost records a saved state, or a state whose save fails.
     closed spec fn view(&self) -> LoadedVmView {
         let units = self.state_units@;
         LoadedVmView {
-            snapshot: SavedStateView { units: units.saved_units(), inventory: units.inventory },
+            snapshot: SavedStateView { units: units.state_blobs(), inventory: units.inventory },
+            save_fails: units.save_fails(),
             recorded: units.all_recorded(),
             runtime: VmRuntime {
                 running: units.running,

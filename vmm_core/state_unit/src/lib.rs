@@ -252,7 +252,8 @@ pub trait StateUnit: InspectMut + StateUnitSpec {
     ///
     /// Verus: the caller lends its half, recording a known state, and gets
     /// it back unchanged; `Ok(Some(blob))` iff the half records
-    /// `Saved(blob@)`, `Ok(None)` iff it records `NoSavedState`.
+    /// `Saved(blob@)`, `Ok(None)` iff it records `NoSavedState`; `Err` only
+    /// if it records `SaveFails`, or after an external failure.
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
         requires
@@ -265,6 +266,8 @@ pub trait StateUnit: InspectMut + StateUnitSpec {
             *final(g) == *old(g),
             result matches Ok(Some(blob)) ==> old(g)->Some_0@ == UnitSnapshot::Saved(blob@),
             result matches Ok(None) ==> old(g)->Some_0@ == UnitSnapshot::NoSavedState,
+            result is Err ==> old(g)->Some_0@ is SaveFails
+                || mesh_rpc_verus::ExternalFailure::happened(),
     ))]
     async fn save(&mut self) -> Result<Option<SavedStateBlob>, SaveError>;
 
@@ -273,7 +276,8 @@ pub trait StateUnit: InspectMut + StateUnitSpec {
     /// Must only be called while stopped.
     ///
     /// Verus: takes the caller's half and gives back a half, also on `Err`;
-    /// on `Ok`, it records `Saved(buffer@)`.
+    /// on `Ok`, it records `Saved(buffer@)`, or `SaveFails(buffer@)` if the
+    /// restored state is one the unit refuses to save.
     #[cfg_attr(verus_keep_ghost, verus_spec(result =>
         with Tracked(g): Tracked<&mut Option<FracGhost<UnitSnapshot>>>
         requires
@@ -284,7 +288,8 @@ pub trait StateUnit: InspectMut + StateUnitSpec {
             final(self).id() == old(self).id(),
             final(self).running() == old(self).running(),
             *final(g) matches Some(h) && h.valid(final(self).id(), 0.5real)
-                && (result is Ok ==> h@ == UnitSnapshot::Saved(buffer@)),
+                && (result is Ok ==> (h@ == UnitSnapshot::Saved(buffer@) || h@
+                == UnitSnapshot::SaveFails(buffer@))),
     ))]
     async fn restore(&mut self, buffer: SavedStateBlob) -> Result<(), RestoreError>;
 
@@ -1071,6 +1076,10 @@ impl StateUnits {
                 &&& states@.distinct_names()
                 &&& states@.by_name() == old(self)@.saved_units()
             },
+            // It fails only if some unit's save fails, or after an external
+            // failure.
+            result is Err ==> !old(self)@.save_fails().is_empty()
+                || mesh_rpc_verus::ExternalFailure::happened(),
     ))]
     pub async fn save(&mut self) -> Result<Vec<SavedStateUnit>, StateTransitionError> {
         assert!(!self.running);
@@ -1116,15 +1125,18 @@ impl StateUnits {
             final(self)@.holds_halves(),
             final(self)@.units.dom() == old(self)@.units.dom(),
             // Each unit in `states` (by name, once each, and registered)
-            // records its saved state; the others keep theirs.
+            // records its saved state, as `Saved`, or as `SaveFails` if it
+            // refuses to save that state (the partition unit after a partial
+            // restore); the others keep theirs.
             result is Ok ==> {
                 &&& states@.distinct_names()
                 &&& states@.by_name().dom() <= old(self)@.units.dom()
-                &&& final(self)@.units == old(self)@.units.union_prefer_right(
-                    states@.by_name().map_values(
-                        |blob: SavedStateBlobView| UnitSnapshot::Saved(blob),
-                    ),
-                )
+                &&& forall|name: Seq<char>| #[trigger] states@.by_name().contains_key(name)
+                    ==> final(self)@.units[name] == UnitSnapshot::Saved(states@.by_name()[name])
+                    || final(self)@.units[name] == UnitSnapshot::SaveFails(states@.by_name()[name])
+                &&& forall|name: Seq<char>| #[trigger] old(self)@.units.contains_key(name)
+                    && !states@.by_name().contains_key(name)
+                    ==> final(self)@.units[name] == old(self)@.units[name]
             },
     ))]
     pub async fn restore(

@@ -10,6 +10,10 @@ use super::SaveRestore;
 use super::SavedStateBlob;
 use vstd::prelude::*;
 
+/// External failures (`mesh_rpc_verus`), for the save and restore
+/// contracts here and below.
+pub use mesh_rpc_verus::ExternalFailure;
+
 verus! {
 
 /// Declares `SavedStateBlob` to Verus, by name only (fields hidden).
@@ -64,6 +68,13 @@ pub enum UnitSnapshot {
     NoSavedState,
     /// The unit's saved state.
     Saved(SavedStateBlobView),
+    /// The unit's save fails: its state is one it refuses to save. The blob
+    /// is still the unit's state, encoded, so that a restore stays checked:
+    /// e.g. the PIT counting periodically under the time ABI (its state's
+    /// blob); the partition unit after a partial restore, which holds only
+    /// some of the snapshot's VPs (the restored blob; see the design doc,
+    /// "Errors: when a save may fail").
+    SaveFails(SavedStateBlobView),
 }
 
 impl UnitSnapshot {
@@ -94,9 +105,13 @@ impl<T: View + ?Sized> SaveRestoreView for T {}
 /// `saved_view(view)` is `state`'s view. No blobs: those are generic
 /// (`ProtobufSaveRestore`).
 ///
-/// `saved_view` is defined by each specified implementation (in
-/// `SaveRestoreSpecImpl`); unverified implementations are trusted to meet
-/// the contract.
+/// `save` fails exactly when the object's state is one it refuses to save
+/// (`refuses_save(view)`), or after an external failure (e.g. the hypervisor
+/// or the clock failed).
+///
+/// `saved_view` and `refuses_save` are defined by each specified
+/// implementation (in `SaveRestoreSpecImpl`); unverified implementations
+/// are trusted to meet the contract.
 #[verifier::external_trait_specification]
 #[verifier::external_trait_extension(SaveRestoreSpec via SaveRestoreSpecImpl)]
 pub trait ExSaveRestore: SaveRestoreView {
@@ -108,6 +123,11 @@ pub trait ExSaveRestore: SaveRestoreView {
     /// `save` returns, as a view. (Projects out what the object does not
     /// save, e.g. static configuration.)
     spec fn saved_view(view: <Self as View>::V) -> <Self::SavedState as View>::V;
+
+    /// Whether an object with view `view` refuses to save: its state is
+    /// one it cannot save, so its `save` fails. (`false` for an object whose
+    /// save fails only on external failures.)
+    spec fn refuses_save(view: <Self as View>::V) -> bool;
 
     /// Well formed: what a valid object of this type satisfies (its view's
     /// `inv()` and the properties of its other fields), defined by each
@@ -121,6 +141,8 @@ pub trait ExSaveRestore: SaveRestoreView {
             final(self).device_wf(),
             final(self)@ == old(self)@,
             result matches Ok(state) ==> state@ == Self::saved_view(old(self)@),
+            Self::refuses_save(old(self)@) ==> result is Err,
+            result is Err ==> Self::refuses_save(old(self)@) || ExternalFailure::happened(),
     ;
 
     fn restore(&mut self, state: Self::SavedState) -> (result: Result<(), RestoreError>)
@@ -135,7 +157,8 @@ pub trait ExSaveRestore: SaveRestoreView {
 /// The contract of every `ProtobufSaveRestore` implementation (layer 2 of
 /// the unit-side contract): `saved_blob()` is the object's snapshotable
 /// state, encoded: what `save` returns. `save` does not change it; a
-/// successful `restore(state)` sets it to `state@`.
+/// successful `restore(state)` sets it to `state@`. `save` fails exactly
+/// when `save_fails()`, or after an external failure.
 ///
 /// Given through `ProtobufSaveRestoreSpec`, as for `SaveRestore`. The
 /// blanket implementation for `SaveRestore` types is verified against it,
@@ -152,6 +175,10 @@ pub trait ExProtobufSaveRestore {
     /// The blob `save` returns: the object's snapshotable state, encoded.
     spec fn saved_blob(&self) -> SavedStateBlobView;
 
+    /// Whether `save` fails: the object's state is one it refuses to save
+    /// (for a `SaveRestore` type, its `refuses_save(view)`).
+    spec fn save_fails(&self) -> bool;
+
     /// Well formed (for a `SaveRestore` type, its `device_wf()`). `save`
     /// and `restore` keep it.
     spec fn device_wf(&self) -> bool;
@@ -162,7 +189,10 @@ pub trait ExProtobufSaveRestore {
         ensures
             final(self).device_wf(),
             final(self).saved_blob() == old(self).saved_blob(),
+            final(self).save_fails() == old(self).save_fails(),
             result matches Ok(blob) ==> blob@ == old(self).saved_blob(),
+            old(self).save_fails() ==> result is Err,
+            result is Err ==> old(self).save_fails() || ExternalFailure::happened(),
     ;
 
     fn restore(&mut self, state: SavedStateBlob) -> (result: Result<(), RestoreError>)

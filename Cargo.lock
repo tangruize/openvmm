@@ -10844,6 +10844,7 @@ dependencies = [
  "linkme",
  "loan_cell",
  "mesh",
+ "mesh_rpc_verus",
  "pal_async",
  "pal_event",
  "parking_lot",

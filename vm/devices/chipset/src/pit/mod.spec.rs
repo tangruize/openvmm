@@ -35,6 +35,16 @@ impl PitDeviceView {
         self.timers.len() == 3
     }
 
+    /// The PIT refuses to save (`E_PIT_ACTIVE`): the time ABI applies and
+    /// channel 0 counts in a periodic mode (rate generator or square wave:
+    /// control-word mode 2, 3, 6, or 7).
+    pub(super) open spec fn refuses_save(self) -> bool {
+        let mode = (self.timers[0].control.0 >> 1u8) & 7u8;
+        &&& self.time_abi
+        &&& (mode == 2 || mode == 3 || mode == 6 || mode == 7)
+        &&& !(self.timers[0].state is Inactive)
+    }
+
     /// The saved state of a PIT in this state: what its `save` returns.
     pub(super) open spec fn saved_state(self) -> SavedState {
         SavedState {
@@ -102,6 +112,10 @@ impl View for SavedState {
 impl SaveRestoreSpecImpl for PitDevice {
     closed spec fn saved_view(view: PitDeviceView) -> SavedState {
         view.saved_state()
+    }
+
+    closed spec fn refuses_save(view: PitDeviceView) -> bool {
+        view.refuses_save()
     }
 
     /// The PIT is well formed (`wf()`).

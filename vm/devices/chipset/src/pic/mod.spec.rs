@@ -139,6 +139,11 @@ impl SaveRestoreSpecImpl for DualPic {
         view.saved_state()
     }
 
+    /// Never: its save always succeeds.
+    closed spec fn refuses_save(view: DualPicView) -> bool {
+        false
+    }
+
     /// The dual PIC is well formed (`wf()`).
     closed spec fn device_wf(&self) -> bool {
         self.wf()

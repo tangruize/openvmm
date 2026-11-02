@@ -1534,6 +1534,29 @@ Baseline: upstream `nanvix/openvmm` commit
       inventory and the snapshot boundary are unchanged.
     - Docs: the overview (sections 1, 2.6 with the wider specified box,
       3), the design doc's protocol table and roadmap, the trusted doc.
+97. **Errors: when a save may fail** (the user, 2026-11-01; open item
+    1.2; design doc, "Errors: when a save may fail"). Verus only, except
+    one dependency: `vm/vmcore` now depends on `mesh_rpc_verus`
+    (`Cargo.lock`), for `ExternalFailure`.
+    - New in `mesh_rpc_verus`: `ExternalFailure::happened()`
+      (`external_failure_t.rs`, uninterpreted, trusted); mesh
+      `PendingCall::recv`'s `Err` establishes it.
+    - `UnitSnapshot::SaveFails(blob)`: the unit refuses to save its state
+      (whose blob it carries).
+    - `SaveRestore::refuses_save` and `ProtobufSaveRestore::save_fails`,
+      defined for each device; save `Err` ⇒ refuses, or an external
+      failure. `DeviceSlot::snapshot` records `SaveFails` for a device
+      that refuses.
+    - The state-unit protocol and the `StateUnit` trait: save `Err` ⇒
+      `SaveFails` or an external failure; restore `Ok` ⇒ `Saved(blob)` or
+      `SaveFails(blob)`.
+    - `StateUnits::save`, `LoadedVm::save`: `Err` ⇒ some unit's save
+      fails, or an external failure. `StateUnits::restore`,
+      `LoadedVm::restore`, `restore_from_snapshot`: restored units record
+      `Saved` or `SaveFails` of their blob. `LoadedVmView::save_fails`.
+    - The partition unit's `wf()`: with fewer VPs than the topology
+      (partial restore, C3), the record is `SaveFails(whole restored
+      blob)` instead of `Saved(..)`.
 
 ### Planned: mesh RPC trusted spec
 

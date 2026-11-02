@@ -125,6 +125,11 @@ impl super::SaveRestoreSpecImpl for ExampleDevice {
         view
     }
 
+    /// It never refuses to save.
+    closed spec fn refuses_save(view: u64) -> bool {
+        false
+    }
+
     /// Every value of the register is valid.
     closed spec fn device_wf(&self) -> bool {
         true
@@ -137,6 +142,10 @@ impl<T: SaveRestore> super::ProtobufSaveRestoreSpecImpl for T where
  {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
         SavedStateBlobView::of_view::<T::SavedState>(T::saved_view(self@))
+    }
+
+    open spec fn save_fails(&self) -> bool {
+        T::refuses_save(self@)
     }
 
     open spec fn device_wf(&self) -> bool {

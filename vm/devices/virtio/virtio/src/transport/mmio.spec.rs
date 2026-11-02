@@ -180,6 +180,13 @@ impl SaveRestoreSpecImpl for VirtioMmioDevice {
         view.saved()
     }
 
+    /// It refuses to save if its inner device does not support save, or
+    /// has no private state to save (nothing captured at the last stop, or
+    /// the capture failed).
+    closed spec fn refuses_save(view: VirtioMmioView) -> bool {
+        !view.supports_save_restore || view.device_state is None
+    }
+
     /// The device is well formed (`wf()`).
     closed spec fn device_wf(&self) -> bool {
         self.wf()

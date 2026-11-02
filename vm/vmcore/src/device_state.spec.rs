@@ -48,11 +48,16 @@ impl DeviceGhostState {
 
 /// What a chipset device's lock needs of the device to state its share's
 /// invariant: the blob the device's save returns (its snapshotable state,
-/// encoded). Every `ProtobufSaveRestore` type has it; a trait for devices
-/// seen through a trait object (`dyn`) to have it too.
+/// encoded), and whether its save fails. Every `ProtobufSaveRestore` type
+/// has it; a trait for devices seen through a trait object (`dyn`) to have
+/// it too.
 pub trait DeviceSnapshot {
     /// The blob the device's save returns.
     spec fn saved_blob(&self) -> SavedStateBlobView;
+
+    /// Whether the device's save fails (its state is one it refuses to
+    /// save).
+    spec fn save_fails(&self) -> bool;
 
     /// The device is well formed (its `device_wf()`).
     spec fn device_wf(&self) -> bool;
@@ -61,6 +66,10 @@ pub trait DeviceSnapshot {
 impl<T: ProtobufSaveRestore> DeviceSnapshot for T {
     open spec fn saved_blob(&self) -> SavedStateBlobView {
         ProtobufSaveRestoreSpec::saved_blob(self)
+    }
+
+    open spec fn save_fails(&self) -> bool {
+        ProtobufSaveRestoreSpec::save_fails(self)
     }
 
     open spec fn device_wf(&self) -> bool {
@@ -80,10 +89,13 @@ impl<T: ?Sized + DeviceSnapshot> DeviceSlot<T> {
     }
 
     /// The device's snapshot: what its unit's save returns (nothing if the
-    /// unit omits the device's saved state).
+    /// unit omits the device's saved state; a failure, with the state's
+    /// blob, if the device's save fails).
     pub closed spec fn snapshot(&self) -> UnitSnapshot {
         if self.omit@ {
             UnitSnapshot::NoSavedState
+        } else if self.device.save_fails() {
+            UnitSnapshot::SaveFails(self.device.saved_blob())
         } else {
             UnitSnapshot::Saved(self.device.saved_blob())
         }

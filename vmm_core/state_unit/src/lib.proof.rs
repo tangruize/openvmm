@@ -132,9 +132,13 @@ impl MeshProtocol for StateRequest {
     /// - `Stop`: no ghost is sent; the unit records its state and returns a
     ///   half recording it (not `Unknown`).
     /// - `Save`: the caller lends its half, which must record a known state;
-    ///   the unit returns the same half, with a blob that matches it.
+    ///   the unit returns the same half, with a blob that matches it. It
+    ///   fails only if the half records `SaveFails`, or after an external
+    ///   failure (`ExternalFailure::happened`).
     /// - `Restore(blob)`: the caller sends its half; on success the unit
-    ///   returns a half recording `Saved(blob@)`.
+    ///   returns a half recording `Saved(blob@)`, or `SaveFails(blob@)` if
+    ///   its state is one it refuses to save (the partition unit after a
+    ///   partial restore).
     /// - `Reset`, `AdvanceTime`: the caller sends its half; the unit returns a
     ///   half (its state may have changed).
     /// - `QuiesceInput`, `ResumeInput`, `Inspect`: no ghost.
@@ -169,14 +173,16 @@ impl MeshProtocol for StateRequest {
                     gout == gin && match r {
                         Ok(Some(blob)) => gin->Some_0@ == UnitSnapshot::Saved(blob@),
                         Ok(None) => gin->Some_0@ == UnitSnapshot::NoSavedState,
-                        Err(_) => true,
+                        Err(_) => gin->Some_0@ is SaveFails || ExternalFailure::happened(),
                     } ==> #[trigger] rpc.reply_ok(r, gout)
             },
             StateRequest::Restore(rpc) => {
                 &&& gin matches Some(h) && h.valid(k, 0.5real)
                 &&& forall|r: Result<(), RemoteError>, gout: Self::GhostOut|
-                    gout matches Some(h) && h.valid(k, 0.5real) && (r is Ok ==> h@
-                        == UnitSnapshot::Saved(rpc.spec_input()@)) ==> #[trigger] rpc.reply_ok(r, gout)
+                    gout matches Some(h) && h.valid(k, 0.5real) && (r is Ok ==> (h@
+                        == UnitSnapshot::Saved(rpc.spec_input()@) || h@ == UnitSnapshot::SaveFails(
+                        rpc.spec_input()@,
+                    ))) ==> #[trigger] rpc.reply_ok(r, gout)
             },
             // A half back, with any value.
             StateRequest::Reset(rpc) => {

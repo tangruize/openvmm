@@ -67,6 +67,27 @@ impl StateUnitsView {
             |name: Seq<char>| self.units[name]->Saved_0,
         )
     }
+    /// The units whose state is recorded as a blob, with that blob, by
+    /// name: those that record `Saved(blob)`, and those that record
+    /// `SaveFails(blob)` (their save fails, but a restore still records
+    /// what it restored).
+    pub open spec fn state_blobs(self) -> Map<Seq<char>, SavedStateBlobView> {
+        Map::new(
+            self.units.dom().filter(
+                |name: Seq<char>| self.units[name] is Saved || self.units[name] is SaveFails,
+            ),
+            |name: Seq<char>|
+                match self.units[name] {
+                    UnitSnapshot::SaveFails(blob) => blob,
+                    _ => self.units[name]->Saved_0,
+                },
+        )
+    }
+
+    /// The units whose save fails (they record `SaveFails`), by name.
+    pub open spec fn save_fails(self) -> Set<Seq<char>> {
+        self.units.dom().filter(|name: Seq<char>| self.units[name] is SaveFails)
+    }
 }
 
 /// Spec functions of a list of saved units (the view of the `Vec` that

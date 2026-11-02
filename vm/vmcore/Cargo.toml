@@ -18,6 +18,7 @@ vm_resource.workspace = true
 inspect = { workspace = true, features = ["defer", "std"] }
 loan_cell.workspace = true
 mesh.workspace = true
+mesh_rpc_verus.workspace = true
 pal_event = { workspace = true, features = ["mesh"] }
 pal_async.workspace = true
 tracelimit.workspace = true

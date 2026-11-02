@@ -291,11 +291,13 @@ pub fn call<M, F, I, R>(
 
 impl<M: MeshProtocol, R: 'static + Send> PendingCall<M, R> {
     /// Waits for the reply. On success, the reply and its ghost satisfy the
-    /// caller's expectation.
+    /// caller's expectation. An error is a channel failure (the peer is gone
+    /// or the channel closed): an external failure.
     #[verifier::external_body]
     pub async fn recv(self) -> (result: Result<(R, Tracked<M::GhostOut>), RpcError>)
         ensures
             result matches Ok((r, gout)) ==> self.reply_ok(r, gout@),
+            result is Err ==> crate::ExternalFailure::happened(),
     {
         match self.pending.await {
             // TRUSTED: keep this `assume_new()`. This trusted function's

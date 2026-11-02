@@ -73,6 +73,11 @@ impl SaveRestoreSpecImpl for Rtc {
         view
     }
 
+    /// Never: its save fails only if reading the clock fails (external).
+    closed spec fn refuses_save(view: RtcView) -> bool {
+        false
+    }
+
     /// The RTC is well formed (`wf()`).
     closed spec fn device_wf(&self) -> bool {
         self.wf()
