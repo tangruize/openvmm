@@ -19,7 +19,8 @@ theirs: `bcfc47cff`).
 
 Only the **entrance contracts**, the **meaning** they give to "the
 state", **how they establish agreement across threads and RPCs**, and
-**what they trust** are compared.
+**what they trust** are compared. Section 9 also checks their spec's
+**style** against our conventions (`CONVENTIONS.md`).
 
 ## The gist
 
@@ -229,3 +230,85 @@ and about the meaning of its model; ours does not.
 To compare the two runs' **bugs**, I need the list of the 33 found with
 our spec; theirs are in `system-proof/BUGS.md` (BUG-01..16, plus
 differences and known defects).
+
+## 9. Spec style, checked against our conventions
+
+Our spec follows a written set of conventions (`CONVENTIONS.md`), taken
+from the style of `microsoft/verified-storage` (capybaraKV). Theirs was
+written under a different conventions file, so this section is not
+about mistakes: it shows how differently the two specs are organized.
+
+**How it was counted** (2026-11-01; ours at `f77922844`, theirs at
+`e5c25a006`): a script counted the spec functions in each side's
+`.spec.rs` files, the files meant for a human to review (theirs: 68
+files; ours: 26 files). A spec function written at the top level of a
+file, outside any `impl`, is counted as free. The counts are rough
+(a script, not a parser); the examples below were checked by reading
+the files.
+
+**1. No free spec functions** (they belong to the type they are about).
+
+- Ours: 0 of 173 spec functions are free.
+- Theirs: 484 of 782 spec functions are free. Their harness
+  (`.system-proof/harness/round_trip.rs`) adds 42 more, 31 of them
+  free. Examples:
+  - the PIT (`vm/devices/chipset/src/pit/mod.spec.rs`): `status_byte(t)`,
+    `pit_mode_code`, `bcd_value`, `pit_port_read`, `pit_port_write`;
+  - the loaded VM (`openvmm/openvmm_core/src/worker/dispatch.spec.rs`):
+    `vm_world`, `restored_units`, `restore_world`, `fresh_world`,
+    `construction_ram`, and about 30 more.
+
+**2. A concrete type has two spec functions, `view` and `wf()`; its view
+type has `inv()`.**
+
+- Ours: 24 views, 26 `wf()`, 12 `inv()` in the `.spec.rs` files (42
+  views, 32 `wf()`, 30 `inv()` in all files).
+- Theirs: 10 views, 3 `wf()`, 2 `inv()`. Concrete types carry other spec
+  functions besides their view:
+  - `LoadedVm`: `units_frame`, `same_vm`, `machine`;
+  - `PitDevice`: `same_glue`, `same_config`, `timer_irq`, `time_abi_v`,
+    `abi_rejects`.
+
+**3. The view of `Foo` is named `FooView`.**
+
+- Ours: `PitDevice` → `PitDeviceView`, `LoadedVm` → `LoadedVmView`,
+  `StateUnits` → `StateUnitsView`.
+- Theirs: a `V` suffix, and not always the type's name: `PitDevice` →
+  `PitV`, `LoadedVm` → `LoadedVmV`, `StateUnits` → `UnitsV`.
+
+**4. Views and spec functions closed, unless a plain mapping of fields**
+(so that their definitions do not flood every proof).
+
+- Ours: 60 open, 87 closed.
+- Theirs: 520 open, 79 closed.
+
+**5. Uninterpreted functions only for external things** (our own types'
+meaning is defined from their fields).
+
+- Ours: 9 uninterpreted in the `.spec.rs` files, none trusted: 6 in
+  vmbus and 1 for guest time (out of scope), the time keeper's view (deferred
+  by a decision), and `boots_linux_mptable` (to define from the fields:
+  marked PROOF TODO). The uninterpreted functions for external things
+  (the encodings, the hypervisor) are in the `_t.rs` files. Each is
+  listed in `TRUSTED.md`.
+- Theirs: 118 uninterpreted. Several are about OpenVMM's own code, e.g.
+  `initialized_ram(vm: &InitializedVm)`,
+  `construction_fails(vm: &InitializedVm, ..)`, `topology_vp_count`.
+
+**6. Trusted code clustered in `_t.rs` files**, each beginning with what
+it assumes.
+
+- Ours: the trusted wrappers (mesh, the locks, the encodings, the
+  hypervisor) are in `_t.rs` files.
+- Theirs: no `_t.rs` files; the trusted items are listed in
+  `system-proof/TRUST.md`. Their files are split differently:
+  `.spec.rs`, `.types.spec.rs`, `.library.spec.rs`, `.exec_proof.rs`.
+
+**What their style is instead.** Many small free functions describing
+one state change each, most of them open. For example,
+`pit_port_write(mid, port, b, f, r)` relates the PIT's state before a
+port write (`mid`) and after it (`f`) to the byte written and the
+result. The harness chains such functions into a model of the whole
+VM ("join" and "lanes", `.system-proof/architecture.md`). Ours instead
+puts the meaning in each type's view and `wf()`, and states the
+entrance contracts in terms of the views.
