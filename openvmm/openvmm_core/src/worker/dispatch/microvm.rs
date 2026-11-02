@@ -411,16 +411,14 @@ impl LoadedVm {
                 <==> (!old(self)@.runtime.microvm || !old(self)@.runtime.running),
             // When it may fail: rejected (above); an external failure (a
             // unit's `Stop`, the deadline, the guest RAM flush, ...); the
-            // time ABI capture (out of scope); some unit's save fails; or
-            // the VM does not boot Linux with an MP table (no command line
-            // to record).
+            // time ABI capture (out of scope); or some unit's save fails.
+            // (A microVM always has a command line to record: `wf()`.)
             result is Err ==> {
                 ||| !old(self)@.runtime.microvm
                 ||| !old(self)@.runtime.running
                 ||| mesh_rpc_verus::ExternalFailure::happened()
                 ||| LoadedVm::time_capture_failed()
                 ||| !final(self)@.save_fails.is_empty()
-                ||| !old(self)@.runtime.linux_mptable
             },
     ))]
     pub(super) async fn quiesce_for_snapshot(
@@ -494,8 +492,7 @@ impl LoadedVm {
             result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::RollbackSafe(_))
                 ==> !final(self)@.runtime.running && final(self)@.recorded
                     && final(self)@.runtime.holds_halves(),
-            // As `quiesce_for_snapshot`, without the RAM flush and the
-            // command line.
+            // As `quiesce_for_snapshot`, without the RAM flush.
             (result matches Err(openvmm_defs::rpc::SnapshotQuiesceError::Rejected(_)))
                 <==> (!old(self)@.runtime.microvm || !old(self)@.runtime.running),
             result is Err ==> {

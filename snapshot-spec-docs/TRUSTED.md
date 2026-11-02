@@ -138,8 +138,8 @@ work is not lost if vmbus comes back into scope (the user's decision,
 microVM snapshot): `LoadedVm::time_capture_failed()` (`openvmm_core`,
 `dispatch.spec.rs`, uninterpreted) is the fact "the time ABI capture
 failed". Only `capture_time_abi`'s contract establishes it, on its errors
-(no time ABI, the LAPIC timers' check, the guest's declared rates, the
-hypervisor's or the host's clock). The quiesce contracts' error clauses
+(the LAPIC timers' check, the guest's declared rates, the hypervisor's or
+the host's clock; a microVM always has the time ABI, `LoadedVm::wf()`). The quiesce contracts' error clauses
 name it.
 
 # Notes (not assumptions)

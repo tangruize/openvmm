@@ -99,6 +99,23 @@ impl LoadedVm {
         &&& self.running == self.state_units@.running
         &&& self.snapshot_boundary.wf(self.inner.partition_unit.id())
         &&& self.snapshot_restore.wf(self.inner.partition_unit.id())
+        // A microVM boots Linux with an MP table and has the time ABI (its
+        // configuration was validated when the worker started:
+        // `validate_machine_config`, from `MicrovmParameters::take`).
+        &&& self@.runtime.microvm ==> self@.runtime.linux_mptable
+        &&& self.microvm_has_time_abi()
+    }
+
+    /// A microVM has the time ABI state.
+    #[cfg(guest_arch = "x86_64")]
+    pub closed spec fn microvm_has_time_abi(&self) -> bool {
+        self@.runtime.microvm ==> self.inner.time_abi is Some
+    }
+
+    /// (Other architectures have no time ABI state.)
+    #[cfg(not(guest_arch = "x86_64"))]
+    pub closed spec fn microvm_has_time_abi(&self) -> bool {
+        true
     }
 }
 
@@ -110,9 +127,9 @@ impl LoadedVm {
     /// name only, fields hidden). Our code, not trusted.
     pub uninterp spec fn boots_linux_mptable(&self) -> bool;
 
-    /// The time ABI capture failed (`capture_time_abi`: no time ABI, the
-    /// LAPIC timers' check, the guest's declared rates, the hypervisor's or
-    /// the host's clock). OUT OF SCOPE (guest time): established only by
+    /// The time ABI capture failed (`capture_time_abi`: the LAPIC timers'
+    /// check, the guest's declared rates, the hypervisor's or the host's
+    /// clock). OUT OF SCOPE (guest time): established only by
     /// `capture_time_abi`'s contract, on its errors.
     pub uninterp spec fn time_capture_failed() -> bool;
 }

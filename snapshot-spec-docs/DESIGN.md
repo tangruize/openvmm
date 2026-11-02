@@ -2309,8 +2309,6 @@ only for one of these reasons, checked in this order by the code:
    only by `capture_time_abi`'s contract on its errors.
 4. Some unit's save fails (`save_fails` is not empty).
 5. Flushing guest RAM fails (the host OS): an external failure.
-6. The VM does not boot Linux with an MP table, so there is no command
-   line to record.
 
 For this the VM's view gained two configuration facts, in
 `runtime`: `microvm` (the machine profile; `MachineProfile`'s variants
@@ -2318,9 +2316,23 @@ are now visible to Verus) and `linux_mptable` (the load mode;
 uninterpreted for now, `LoadedVm::boots_linux_mptable`, a PROOF TODO:
 `LoadMode`'s field types are not declared to Verus).
 
+**Checks the code makes that can never fail (decided by the user,
+2026-11-01).** The error list should come from what the snapshot is
+meant to do, not be copied from the code's checks: a copied buggy check
+would be allowed by the spec. Two of the code's checks can never fail
+for a microVM, because its configuration is validated when the worker
+starts (`validate_machine_config`, called by `MicrovmParameters::take`):
+a microVM boots Linux with an MP table (so it has a command line to
+record), and it has the time ABI. So these two facts are now part of
+`LoadedVm::wf()`, and they are not reasons to fail: the "no command
+line" check is not in the list, and "no time ABI" is no longer part of
+`time_capture_failed()`. What is left of the time capture's failures is
+guest time (the LAPIC timers' check, the guest's declared rates) and the
+clocks, which stay out of scope.
+
 Example: a microVM that is running, whose PIT counts periodically under
 the time ABI. Reasons 1 to 3 do not hold; the PIT's record is
-`SaveFails`, so reason 4 allows the failure. If none of the six
+`SaveFails`, so reason 4 allows the failure. If none of the five
 reasons holds, the contract requires success.
 
 Still to do (open item 1.2): the Err clauses of the other entrance

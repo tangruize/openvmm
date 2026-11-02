@@ -1568,6 +1568,13 @@ Baseline: upstream `nanvix/openvmm` commit
     - `VmRuntime` gains `microvm` and `linux_mptable`;
       `MachineProfile`'s declaration shows its variants;
       `LoadedVm::boots_linux_mptable` (uninterpreted, PROOF TODO).
+99. **A microVM's configuration in `LoadedVm::wf()`** (the user,
+    2026-11-01; design doc, "Errors", "Checks the code makes that can
+    never fail"). Verus only; no normal-build change. `wf()` now says a
+    microVM boots Linux with an MP table and has the time ABI (validated
+    when the worker starts). The guest-requested snapshot's error clause
+    drops "no command line", and `time_capture_failed()` no longer
+    covers "no time ABI".
 
 ### Planned: mesh RPC trusted spec
 
