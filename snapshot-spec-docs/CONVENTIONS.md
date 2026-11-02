@@ -56,6 +56,17 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   error is returned need not be specified in detail, unless callers act
   on it (e.g. `SnapshotQuiesceError`'s `Rejected`, `RollbackSafe` and
   `Uncertain`, which decide whether a rollback is possible).
+  - **The reasons come from what the function is meant to do, not from
+    the code's checks** (the user, 2026-11-01). First list the reasons
+    the design allows (a requirement, an external failure, an
+    out-of-scope area), then compare with the code's error checks. A
+    check that no reason justifies is a finding, not a new reason: a
+    bug, or a check that can never fail. A copied buggy check would be
+    allowed by the spec. Example: the guest-requested snapshot checked
+    "the VM boots Linux with an MP table", which is always true for a
+    microVM (its configuration is validated when the worker starts); the
+    fact went into `LoadedVm::wf()` instead of the error list (design
+    doc, "Errors: when a save may fail").
 
 ## Naming
 
