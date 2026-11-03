@@ -10,6 +10,28 @@ by itself (5.1, 5.2, 5.3, 5.6, 5.9). An assumption that is too strong (a
 contract) makes proofs pass that should not; only review and testing
 find it (5.5, 5.10, 5.18). The second kind is the dangerous one.
 
+## Wrong specs and weak specs (2026-11-03, with the user)
+
+Which mistakes the proof catches, and what else finds the rest:
+
+- **A wrong spec of our code** (it says something false about what the
+  code does) is caught by the proof, which checks the spec against the
+  code: it passes only if the code happens to be wrong in the same way,
+  which is unlikely unless the spec was copied from the code ("errors
+  from intent, not code").
+- **A wrong spec of the trusted base** (e.g. KVM) is never checked by
+  the proof: Verus believes it, and nobody examines KVM's
+  implementation. Only reading KVM's source and testing against the
+  real KVM find it (D1). So it is the riskier of the two.
+- **A correct but too weak spec**, of our code or of the trusted base,
+  passes the proof whatever the code does in the behavior it leaves out.
+  Two things find it: a human reading the spec against the intent; and
+  fuzzing against a reference model built from the intent, whose bugs
+  in the unspecified behavior each show a place where the spec is weak
+  or the behavior is out of its scope (the fuzzing team's PIT findings,
+  `noah-verification/llm-fuzz-ws`, `method-comparison-20261103/deepdive`,
+  spec gaps 1 and 2).
+
 ## A. A high-level statement not carried down to every place it applies
 
 When a contract or a design rule promises something, check that every
@@ -389,3 +411,7 @@ contract, and earlier feedback from proofs and tests.
    is written, not at the end; most of 5.1, 5.2, 5.3, 5.6 and 5.9 would
    have come back quickly. The dangerous kinds (D1, D2) do not show up in
    proofs: they need the citations and tests of item 2.
+4. **Fuzzing against an intent-based model.** A fuzzer that compares the
+   code with a reference model built from the intent finds bugs in
+   behavior the spec does not cover, which is how a correct but too weak
+   spec shows up besides human reading.
