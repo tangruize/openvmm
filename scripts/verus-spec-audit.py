@@ -31,6 +31,23 @@ Sections:
                  in a file headed "// OUT OF SCOPE" is OUT-OF-SCOPE
   assumes        assume(..), assume_specification
   todos          TODOs: OURS (git blame: the current git user) or UPSTREAM
+  lessons        the mechanical checks of snapshot-spec-docs/LESSONS.md, "How
+                 to reduce these mistakes" (by pattern, so a human checks
+                 each hit). Exits 1 on a FAIL check:
+                 D3 FAIL   a protocol rule `=> false` in a `request_ok`
+                 D3 FAIL   an `assume_new()` marked OUT OF SCOPE: outside tests
+                           and non-verification builds
+                 F  FAIL   a `requires` clause on a FracGhost's fraction
+                           (`frac()`) with no id (`id()`), unless a comment
+                           just above says `ID OK:` and why
+                 F  FLAG   a protocol rule returning a half (`gout matches
+                           Some(h) && h.valid(..)`) that never states its
+                           value (`h@`, `gout == gin`)
+                 E  FLAG   a `LoadedVm` / `InitializedVm` contract returning a
+                           `Result` with no `result is Err` / `matches Err`
+                 D2 FLAG   a type declared by name only (external_body
+                           external_type_specification) with a specified
+                           method but no `View`
 """
 import importlib.util
 import os
@@ -246,6 +263,129 @@ def todos(files):
     return rows
 
 
+def clause_of(lines, i):
+    """The contract clause holding line i: from the line after the previous
+    clause's end (a line ending with ',', or `requires`/`ensures`) to the
+    first line ending with ','."""
+    a = i
+    while a > 0:
+        t = lines[a - 1].strip()
+        if t.endswith(',') or t in ('requires', 'ensures') or t.endswith('=>'):
+            break
+        a -= 1
+    b = i
+    while b + 1 < len(lines) and not lines[b].rstrip().endswith(','):
+        b += 1
+    return '\n'.join(lines[a:b + 1])
+
+
+def in_requires(lines, i):
+    """Line i is in a `requires` clause (the nearest keyword above it)."""
+    for k in range(i, max(-1, i - 40), -1):
+        t = lines[k].strip()
+        if re.match(r'(requires|ensures|recommends)\b', t):
+            return t.startswith('requires')
+    return False
+
+
+def module_files(files, where):
+    """The files of the module that declares a type in `where`: for
+    `a/b.proof.rs` or `a/b.spec.rs`, `a/b.rs` and the files under `a/b/`."""
+    path = where.split(':')[0]
+    stem = re.sub(r'\.(proof|spec)\.rs$', '', path)
+    stem = re.sub(r'\.rs$', '', stem)
+    return [f for f in files if f == stem + '.rs' or f.startswith(stem + '/')]
+
+
+def lessons(files, placeholder_rows):
+    rows = []
+    view_types = set()
+    for f in files:
+        for l in open(f).read().split('\n'):
+            m = re.match(r'\s*impl(?:<[^>]*>)?\s+View\s+for\s+([A-Za-z_0-9]+)', l)
+            if m:
+                view_types.add(m.group(1))
+    hidden = []  # (type, where)
+    for f in files:
+        lines = open(f).read().split('\n')
+        tests = test_lines(lines)
+        for i, l in enumerate(lines):
+            s = l.strip()
+            if s.startswith('//') or i in tests:
+                continue
+            name, _ = enclosing_fn(lines, i)
+            # D3: `=> false` rules.
+            if name == 'request_ok' and re.search(r'=>\s*false,?\s*$', s):
+                rows.append(('D3 FAIL', f'{f}:{i + 1}', 'protocol rule `false`: ' + s[:60]))
+            # F: a FracGhost's fraction with no id.
+            if re.search(r'\bfrac\(\)\s*==', s) and in_requires(lines, i):
+                c = clause_of(lines, i)
+                ok = any('ID OK:' in lines[k] for k in range(max(0, i - 4), i))
+                if 'id()' not in c and not ok:
+                    rows.append(('F FAIL', f'{f}:{i + 1}', 'FracGhost clause without its id: ' + s[:60]))
+            # F: a returned half whose value is never stated.
+            if (name == 'request_ok' and re.search(r'gout matches Some\((\w+)\) && \1\.valid\(', s)):
+                h = re.search(r'gout matches Some\((\w+)\)', s).group(1)
+                c = clause_of(lines, i)
+                if f'{h}@' not in c and 'gout == gin' not in c:
+                    rows.append(('F FLAG', f'{f}:{i + 1}', 'returned half, value not stated: ' + s[:60]))
+            # D2: types declared by name only.
+            m = re.match(r'\s*(?:pub(?:\([^)]*\))?\s+)?struct\s+Ex\w+\(\s*([A-Za-z_0-9]+)', l)
+            if m and 'external_body' in '\n'.join(lines[max(0, i - 3):i]):
+                hidden.append((m.group(1), f'{f}:{i + 1}'))
+    # E: LoadedVm / InitializedVm contracts on a Result with no Err clause.
+    for f in files:
+        if '/worker/' not in f:
+            continue
+        lines = open(f).read().split('\n')
+        impl_of = None
+        for i, l in enumerate(lines):
+            m = re.match(r'impl(?:<[^>]*>)?\s+([A-Za-z_0-9]+)\s*\{', l)
+            if m:
+                impl_of = m.group(1)
+            elif re.match(r'(impl|mod|fn|pub|}|verus!)', l):
+                impl_of = None if not l.startswith('}') else None
+            mf = FN_RE.match(l)
+            if not mf or impl_of not in ('LoadedVm', 'InitializedVm'):
+                continue
+            a = attrs_of(lines, i)
+            j, sig = i, l
+            while '{' not in lines[j] and j + 1 < len(lines):
+                j += 1
+                sig += '\n' + lines[j]
+            if ('ensures' in a and 'Result' in sig
+                    and not re.search(r'result (is|matches) Err', a)):
+                rows.append(('E FLAG', f'{f}:{i + 1}', f'{impl_of}::{mf.group(1)}: no Err clause'))
+    # D2: a hidden type with a specified method and no View.
+    for ty, where in hidden:
+        if ty in view_types:
+            continue
+        for f in module_files(files, where):
+            lines = open(f).read().split('\n')
+            for i, l in enumerate(lines):
+                if not re.match(r'impl(?:<[^>]*>)?\s+' + re.escape(ty) + r'\b\s*(<[^>]*>)?\s*\{', l):
+                    continue
+                depth, j, spec = 0, i, False
+                while j < len(lines):
+                    depth += lines[j].count('{') - lines[j].count('}')
+                    if 'verus_spec' in lines[j] or re.match(r'\s*(requires|ensures)\b', lines[j]):
+                        spec = True
+                    if depth <= 0 and j > i:
+                        break
+                    j += 1
+                if spec:
+                    rows.append(('D2 FLAG', where, f'{ty}: declared by name only, a method specified ({f}:{i + 1}), no View'))
+                    break
+            else:
+                continue
+            break
+    # D3: OUT OF SCOPE placeholders outside tests and non-verification builds.
+    for kind, where, fn, marker in placeholder_rows:
+        if marker == 'OUT OF SCOPE:' and kind not in ('TEST', 'NOT-VERIFICATION-BUILD'):
+            rows.append(('D3 FAIL', where, f'assume_new() marked OUT OF SCOPE in {fn}'))
+    return rows
+
+
 def summarize(title, rows, key=0):
     counts = {}
     for r in rows:
@@ -287,11 +427,18 @@ def main():
         if list_all or r[0] == 'OURS':
             print('   ', *r, sep='\t')
 
+    ls = lessons(files, p)
+    summarize('lessons (LESSONS.md checks)', ls)
+    for r in ls:
+        print('   ', *r, sep='\t')
+    lessons_failed = any(r[0].endswith('FAIL') for r in ls)
+
     if failed:
         print('FAILED: a placeholder is in verified code or has no marker '
               '(one of: ' + ', '.join(MARKERS) + ')')
-        return 1
-    return 0
+    if lessons_failed:
+        print('FAILED: a LESSONS.md check (D3 or F) found a hit')
+    return 1 if (failed or lessons_failed) else 0
 
 
 if __name__ == '__main__':

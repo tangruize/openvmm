@@ -16,6 +16,7 @@ Start with the overview.
 | `OPEN-ITEMS.md` | what is still open, grouped by who or what each item waits for |
 | `TRUSTED.md` | the trusted base and the deferred items |
 | `CONVENTIONS.md` | the style rules of the spec: views and `wf()`, file layout, naming |
+| `LESSONS.md` | the kinds of mistakes the proof agent found in our spec, grouped, with the rule for avoiding each |
 | `MESH-RPC.md` | the mesh RPC wrapper: how ghosts travel with messages |
 | `MUTEX.md` | the two lock wrappers: locks with invariants, and closing |
 | `CODE-CHANGES.md` | every change made to OpenVMM's code for the spec, numbered ("code change N") |

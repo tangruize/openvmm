@@ -1849,6 +1849,21 @@ reworded to match (2026-10-30); where they differ,
 `TRUSTED.md` is authoritative. Sections that describe an
 earlier design say so ("was trusted", "superseded").
 
+**The lessons checks (2026-11-03, user).** The script also runs the
+mechanical checks of `LESSONS.md` ("How to reduce these mistakes"),
+which come from the proof agent's review: a protocol rule `=> false` and
+an `assume_new()` marked `OUT OF SCOPE:` outside tests (D3), and a
+`requires` clause on a FracGhost's fraction without its id (F) make it
+exit 1; a returned half whose value is never stated (F), a `LoadedVm` or
+`InitializedVm` contract on a `Result` with no `Err` clause (E), and a
+type declared by name only with a specified method but no view (D2) are
+listed for a human check. A FracGhost that may be any one (e.g. a new
+channel's, whose id it becomes) is marked with an `ID OK:` comment. On
+2026-11-03 the checks fail on 39 hits that are still to fix (the 25
+`false` rules, 11 `OUT OF SCOPE:` placeholders, and the 3 `requires` on a
+whole state token without its id, `open_vm_state` and
+`BasicPartitionStateAccess::save` / `restore`).
+
 **Placeholder markers** (2026-10-29, for the proof agent's tooling,
 which looks for assumptions to remove). Every `assume_new()` carries one
 of four markers in the comment just above its statement; the audit

@@ -43,6 +43,8 @@ pub fn unit_channel() -> (result: (Sender<StateRequest>, Receiver<StateRequest>)
 #[cfg_attr(verus_keep_ghost, verus_spec(result =>
     with Tracked(half): Tracked<vstd::resource::frac::FracGhost<crate::spec::UnitSnapshot>>
     requires
+        // ID OK: any half; the channel is created for it, and its
+        // constant becomes the half's id (`ensures`).
         half.frac() == 0.5real,
     ensures
         result.0.attached() == Some(half),

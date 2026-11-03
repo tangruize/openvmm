@@ -68,6 +68,12 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
     fact went into `LoadedVm::wf()` instead of the error list (design
     doc, "Errors: when a save may fail").
 
+## Lessons
+
+The kinds of mistakes the proof agent found in our spec, and the rule
+for avoiding each, are in [LESSONS.md](LESSONS.md). Check a new contract
+against them.
+
 ## Naming
 
 Following verified-storage:
