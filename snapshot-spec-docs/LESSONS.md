@@ -295,53 +295,69 @@ items say what the change was and why.
   deferred them) were checked only there. The microVM also runs on AMD
   hosts (the microVM developer, 2026-11-03), so this is a gap in the
   result, not "the intent's configuration" (see below).
-- 5.22 (D1, pending): we assumed a KVM read changes nothing; on a host
-  whose KVM supports MPX, `KVM_GET_MP_STATE` saves the guest's FPU state
-  back and can change the XSAVE header, so two saves of an unchanged VP
-  can differ byte for byte. Their fix limits the result to hosts without
-  MPX. Most likely the code works there and only our byte-for-byte
-  demand is too strict; the alternative is to treat the two encodings as
-  equal in the VP's view (as in 5.10). Waiting for the microVM developer
-  (MPX hosts) and a check of the XSAVE header's meaning.
+- 5.22 (D1): we assumed a KVM read changes nothing; on a host whose KVM
+  supports MPX, `KVM_GET_MP_STATE` saves the guest's FPU state back and
+  can change the XSAVE header, so two saves of an unchanged VP can differ
+  byte for byte. Their fix limits the result to hosts without MPX. The
+  microVM does not support MPX hosts (its developer, 2026-11-03), so the
+  fix matches the intent: accepted.
 
-## Questions for the microVM developer
+## How the spec should change
 
-Asked or to ask; the answers decide the pending items.
+The complete list, from the items above and the microVM developer's
+answers (2026-11-03: the microVM runs on KVM, MSHV and WHP, on Intel and
+AMD hosts, and does not support MPX hosts). To send to the proof agent;
+everything else in its section 5 is accepted.
 
-1. Does the microVM run on MSHV and WHP, or only on KVM? (5.20)
-   Answer (2026-11-03): it runs on KVM, MSHV and WHP.
-2. Does it run on AMD hosts, or only on Intel? (5.21) Answer
-   (2026-11-03): it runs on AMD.
-3. Do older Intel hosts whose KVM supports MPX matter? (5.22) Not yet
-   answered.
-
-## To send to the proof agent
-
-Items of its readout's section 5 where we disagree with its fix.
-
-- 5.19 (`open_vm_state` and the state token): we agree with the defect,
-  not with the fix. The fix wraps the FracGhost in a new tracked type,
-  `VmStateToken`, with private fields and a ghost `lent` flag, so that
-  only `new_vm_state_token` can make one. It may be equivalent, but it is
-  the wrong way to use a FracGhost: the classic fix is to tie the ghost
-  to its object by id. Please use instead: `new_vm_state_token(partition)`
-  ensures `t.id() == partition.state_token_id()` (a new uninterpreted spec
-  function on the partition), and `open_vm_state` requires
-  `t.id() == partition.state_token_id()`; keep `FracGhost<VmSavedState>`
-  as the token's type, and drop `lent` (verified code gets a handle only
-  through `open_vm_state`, which takes the token away until
-  `close_vm_state`).
-
-- 5.20 (the microVM worker requires KVM): please drop the `"kvm"`
-  precondition. The microVM runs on KVM, MSHV and WHP (its developer,
-  2026-11-03), and our spec has MSHV in scope. State the restore's VPs
-  per hypervisor instead, with the trusted `"mshv"` constant you already
-  have: on MSHV, the named count of VPs is restored; on any other
-  hypervisor, all of them.
-- 5.21 (the result holds on a VMX host): the microVM also runs on AMD
-  hosts (its developer, 2026-11-03), so please record the VMX-only result
-  as an open gap, not as the intended configuration. Closing it needs
-  KVM's SVM facts (`svm.c`), cited and tested on an AMD host.
+1. **5.19, the state token: tie it to its partition by id.** We agree
+   with the defect, not with the fix (a new tracked type, `VmStateToken`,
+   with private fields and a ghost `lent` flag). It may be equivalent, but
+   it is the wrong way to use a FracGhost. Instead: `new_vm_state_token(
+   partition)` ensures `t.id() == partition.state_token_id()` (a new
+   uninterpreted spec function on the partition), and `open_vm_state`
+   requires it; the token stays a `FracGhost<VmSavedState>`, and `lent` is
+   dropped (verified code gets a handle only through `open_vm_state`,
+   which takes the token away until `close_vm_state`). The same id
+   requirement goes on `BasicPartitionStateAccess::save` and `restore`
+   (`openvmm_core/src/partition.rs`), which also accept any whole token.
+2. **MSHV and WHP: model every hypervisor the microVM supports.** Drop
+   5.20's `"kvm"` precondition on `VmWorker::new_microvm`; state the
+   restore's VPs per hypervisor instead, with the trusted `"mshv"`
+   constant: on MSHV, the named count of VPs is restored; on any other
+   hypervisor, all of them. Our own spec puts WHP out of scope
+   (`virt/src/state.rs`, "KVM and MSHV are in scope; WHP and hvf ... are
+   out of scope"): WHP comes into scope (hvf, macOS, stays out). Each
+   hypervisor's facts are modeled, cited and tested as KVM's are (D1).
+3. **AMD hosts: model KVM's SVM behavior, and drop the VMX axiom.**
+   In their branch (`vmm_core/virt_kvm/src/arch/x86_64/kvm_t.rs`):
+   - Remove `axiom_kvm_host_is_vmx()` (`kvm_t.rs:1836`, ensures
+     `kvm_host_vmx()`), which `set_registers`' proof calls, and its row in
+     TRUSTED.md's host facts. Every `kvm_host_vmx()` then stays a case
+     split, true on Intel hosts and false on AMD hosts.
+   - `set_sregs`' contract states what KVM keeps of EFER, CR0, CR4, the
+     GDT, the IDT and the segments (`vmx_segment_read`) only under
+     `kvm_host_vmx()`; write the `!kvm_host_vmx()` (SVM) case too, from
+     `svm_set_segment` / `svm_get_segment` (Linux v6.17 `svm.c`
+     1602-1669) and the SVM handling of EFER, CR0 and CR4. Likewise
+     `get_sregs`' `kvm_sregs_segments_read(s)`, now stated only for
+     `kvm_host_vmx() && kvm_host_unrestricted_guest()`.
+   - Where SVM normalizes more than the VP's view leaves out
+     (`svm_get_segment`'s normalizations), add those bits to the fields
+     the VP view normalizes or leaves out, as 5.10 does for VMX (the
+     segments' accessed bit, attribute bits 8-11).
+   - The SVM register widths of 5.18: on SVM, KVM keeps SYSENTER_EIP /
+     ESP's high bits only for an Intel-compatible guest (`svm.c`
+     3004-3017, 2777-2785), and the MSR domain leaves out 0x175 / 0x176
+     off VMX (`mod.rs:1459`); the VP's restore relation
+     (`overwrite_view_ok`) states the SVM case.
+   - The other `!kvm_host_vmx()` cases already in `kvm_t.rs` and in
+     `setup_vcpu`'s contract (marked category X, outside the result) come
+     into the result.
+   - Tests: run the KVM tests that back these facts (the SREGS and MSR
+     witnesses, R10 and R11, `after_stop_only_the_irr_tmr_and_timer_
+     count_change`) on an AMD host as well, and make the guard test
+     `host_vmx_names_kvms_vendor_module` check the host's vendor instead
+     of requiring VMX.
 
 ## How to reduce these mistakes
 
