@@ -46,6 +46,9 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   - `<name>_t.rs`: trusted code (`external_body` wrappers and the
     assumptions they state), as in verified-storage. Each such file begins
     with what it assumes.
+  - Proof code that must stay in a production function's body (`proof { }`
+    blocks, loop invariants) only calls lemmas from `<file>.proof.rs` and
+    states what it needs; the reasoning itself lives in the lemmas.
 
 - **Errors.** A contract says not only what holds on Ok but also **when
   the function may fail** (or, equivalently, when it must succeed), e.g.
