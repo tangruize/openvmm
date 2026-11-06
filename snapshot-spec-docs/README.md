@@ -20,6 +20,8 @@ Start with the overview.
 | `MESH-RPC.md` | the mesh RPC wrapper: how ghosts travel with messages |
 | `MUTEX.md` | the two lock wrappers: locks with invariants, and closing |
 | `CODE-CHANGES.md` | every change made to OpenVMM's code for the spec, numbered ("code change N") |
+| `HYPERVISOR-TESTING-PLAN.md` | a plan for testing, on real MSHV and WHP hosts, the hypervisor facts a VP's save and restore assume |
+| `MICROVM-ROADMAP.md` | the big parts of the microVM work (Pedro's fork) beyond snapshot save and restore, as candidates for verification |
 | `COMPARISON.md` | a comparison with another snapshot spec (`noah-verification/openvmm`), and what it shows missing in ours |
 | `DESIGN.md` | the working log: every decision, its options and reasons; the exact contracts |
 | `verus-concurrency-tutorial/` | a copy of the Verus concurrency tutorial (online: https://people.cs.uchicago.edu/~shanlu/verus-concurrency/): fractional ghosts, atomic and lock invariants, with examples; open `index.html` |
