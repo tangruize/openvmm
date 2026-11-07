@@ -82,6 +82,70 @@ In `virtiofs/src/microvm/` and `aggregate.rs`, about 6,000 lines:
   or open handles. On restore, each host object is checked to be still the
   same one.
 
+## Async, locks and RPC
+
+- **Async: only in the virtio glue.** `virtio.rs` has an async loop per
+  queue (`run`), and async start, stop, reset, `quiesce_input` and
+  `resume_input`; `microvm/device.rs` saves and restores asynchronously,
+  and `microvm/resolver.rs` builds the device asynchronously. The
+  filesystem itself is synchronous: the loop takes a request, calls
+  `process_virtiofs_request`, which runs the FUSE operation to the end,
+  and completes it before taking the next. The `Fuse` trait's operations
+  and `VirtioFs` have no `async`.
+- **Little concurrency in the microVM.** It has one request queue
+  (`MICROVM_REQUEST_QUEUES = 1`, `microvm/profile.rs`), so requests are
+  handled one at a time. The one place where two things meet is a save
+  against running requests: each request first takes a `RequestGuard`
+  from an admission gate (`self.admission.accept()`), and a save closes
+  the gate, so no request is taken off the queue during a save
+  (`virtio.rs`, the comment in `run`).
+- **Locks: many, mostly `RwLock`**, because `VirtioFs` is shared (`Arc`)
+  and written for upstream's several queues: `VirtioFs`'s `inodes`,
+  `files` and `negotiation` (`lib.rs`); each inode's `path` and `aliases`
+  (`inode.rs`); each open file's `file` and `directory_snapshot`
+  (`file.rs`); the FUSE session's (`session.rs`). The inodes' lookup
+  counts are atomics.
+- **RPC: none.** `mesh` only encodes the saved state (`#[mesh(...)]` on
+  the saved-state structs); no messages are sent.
+- **Threads and the caller's identity.** Linux keeps credentials per
+  thread, so the queue's worker thread switches its own filesystem UID and
+  GID with raw system calls, performs the operation, and switches back
+  (`lxutil/src/unix/credentials.rs`). The identity property rests on
+  trusted facts about those system calls.
+
+## Lock invariants the spec needs (proposed)
+
+The guest's state is behind those locks, and Verus knows what a lock holds
+only through its invariant, so properties 1-3 need one per lock:
+
+- **`VirtioFs.inodes: RwLock<InodeMap>`**: every node id the guest holds
+  maps to an inode, and node ids are unique.
+- **Each inode's `path: RwLock<PathBuf>`**: the path lies inside the share
+  and is visible under the policy; for a writable inode, under a writable
+  path. This carries properties 1 and 2, and is where `rename` changes
+  things: the delicate one.
+- **Each inode's `aliases`**: the same for each of its other names (hard
+  links).
+- **`VirtioFs.files: RwLock<HandleMap<...>>`**: every open handle refers to
+  a live inode; one opened for writing, to a writable path.
+- **Each file's `file: RwLock<LxFile>`**: the host file is that inode's,
+  which, with trusted facts about `openat2`, lies inside the share.
+- **The session's locks and `negotiation`**: what was agreed with the guest
+  (the FUSE version and limits) stays fixed after the start.
+
+What makes this simpler than the snapshot spec: the policy never changes
+after the device is built, so each invariant can mention it without
+depending on another lock (one invariant per lock, about that lock's own
+content); and with one queue, little happens at the same time (the
+admission gate between save and requests is the main exception).
+
+What we need to build: a wrapper that gives `RwLock` an invariant, in the
+style of `mutex_t.rs`. vstd's verified `RwLock` (`vstd/rwlock.rs`,
+`RwLockPredicate`) shows the interface; the production code uses Rust's own
+`RwLock`, so the wrapper is trusted, like our `Mutex` wrapper. These
+invariants come after the policy's spec (layer 1 of the plan), since each
+mentions its `visibility` and `can_write`.
+
 ## Where a spec would attach
 
 - the `Fuse` trait's operations, as the FUSE layer calls them;
