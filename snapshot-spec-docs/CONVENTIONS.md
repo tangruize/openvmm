@@ -71,6 +71,20 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
     fact went into `LoadedVm::wf()` instead of the error list (design
     doc, "Errors: when a save may fail").
 
+## Checking the conventions
+
+`scripts/verus-style-check.py` checks the rules above that a script can
+check, and lists each place that breaks one, with its file and line: free
+spec functions and lemmas; spec functions other than `view` and `wf()` on
+concrete types; views not named `FooView`; open views that are more than a
+mapping of fields; spec and proof functions in production files; and, for
+a human to judge, large open spec functions, long proof blocks in
+production files, types declared to Verus in production files, and concrete
+types without a `wf()`. Run it after writing spec or proof code
+(`scripts/verus-style-check.py [PATH ...]`, or `--rev REV` for a git
+revision), and refactor until it reports no FIX. A hit that is right as it
+is gets a `STYLE OK:` comment with its reason.
+
 ## Lessons
 
 The kinds of mistakes the proof agent found in our spec, and the rule

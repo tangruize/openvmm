@@ -3,3 +3,4 @@
 # OpenVMM's copyright header.
 verus-trust-classify.py
 verus-spec-audit.py
+verus-style-check.py
