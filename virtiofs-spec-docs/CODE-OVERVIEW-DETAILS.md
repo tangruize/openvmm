@@ -523,8 +523,11 @@ microVM virtio device shares:
   zero (whether to raise the interrupt); the device only sets bits in it,
   atomically (change 4).
 - **Quiescing input**: after a device's `quiesce_input` returns `Ok`, it
-  takes no new input until `resume_input` (for virtio-fs: the admission
-  gate is closed, so no request is taken off the queue). Before change 2,
+  takes no new request from its queues until `resume_input`: each queue's
+  index of taken requests does not move. A contract of the `VirtioDevice`
+  trait, stated once at layer 0; virtio-fs meets it with its admission gate
+  (layer 1, change 3), which needs no spec of its own, only a proof that it
+  meets this contract. Before change 2,
   every virtio device returned `Ok` without stopping anything. This is the
   same property as the snapshot spec's open item 1.1
   (`snapshot-spec-docs/OPEN-ITEMS.md` on the snapshot branch, "host input

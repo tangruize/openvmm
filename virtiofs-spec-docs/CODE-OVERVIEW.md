@@ -203,9 +203,16 @@ extended, not replaced.
   - `complete()` marks one taken request `Completed` with the bytes written;
   - progress only moves forward.
 - **The `VirtioDevice` trait**, at trait level: `start_queue` resumes from
-  the saved progress and `stop_queue` reports it; after `quiesce_input`
-  returns `Ok`, no new input until `resume_input`; `save_device` and
+  the saved progress and `stop_queue` reports it; `save_device` and
   `restore_device` round-trip the device's private state; `reset` clears it.
+  And quiescing (agreed 2026-11-08): after `quiesce_input` returns `Ok`, the
+  device takes no new request from any of its queues until `resume_input`:
+  while quiesced, each queue's index of taken requests does not move, and
+  requests the guest makes available meanwhile stay `Available`. For this,
+  the device's view records whether it is quiesced. Each device meets the
+  contract its own way, which is proof work, not spec: virtio-fs with its
+  admission gate (`CODE-OVERVIEW-DETAILS.md`, layer 1, change 3), and
+  virtio-net and virtio-blk with their own.
 - **The MMIO transport**: feature negotiation, with the mask of hidden
   features; device DMA only within the memory map's RAM ranges; the shared
   interrupt-status word (`CODE-OVERVIEW-DETAILS.md`, "What this means for
