@@ -25,13 +25,20 @@ A guest program reads `/mnt/a.txt`:
 3. OpenVMM takes the request off the queue, **performs it on the host**
    (opens `/srv/data/a.txt`, reads it), and puts the reply on the queue.
 
-## The four layers
+## The layers
 
-Following that path:
+Following that path, from the queue up (with the details of each, and of
+what Pedro changed in it, in `CODE-OVERVIEW-DETAILS.md`):
 
+0. **The generic virtio layer** (`vm/devices/virtio/virtio`): shared by
+   every virtio device. It holds the ring buffer (the virtio queue in guest
+   memory), the MMIO transport (the device's registers, which the guest
+   reads and writes), and the `VirtioDevice` trait that each device
+   implements.
 1. **virtio glue** (`vm/devices/virtio/virtiofs/src/virtio.rs`,
-   `virtio_util.rs`): takes requests off the virtio queues and puts replies
-   on. Mostly upstream code.
+   `virtio_util.rs`): the virtio-fs device, implementing `VirtioDevice`; its
+   loop takes each request from layer 0's queue, passes it up, and gives
+   the reply back. Mostly upstream code.
 2. **FUSE layer** (`vm/devices/support/fs/fuse`, about 3,800 lines): decodes
    each request ("this is a `lookup` of `a.txt` in node 1"), agrees with the
    guest on the FUSE version and limits (`session.rs`), and calls the
@@ -167,9 +174,44 @@ mentions its `visibility` and `can_write`.
 6. **Snapshots**: save records no host paths, and restore accepts only the
    same host objects.
 
-## The plan (proposed 2026-11-06)
+## The plan (revised 2026-11-08)
 
-Three layers, from the bottom:
+The generic virtio layer first, since virtio-net, virtio-fs and
+virtio-blk, the three devices Pedro named as next, all sit on it, and a
+spec of it is written once, at the trait level, for all of them. Then
+virtio-fs's own layers.
+
+**Layer 0: the generic virtio layer.** It is code to verify, not to
+trust: it parses descriptor chains that the guest writes (chains that loop,
+indices that wrap, lengths and addresses that overflow, buffers outside
+RAM). The snapshot spec already has views of the MMIO transport and of a
+queue's configuration and progress (`transport/mmio.spec.rs`:
+`VirtioMmioView`, `VirtioQueueView`), for save and restore only; they are
+extended, not replaced.
+
+- **The queue** (`VirtioQueue`), viewed as one sequence of requests, in the
+  order the guest made them available, each with its own state
+  (`Available`, `Taken`, or `Completed(bytes_written)`), and the index up
+  to which the device has taken them. Each request carries its own state
+  because a device may complete requests out of order (the virtio standard
+  allows it; virtio-fs's spec adds "in order" on top, since its one worker
+  finishes each request before taking the next). The model is of requests,
+  not of descriptor slots, which the guest reuses. Contracts:
+  - `next()` takes the next available request, which is well formed (no
+    loop, bounded length, every buffer inside the RAM the device may
+    access), marks it `Taken`, and moves the index; or reports an error;
+  - `complete()` marks one taken request `Completed` with the bytes written;
+  - progress only moves forward.
+- **The `VirtioDevice` trait**, at trait level: `start_queue` resumes from
+  the saved progress and `stop_queue` reports it; after `quiesce_input`
+  returns `Ok`, no new input until `resume_input`; `save_device` and
+  `restore_device` round-trip the device's private state; `reset` clears it.
+- **The MMIO transport**: feature negotiation, with the mask of hidden
+  features; device DMA only within the memory map's RAM ranges; the shared
+  interrupt-status word (`CODE-OVERVIEW-DETAILS.md`, "What this means for
+  the spec").
+
+**virtio-fs's layers.** Three steps, from the bottom:
 
 1. **The policy as an abstract model.** `SubtreePolicy` gets a view,
    `SubtreePolicyView` (the denied, allowed and writable path sets), with
@@ -186,5 +228,5 @@ Three layers, from the bottom:
    only on a path the guest may write; a traverse-only directory lists only
    the entries that lead to allowed paths.
 
-Confinement and the caller's identity then build on layer 3, with trusted
+Confinement and the caller's identity then build on step 3, with trusted
 facts about the host's `openat2` and credentials.
