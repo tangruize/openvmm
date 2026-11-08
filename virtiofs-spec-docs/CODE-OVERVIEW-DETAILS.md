@@ -494,6 +494,14 @@ file's attributes.
    rename or a new link made at the same time cannot redirect an operation
    outside the share. On Windows, a confined volume creates WSL-style
    links, which Windows never follows.
+
+   Upstream later added a similar protection for every share, on by
+   default: `29f0adceb`, "lxutil: prevent host symlink traversal" (John
+   Starks, `#4764`), which uses `openat2` on Linux and keeps rename and
+   hard-link operations on one opened directory handle. Pedro's branch
+   has both: upstream's protection, and his `confine_paths` option on top
+   (`lxutil/src/lib.rs`, `LxVolumeOptions::confine_paths`). How the two
+   overlap is to check when we specify confinement.
 2. **Per-thread credentials** (`df92e9fda`, `src/unix/credentials.rs`), for
    the caller's identity. Linux keeps credentials per thread, but the C
    library's `setgroups` and `set*id` change every thread of the process.

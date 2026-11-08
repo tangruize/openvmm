@@ -153,6 +153,29 @@ style of `mutex_t.rs`. vstd's verified `RwLock` (`vstd/rwlock.rs`,
 invariants come after the policy's spec (layer 1 of the plan), since each
 mentions its `visibility` and `can_write`.
 
+## The theme of the spec: protecting the host from the guest
+
+The microVM is a sandbox: NVX uses it to run workloads that the host does
+not trust, such as code it was asked to run. So the spec treats the guest
+as an attacker that wants to read or change host files outside what it was
+given, to make the host keep unbounded state, or to crash OpenVMM.
+
+This is what separates Pedro's microVM virtio-fs from upstream OpenVMM's
+`--virtio-fs`. Upstream shares a whole host directory with a guest that is
+usually under the user's control (a development or test VM). The microVM
+gives the guest exactly what the workload needs: it may read its inputs,
+write only where it is allowed, and never see what is hidden, such as
+credentials stored next to the data. Nearly every change Pedro made to
+virtio-fs protects the host from the guest: the size bounds, the bounded
+tables, the access policy, path confinement, running requests as their
+caller, and DMA restricted to guest RAM.
+
+So the spec's first properties are security properties (confinement,
+policy, identity, limits, below), and one rule applies throughout: every
+byte the guest can write (the virtio queues, the shared interrupt-status
+word, the FUSE requests, the node ids and handles in them) is untrusted
+input, and each property must hold whatever the guest sends.
+
 ## Where a spec would attach
 
 - the `Fuse` trait's operations, as the FUSE layer calls them;
@@ -161,16 +184,42 @@ mentions its `visibility` and `can_write`.
 
 ## Properties a spec could promise
 
+Properties 1-4 are the security properties, the spec's first goal; 5 and 6
+are about correct behavior.
+
 1. **Confinement**: every host object the device touches lies inside the
    share.
 2. **Policy**: the guest sees only visible paths, and changes only writable
-   ones.
+   ones. Precisely, two properties (agreed 2026-11-08):
+   - **Confidentiality**: everything the guest gets back (a node id, a
+     file's attributes, a directory entry, a file's bytes) is about a host
+     object the guest may see.
+   - **Integrity**: every change the guest causes on the host (a file's
+     bytes or attributes, a name created, removed or renamed) is to an
+     object the guest may write, in a directory the guest may write.
+
+   Both rest on two definitions, written once from the policy and the
+   namespace model (layer 4's facts, in the plan below): the guest **may
+   see** a host object if some path in the share leads to it and that path
+   is visible under the policy (a traverse-only directory: only that it
+   exists, and only its entries that lead to allowed paths); the guest
+   **may write** a host object if every path in the share that leads to it
+   is writable (this "every path" is what handles hard links). Both are
+   judged on the namespace at the time of each request, since renames and
+   links, by the guest or on the host, change it. The code's enforcement
+   rules (`CODE-OVERVIEW-DETAILS.md`, layer 3, change 4: every name change
+   checked on all its paths; a file's change needs all its names writable;
+   no hard link that makes a read-only file writable; hidden directories
+   pinned by identity; filtered listings) are not specified one by one: they
+   are how each operation meets these two properties, which is proof work.
 3. **Identity**: each operation runs as its caller, guest root is mapped,
    and nothing runs as OpenVMM.
 4. **Limits**: the caps are never exceeded.
 5. **The operations' meaning**: `rename` renames, `read` returns the file's
    bytes, and so on. This rests on trusted facts about the host's
-   filesystem.
+   filesystem. Read and write's meaning is in the spec from the start
+   (decided 2026-11-08); the rest (attributes, extended attributes,
+   timestamps) later.
 6. **Snapshots**: save records no host paths, and restore accepts only the
    same host objects.
 
@@ -237,3 +286,60 @@ extended, not replaced.
 
 Confinement and the caller's identity then build on step 3, with trusted
 facts about the host's `openat2` and credentials.
+
+**Layer 4 in the spec: what we assume about the host** (discussed
+2026-11-08). Layer 4 calls the host's filesystem (Linux's system calls,
+or Windows's), which is outside our code, so the spec must state, as
+trusted facts, what those calls do. We state only what our properties
+use, not everything the calls do:
+
+- **Which object a call acts on, and how names change.** Each host object
+  has an identity (device and inode number) and a kind (directory, file,
+  symlink), and each directory maps names to objects. The facts say how
+  the namespace calls change that (`mkdirat`, `linkat`, `unlinkat`,
+  `renameat2`, including `RENAME_EXCHANGE`: after `renameat2(a, b)`
+  succeeds, the object that was at `a` is at `b`), what `lstat` and a
+  directory listing report, and what the confinement calls guarantee
+  (`openat2` with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS` returns an
+  object beneath the root, reached without symlinks, or fails;
+  `O_NOFOLLOW` never follows a symlink). Layer 3's proofs need these: its
+  alias bookkeeping after a rename or unlink, its policy checks on paths,
+  its filtering of traverse-only directories.
+- **What the caller's identity calls change**: the raw credential calls
+  change only the calling thread's filesystem UID, GID, groups and
+  capabilities.
+- **Bounds on what calls return**: e.g. `pread` returns at most the bytes
+  asked for, `getxattr` fits the buffer given. Layer 3's buffer bounds rely
+  on them.
+- **File contents, only for read and write.** A file's content is a
+  sequence of bytes; `pread` returns its slice from the offset, at most the
+  length asked for, and `pwrite` replaces that slice. Layer 3's `read` and
+  `write` only pass bytes between the guest and these calls, so their
+  contracts say exactly that, and "the guest reads back what it wrote"
+  follows. Decided (2026-11-08): read and write's meaning is in the spec
+  from the start, together with confinement, policy, identity and limits.
+
+Left out: timestamps, permissions, extended attributes' meaning and the
+rest of what the calls do, unless a property needs them. On Linux, layer 4
+is otherwise a thin wrapper, one `*at` system call per operation, so those
+calls are the trusted facts; its two pieces of real logic, the
+component-by-component confinement walk and the credential switching, are
+proved against them. The Windows side (`lxutil/src/windows/`, about 7,600
+lines that emulate Linux behavior on NTFS, nearly all upstream code; Pedro
+changed 5 lines of it) needs its own facts, and is deferred, to decide
+later, since the microVM runs on WHP.
+
+**virtio-fs's saved state, and the snapshot spec.** The snapshot spec
+covers the MMIO transport, which saves the inner device's private state as
+one blob and hands exactly that blob back on restore
+(`vm/devices/virtio/virtio/src/transport/mmio.spec.rs`, `VirtioMmioView`'s
+`device_state`), but not what the blob holds, nor that the inner device
+puts its state back: a recorded TODO, "the inner devices' layer"
+(`snapshot-spec-docs/DESIGN.md`, the table of layers, "virtio-MMIO → its
+device task → the inner device (net, console, fs, block)"). The virtio-fs
+spec fills it in for virtio-fs: the blob gets a view holding the FUSE
+session's state (layer 2, `SessionState`) and the filesystem's saved state
+(layer 3: the inodes with their aliases and identities, the open handles,
+the policy), and `save_device` / `restore_device` get contracts on
+`VirtioDevice` (layer 0's plan above): after a restore, the device's state
+is the one that was saved.
