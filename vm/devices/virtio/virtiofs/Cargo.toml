@@ -6,6 +6,9 @@ name = "virtiofs"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 virtio.workspace = true
 virtio_resources.workspace = true
@@ -30,6 +33,7 @@ thiserror.workspace = true
 tracelimit.workspace = true
 tracing.workspace = true
 zerocopy.workspace = true
+vstd.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 ntapi.workspace = true

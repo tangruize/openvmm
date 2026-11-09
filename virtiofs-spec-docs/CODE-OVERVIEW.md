@@ -357,7 +357,7 @@ change could matter.
 
 **virtio-fs's layers.** Three steps, from the bottom:
 
-1. **The policy as an abstract model.** `SubtreePolicy` gets a view,
+1. **The policy as an abstract model** (written 2026-11-08: `virtiofs/src/microvm/policy.spec.rs`, and the contracts of `SubtreePolicy::new`, `visibility` and `is_writable` in `policy.rs`). `SubtreePolicy` gets a view,
    `SubtreePolicyView` (the denied, allowed and writable path sets), with
    closed spec functions `visibility(p)` (visible, traverse-only, hidden)
    and `can_write(p)`, written from the policy's documentation and then
@@ -412,7 +412,7 @@ change could matter.
    ```rust
    impl VirtioFsView {
        /// The path, in the share, of `name` in the directory `parent`.
-       closed spec fn child_path(self, parent: u64, name: Name) -> SharePath;
+       closed spec fn child_path(self, parent: u64, name: Name) -> PathView;
        /// The guest may reach `name` in `parent`: its path is visible under
        /// the policy (or is a traverse-only directory), and `object` is not
        /// a denied identity.

@@ -463,6 +463,7 @@ save_restore_derive = { path = "vm/vmcore/save_restore_derive" }
 vm_resource = { path = "vm/vmcore/vm_resource" }
 vm_topology = { path = "vm/vmcore/vm_topology" }
 vmcore = { path = "vm/vmcore" }
+vstd = { version = "=0.0.0-2026-10-04-0306", default-features = false, features = ["std"] }
 
 # vmm_core
 cpu_profile = { path = "vmm_core/cpu_profile" }
@@ -810,7 +811,7 @@ unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "forbid"
 
 # TODO: Needed for xshell compatibility, fixed in v0.2.7
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(trick_rust_analyzer_into_highlighting_interpolated_bits)', 'cfg(verus_keep_ghost)'] }
 
 [workspace.lints.clippy]
 allow_attributes = "warn"

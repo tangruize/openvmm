@@ -9,6 +9,7 @@ This directory holds two kinds of patch:
 | `openvmm-0002-virtio-restore-sets-captured-device-state.patch` | **OpenVMM `origin/main` with `openvmm-0001` applied** | a second change to the same code; this branch already contains it |
 | `vstd-0001-arc-unsized-view.patch` | **`vstd` `=0.0.0-2026-10-04-0306`** (`source/vstd/view.rs` in the Verus tree) | `Arc<T>`'s `View` and `DeepView` for unsized `T` (e.g. `Arc<str>`); this branch uses the patched copy in `verus-patches/vstd` (see "vstd patches" below) |
 | `vstd-0002-allow-warnings.patch` | the same (`source/vstd/vstd.rs`) | `#![allow(warnings)]`: silences vstd's lint warnings, which show now that it is a path dependency |
+| `vstd-0003-path-view.patch` | the same (`source/vstd/std_specs/path.rs`, new, and `std_specs/mod.rs`) | `std::path::Path` and `PathBuf` declared to Verus, with their view: the path's components, each the bytes of its name (for the virtio-fs spec) |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -501,3 +502,21 @@ remain: rustc's "negative impls are experimental" (`impl !Sync` /
 `impl !Send` in `invariant.rs` and `thread.rs`), which are not lints, so
 no attribute silences them (and `-D warnings` does not turn them into
 errors).
+
+### vstd-0003-path-view.patch
+
+**Need.** The virtio-fs spec's access policy is about paths in a share,
+held as `std::path::PathBuf` and `&Path`. Verus does not know these types,
+and Rust's orphan rule forbids implementing `vstd`'s `View` for `std`'s
+types anywhere but in `vstd` (or `std`).
+
+**Change.** A new `std_specs/path.rs` (behind the `std` feature) declares
+`Path` and `PathBuf` by name only (fields hidden) and gives each a view,
+`PathView` (`Seq<Seq<u8>>`): the path's components, each the bytes of its
+name. The view
+is uninterpreted, a trusted fact about `std`, meaningful for relative paths
+of normal components (no root, no `.`, no `..`), the form that the microVM
+profile checks its paths have.
+
+**Check.** `virtiofs` spec-checks with `path@` in its policy's contracts
+(`microvm/policy.rs`).

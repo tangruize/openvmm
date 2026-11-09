@@ -29,6 +29,17 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
 - **Views are closed** unless they are a plain mapping of fields, so that
   their definitions do not flood every proof; lemmas unfold them where
   needed.
+- **A spec function has the shape of its intent, not of the code's
+  algorithm** (the user, 2026-11-08). When the intent is a step-by-step
+  process, define it recursively, one step at a time, rather than as the
+  result of a search with nested quantifiers ("there exists ... such that,
+  for all ..."). Example: the access policy's "the nearest denied or
+  allowed path that contains a path decides" is a walk up from the path,
+  stopping at the first rule (`first_rule_upward`,
+  `virtiofs/src/microvm/policy.spec.rs`); a first version described the
+  result of the code's search over all rules (`filter`, `max_by_key`) with
+  nested quantifiers, which was correct but hard to read. Nested
+  quantifiers also make proofs slower.
 - **Annotation style.** Contracts are written as `verus_spec` / `verus_verify`
   attributes on the production functions. `verus! { ... }` blocks may be used
   where they are easier; mixing the two is fine. (verified-storage uses

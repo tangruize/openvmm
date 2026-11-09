@@ -29,9 +29,25 @@
 use super::profile::MicroVmProfileError;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
+/// Verus specification of the access policy.
+#[cfg(verus_keep_ghost)]
+pub(crate) mod spec {
+    include!("policy.spec.rs");
+
+    /// Declarations supporting the spec. Inside `spec`, so that lemmas can
+    /// unfold its closed views.
+    pub(crate) mod proof {
+        include!("policy.proof.rs");
+    }
+}
 
 /// How the guest can reach a share-relative path.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub(crate) enum PathVisibility {
     /// The guest can reach the path, subject to the write policy.
     Visible,
@@ -43,6 +59,8 @@ pub(crate) enum PathVisibility {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 enum Rule {
     Deny,
     Allow,
@@ -50,16 +68,43 @@ enum Rule {
 
 /// The validated access policy of a microVM share.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub(crate) struct SubtreePolicy {
     denied: Vec<PathBuf>,
     allowed: Vec<PathBuf>,
     writable: Vec<PathBuf>,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl SubtreePolicy {
     /// Validates how the denied, allowed, and writable paths of a share relate
     /// to one another and to its access mode. Each list must already contain
     /// unique, canonical share-relative paths.
+    ///
+    /// Verus: it succeeds exactly when the three lists, as sets of paths,
+    /// satisfy the policy's rules (`SubtreePolicyView::inv`) and fit the
+    /// share's access mode (`fits_access_mode`: a read-only share has no
+    /// writable paths); then the policy is those sets.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            denied@.map_values(|p: PathBuf| p@).no_duplicates(),
+            allowed@.map_values(|p: PathBuf| p@).no_duplicates(),
+            writable@.map_values(|p: PathBuf| p@).no_duplicates(),
+        ensures
+            ({
+                let lists = spec::SubtreePolicyView {
+                    denied: denied@.map_values(|p: PathBuf| p@).to_set(),
+                    allowed: allowed@.map_values(|p: PathBuf| p@).to_set(),
+                    writable: writable@.map_values(|p: PathBuf| p@).to_set(),
+                };
+                // It succeeds exactly when the list rules hold and the lists
+                // fit the share's access mode; then the policy is the lists.
+                &&& (result is Ok) == (lists.inv() && lists.fits_access_mode(read_only))
+                &&& result matches Ok(policy) ==> policy.wf() && policy@ == lists
+            }),
+    ))]
     pub(crate) fn new(
         denied: Vec<PathBuf>,
         allowed: Vec<PathBuf>,
@@ -104,29 +149,34 @@ impl SubtreePolicy {
     }
 
     /// Returns the denied paths.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn denied_paths(&self) -> &[PathBuf] {
         &self.denied
     }
 
     /// Returns the allowed paths.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn allowed_paths(&self) -> &[PathBuf] {
         &self.allowed
     }
 
     /// Returns the writable paths; none means that a read-write share is
     /// writable everywhere that the guest can see.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn writable_paths(&self) -> &[PathBuf] {
         &self.writable
     }
 
     /// Returns the rule of the nearest denied or allowed path that contains
     /// `path`, other than `path` itself.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     fn enclosing_rule(&self, path: &Path) -> Option<Rule> {
         self.nearest_rule(path, false)
     }
 
     /// Returns the rule of the nearest denied or allowed path that contains
     /// `path`, including `path` itself when `inclusive`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     fn nearest_rule(&self, path: &Path, inclusive: bool) -> Option<Rule> {
         self.denied
             .iter()
@@ -138,6 +188,13 @@ impl SubtreePolicy {
     }
 
     /// Returns how the guest can reach `path`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result == self@.visibility(path@),
+    ))]
     pub(crate) fn visibility(&self, path: &Path) -> PathVisibility {
         match self.nearest_rule(path, true) {
             None | Some(Rule::Allow) => PathVisibility::Visible,
@@ -154,6 +211,13 @@ impl SubtreePolicy {
     }
 
     /// Returns whether the guest may modify `path` in a read-write share.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result == self@.can_write(path@),
+    ))]
     pub(crate) fn is_writable(&self, path: &Path) -> bool {
         self.visibility(path) == PathVisibility::Visible
             && (self.writable.is_empty()
@@ -165,6 +229,7 @@ impl SubtreePolicy {
 
     /// Returns whether some path that the guest can reach is not writable in a
     /// read-write share, so that each modification must check its paths.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn restricts_writes(&self) -> bool {
         !self.allowed.is_empty() || !self.writable.is_empty()
     }
@@ -175,6 +240,7 @@ impl SubtreePolicy {
     /// own path for a traverse-only directory. Pinning the objects keeps them
     /// hidden when the host makes them reachable through another path, such
     /// as a bind mount, a hard link, or a renamed ancestor.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn pinned_paths(&self) -> Vec<(PathBuf, Option<PathBuf>)> {
         let mut pinned = Vec::new();
         for denied in &self.denied {
