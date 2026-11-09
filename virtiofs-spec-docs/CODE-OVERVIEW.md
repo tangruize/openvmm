@@ -184,8 +184,8 @@ input, and each property must hold whatever the guest sends.
 
 ## Properties a spec could promise
 
-Properties 1-4 are the security properties, the spec's first goal; 5 and 6
-are about correct behavior.
+Properties 1-4 are the security properties and 6 is snapshots: Pedro's two
+themes, which the spec covers. 5 is deferred.
 
 1. **Confinement**: every host object the device touches lies inside the
    share.
@@ -217,9 +217,8 @@ are about correct behavior.
 4. **Limits**: the caps are never exceeded.
 5. **The operations' meaning**: `rename` renames, `read` returns the file's
    bytes, and so on. This rests on trusted facts about the host's
-   filesystem. Read and write's meaning is in the spec from the start
-   (decided 2026-11-08); the rest (attributes, extended attributes,
-   timestamps) later.
+   filesystem. Deferred, read and write included (decided 2026-11-08): it
+   has nothing to do with Pedro's changes.
 6. **Snapshots**: save records no host paths, and restore accepts only the
    same host objects.
 
@@ -311,16 +310,15 @@ use, not everything the calls do:
 - **Bounds on what calls return**: e.g. `pread` returns at most the bytes
   asked for, `getxattr` fits the buffer given. Layer 3's buffer bounds rely
   on them.
-- **File contents, only for read and write.** A file's content is a
-  sequence of bytes; `pread` returns its slice from the offset, at most the
-  length asked for, and `pwrite` replaces that slice. Layer 3's `read` and
-  `write` only pass bytes between the guest and these calls, so their
-  contracts say exactly that, and "the guest reads back what it wrote"
-  follows. Decided (2026-11-08): read and write's meaning is in the spec
-  from the start, together with confinement, policy, identity and limits.
+- **File contents: not needed for now.** Read and write's meaning ("the
+  guest reads back what it wrote") would need facts about file contents
+  (`pread` returns the content's slice from the offset; `pwrite` replaces
+  it). Decided (2026-11-08, revised the same day): not in the spec for now,
+  since it has nothing to do with Pedro's changes; the spec covers his two
+  themes, snapshot and restore, and security against the guest.
 
-Left out: timestamps, permissions, extended attributes' meaning and the
-rest of what the calls do, unless a property needs them. On Linux, layer 4
+Left out: file contents, timestamps, permissions, extended attributes'
+meaning and the rest of what the calls do, unless a property needs them. On Linux, layer 4
 is otherwise a thin wrapper, one `*at` system call per operation, so those
 calls are the trusted facts; its two pieces of real logic, the
 component-by-component confinement walk and the credential switching, are
