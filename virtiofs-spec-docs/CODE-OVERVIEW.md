@@ -243,16 +243,12 @@ writable, it fails and changes nothing; if it succeeds, p was writable.
 `rename` and `unlink` also say how `paths` changes.
 
 **Where the policy is, and where it is not (decided 2026-11-09).** The
-integrity rule is stated only at the FUSE handlers, as above. `lxutil` knows
-nothing of the policy: its contracts say only that each method does what
-its caller asks (`mkdir(p)` makes a directory at `p` and changes nothing
-else). This replaces the earlier design (2026-11-08) of a ghost field
-`may_change` in `LxVolume`, required by its changing methods; that field
-could not even be set once the policy was known, since `VirtioFsVolume::new`
-puts the `LxVolume` in an `Arc` before `new_with_strict_paths` attaches
-the policy (`inode.rs:65`, `microvm/inode.rs:32-34`). So `lxutil`'s
-contracts need a ghost view of the host share (which paths exist, and what
-kind each is), to say what a call changed.
+integrity rule is stated at the FUSE handlers, as above, and they are
+specified first. `lxutil` is the trusted boundary (LESSONS D1; on Linux a
+thin wrapper, one `*at` system call per method): its methods get trusted
+`external_body` contracts, written after the FUSE handlers' and only what
+their proofs need, such as "a method that changes the host changes only
+the path it is given".
 
 `lxutil`'s methods take the path as `impl AsRef<Path>` (anything that can be
 turned into a path: `&Path`, `PathBuf`, a string), and vstd has no spec of
@@ -318,11 +314,9 @@ all of them.
   read-only ones: to ask him whether that is intended.
 
 **Open, for later:**
-- The host view is right only under the first-stage assumption, that the
-  host does not change the shared folder (see "First stage" below): with
-  it, the view changes only through OpenVMM's own calls. How to write a
-  view that the host changes between calls, when the assumption is
-  dropped, is still open.
+- The first-stage assumption, that the host does not change the shared
+  folder (see "First stage" below): what the spec needs once it is
+  dropped is still open.
 
 ## The theme of the spec: protecting the host from the guest
 
@@ -417,10 +411,9 @@ themes, which the spec covers. 5 is deferred.
 5. **The operations' meaning**: `read` returns the file's bytes, `write`
    replaces them, and so on. This rests on trusted facts about the host's
    filesystem. Deferred, read and write included (decided 2026-11-08): it
-   has nothing to do with Pedro's changes. What a call does to the share's
-   names (`mkdir(p)` makes a directory at `p`, `rename` moves an entry) is
-   not deferred: `lxutil`'s contracts state it, since the integrity rule
-   needs to know what a call changed ("Where the policy is" above).
+   has nothing to do with Pedro's changes. Integrity needs only one trusted fact
+   about what a call does: an `lxutil` method that changes the host
+   changes only the path it is given ("Where the policy is" above).
 6. **Snapshots**: save records no host paths, and restore accepts only the
    same host objects.
 
@@ -499,12 +492,9 @@ with two parts: no other host process changes the shared folder while the
 device runs; and when the device starts, the folder has no hard link that
 joins a writable path and a visible read-only path (see "Changes to a file
 itself, and its other names" above: the guest cannot make such a link,
-only the host can). With this assumption, `LxVolume`'s view is the
-real tree of files, and it changes only through OpenVMM's own calls, so
-each host call's contract says exactly how it changes the view (after
-`rename(a, b)`, the object that was at `a` is at `b`), and the proof follows
-the tree from call to call. This removes the open question of how to write
-a view that changes between calls. Two conditions:
+only the host can). With this assumption, the share changes only through
+OpenVMM's own calls, so what the guest was granted when it reached an
+object stays true until the guest itself changes it. Two conditions:
 
 - **It is stated as an assumption**, in this document and later in the
   trusted list, worded as above, so that everyone can see which results depend on
@@ -543,7 +533,10 @@ change could matter.
      goes): the share's contents as a tree, for each directory its entries
      (name -> object), for each object its identity and kind (agreed
      2026-11-08). `lookup`'s contract can then say directly that the node's
-     object is the object `volume` has at the looked-up path.
+     object is the object `volume` has at the looked-up path. For
+     confidentiality (`lookup`); integrity does not need it (`lxutil` is
+     trusted, "Where the policy is" above), and whether
+     confidentiality does is to decide when we work on it.
 
    A node says which file (from a lookup; enough to ask about the file,
    rename it or delete it); a handle says an open file (from an open; reads
@@ -600,13 +593,10 @@ change could matter.
    `SubtreePolicyView` (step 1), and `may_look_up` calls them. `object` is
    the object that the view's `volume` has at the looked-up path.
 
-   **Proving down to the host** (agreed 2026-11-08): layer 3's operations
-   are proved against the contracts of the `LxVolume` methods they call;
-   `LxVolume`'s methods (our code, in `lxutil`) are proved against the
-   host's system calls; only the system calls are trusted, as a model of
-   what each does to the tree (e.g. `renameat2` moves an entry, `openat2`
-   with these flags resolves only beneath the root). So `LxVolume`'s view
-   is what ties the spec to the host's filesystem.
+   **Down to the host** (revised 2026-11-09): layer 3's operations are
+   proved against the contracts of the `LxVolume` methods they call, and
+   those contracts are trusted (see "Where the policy is, and where it is
+   not" above).
 
 Confinement and the caller's identity then build on step 3, with trusted
 facts about the host's `openat2` and credentials.
@@ -645,9 +635,12 @@ use, not everything the calls do:
 Left out: file contents, timestamps, permissions, extended attributes'
 meaning and the rest of what the calls do, unless a property needs them. On Linux, layer 4
 is otherwise a thin wrapper, one `*at` system call per operation, so those
-calls are the trusted facts; its two pieces of real logic, the
-component-by-component confinement walk and the credential switching, are
-proved against them. The Windows side (`lxutil/src/windows/`, about 7,600
+calls are the trusted facts. Its two pieces of real logic are Pedro's
+additions (`CODE-OVERVIEW-DETAILS.md`, layer 4): the confinement walk
+(`confine_paths`), on which property 1 rests, and the per-thread credential
+switching (`unix/credentials.rs`), on which property 3 rests. Their proofs
+are deferred (decided 2026-11-09), until we work on properties 1 and 3;
+until then they are trusted like the rest of `lxutil`. The Windows side (`lxutil/src/windows/`, about 7,600
 lines that emulate Linux behavior on NTFS, nearly all upstream code; Pedro
 changed 5 lines of it) needs its own facts, and is deferred, to decide
 later, since the microVM runs on WHP.
