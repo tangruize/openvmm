@@ -1,0 +1,243 @@
+diff --git a/source/rust_verify/src/rust_to_vir_impl.rs b/source/rust_verify/src/rust_to_vir_impl.rs
+index 8ea7dd2..d27c9f4 100644
+--- a/source/rust_verify/src/rust_to_vir_impl.rs
++++ b/source/rust_verify/src/rust_to_vir_impl.rs
+@@ -217,8 +217,12 @@ fn translate_assoc_type<'tcx>(
+                     unreachable!()
+                 }
+             });
+-            let pseudo_canonical_inp =
+-                PseudoCanonicalInput { typing_env, value: poly_trait_refs.skip_binder() };
++            // A higher-ranked bound (`for<'a> Tr<'a, ..>`) has bound regions;
++            // erase them rather than leave them escaping.
++            let pseudo_canonical_inp = PseudoCanonicalInput {
++                typing_env,
++                value: ctxt.tcx.instantiate_bound_regions_with_erased(poly_trait_refs),
++            };
+             let candidate = ctxt.tcx.codegen_select_candidate(pseudo_canonical_inp);
+             if let Ok(impl_source) = candidate {
+                 if let rustc_middle::traits::ImplSource::UserDefined(u) = impl_source {
+diff --git a/source/rust_verify/src/rust_to_vir_trait.rs b/source/rust_verify/src/rust_to_vir_trait.rs
+index c04ff5a..5d90850 100644
+--- a/source/rust_verify/src/rust_to_vir_trait.rs
++++ b/source/rust_verify/src/rust_to_vir_trait.rs
+@@ -186,7 +186,7 @@ pub(crate) fn translate_trait<'tcx>(
+                     .unwrap_or_else(|_| clause.skip_norm_wip())
+             })
+             .collect();
+-        let mut preds2 = proxy_predicates
++        let preds2: Vec<rustc_middle::ty::Clause<'_>> = proxy_predicates
+             .instantiate(tcx, ex_trait_ref_for.args)
+             .predicates
+             .into_iter()
+@@ -195,6 +195,29 @@ pub(crate) fn translate_trait<'tcx>(
+                     .unwrap_or_else(|_| clause.skip_norm_wip())
+             })
+             .collect();
++        // The proxy's bounds may name the proxy's own associated types
++        // (`<Self as Proxy>::A`, as in `trait Proxy: Other<B = <Self as Proxy>::A>`,
++        // mirroring `trait External: Other<B = <Self as External>::A>`): name the
++        // external trait's instead, so that such bounds can match.
++        let mut preds2: Vec<_> = {
++            let ex_assoc_items = tcx.associated_items(ex_trait_ref_for.def_id);
++            let mut map = HashMap::new();
++            for item in tcx.associated_items(trait_def_id).in_definition_order() {
++                if matches!(item.kind, rustc_middle::ty::AssocKind::Type { .. }) {
++                    if let Some(ex_item) = ex_assoc_items.find_by_ident_and_kind(
++                        tcx,
++                        item.ident(tcx),
++                        item.tag(),
++                        ex_trait_ref_for.def_id,
++                    ) {
++                        map.insert(item.def_id, ex_item.def_id);
++                    }
++                }
++            }
++            use rustc_middle::ty::TypeFoldable;
++            let mut folder = ProxyAssocToExternal { tcx, map };
++            preds2.into_iter().map(|clause| clause.fold_with(&mut folder)).collect()
++        };
+         let mut external_trait_private_bounds = trait_vattrs.external_trait_private_bounds.clone();
+         use crate::rust_to_vir_func::remove_ignored_trait_bounds_from_predicates;
+         remove_ignored_trait_bounds_from_predicates(
+@@ -739,3 +762,33 @@ fn make_trait_decl<'tcx>(
+         is_external_const: false,
+     })
+ }
++
++/// Replaces projections onto a proxy trait's associated types with
++/// projections onto the external trait's (see `external_trait_specification`).
++struct ProxyAssocToExternal<'tcx> {
++    tcx: TyCtxt<'tcx>,
++    /// Proxy associated type to the external trait's of the same name.
++    map: HashMap<DefId, DefId>,
++}
++
++impl<'tcx> rustc_middle::ty::TypeFolder<TyCtxt<'tcx>> for ProxyAssocToExternal<'tcx> {
++    fn cx(&self) -> TyCtxt<'tcx> {
++        self.tcx
++    }
++
++    fn fold_ty(&mut self, t: rustc_middle::ty::Ty<'tcx>) -> rustc_middle::ty::Ty<'tcx> {
++        use rustc_middle::ty::{TypeFoldable, TypeSuperFoldable};
++        if let rustc_middle::ty::TyKind::Alias(is_rigid, alias) = *t.kind() {
++            if let rustc_middle::ty::AliasTyKind::Projection { def_id } = alias.kind {
++                if let Some(ex_def_id) = self.map.get(&def_id).copied() {
++                    let args = alias.args.fold_with(self);
++                    return rustc_middle::ty::Ty::new_projection_from_args(
++                        self.tcx, is_rigid, ex_def_id, args,
++                    );
++                }
++            }
++        }
++        t.super_fold_with(self)
++    }
++}
++
+diff --git a/source/rust_verify_test/tests/external_traits.rs b/source/rust_verify_test/tests/external_traits.rs
+index 955b294..c79e397 100644
+--- a/source/rust_verify_test/tests/external_traits.rs
++++ b/source/rust_verify_test/tests/external_traits.rs
+@@ -1063,3 +1063,122 @@ test_verify_one_file! {
+         }
+     } => Err(err) => assert_rust_error_msg(err, "overflow evaluating the requirement")
+ }
++
++test_verify_one_file! {
++    // A trait whose supertrait bound names its own associated type
++    // (`trait P: Enc<E = <Self as P>::E>`, as mesh_protobuf's `Protobuf`).
++    // The proxy can only name its own associated type
++    // (`<Self as ExP>::E`; naming `<Self as P>::E` overflows rustc), which
++    // must match the external trait's bound.
++    #[test] external_trait_bound_names_own_assoc_type verus_code! {
++        use vstd::prelude::*;
++
++        #[verifier::external]
++        pub trait Enc { type E; }
++
++        #[verifier::external]
++        pub trait P: Enc<E = <Self as P>::E> + Sized { type E; }
++
++        #[verifier::external]
++        impl<T: Enc> P for T { type E = <T as Enc>::E; }
++
++        #[verifier::external_trait_specification]
++        pub trait ExEnc {
++            type ExternalTraitSpecificationFor: Enc;
++            type E;
++        }
++
++        #[verifier::external_trait_specification]
++        pub trait ExP: Enc<E = <Self as ExP>::E> + Sized {
++            type ExternalTraitSpecificationFor: P;
++            type E;
++        }
++
++        fn uses_p<T: P>(t: T) -> (r: T)
++            ensures r == t,
++        {
++            t
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    // An external trait impl whose associated type is bounded by a
++    // higher-ranked trait bound (`type C: for<'a> D<'a, Self>`, as
++    // mesh_protobuf's `Protobuf::Encoding`). Verus looks up the impl
++    // satisfying each bound; the bound's late-bound region must not escape.
++    #[test] external_trait_impl_assoc_type_higher_ranked_bound verus_code! {
++        use vstd::prelude::*;
++
++        #[verifier::external]
++        pub trait D<'a, T> {}
++
++        #[verifier::external]
++        pub trait H: Sized { type C: for<'a> D<'a, Self>; }
++
++        pub struct S;
++        pub struct Codec;
++
++        #[verifier::external]
++        impl<'a, T> D<'a, T> for Codec {}
++
++        #[verifier::external]
++        impl H for S { type C = Codec; }
++
++        #[verifier::external_trait_specification]
++        pub trait ExD<'a, T> {
++            type ExternalTraitSpecificationFor: D<'a, T>;
++        }
++
++        #[verifier::external_trait_specification]
++        pub trait ExH: Sized {
++            type ExternalTraitSpecificationFor: H;
++            type C: for<'a> D<'a, Self>;
++        }
++
++        fn uses_h<T: H>(t: T) -> (r: T)
++            ensures r == t,
++        {
++            t
++        }
++
++        fn test() {
++            let s = uses_h(S);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    // A declared external trait's bound names a type that is not declared to
++    // Verus (as mesh_protobuf's `NoResources`). This used to panic in
++    // `vir::recursive_types`; it is now an error.
++    #[test] external_trait_bound_names_undeclared_type verus_code! {
++        use vstd::prelude::*;
++
++        #[verifier::external]
++        pub enum NoRes {}
++
++        #[verifier::external]
++        pub trait M<T, R> {}
++
++        #[verifier::external]
++        pub trait Q: Sized { type C: M<Self, NoRes>; }
++
++        #[verifier::external_trait_specification]
++        pub trait ExM<T, R> {
++            type ExternalTraitSpecificationFor: M<T, R>;
++        }
++
++        #[verifier::external_trait_specification]
++        pub trait ExQ: Sized {
++            type ExternalTraitSpecificationFor: Q;
++            type C: M<Self, NoRes>;
++        }
++
++        fn uses_q<T: Q>(t: T) -> (r: T)
++            ensures r == t,
++        {
++            t
++        }
++    } => Err(err) => assert_vir_error_msg(err, "is used but not declared to Verus")
++}
+diff --git a/source/vir/src/recursive_types.rs b/source/vir/src/recursive_types.rs
+index b9b3704..3c5677d 100644
+--- a/source/vir/src/recursive_types.rs
++++ b/source/vir/src/recursive_types.rs
+@@ -510,6 +510,15 @@ pub(crate) fn check_recursive_types(krate: &Krate) -> Result<(), VirErr> {
+             let count = datatypes_well_founded.len();
+             for node in &global.type_graph.get_scc_nodes(scc) {
+                 if let TypNode::Datatype(Dt::Path(path)) = node {
++                    // A type can be referenced (for example in a trait bound
++                    // of a declared external trait) without being declared to
++                    // Verus; report it rather than panic in check_well_founded.
++                    if !global.datatypes.contains_key(path) {
++                        return Err(crate::messages::error_bare(format!(
++                            "type `{}` is used but not declared to Verus; declare it, for example with #[verifier::external_type_specification]",
++                            path_as_friendly_rust_name(path)
++                        )));
++                    }
+                     let wf =
+                         check_well_founded(&global.datatypes, &mut datatypes_well_founded, path);
+                     if converged && !wf {

@@ -1,0 +1,12 @@
+--- a/source/vstd/vstd.rs
++++ b/source/vstd/vstd.rs
+@@ -2,6 +2,9 @@
+ //! Contains various utilities and datatypes for proofs,
+ //! as well as runtime functionality with specifications.
+ //! For an introduction to Verus, see [the tutorial](https://verus-lang.github.io/verus/guide/).
++// OpenVMM patch vstd-0002: a patched path dependency shows its warnings in
++// every build (crates.io dependencies' are capped); silence them.
++#![allow(warnings)]
+ #![cfg_attr(not(feature = "std"), no_std)]
+ #![allow(unused_parens)]
+ #![allow(unused_imports)]

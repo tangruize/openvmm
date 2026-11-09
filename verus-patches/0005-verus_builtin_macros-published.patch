@@ -1,0 +1,164 @@
+--- a/src/attr_rewrite.rs
++++ b/src/attr_rewrite.rs
+@@ -420,6 +420,18 @@
+     if attrs.iter().any(|attr| attr.path().get_ident().map_or(false, |ident| ident == VERUS_SPEC)) {
+         return;
+     }
++    // A `#[cfg_attr(<predicate>, verus_spec(...))]` (such as
++    // `cfg_attr(verus_keep_ghost, ...)`, which keeps specifications out of
++    // normal builds) is expanded only after this attribute; adding an empty
++    // `#[verus_spec]` would give the item two.
++    if attrs.iter().any(|attr| {
++        attr.path().is_ident("cfg_attr")
++            && matches!(&attr.meta, syn::Meta::List(list)
++                if list.tokens.clone().into_iter().any(|t| matches!(&t,
++                    proc_macro2::TokenTree::Ident(ident) if ident == VERUS_SPEC)))
++    }) {
++        return;
++    }
+     attrs.push(crate::syntax::mk_rust_attr_syn(span, VERUS_SPEC, TokenStream::new()));
+ }
+ 
+@@ -449,6 +461,7 @@
+             add_verus_spec_if_needed(attrs, span);
+         }
+         syn::Item::Impl(i) => {
++            let is_trait_impl = i.trait_.is_some();
+             for item in &mut i.items {
+                 match item {
+                     syn::ImplItem::Const(syn::ImplItemConst { attrs, .. }) => {
+@@ -456,11 +469,17 @@
+                     }
+                     syn::ImplItem::Fn(syn::ImplItemFn { attrs, .. }) => {
+                         add_verus_spec_if_needed(attrs, span);
+-                        attrs.push(crate::syntax::mk_rust_attr_syn(
+-                            span,
+-                            "allow",
+-                            quote_spanned! { span => (unused, verus_impl_method_marker)},
+-                        ));
++                        // A trait impl's methods are also marked as such: they
++                        // inherit their specification and cannot declare
++                        // `requires`.
++                        let marker = if is_trait_impl {
++                            quote_spanned! { span =>
++                                (unused, verus_impl_method_marker, verus_trait_impl_method_marker)
++                            }
++                        } else {
++                            quote_spanned! { span => (unused, verus_impl_method_marker)}
++                        };
++                        attrs.push(crate::syntax::mk_rust_attr_syn(span, "allow", marker));
+                     }
+                     _ => {}
+                 }
+@@ -690,6 +709,11 @@
+ 
+             // Check if the function has the impl method marker
+             let is_impl_fn = fun.attrs.iter().any(&is_hidden_impl_marker);
++            let is_trait_impl_fn = fun.attrs.iter().any(|attr| {
++                is_hidden_impl_marker(attr)
++                    && matches!(&attr.meta, syn::Meta::List(meta_list)
++                        if meta_list.tokens.to_string().contains("verus_trait_impl_method_marker"))
++            });
+ 
+             // Remove the marker attribute (internal use only)
+             fun.attrs.retain(|attr| !is_hidden_impl_marker(attr));
+@@ -733,7 +757,8 @@
+             // we add `requires false` and thus prevent verified function to use it.
+             // Allow unverified code to use the function without changing in/output.
+             if let Some(with) = &spec_attr.spec.with {
+-                let mut extra_funs = rewrite_unverified_func(&mut fun, with.with.span(), erase);
++                let mut extra_funs =
++                    rewrite_unverified_func(&mut fun, with.with.span(), erase, is_trait_impl_fn);
+ 
+                 if crate::rustdoc::env_rustdoc() {
+                     if let Some(unverified_fun) = extra_funs.last_mut() {
+@@ -811,6 +836,20 @@
+             fun.to_tokens(&mut new_stream);
+             proc_macro::TokenStream::from(new_stream)
+         }
++        AnyFnOrLoop::TraitMethod(method) if erase.erase() => {
++            // A method with ghost inputs (`with`) still has its two copies in
++            // erase mode, since the trait's impls do.
++            let spec_attr =
++                verus_syn::parse_macro_input!(outer_attr_tokens as verus_syn::SignatureSpecAttr);
++            if spec_attr.spec.with.is_none() {
++                return method.to_token_stream().into();
++            }
++            let mut new_stream = TokenStream::new();
++            let mut method = split_trait_method_with(method, &spec_attr, &mut new_stream);
++            let _ = syntax::sig_specs_attr(erase, spec_attr, &mut method.sig, true, false);
++            method.to_tokens(&mut new_stream);
++            proc_macro::TokenStream::from(new_stream)
++        }
+         // erase non-function cases if in erase mode
+         _ if erase.erase() => return f.to_token_stream().into(),
+         AnyFnOrLoop::Closure(mut closure) => {
+@@ -851,14 +890,12 @@
+                 verus_syn::parse_macro_input!(outer_attr_tokens as verus_syn::SignatureSpecAttr);
+             let mut new_stream = TokenStream::new();
+ 
+-            if let Some(with) = &spec_attr.spec.with {
+-                // Trait method requires can only be inherited from the trait declaration
+-                // However, we cannot distinguish trait function impl vs other function impl.
+-                // let unverified_method = rewrite_unverified_func(&mut method, with.with.span());
+-                // unverified_method.to_tokens(&mut new_stream);
+-                return proc_macro::TokenStream::from(
+-                    quote_spanned!(with.with.span() => compile_error!("`with` does not support trait");),
+-                );
++            if spec_attr.spec.with.is_some() {
++                // As for a function with ghost inputs: the method itself, for
++                // unverified callers, and the verified copy with the ghost
++                // inputs and the specification. Each impl provides both (the
++                // impl method's `verus_spec(with ...)` makes both).
++                method = split_trait_method_with(method, &spec_attr, &mut new_stream);
+             }
+ 
+             let spec_stmts = syntax::sig_specs_attr(erase, spec_attr, &mut method.sig, true, false);
+@@ -1168,10 +1205,34 @@
+ // function body, to enable seamless use of unverified call to the function in
+ // verification.
+ // If the function is const, it will be rewritten to a proxy function and a verified function.
++/// For a trait method declared with ghost inputs (`with`): writes the method
++/// itself, unchanged and without specification (for unverified callers and
++/// for unverified uses of the trait), to `new_stream`, and returns the method
++/// renamed to the verified copy (`_VERUS_VERIFIED_<name>`), which gets the
++/// ghost inputs and the specification. Verified callers call the verified copy
++/// (`proof_with!` renames the call).
++fn split_trait_method_with(
++    method: syn::TraitItemFn,
++    spec_attr: &verus_syn::SignatureSpecAttr,
++    new_stream: &mut TokenStream,
++) -> syn::TraitItemFn {
++    let span = spec_attr.spec.with.as_ref().unwrap().with.span();
++    method.to_tokens(new_stream);
++    let mut verified = method;
++    let x = &verified.sig.ident;
++    verified.sig.ident = syn::Ident::new(&format!("{VERIFIED}_{x}"), x.span());
++    verified.attrs.push(crate::syntax::mk_rust_attr_syn(span, "allow", quote! {non_snake_case}));
++    if !crate::rustdoc::env_rustdoc() {
++        verified.attrs.push(crate::syntax::mk_rust_attr_syn(span, "doc", quote! {hidden}));
++    }
++    verified
++}
++
+ fn rewrite_unverified_func(
+     fun: &mut syn::ItemFn,
+     span: proc_macro2::Span,
+     erase: EraseGhost,
++    is_trait_impl_fn: bool,
+ ) -> Vec<syn::ItemFn> {
+     let mut ret = vec![];
+     let mut unverified_fun = fun.clone();
+@@ -1209,7 +1270,11 @@
+         // see correct body in generated executable in erase mode.
+         if erase.keep() {
+             block.stmts.clear();
+-            block.stmts.push(precondition_false);
++            // (A trait impl method cannot declare `requires`; verified code
++            // calls the verified copy anyway.)
++            if !is_trait_impl_fn {
++                block.stmts.push(precondition_false);
++            }
+             block.stmts.push(unimplemented.clone());
+         }
+     }

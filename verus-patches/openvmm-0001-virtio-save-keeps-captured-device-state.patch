@@ -1,0 +1,58 @@
+diff --git a/vm/devices/virtio/virtio/src/transport/core.rs b/vm/devices/virtio/virtio/src/transport/core.rs
+index 2e5535d8b..5fd9ad797 100644
+--- a/vm/devices/virtio/virtio/src/transport/core.rs
++++ b/vm/devices/virtio/virtio/src/transport/core.rs
+@@ -556,11 +556,22 @@ pub fn save_queue_common(&self, idx: usize) -> super::saved_state::state::Common
+         }
+     }
+ 
+-    /// Take the device-private state captured when the queues stopped.
+-    pub fn take_device_state(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
+-        self.captured_device_state
+-            .take()
+-            .ok_or_else(|| SaveError::Other(anyhow::anyhow!("device state was not captured")))?
++    /// Returns the device-private state captured when the queues stopped.
++    ///
++    /// The capture is kept until the next start or reset, so saving again
++    /// before then returns the same state. A failed capture is returned (and
++    /// dropped) by the first save.
++    pub fn saved_device_state(&mut self) -> Result<Option<SavedStateBlob>, SaveError> {
++        match self.captured_device_state.take() {
++            Some(Ok(state)) => {
++                self.captured_device_state = Some(Ok(state.clone()));
++                Ok(state)
++            }
++            Some(Err(err)) => Err(err),
++            None => Err(SaveError::Other(anyhow::anyhow!(
++                "device state was not captured"
++            ))),
++        }
+     }
+ 
+     /// Restore the transport-agnostic portion of the common configuration.
+diff --git a/vm/devices/virtio/virtio/src/transport/mmio.rs b/vm/devices/virtio/virtio/src/transport/mmio.rs
+index 17f98b9eb..098a27ca2 100644
+--- a/vm/devices/virtio/virtio/src/transport/mmio.rs
++++ b/vm/devices/virtio/virtio/src/transport/mmio.rs
+@@ -754,7 +754,7 @@ fn save(&mut self) -> Result<Self::SavedState, vmcore::save_restore::SaveError>
+                     common: self.core.save_queue_common(i),
+                 })
+                 .collect();
+-            let device_state = self.core.take_device_state()?;
++            let device_state = self.core.saved_device_state()?;
+             Ok(state::SavedState {
+                 common,
+                 queues,
+diff --git a/vm/devices/virtio/virtio/src/transport/pci.rs b/vm/devices/virtio/virtio/src/transport/pci.rs
+index 8cb6fd40a..5d2af11c8 100644
+--- a/vm/devices/virtio/virtio/src/transport/pci.rs
++++ b/vm/devices/virtio/virtio/src/transport/pci.rs
+@@ -888,7 +888,7 @@ fn save(&mut self) -> Result<Self::SavedState, SaveError> {
+                 })
+                 .collect();
+             let cfg_space = self.pci.config_space.save()?;
+-            let device_state = self.core.take_device_state()?;
++            let device_state = self.core.saved_device_state()?;
+             Ok(state::SavedState {
+                 common,
+                 msix_config_vector: self.pci.msix_config_vector,

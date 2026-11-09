@@ -1,0 +1,14 @@
+diff --git a/vm/devices/virtio/virtio/src/transport/core.rs b/vm/devices/virtio/virtio/src/transport/core.rs
+index 5fd9ad797..0f0215cad 100644
+--- a/vm/devices/virtio/virtio/src/transport/core.rs
++++ b/vm/devices/virtio/virtio/src/transport/core.rs
+@@ -670,6 +670,9 @@ pub fn restore_common(
+         }
+ 
+         self.device_status = VirtioDeviceStatus::from(common.device_status);
++        // The restored private state is also the captured state, so a save
++        // before the next start returns it.
++        self.captured_device_state = Some(Ok(device_state.clone()));
+         self.restored_device_state = DeviceRestoreState::Restored(device_state);
+ 
+         // Verify ephemeral runtime state.

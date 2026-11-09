@@ -1,0 +1,583 @@
+diff --git a/source/rust_verify/src/rust_to_vir_base.rs b/source/rust_verify/src/rust_to_vir_base.rs
+index 778be11..3a5ce4a 100644
+--- a/source/rust_verify/src/rust_to_vir_base.rs
++++ b/source/rust_verify/src/rust_to_vir_base.rs
+@@ -1278,7 +1278,7 @@ pub(crate) fn mid_ty_to_vir_ghost<'tcx>(
+                     }
+                     // If normalization isn't possible, return a projection type:
+                     let assoc_item = tcx.associated_item(def_id);
+-                    let name = Arc::new(assoc_item.name().to_string());
++                    let name = Arc::new(assoc_item_name(tcx, &assoc_item));
+                     // Note: this looks like it would work, but trait_item_def_id is sometimes None:
+                     //   use crate::rustc_middle::ty::DefIdTree;
+                     //   let trait_def = tcx.parent(assoc_item.trait_item_def_id.expect("..."));
+@@ -1910,7 +1910,7 @@ where
+                 let substs = pred.projection_term.args;
+                 let trait_def_id = pred.projection_term.trait_def_id(tcx);
+                 let assoc_item = tcx.associated_item(item_def_id);
+-                let name = Arc::new(assoc_item.name().to_string());
++                let name = Arc::new(assoc_item_name(tcx, &assoc_item));
+                 let generic_bound = check_generic_bound(
+                     tcx,
+                     verus_items,
+@@ -2552,7 +2552,7 @@ pub(crate) fn opaque_def_to_vir<'tcx>(
+                         let substs = pred.projection_term.args;
+                         let trait_def_id = pred.projection_term.trait_def_id(ctxt.tcx);
+                         let assoc_item = ctxt.tcx.associated_item(item_def_id);
+-                        let name = Arc::new(assoc_item.name().to_string());
++                        let name = Arc::new(assoc_item_name(ctxt.tcx, &assoc_item));
+                         let generic_bound = check_generic_bound(
+                             ctxt.tcx,
+                             &ctxt.verus_items,
+@@ -2827,3 +2827,33 @@ pub(crate) fn hack_fix_no_lifetime_opaque_ty_issue2541<'tcx>(
+         }
+     })
+ }
++
++/// The name of an associated item. An RPITIT associated type (the hidden
++/// type rustc creates for a trait method's `impl Trait` return type, such as
++/// an `async fn`'s future) has no name; it gets a synthetic one from its
++/// method, the same in the trait and in each impl:
++/// `VERUS_RPITIT__<method>` (or `VERUS_RPITIT<i>__<method>` for the method's
++/// `i`-th such type, `i > 0`).
++pub(crate) fn assoc_item_name<'tcx>(
++    tcx: TyCtxt<'tcx>,
++    item: &rustc_middle::ty::AssocItem,
++) -> String {
++    if let Some(name) = item.opt_name() {
++        return name.to_string();
++    }
++    // An impl's RPITIT type is named after the trait's.
++    let trait_item_def_id = item.trait_item_def_id().unwrap_or(item.def_id);
++    let fn_def_id = match tcx.opt_rpitit_info(trait_item_def_id) {
++        Some(rustc_middle::ty::ImplTraitInTraitData::Trait { fn_def_id, .. }) => fn_def_id,
++        _ => panic!("unnamed associated item that is not an RPITIT type"),
++    };
++    let index = tcx
++        .associated_types_for_impl_traits_in_associated_fn(fn_def_id)
++        .iter()
++        .position(|def_id| *def_id == trait_item_def_id)
++        .expect("RPITIT type of its method");
++    let method = tcx.item_name(fn_def_id);
++    // A valid Rust identifier: Verus writes traits out as Rust code (for its
++    // trait-conflict and lifetime checks).
++    if index == 0 { format!("VERUS_RPITIT__{method}") } else { format!("VERUS_RPITIT{index}__{method}") }
++}
+diff --git a/source/rust_verify/src/rust_to_vir_func.rs b/source/rust_verify/src/rust_to_vir_func.rs
+index 84fe0bd..38f500a 100644
+--- a/source/rust_verify/src/rust_to_vir_func.rs
++++ b/source/rust_verify/src/rust_to_vir_func.rs
+@@ -483,7 +483,7 @@ fn check_fn_decl<'tcx>(
+ 
+ /// The `Output` type of an async function's opaque return type
+ /// (`impl Future<Output = T>`), if it can be found.
+-fn async_fn_output_typ<'tcx>(
++pub(crate) fn async_fn_output_typ<'tcx>(
+     ctxt: &Context<'tcx>,
+     id: DefId,
+     span: Span,
+@@ -493,8 +493,17 @@ fn async_fn_output_typ<'tcx>(
+     let rustc_middle::ty::TyKind::Alias(_, al_ty) = output_ty.kind() else {
+         return Ok(None);
+     };
+-    let rustc_middle::ty::AliasTyKind::Opaque { def_id } = al_ty.kind else {
+-        return Ok(None);
++    // An `async fn`'s future: an opaque type, or, for a trait method, the
++    // projection onto its RPITIT associated type; either way its bounds say
++    // `Future<Output = ...>`.
++    let def_id = match al_ty.kind {
++        rustc_middle::ty::AliasTyKind::Opaque { def_id } => def_id,
++        rustc_middle::ty::AliasTyKind::Projection { def_id }
++            if tcx.opt_rpitit_info(def_id).is_some() =>
++        {
++            def_id
++        }
++        _ => return Ok(None),
+     };
+     let Some(future_output) = tcx.lang_items().future_output() else {
+         return Ok(None);
+@@ -598,7 +607,9 @@ fn compare_external_ty_or_true<'tcx>(
+                 | (AliasTyKind::Opaque { .. }, _)
+                 | (AliasTyKind::Free { .. }, _) => return false,
+             };
+-            if tcx.associated_item(def_id1).name() != tcx.associated_item(def_id2).name() {
++            if crate::rust_to_vir_base::assoc_item_name(tcx, &tcx.associated_item(def_id1))
++                != crate::rust_to_vir_base::assoc_item_name(tcx, &tcx.associated_item(def_id2))
++            {
+                 return false;
+             }
+             if !check_args(&t1.args, &t2.args) {
+diff --git a/source/rust_verify/src/rust_to_vir_impl.rs b/source/rust_verify/src/rust_to_vir_impl.rs
+index d27c9f4..70a3a28 100644
+--- a/source/rust_verify/src/rust_to_vir_impl.rs
++++ b/source/rust_verify/src/rust_to_vir_impl.rs
+@@ -183,6 +183,24 @@ fn translate_assoc_type<'tcx>(
+ 
+     let ai = ctxt.tcx.associated_item(impl_item_id);
+     let assoc_def_id = ai.trait_item_def_id().unwrap();
++    // An RPITIT type (the hidden type of a method's `impl Trait` / `async fn`
++    // return) is its method's opaque type, whose bounds are met by the
++    // compiler-generated type, not by impls; and normalizing them (below)
++    // would reveal the opaque type, which needs the method's MIR before
++    // Verus' erasure is set up. So no impl paths.
++    if ctxt.tcx.opt_rpitit_info(impl_item_id).is_some() {
++        let assocx = AssocTypeImplX {
++            name,
++            impl_path: impl_path.clone(),
++            typ_params,
++            typ_bounds,
++            trait_path,
++            trait_typ_args,
++            typ,
++            impl_paths: Arc::new(vec![]),
++        };
++        return Ok(ctxt.spanned_new(impl_item_span, assocx));
++    }
+     let bounds = ctxt.tcx.item_bounds(assoc_def_id);
+     let assoc_generics = ctxt.tcx.generics_of(assoc_def_id);
+     let mut assoc_args: Vec<rustc_middle::ty::GenericArg> = ctxt
+@@ -434,6 +452,34 @@ pub(crate) fn translate_impl<'tcx>(
+             errors.push(r);
+         }
+     }
++    // The impl's RPITIT associated types (the hidden types of its methods'
++    // `impl Trait` / `async fn` returns), which are not impl items in HIR.
++    if let Some((trait_path, trait_typ_args)) = trait_path_typ_args.clone() {
++        for assoc_item in ctxt.tcx.associated_items(impl_def_id).in_definition_order() {
++            if !matches!(
++                ctxt.tcx.opt_rpitit_info(assoc_item.def_id),
++                Some(rustc_middle::ty::ImplTraitInTraitData::Impl { .. })
++            ) {
++                continue;
++            }
++            let name = Arc::new(crate::rust_to_vir_base::assoc_item_name(ctxt.tcx, assoc_item));
++            let span = ctxt.tcx.def_span(assoc_item.def_id);
++            match translate_assoc_type(
++                ctxt,
++                name,
++                impll.generics.span,
++                Some(&impll.generics),
++                span,
++                assoc_item.def_id,
++                impl_def_id,
++                trait_path.clone(),
++                trait_typ_args.clone(),
++            ) {
++                Ok(assoc_type_impl) => vir.assoc_type_impls.push(assoc_type_impl),
++                Err(e) => errors.push(e),
++            }
++        }
++    }
+     if errors.len() > 0 { Err(errors) } else { Ok(()) }
+ }
+ 
+@@ -731,7 +777,7 @@ pub(crate) fn collect_external_trait_impls<'tcx>(
+             for assoc_item in tcx.associated_items(impl_def_id).in_definition_order() {
+                 match assoc_item.kind {
+                     rustc_middle::ty::AssocKind::Type { .. } => {
+-                        let name = Arc::new(assoc_item.ident(tcx).to_string());
++                        let name = Arc::new(crate::rust_to_vir_base::assoc_item_name(tcx, assoc_item));
+                         if !trait_map[&trait_path].iter().any(|t| t.x.assoc_typs.contains(&name)) {
+                             continue;
+                         }
+diff --git a/source/rust_verify/src/rust_to_vir_trait.rs b/source/rust_verify/src/rust_to_vir_trait.rs
+index 5d90850..2c11d29 100644
+--- a/source/rust_verify/src/rust_to_vir_trait.rs
++++ b/source/rust_verify/src/rust_to_vir_trait.rs
+@@ -200,17 +200,20 @@ pub(crate) fn translate_trait<'tcx>(
+         // mirroring `trait External: Other<B = <Self as External>::A>`): name the
+         // external trait's instead, so that such bounds can match.
+         let mut preds2: Vec<_> = {
+-            let ex_assoc_items = tcx.associated_items(ex_trait_ref_for.def_id);
++            // Matched by name (`assoc_item_name`, which also names RPITIT
++            // types, the hidden types of `impl Trait` / `async fn` returns).
++            use crate::rust_to_vir_base::assoc_item_name;
++            let ex_by_name: HashMap<String, DefId> = tcx
++                .associated_items(ex_trait_ref_for.def_id)
++                .in_definition_order()
++                .filter(|item| matches!(item.kind, rustc_middle::ty::AssocKind::Type { .. }))
++                .map(|item| (assoc_item_name(tcx, item), item.def_id))
++                .collect();
+             let mut map = HashMap::new();
+             for item in tcx.associated_items(trait_def_id).in_definition_order() {
+                 if matches!(item.kind, rustc_middle::ty::AssocKind::Type { .. }) {
+-                    if let Some(ex_item) = ex_assoc_items.find_by_ident_and_kind(
+-                        tcx,
+-                        item.ident(tcx),
+-                        item.tag(),
+-                        ex_trait_ref_for.def_id,
+-                    ) {
+-                        map.insert(item.def_id, ex_item.def_id);
++                    if let Some(ex_def_id) = ex_by_name.get(&assoc_item_name(tcx, item)) {
++                        map.insert(item.def_id, *ex_def_id);
+                     }
+                 }
+             }
+@@ -544,7 +547,34 @@ pub(crate) fn translate_trait<'tcx>(
+             }
+         }
+     }
+-    let mut methods = make_trait_decls(methods)?;
++    // The RPITIT associated types: the hidden types rustc creates for the
++    // methods' `impl Trait` return types (such as an `async fn`'s future).
++    // They are not trait items in HIR. (Those of the `VERUS_SPEC__`
++    // specification methods are left out: those methods are merged into the
++    // methods they specify.)
++    for item in tcx.associated_items(trait_def_id).in_definition_order() {
++        let Some(rustc_middle::ty::ImplTraitInTraitData::Trait { fn_def_id, .. }) =
++            tcx.opt_rpitit_info(item.def_id)
++        else {
++            continue;
++        };
++        if tcx.item_name(fn_def_id).as_str().starts_with(VERUS_SPEC) {
++            continue;
++        }
++        assoc_typs.push(Arc::new(crate::rust_to_vir_base::assoc_item_name(tcx, item)));
++        let span = tcx.def_span(item.def_id);
++        let bounds = tcx.item_bounds(item.def_id).skip_binder();
++        let bounds = bounds.iter().map(|p| (p, span)).collect::<Vec<_>>();
++        let vir_bounds = process_predicate_bounds(
++            tcx,
++            trait_def_id,
++            &ctxt.verus_items,
++            bounds.iter(),
++            tcx.generics_of(trait_def_id),
++        )?;
++        assoc_typs_bounds.extend(vir_bounds);
++    }
++    let mut methods = make_trait_decls(ctxt, methods)?;
+     infos.append(&mut methods);
+     let mut assoc_typs_bounds = Arc::new(assoc_typs_bounds);
+     let target_trait_id = if let Some(target_trait_id) = ex_trait_id_for {
+@@ -591,7 +621,10 @@ pub(crate) fn translate_trait<'tcx>(
+ // so that Rust's type checker can check that implementations of f provide a body.
+ // When generating VIR, merge the methods back into a single method:
+ //   fn f() requires x;
+-fn make_trait_decls(methods: Vec<FunctionOrConstInfo>) -> Result<Vec<FunctionOrConstInfo>, VirErr> {
++fn make_trait_decls<'tcx>(
++    ctxt: &Context<'tcx>,
++    methods: Vec<FunctionOrConstInfo<'tcx>>,
++) -> Result<Vec<FunctionOrConstInfo<'tcx>>, VirErr> {
+     let mut decls: Vec<FunctionOrConstInfo> = Vec::new();
+     let mut specs: HashMap<String, FunctionInfo> = HashMap::new();
+     for method in methods.into_iter() {
+@@ -614,7 +647,7 @@ fn make_trait_decls(methods: Vec<FunctionOrConstInfo>) -> Result<Vec<FunctionOrC
+                 f.function.x.name.path.segments.last().expect("method name last").to_string();
+             // Note: None case means no specification method, which means no requires, ensures, etc.
+             if let Some(spec_method) = specs.remove(&name) {
+-                *method = FunctionOrConstInfo::Function(make_trait_decl(f, &spec_method)?);
++                *method = FunctionOrConstInfo::Function(make_trait_decl(ctxt, f, &spec_method)?);
+             }
+         }
+     }
+@@ -632,6 +665,7 @@ fn make_trait_decls(methods: Vec<FunctionOrConstInfo>) -> Result<Vec<FunctionOrC
+ }
+ 
+ fn make_trait_decl<'tcx>(
++    ctxt: &Context<'tcx>,
+     method_info: &FunctionInfo<'tcx>,
+     spec_method_info: &FunctionInfo<'tcx>,
+ ) -> Result<FunctionInfo<'tcx>, VirErr> {
+@@ -654,7 +688,7 @@ fn make_trait_decl<'tcx>(
+         ens_has_return: _,
+         item_kind: _,
+         attrs: _,
+-        async_ret: _,
++        async_ret,
+     } = spec_method.x.clone();
+     let mut methodx = method.x.clone();
+     while typ_bounds.len() > methodx.typ_bounds.len() {
+@@ -709,7 +743,20 @@ fn make_trait_decl<'tcx>(
+             ));
+         }
+     }
+-    if !params_equal_opt(&methodx.ret, &ret, false, false) {
++    // For an async method, the futures' types differ (the method's is its
++    // RPITIT projection, the specification's an opaque type of its own); what
++    // must match is their output type.
++    let async_rets_match = methodx.async_ret.is_some() && async_ret.is_some() && {
++        let output = |def_id: DefId| -> Result<Option<vir::ast::Typ>, VirErr> {
++            let ty = ctxt.tcx.fn_sig(def_id).instantiate_identity().skip_binder().output();
++            crate::rust_to_vir_func::async_fn_output_typ(ctxt, def_id, ctxt.tcx.def_span(def_id), ty)
++        };
++        match (output(method_info.def_id)?, output(spec_method_info.def_id)?) {
++            (Some(t1), Some(t2)) => vir::ast_util::types_equal(&t1, &t2),
++            _ => false,
++        }
++    };
++    if !params_equal_opt(&methodx.ret, &ret, false, false) && !async_rets_match {
+         return Err(error(
+             &spec_method.span,
+             "method specification has a different return from method",
+diff --git a/source/rust_verify/src/trait_conflicts.rs b/source/rust_verify/src/trait_conflicts.rs
+index ff8f925..dfd0559 100644
+--- a/source/rust_verify/src/trait_conflicts.rs
++++ b/source/rust_verify/src/trait_conflicts.rs
+@@ -368,10 +368,16 @@ pub(crate) fn gen_check_trait_impl_conflicts(
+             &t.x.typ_bounds,
+             None,
+         );
+-        let (a_params, mut a_bounds) =
+-            gen_generics(state, &t.x.assoc_typs, &t.x.assoc_typs_bounds, None);
++        let t_assoc_typs: Vec<Ident> =
++            t.x.assoc_typs.iter().filter(|a| !is_rpitit_assoc_typ(a)).cloned().collect();
++        let (a_params, mut a_bounds) = gen_generics(
++            state,
++            &t_assoc_typs,
++            &bounds_without_rpitit(&t.x.assoc_typs_bounds),
++            None,
++        );
+         used_traits.insert(t.x.name.clone());
+-        for a in t.x.assoc_typs.iter() {
++        for a in t.x.assoc_typs.iter().filter(|a| !is_rpitit_assoc_typ(a)) {
+             used_assoc_typs.insert((t.x.name.clone(), a.clone()));
+         }
+         let name = state.trait_name(&t.x.name);
+@@ -460,8 +466,14 @@ pub(crate) fn gen_check_trait_impl_conflicts(
+         );
+         let t_args =
+             generic_params.iter().map(|p| Box::new(TypX::TypParam(p.name.clone()))).collect();
+-        let (a_params, a_bounds) =
+-            gen_generics(state, &t.x.assoc_typs, &t.x.assoc_typs_bounds, None);
++        let t_assoc_typs: Vec<Ident> =
++            t.x.assoc_typs.iter().filter(|a| !is_rpitit_assoc_typ(a)).cloned().collect();
++        let (a_params, a_bounds) = gen_generics(
++            state,
++            &t_assoc_typs,
++            &bounds_without_rpitit(&t.x.assoc_typs_bounds),
++            None,
++        );
+         let mut assoc_typs: Vec<(Id, Vec<GenericParam>, Typ)> = Vec::new();
+         for x in &a_params {
+             // TODO: test associated types once we support "dyn with more than one trait"
+@@ -499,3 +511,30 @@ pub(crate) fn gen_check_trait_impl_conflicts(
+         n_trait += 1;
+     }
+ }
++
++/// An RPITIT associated type (see `rust_to_vir_base::assoc_item_name`): the
++/// hidden type of a method's `impl Trait` / `async fn` return. It is left out
++/// of the model: impls give it the method's opaque type, which the model
++/// cannot express and which cannot make impls conflict.
++fn is_rpitit_assoc_typ(name: &Ident) -> bool {
++    name.starts_with("VERUS_RPITIT")
++}
++
++/// The bounds that are not about an RPITIT associated type.
++fn bounds_without_rpitit(bounds: &GenericBounds) -> GenericBounds {
++    Arc::new(
++        bounds
++            .iter()
++            .filter(|b| {
++                let typs = match &***b {
++                    GenericBoundX::Trait(_, typs) => typs,
++                    GenericBoundX::TypEquality(_, typs, _, _) => typs,
++                    _ => return true,
++                };
++                !matches!(typs.first().map(|t| &**t),
++                    Some(vir::ast::TypX::Projection { name, .. }) if is_rpitit_assoc_typ(name))
++            })
++            .cloned()
++            .collect(),
++    )
++}
+diff --git a/source/rust_verify/src/verifier.rs b/source/rust_verify/src/verifier.rs
+index 71d4a33..d0ae28a 100644
+--- a/source/rust_verify/src/verifier.rs
++++ b/source/rust_verify/src/verifier.rs
+@@ -1402,14 +1402,16 @@ impl Verifier {
+                 ),
+             ),
+             CommandBatch::new("Trait-Bounds", vir::traits::trait_bound_axioms(ctx, &krate.traits)),
+-            CommandBatch::new(
+-                "Associated-Type-Impls",
+-                vir::assoc_types_to_air::assoc_type_impls_to_air(ctx, &krate.assoc_type_impls),
+-            ),
++            // Before the associated-type impls: an impl's RPITIT associated
++            // type (an `async fn` in a trait) is its method's opaque type.
+             CommandBatch::new(
+                 "Opaque-Type-Constructors",
+                 vir::opaque_type_to_air::opaque_types_to_air(ctx, &krate.opaque_types),
+             ),
++            CommandBatch::new(
++                "Associated-Type-Impls",
++                vir::assoc_types_to_air::assoc_type_impls_to_air(ctx, &krate.assoc_type_impls),
++            ),
+         ];
+ 
+         // Function declarations and their proof notes.
+@@ -3021,7 +3023,9 @@ fn check_no_opaque_types_in_trait<'tcx>(
+         match item.id {
+             crate::external::GeneralItemId::TraitItemId(trait_item_id) => {
+                 match tcx.hir_trait_item(trait_item_id).kind {
+-                    rustc_hir::TraitItemKind::Fn(sig, _) => {
++                    // An `async fn`'s return type is an opaque type too; those
++                    // are supported (as the trait's RPITIT associated types).
++                    rustc_hir::TraitItemKind::Fn(sig, _) if !sig.header.is_async() => {
+                         if let rustc_hir::FnRetTy::Return(ty) = sig.decl.output {
+                             if matches!(ty.kind, rustc_hir::TyKind::OpaqueDef { .. }) {
+                                 crate::unsupported_err!(
+diff --git a/source/rust_verify_test/tests/async_functions.rs b/source/rust_verify_test/tests/async_functions.rs
+index a994fbe..a5ce88d 100644
+--- a/source/rust_verify_test/tests/async_functions.rs
++++ b/source/rust_verify_test/tests/async_functions.rs
+@@ -279,3 +279,159 @@ test_verify_one_file! {
+         }
+     } => Err(e) => assert_one_fails(e)
+ }
++
++test_verify_one_file! {
++    // An async fn in a trait, with a contract, a verified impl, and a caller
++    // that awaits it on the impl's type.
++    #[test] async_fn_in_trait_concrete_caller verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures final(self).value() == old(self).value() + 1, r == final(self).value();
++        }
++
++        struct C { n: u64 }
++
++        impl Counter for C {
++            spec fn value(&self) -> u64 { self.n }
++
++            async fn bump(&mut self) -> (r: u64) {
++                self.n = self.n + 1;
++                self.n
++            }
++        }
++
++        async fn caller(c: &mut C)
++            requires old(c).n == 5,
++        {
++            let r = c.bump().await;
++            assert(r == 6);
++            assert(c.n == 6);
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_generic_caller verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures final(self).value() == old(self).value() + 1, r == final(self).value();
++        }
++
++        async fn caller<T: Counter>(t: &mut T) -> (r: u64)
++            requires old(t).value() == 5,
++            ensures r == 6, final(t).value() == 6,
++        {
++            t.bump().await
++        }
++    } => Ok(())
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_impl_fails_ensures verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures
++                    final(self).value() == old(self).value() + 1, // FAILS
++                    r == final(self).value();
++        }
++
++        struct C { n: u64 }
++
++        impl Counter for C {
++            spec fn value(&self) -> u64 { self.n }
++
++            async fn bump(&mut self) -> (r: u64) {
++                self.n = self.n + 2;
++                self.n
++            }
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_caller_assert_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures final(self).value() == old(self).value() + 1, r == final(self).value();
++        }
++
++        struct C { n: u64 }
++
++        impl Counter for C {
++            spec fn value(&self) -> u64 { self.n }
++
++            async fn bump(&mut self) -> (r: u64) {
++                self.n = self.n + 1;
++                self.n
++            }
++        }
++
++        async fn caller(c: &mut C)
++            requires old(c).n == 5,
++        {
++            let r = c.bump().await;
++            assert(r == 7); // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_generic_assert_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures final(self).value() == old(self).value() + 1, r == final(self).value();
++        }
++
++        async fn caller<T: Counter>(t: &mut T)
++            requires old(t).value() == 5,
++        {
++            let r = t.bump().await;
++            assert(r == 5); // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
++
++test_verify_one_file! {
++    #[test] async_fn_in_trait_requires_fails verus_code! {
++        use vstd::prelude::*;
++
++        trait Counter {
++            spec fn value(&self) -> u64;
++
++            async fn bump(&mut self) -> (r: u64)
++                requires old(self).value() < 100,
++                ensures final(self).value() == old(self).value() + 1, r == final(self).value();
++        }
++
++        async fn caller<T: Counter>(t: &mut T)
++            requires old(t).value() == 100,
++        {
++            let r = t.bump().await; // FAILS
++        }
++    } => Err(err) => assert_one_fails(err)
++}
