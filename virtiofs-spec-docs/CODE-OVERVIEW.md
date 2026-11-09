@@ -103,7 +103,7 @@ In `virtiofs/src/microvm/` and `aggregate.rs`, about 6,000 lines:
 - **Little concurrency in the microVM.** It has two queues, the
   high-priority queue and one request queue (`MICROVM_REQUEST_QUEUES = 1`,
   `microvm/profile.rs`), and each has a worker; both workers run on one
-  thread, so requests are handled one at a time ("every request runs
+  thread, so requests are handled one at a time ("Every request runs
   alone", below). The one place where two things meet is a save
   against running requests: each request first takes a `RequestGuard`
   from an admission gate (`self.admission.accept()`), and a save closes
@@ -125,26 +125,14 @@ In `virtiofs/src/microvm/` and `aggregate.rs`, about 6,000 lines:
 
 ## Lock invariants the spec needs (proposed)
 
-The guest's state is behind those locks, and Verus knows what a lock holds
-only through its invariant, so properties 1-3 need one per lock:
+The guest's state is behind locks, and Verus knows what a lock holds only
+through its rule (its invariant), so each lock gets one:
 
-- **`VirtioFs.inodes: RwLock<InodeMap>`**: the lock holds, next to the
-  table, the other piece of the ghost `nodes` map (step 2 of the plan,
-  below), and its rule says that the table's entries are the map's.
-- **Each inode's `path: RwLock<PathBuf>`**: the lock's rule says that next
-  to the path, the lock holds one ghost piece, `PointsTo(node -> path)`,
-  for this inode's node id. The request being handled holds the other
-  piece, the `GhostMapAuth` of the whole `paths` map (lent to it by a
-  trusted wrapper, below). Changing a path needs both pieces, so the path
-  in the lock always equals `paths[node]` in the `Auth`. The root inode is
-  the exception: its path is always empty, and its lock's rule says just
-  that ("Removed inodes and node ids", below). See "Knowing an inode's
-  path" below (agreed 2026-11-09).
-- **Each inode's `aliases`**: the same, for the set of every name the code
-  knows for the inode (its main path among them; hard links add more).
-- **`VirtioFs.files: RwLock<HandleMap<...>>`**: the same, with the ghost
-  `handles` map.
-- **Each file's `file: RwLock<LxFile>`**: no rule for integrity (the
+- **The inode table (`inodes`), each inode's `path` and `aliases`, and the
+  file table (`files`)**: each holds a piece of the ghost state, and its
+  rule says that its data matches that piece ("The guest's state in the
+  spec", below).
+- **Each open file's `file: RwLock<LxFile>`**: no rule for integrity (the
   handle's entry in `handles` says whether it was opened for writing);
   what confinement needs of it is to decide when we work on confinement.
 - **The session's locks and `negotiation`**: what was agreed with the guest
@@ -152,11 +140,9 @@ only through its invariant, so properties 1-3 need one per lock:
 
 What makes this simpler than the snapshot spec: a share's policy never
 changes once its volume is created (when the device is built, or by the
-restore that attaches a share to a dormant device), so each invariant can mention it without
-depending on another lock (one invariant per lock, about that lock's own
-content); and requests run one at a time ("every request runs alone",
-below; the admission gate between save and requests is the main
-exception).
+restore that attaches a share to a dormant device), and requests run one
+at a time ("Every request runs alone", below; the admission gate between
+save and requests is the main exception).
 
 The locks: vstd's own verified `RwLock<V, Pred>` (`vstd/rwlock.rs`),
 replacing `parking_lot::RwLock` where a lock needs an invariant (decided
@@ -171,29 +157,109 @@ an explicit `release_write` / `release_read`, not when dropped, and Verus
 does not check that they are, and the call sites of `get_path()` (about
 20) change to that form. Each is an entry in `CODE-CHANGES.md`.
 
-## Knowing an inode's path: the ghost `paths` map (agreed 2026-11-09)
+## The guest's state in the spec: real data and ghost state (agreed 2026-11-09)
 
-**The problem.** The guest names a directory by its node id, not by its
-path: "create `x` in node 7". The integrity rule for `create` is about the
-path, node 7's path + `x`: if it is not writable, `create` returns an
-error; if `create` succeeds, it was writable. Node 7's path is in its
-inode's `path` lock, and a contract cannot mention what a lock holds:
-Verus knows a lock's content only through its rule, and only while
-holding the lock; the handlers take `&self` and hold no lock at their
-start or end. The code also reads it twice:
-the FUSE handler `create` (`lib.rs:289`) computes `/a/x` with `child_path`
-and checks it (`check_writable_entry`), and then `VirtioFsInode::create`
-(`inode.rs:327`) computes it again with `child_path` and hands that copy
-to the host. The proof must know that both reads give the same path.
+**The real data.** One `VirtioFs` is the whole filesystem the guest sees
+(one share, or, in an aggregate, several shares under a synthetic root).
+It owns one inode table and one file table, shared by all its shares:
 
-**Why they do, in the microVM: every request runs alone** (checked
-2026-11-09). The microVM has two queues, and both run the same worker
-code: `start_queue` creates the same `VirtioFsWorker` for each
-(`virtio.rs:300-353`), and each dispatches whatever request it finds.
-Nothing makes the high-priority queue take only `FORGET`: the guest
-chooses the queue, so a malicious guest can send a `rename` on it. But the
-two workers are tasks on one thread, and a request runs to its end before
-the thread switches tasks:
+```
+VirtioFs.inner
+├── inodes: RwLock<InodeMap>               lock 1: the whole inode table
+│     node id -> VirtioFsInode
+│       ├── path:    RwLock<PathBuf>             lock 2, one per inode: its main path
+│       ├── aliases: RwLock<BTreeSet<PathBuf>>   lock 3, one per inode: every name
+│       │                                        the code knows (the main path among
+│       │                                        them; hard links add more)
+│       └── inode_nr, file_type, volume          plain fields, set when the inode
+│                                                is made, never changed
+└── files: RwLock<HandleMap<...>>          lock 4: the whole file table
+      handle -> VirtioFsFile (its inode, how it was opened, ...)
+```
+
+An inode's `volume` (`Arc<VirtioFsVolume>`) is its share: the shared host
+directory, with the share's id, `readonly` flag and `policy`. All its
+fields are plain, and none changes after the volume is created. Node ids
+are unique across all shares (`InodeMap`).
+
+**Why the spec needs ghost state.** The handlers take `&self`, and a
+contract cannot mention what a lock holds: Verus knows a lock's content
+only through its rule, and only while holding the lock, and a handler
+holds no lock at its start or end. So the spec keeps a ghost copy of what
+is behind the locks, split into pieces so that it always matches the real
+data.
+
+**The ghost state: one map per kind of lock.** For each, one piece is for
+the whole map, and the rest sit where the code protects the data:
+
+| Ghost map | Key -> value | Mirrors | Kind | Pieces |
+|---|---|---|---|---|
+| `nodes` | node id -> the node's host object (device, inode number), kind (file, directory, symlink), and its share's write rule | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `FuseGhost` |
+| `paths` | node id -> main path | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `FuseGhost`; inode n's `PointsTo` in inode n's lock 2 |
+| `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `FuseGhost`; inode n's `PointsTo` in inode n's lock 3 |
+| `handles` | handle -> its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `FuseGhost` |
+
+`GhostMapAuth` + `PointsTo` is used only where each entry has its own
+lock: the `Auth` is like a collection of half permissions, one per entry,
+so its holder can read the whole map, and changing entry n also needs
+entry n's `PointsTo` (`vstd/resource/impls/map.rs`: `insert` adds an entry
+and returns its `PointsTo`; `agree` shows that a `PointsTo` and the `Auth`
+agree; `update` changes an entry with both). Where the whole map is under
+one lock, a `FracGhost` in two halves is enough.
+
+`FuseGhost` is the bundle of the four whole-map pieces. Its type is in the
+`fuse` crate, since the `Fuse` trait's methods take it (decided
+2026-11-09): its contents are FUSE ideas (node ids, paths, names,
+handles), and a share's write rule is held as a plain set of paths, since
+the `fuse` crate cannot name virtiofs's policy type. Its view is
+`FuseGhostView`, the four maps.
+
+**What a `nodes` entry holds.** Node n's host object and kind, from the
+inode's plain fields, and its share's **write rule**: the set of paths the
+guest may write in that share, `{p | !readonly && policy@.can_write(p)}` of
+the inode's `volume`. All are set once, when the inode is added to the
+table, and never change. "Is node n's path + `x` writable?" and "are all of
+node n's names writable?" are then spec functions of the write rule and of
+`paths[n]` and `aliases[n]`. The root is the exception for paths and
+names: its path is always empty and its only name is that path, so it has
+no `PointsTo`, and its locks' rules say just that ("Removed inodes and
+node ids", below); the spec's path of a node is the empty path for the root
+and `paths[n]` for any other node, and likewise for its names.
+
+**How the ghost state keeps matching.** Each lock's rule says that the
+real data in it matches the ghost piece in it (the path in inode n's lock 2
+is `paths[n]`, the table in lock 1 is `nodes`, ...). When the code changes
+data under a lock, the proof changes the ghost value at the same moment:
+it takes the lock's piece out, updates the value with both pieces (the
+lock's and the one in `FuseGhost`), and puts the piece back before the
+lock is released, when Verus checks the rule. E.g. `lookup` adds inode 7 to
+the table, and the proof adds 7 to `nodes` (with its write rule) and to
+`paths` and `aliases` (whose new `PointsTo`s go into inode 7's locks);
+`rename` changes the path of every inode at or below the old name
+(`rename_alias_prefix`), each under its own lock 2 and 3, and the proof
+updates each one's `paths` and `aliases` entries.
+
+The ids pin the pieces (LESSONS F): each lock's rule, given when the lock
+is created (`RwLock::new(val, Ghost(pred))`), names its piece's id. The
+current ids of the `paths` and `aliases` maps are recorded in the `nodes`
+value (in lock 1), and lock 1's rule says that every inode in the table,
+but the root, pins those ids; so `DESTROY`, which starts fresh maps,
+updates the recorded ids under lock 1's write lock ("Removed inodes and
+node ids", below). (`VirtioFsInner::wf()` cannot say any of this: the
+table is behind its lock.)
+
+**Every request runs alone, in the microVM** (checked 2026-11-09). This is
+what lets a request trust `FuseGhost` for its whole length, and why the
+two reads of a path in `create` agree: the FUSE handler `create`
+(`lib.rs:289`) computes node 7's path + `x` with `child_path` and checks it
+(`check_writable_entry`), and then `VirtioFsInode::create`
+(`inode.rs:327`) computes it again and hands that copy to the host. The
+microVM has two queues, and both run the same worker code: `start_queue`
+creates the same `VirtioFsWorker` for each (`virtio.rs:300-353`), and each
+dispatches whatever request it finds. Nothing makes the high-priority
+queue take only `FORGET`: the guest chooses the queue, so a malicious
+guest can send a `rename` on it. But the two workers are tasks on one
+thread, and a request runs to its end before the thread switches tasks:
 
 - The VM worker creates one thread for devices (`new_device_thread`,
   `openvmm_core/src/worker/dispatch.rs:195`) and gives its executor to
@@ -204,76 +270,56 @@ the thread switches tasks:
 - `process_virtiofs_request` is a plain function, not an `async fn`
   (`virtio.rs:443, 459`), so there is no `await` in a request.
 
-So nothing renames node 7 while `create` runs, whichever queue each came
-on. (Upstream, with several request workers, a rename can run between the
-two reads; it is harmless there only because upstream has no per-path
-rules, just a read-only flag for the whole volume.)
+(Upstream, with several request workers, a rename can run between the two
+reads; it is harmless there only because upstream has no per-path rules,
+just a read-only flag for the whole volume.)
 
-**How Verus learns it: vstd's `GhostMapAuth` and `GhostPointsTo`**
-(`vstd/resource/impls/map.rs`).
+**Why the request holds the whole-map pieces, and the locks keep the
+others** (decided 2026-11-09).
 
-*The idea.* A `GhostMapAuth` is like a collection of half permissions, one
-for every entry in the map. Whoever owns it can read the whole map. To
-update an entry, it also needs the other half for that entry, a
-`GhostPointsTo` (key -> value). Each piece has an id, and every operation
-requires the ids to match; that id is what the spec pins.
+- *In the microVM, the locks protect nothing*: no two requests overlap, so
+  no lock is ever contended (they are there for upstream's several
+  workers). But the data is inside them: the inodes are shared (`Arc`,
+  `&self`), so the code reaches a path only through its lock. So the proof
+  needs a link between what the code reads from a lock and the ghost
+  state; that is the only job of the locks' rules and their ghost pieces
+  here. The link is **checked**: each lock holds its piece, and Verus
+  checks at every release that the data matches it. (The other way, a
+  trusted promise that whatever the code reads from a lock is what the
+  ghost state says, needs no pieces, but Verus would no longer check that
+  the ghost state follows the code's writes; rejected, since the checked
+  way covers more.)
+- *The request holds the `Auth`s (and the table halves) for its whole
+  length, not only while it holds a lock.* Handing them out only with a
+  lock (e.g. keeping the `paths` `Auth` in the inode table's lock, which
+  the code holds for most path changes: `lookup`, `rename`, `unlink`; not
+  `link`, `lib.rs:429`) would be the ideal, but does not work, for two
+  reasons. A contract must name node 7's path at the start and end of a
+  call, when the handler holds no lock. And the code itself relies on
+  running sequentially: in `create`, the FUSE handler reads node 7's path
+  (copy 1, `lib.rs:301`) and checks it, releases the lock, and then
+  `VirtioFsInode::create` reads it again (copy 2, `inode.rs:336`) and hands
+  it to the host; between the two reads no lock is held, and the two are
+  equal only because nothing else runs in between. With the `Auth` only
+  under a lock, the proof could not show copy 1 == copy 2, and rightly so.
+  So the wrapper's assumption ("How a request gets the ghost state",
+  below) is what this design rests on.
 
-*The operations used here:*
-
-| Operation | What it does | Used when |
-|---|---|---|
-| `auth.insert(n, p)` | adds key `n`, which must be new, and returns `PointsTo(n -> p)` | a new inode (`lookup`, `create`, ...): the `PointsTo` goes into its lock |
-| `points_to.agree(&auth)` | proves `auth@[n] == p` | a handler opens n's lock: its path is the map's |
-| `points_to.update(&mut auth, q)` | changes entry `n` to `q` in both pieces | `rename` (and `unlink`, when an inode's main path is removed and it switches to one of its aliases), with n's lock taken for writing: for each inode whose path is at or below the old name, one at a time, since `rename` rewrites them all (`rename_alias_prefix`) |
-
-*Applied to the inodes.* A ghost map `paths`, node id -> path, is split
-into pieces:
-
-| Piece | Says | Where it is |
-|---|---|---|
-| `GhostMapAuth` | the whole map | kept by a trusted wrapper for the device thread, and lent to one request at a time (below) |
-| `GhostPointsTo(n -> p)` | node n's path is p | inside inode n's `path` lock, with the path |
-
-- Changing node n's path needs both the `Auth` and n's `PointsTo`, which
-  only a writer of n's lock can take out. Only the request being handled
-  has the `Auth`, so only it can change a path.
-- While a request holds the `Auth`, `paths[n]` is node n's path,
-  without holding n's lock. So the spec of `create` can say "let p =
-  `paths[7]` + `x`".
-- `FORGET` takes n's lock only for reading, to read the concrete path
-  (`dedup_key`), so it cannot take n's `PointsTo` out, and does not change
-  the path.
-- The lock's rule pins the ids (LESSONS F): "holds `PointsTo(node ->
-  path@)`, for this inode's node id and the `Auth`'s map id", both given
-  as the lock's ghost rule when it is created. The current ids of the
-  `paths` and `aliases` maps are recorded in the ghost `nodes` map's value
-  (in the inode table's lock), and the table lock's rule says that every
-  inode in the table, but the root, pins those ids. So `DESTROY`, which
-  starts fresh maps, updates the recorded ids under the table's write lock
-  (`VirtioFsInner::wf()` cannot say any of this: the table is behind its
-  lock).
-
-The same pattern as `FracGhost` (the pieces together are needed to change
-the value, so a holder of one piece can trust it), packaged for a map:
-one `Auth` for all inodes, with one id, instead of one `FracGhost` per
-inode.
-
-**The contracts it allows.** Every FUSE handler takes the ghost state
-(with the `Auth`) as a tracked argument, passed down from
-`process_virtiofs_request` through the FUSE dispatch (below). For the ones
+**The contracts it allows.** Every FUSE handler takes the ghost state,
+`Tracked(g): Tracked<&mut FuseGhost>`, passed down from
+`process_virtiofs_request` through the FUSE dispatch (below). The ones
 that change names (`create`, `mkdir`, `mknod`, `symlink`, `unlink`,
-`rmdir`, `rename`, `link`): For `create` of `name` in node `n`, with p = `paths[n]` + `name`,
-and "writable" meaning `!read_only && policy@.can_write(p)`: if p is not
-writable, it returns an error, and the ghost state is unchanged; if it
-succeeds, p was writable. Each also says how the ghost state changes:
+`rmdir`, `rename`, `link`) follow one rule; for `create` of `name` in node
+`n`, with p = node n's path + `name`: if p is not in node n's write rule,
+it returns an error, and the ghost state is unchanged; if it succeeds, p
+was in it. Each also says how the ghost state changes:
 `create`, `mkdir`, `mknod` and `symlink` add a node; `link` adds a name to
 `aliases`; `unlink`, `rmdir` and `rename` remove or change entries of
 `paths` and `aliases`.
 
 **How a request gets the ghost state: a trusted wrapper (agreed
 2026-11-09).** The device thread owns the ghost state of the filesystem,
-`FsGhost` (step 2 of the plan, below): the `paths` `Auth` and the pieces
-of the other ghost maps. It lends it to the request it runs.
+`FuseGhost` (above), and lends it to the request it runs.
 The thread's executor (`pal_async`'s `DefaultPool`) is external, so, as
 with the RPC code in the snapshot spec, a trusted wrapper states it, in a
 `_t.rs` file: `with_fs_ghost(fs, f)`, called in one place only,
@@ -291,7 +337,7 @@ contract:
 3. **What it assumes** (trusted, not checked; written at the top of the
    `_t.rs` file and in the trusted list):
    - two calls never overlap: both queue tasks run on the device thread,
-     and `process_virtiofs_request` has no `await` (see "every request
+     and `process_virtiofs_request` has no `await` (see "Every request
      runs alone" above). This breaks if virtio-fs gets a driver of its own
      (a target CPU) or several threads, or if request handling becomes
      `async`;
@@ -313,7 +359,7 @@ the request as its caller (`owner.rs:101`), `fuse::Session::dispatch`
   (`trait Fuse<G>`).
 - `run_as`'s `&mut dyn FnMut()` (`owner.rs:128`) is refused, and so is a
   closure that captures a `&mut` to the ghost state; a generic closure
-  that takes it as an argument (`FnOnce(Tracked<&mut FsGhost>)`) works.
+  that takes it as an argument (`FnOnce(Tracked<&mut FuseGhost>)`) works.
 
 So the chain is feasible, with code changes in the `fuse` crate (the trait
 and `Session`) and in `run_as`; each is an entry in `CODE-CHANGES.md`.
@@ -374,13 +420,9 @@ all of them.
   `readonly()`, `inode.rs:186`); and `link` refuses to add a name to a
   read-only file (`lib.rs:421-426`), so that no new name makes a read-only
   file writable.
-- **The aliases in the spec: the same pattern as the paths.** Each inode's
-  `aliases` is also a lock, written only while a request is handled (`lookup`
-  and `link` add a name, `rename` and `unlink` change or remove names:
-  `inode.rs:238, 504, 509, 521, 546`, `microvm/inode.rs:141`). So a second
-  ghost map, `aliases`, node id -> set of names, is split the same way:
-  its `Auth` in the ghost state lent to the request being handled, each
-  inode's `PointsTo` inside its `aliases` lock. The spec can then say "every name of node 7".
+- **In the spec**: "every name of node n is writable" is a spec function of
+  node n's write rule and `aliases[n]` ("The guest's state in the spec"
+  above).
 - **The code knows only the names the guest reached**, by `lookup` or by
   its own `link`; it never asks the host for a file's other names
   (`policy_permits_writes`'s comment: "every path that it knows for the
@@ -526,7 +568,7 @@ queue's worker:
    `FORGET`, `BATCH_FORGET` and `INTERRUPT`, but it dispatches any request,
    and a malicious guest can send it any. It runs on the same thread as the
    request queue's worker, and a request runs to its end, so the two never
-   overlap (see "every request runs alone" above).
+   overlap (see "Every request runs alone" above).
 2. **Other request workers.** Not in the microVM, which has one request
    queue.
    Upstream OpenVMM can have several (by default two, at most eight), which
@@ -572,97 +614,33 @@ conditions:
    closed spec functions `visibility(p)` (visible, traverse-only, hidden)
    and `can_write(p)`, written from the policy's documentation and then
    compared with the code. `SubtreePolicy::new`'s checks become its `wf()`.
-2. **The filesystem's state, as ghost state lent to each request**
-   (revised 2026-11-09). What the guest holds is behind locks (the inode
-   table, each inode's path and aliases, the file table), and the handlers
-   take `&self`, so it cannot be a view of `VirtioFs`: a contract through
-   `&self` cannot say what a call changed, and cannot see inside a lock.
-   Instead it is ghost state, `FsGhost`, which the trusted wrapper keeps
-   and lends to each request (`Tracked(&mut g)`, "How a request gets the
-   ghost state" above; the `paths` `Auth` is one part of it). Its value,
-   `FsState`, holds what the guest currently holds:
-   - `nodes`: for each node id in the inode table, the host object's
-     identity (device and inode number) and its kind (directory, file,
-     symlink). The whole table is behind one lock (`inodes:
-     RwLock<InodeMap>`), so the map is split in two halves
-     (`GhostVarAuth` / `GhostVar`): one in `FsGhost`, the other in the
-     table's lock, whose rule says that the table's entries are the map's.
-     An inode's identity and kind are plain fields, set when it is made
-     (`inode_nr`, `file_type`), not behind a lock.
-   - `paths` and `aliases`: each node's main path, and the set of every
-     name the code knows for it (the main path among them: a new inode
-     starts with `aliases = {path}`, `inode.rs:154-155`; hard links add
-     more), split as above, with each inode's `PointsTo` in its `path` and
-     `aliases` locks. A node that `FORGET` removed keeps its entries while
-     an open handle holds it ("Removed inodes and node ids" above).
-   - `handles`: for each handle the guest holds, its node, and whether it
-     was opened for writing; the file table (`files:
-     RwLock<HandleMap<...>>`, one lock) is split in two halves the same
-     way.
-   - Left out for now: the lookup counts (`lookup_count`, atomics; with
-     `atomic_with_ghost!` when a property needs them, such as limits).
-     Without them, `forget`'s contract can only say that it may remove the
-     node.
-
-   The policy is not in it: it is a plain field of `VirtioFsVolume`, not
-   behind a lock, and never changes once the volume is created, so a
-   contract reads it through `&self`.
-
-   A node says which file (from a lookup; enough to ask about the file,
-   rename it or delete it); a handle says an open file (from an open; reads
-   and writes go through it); one node can have several handles. Example,
-   after the guest looks up `work/a.txt` and opens it for writing:
-   `nodes: 5 -> { object: (dev 8, ino 4711), kind: file }`, `paths: 5 ->
-   work/a.txt`, `aliases: 5 -> {work/a.txt}`, `handles: 9 -> { node: 5, writable:
-   true }`.
-
-   The state changes with the guest's requests: `open` and `opendir` add a
-   handle, `release` and `releasedir` remove it; `lookup` adds a node;
-   `forget` may remove one (when its count reaches zero); `create`, `mkdir`,
-   `mknod` and `symlink` add a node (`create` a handle too); `link` adds a
-   name; `unlink`, `rmdir` and `rename` remove or change names.
-
-   Whether a path is visible or writable depends only on the path and the
-   policy, so `FsState`'s invariant needs no host facts: every name in
-   `paths` and `aliases` is visible under the policy, or is a traverse-only
-   directory; no node's object is a denied identity; every handle opened
-   for writing belongs to a node whose names are all writable. That the
-   ghost state matches the real one is not in the invariant: it is the
-   locks' rules (each lock holds the other piece).
+2. **The guest's state as ghost state** (revised 2026-11-09): `FuseGhost`,
+   with its four maps (`nodes`, `paths`, `aliases`, `handles`), lent to
+   each request ("The guest's state in the spec", above). Example, after
+   the guest looks up `work/a.txt` and opens it for writing: `nodes: 5 -> {
+   object: (dev 8, ino 4711), kind: file, write rule: the share's }`,
+   `paths: 5 -> work/a.txt`, `aliases: 5 -> {work/a.txt}`, `handles: 9 -> {
+   node: 5, writable: true }`. It changes with the guest's requests: `open`
+   and `opendir` add a handle, `release` and `releasedir` remove it;
+   `lookup` adds a node; `forget` may remove one (when its count reaches
+   zero; the lookup counts, atomics, are left out for now, with
+   `atomic_with_ghost!` when a property needs them, such as limits);
+   `create`, `mkdir`, `mknod` and `symlink` add a node (`create` a handle
+   too); `link` adds a name; `unlink`, `rmdir` and `rename` remove or
+   change names. Its invariant needs no host facts, since whether a path is
+   writable depends only on the path and the write rule: every handle
+   opened for writing belongs to a node whose names are all in its write
+   rule.
 3. **The operations' contracts**, on the `Fuse` trait's operations, in terms
-   of `FsState`: `lookup` succeeds only for a name the guest may see and
-   returns that path's node; an operation that changes something succeeds
-   only on a path the guest may write; a traverse-only directory lists only
-   the entries that lead to allowed paths. Each handler takes the ghost
-   state, `Tracked(g): Tracked<&mut FsGhost>`, and requires that its ids
-   are the ones the locks pin. The conditions are spec functions of
-   `FsState`, and the contracts only call them. For `lookup`:
-
-   ```rust
-   impl FsState {
-       /// The path, in the share, of `name` in the directory `parent`.
-       closed spec fn child_path(self, parent: u64, name: Name) -> PathView;
-       /// The guest may reach `name` in `parent`: its path is visible under
-       /// the policy (or is a traverse-only directory), and `object` is not
-       /// a denied identity.
-       closed spec fn may_look_up(self, policy: SubtreePolicyView, parent: u64, name: Name, object: HostObject) -> bool;
-       /// The state after a lookup of `name` in `parent` returned `node`,
-       /// for `object`: `node` is `object`'s node, with the child's path
-       /// among its names.
-       closed spec fn after_lookup(self, parent: u64, name: Name, node: u64, object: HostObject) -> FsState;
-   }
-   ```
-
-   and the contract: on `Ok(entry)`, with `object` the host object the
-   lookup reached, `old(g)@.may_look_up(policy, parent, name, object)` and
-   `final(g)@ == old(g)@.after_lookup(parent, name, entry.node_id,
-   object)`; on `Err`, `final(g)@ == old(g)@`; and the invariant before
-   and after. The code's checks (traverse-only filtering, the
-   denied-identity check, ...) are not in the contract: they are how the
-   code meets it. The policy's own functions, `visibility(p)` and
-   `can_write(p)`, stay on `SubtreePolicyView` (step 1), and `may_look_up`
-   calls them. How the contract knows `object`, the host object at the
-   looked-up path, is to decide when we work on confidentiality.
+   of `FuseGhostView`: an operation that changes something succeeds only on
+   a path the guest may write ("The contracts it allows", above); `lookup`
+   succeeds only for a name the guest may see and returns that path's node;
+   a traverse-only directory lists only the entries that lead to allowed
+   paths. The code's checks are not in the contracts: they are how the code
+   meets them. For confidentiality (`lookup`, listings), each `nodes` entry
+   will also need its share's visibility rule, in the same way as its write
+   rule, and the contract needs to know which host object a path leads to;
+   both are to decide when we work on confidentiality.
 
    **Down to the host** (revised 2026-11-09): layer 3's operations are
    proved against the contracts of the `LxVolume` methods they call, and
@@ -707,7 +685,7 @@ session's state (layer 2, `SessionState`) and the filesystem's saved state
 the policy), and `save_device` / `restore_device` get contracts on
 `VirtioDevice` (layer 0's plan above): after a restore, the device's state
 is the one that was saved. Open, for when we work on snapshots: the
-guest-visible state is ghost state (`FsGhost`, kept by the trusted
+guest-visible state is ghost state (`FuseGhost`, kept by the trusted
 wrapper), not a view of the device, and a restore rebuilds the inodes and
 their locks, so how a restore's contract states it, and how the wrapper
 takes the restored ghost state, is still to work out.
