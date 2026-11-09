@@ -237,14 +237,29 @@ inode.
 (`create`, `mkdir`, `mknod`, `symlink`, `unlink`, `rename`, `link`) take
 the `Auth` as a tracked argument, passed down from the request worker's
 loop through the FUSE dispatch (ghost parameters on trait methods, patch
-0005). `may_change(p)` is the ghost field of `lxutil`'s `LxVolume`
-(agreed 2026-11-08): set once, right after the policy is attached, to
-`!read_only && policy@.can_write(p)`, and required by every `LxVolume`
-method that changes the host. For `create` of `name` in node `n`, with p =
-`paths[n]` + `name`:
-if p is not writable (`!may_change(p)`), it fails and changes nothing; if
-it succeeds, p was writable. `rename` and `unlink` also say how `paths`
-changes.
+0005). For `create` of `name` in node `n`, with p = `paths[n]` + `name`,
+and "writable" meaning `!read_only && policy@.can_write(p)`: if p is not
+writable, it fails and changes nothing; if it succeeds, p was writable.
+`rename` and `unlink` also say how `paths` changes.
+
+**Where the policy is, and where it is not (decided 2026-11-09).** The
+integrity rule is stated only at the FUSE handlers, as above. `lxutil` knows
+nothing of the policy: its contracts say only that each method does what
+its caller asks (`mkdir(p)` makes a directory at `p` and changes nothing
+else). This replaces the earlier design (2026-11-08) of a ghost field
+`may_change` in `LxVolume`, required by its changing methods; that field
+could not even be set once the policy was known, since `VirtioFsVolume::new`
+puts the `LxVolume` in an `Arc` before `new_with_strict_paths` attaches
+the policy (`inode.rs:65`, `microvm/inode.rs:32-34`). So `lxutil`'s
+contracts need a ghost view of the host share (which paths exist, and what
+kind each is), to say what a call changed.
+
+`lxutil`'s methods take the path as `impl AsRef<Path>` (anything that can be
+turned into a path: `&Path`, `PathBuf`, a string), and vstd has no spec of
+`as_ref`. Decided (2026-11-09): add a trusted fact to our vstd patch (for
+`&Path`, `PathBuf` and `&PathBuf`, `as_ref()` returns the same path),
+rather than change `lxutil` to take `&Path`, which would change every
+caller that passes a string (plan9 and many tests).
 
 **Removed inodes and node ids (decided 2026-11-09).**
 - `FORGET` removes inodes on the high-priority worker, which has no `Auth`,
@@ -303,9 +318,11 @@ all of them.
   read-only ones: to ask him whether that is intended.
 
 **Open, for later:**
-- "Nothing else on the host changed" (on success) needs a ghost view of the
-  share; until then the `may_change` requirement on `LxVolume`'s changing
-  methods carries it.
+- The host view is right only under the first-stage assumption, that the
+  host does not change the shared folder (see "First stage" below): with
+  it, the view changes only through OpenVMM's own calls. How to write a
+  view that the host changes between calls, when the assumption is
+  dropped, is still open.
 
 ## The theme of the spec: protecting the host from the guest
 
@@ -361,26 +378,17 @@ themes, which the spec covers. 5 is deferred.
    writable, and the guest cannot add a writable name to an object it may
    not write.
 
-   **"May write" goes by name, not by object** (decision (b), 2026-11-08,
-   to revisit after reading more code). The two differ only when the host
-   has hard-linked one file across the policy's boundary. Example: an
-   administrator links `/srv/data/tools/run` (read-only area) and
-   `/srv/data/work/run` (writable area), one file; the guest looks up only
-   `work/run` and writes to it. By object (reading (a)), the file is
-   read-only, because one of its paths is; by name (reading (b)), it is
-   writable, because the name the guest used is. The code does (b): a
-   change needs every name the guest has used for the object (its aliases)
-   to be writable. The guest itself cannot create such a link: linking an
-   object it may not write into a writable directory fails with `EXDEV`.
-   Reading (a) would need every host path to the file, which the code
-   cannot learn cheaply. Note the asymmetry: for hiding, the code goes by
-   object (denied identities, `CODE-OVERVIEW-DETAILS.md`, layer 3, change
-   3); for writing, by name.
+   **"May write" goes by name**: the names the code knows for an object
+   (decided 2026-11-08, settled 2026-11-09 by following the code; see
+   "Changes to a file itself, and its other names" above, with the
+   first-stage assumption about host hard links).
 
-   **When permission is judged** (agreed 2026-11-08). Other host processes
-   can change the share (rename, link, delete) at any time, without
-   OpenVMM knowing. So the spec does not assume that only OpenVMM changes
-   the share, and keeps no ghost copy of the host's namespace. Instead:
+   **When permission is judged** (agreed 2026-11-08), for the later stage
+   that drops the first-stage assumption (below). Other host processes can
+   change the share (rename, link, delete) at any time, without OpenVMM
+   knowing. Then the spec cannot assume that only OpenVMM changes the
+   share, nor keep a ghost copy of the host's namespace that only
+   OpenVMM's calls change. Instead:
    - Permission is judged when the guest **reaches an object by name**: at
      a lookup, an open, or a create. At that moment, the object is checked
      against the policy, under the namespace as it is then (the trusted
@@ -406,10 +414,13 @@ themes, which the spec covers. 5 is deferred.
 3. **Identity**: each operation runs as its caller, guest root is mapped,
    and nothing runs as OpenVMM.
 4. **Limits**: the caps are never exceeded.
-5. **The operations' meaning**: `rename` renames, `read` returns the file's
-   bytes, and so on. This rests on trusted facts about the host's
+5. **The operations' meaning**: `read` returns the file's bytes, `write`
+   replaces them, and so on. This rests on trusted facts about the host's
    filesystem. Deferred, read and write included (decided 2026-11-08): it
-   has nothing to do with Pedro's changes.
+   has nothing to do with Pedro's changes. What a call does to the share's
+   names (`mkdir(p)` makes a directory at `p`, `rename` moves an entry) is
+   not deferred: `lxutil`'s contracts state it, since the integrity rule
+   needs to know what a call changed ("Where the policy is" above).
 6. **Snapshots**: save records no host paths, and restore accepts only the
    same host objects.
 
@@ -482,8 +493,13 @@ queue's worker:
 The spec stays simple; the proof carries the concurrency reasoning (e.g.
 that `rename`'s update of the aliases keeps the inode table's rule).
 
-**First stage: assume that no other host process changes the shared
-folder** (agreed 2026-11-08). With this assumption, `LxVolume`'s view is the
+**First stage: assume that the host does not change the shared folder**
+(agreed 2026-11-08; the hard-link part added 2026-11-09). One assumption,
+with two parts: no other host process changes the shared folder while the
+device runs; and when the device starts, the folder has no hard link that
+joins a writable path and a visible read-only path (see "Changes to a file
+itself, and its other names" above: the guest cannot make such a link,
+only the host can). With this assumption, `LxVolume`'s view is the
 real tree of files, and it changes only through OpenVMM's own calls, so
 each host call's contract says exactly how it changes the view (after
 `rename(a, b)`, the object that was at `a` is at `b`), and the proof follows
@@ -491,8 +507,7 @@ the tree from call to call. This removes the open question of how to write
 a view that changes between calls. Two conditions:
 
 - **It is stated as an assumption**, in this document and later in the
-  trusted list, worded as "no other host process changes the shared folder
-  while the device runs", so that everyone can see which results depend on
+  trusted list, worded as above, so that everyone can see which results depend on
   it. It is not true in general: NVX itself relies on the host changing a
   share while the VM runs (its benchmark `virtfs_live_roundtrip`, in
   `nvx/doc/benchmarks.md`, has the guest observe a host rewrite).
@@ -502,13 +517,7 @@ a view that changes between calls. Two conditions:
   so its proof does not use the assumption, and still holds when the
   assumption is dropped.
 
-A second assumption of the same kind (agreed 2026-11-09): **no hard link on
-the host joins a writable path and a visible read-only path** of the share
-(see "Changes to a file itself, and its other names" above). Like the
-first, it is about what the host does, and it is stated where everyone can
-see it.
-
-A later stage drops these assumptions, using "When permission is judged"
+A later stage drops the assumption, using "When permission is judged"
 (B'), and checks which proofs break: exactly the places where a host-side
 change could matter.
 
