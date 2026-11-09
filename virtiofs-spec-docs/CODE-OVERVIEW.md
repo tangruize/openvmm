@@ -263,12 +263,49 @@ changes.
   "the path is empty". Inodes that `DESTROY` removed are no longer in the
   table, and the spec only speaks of the inodes in the table.
 
+**Changes to a file itself, and its other names (decided 2026-11-09).**
+Some requests change a name in a directory (`create`, `mkdir`, `mknod`,
+`symlink`, `unlink`, `rmdir`, `rename`): they need only that name to be
+writable. Others change the file itself, its contents or attributes
+(`set_attr`, `open` with truncate or write access, `set_xattr`,
+`remove_xattr`, and a handle's `write` and `set_attr`): a file can have
+several names (hard links), and a change through one name shows through
+all of them.
+
+- **The rule: every name the code knows for the file must be writable.**
+  This is the rule the code follows: an inode is read-only unless the
+  policy lets the guest write through its main path and every one of its
+  aliases (`policy_permits_writes`, `microvm/inode.rs:166-179`, used by
+  `readonly()`, `inode.rs:186`); and `link` refuses to add a name to a
+  read-only file (`lib.rs:421-426`), so that no new name makes a read-only
+  file writable.
+- **The aliases in the spec: the same pattern as the paths.** Each inode's
+  `aliases` is also a lock, written only by the request worker (`lookup`
+  and `link` add a name, `rename` and `unlink` change or remove names:
+  `inode.rs:238, 504, 509, 521, 546`, `microvm/inode.rs:141`). So a second
+  ghost map, node id -> set of names, is split the same way: the `Auth`
+  with the request worker, each inode's `PointsTo` inside its `aliases`
+  lock. The spec can then say "every name of node 7".
+- **The code knows only the names the guest reached**, by `lookup` or by
+  its own `link`; it never asks the host for a file's other names
+  (`policy_permits_writes`'s comment: "every path that it knows for the
+  object"). So a hard link that the host made is not covered. Example: a
+  hard link on the host makes `/a/x` and `/b/y` two names of one file (not
+  two copies: a write through either name changes what both show); `/a` is
+  writable, `/b` is visible but read-only; the guest looks up only `/a/x`,
+  so the code knows only that name, finds it writable, and allows a write,
+  which changes `/b/y` too. The guest cannot set this up itself (its `link`
+  is refused), only the host can; so it falls under the theme of setting
+  aside what the host does, and the spec states it as an assumption (see
+  the first stage below). Pedro's code handles the like case for hidden
+  paths (`pinned_paths`, `microvm/policy.rs:265-270`, pins the objects of
+  denied paths by identity, so that no hard link shows them), but not for
+  read-only ones: to ask him whether that is intended.
+
 **Open, for later:**
 - "Nothing else on the host changed" (on success) needs a ghost view of the
   share; until then the `may_change` requirement on `LxVolume`'s changing
   methods carries it.
-- Changes to a file itself (kind 2), which need all of its names, and
-  `link`.
 
 ## The theme of the spec: protecting the host from the guest
 
@@ -465,7 +502,13 @@ a view that changes between calls. Two conditions:
   so its proof does not use the assumption, and still holds when the
   assumption is dropped.
 
-A later stage drops the assumption, using "When permission is judged"
+A second assumption of the same kind (agreed 2026-11-09): **no hard link on
+the host joins a writable path and a visible read-only path** of the share
+(see "Changes to a file itself, and its other names" above). Like the
+first, it is about what the host does, and it is stated where everyone can
+see it.
+
+A later stage drops these assumptions, using "When permission is judged"
 (B'), and checks which proofs break: exactly the places where a host-side
 change could matter.
 
@@ -555,14 +598,6 @@ change could matter.
    what each does to the tree (e.g. `renameat2` moves an entry, `openat2`
    with these flags resolves only beneath the root). So `LxVolume`'s view
    is what ties the spec to the host's filesystem.
-
-   **Open, to decide later**: other host processes can change the share's
-   tree between two calls, without OpenVMM ("When permission is judged"),
-   so the volume's view can change even when OpenVMM does not call it.
-   Each `LxVolume` method's contract describes the tree at the moment of its
-   own call, and nothing promises that it stays the same between calls; how
-   to write that in Verus (the view of an object that changes outside our
-   code's calls) is still to work out.
 
 Confinement and the caller's identity then build on step 3, with trusted
 facts about the host's `openat2` and credentials.
