@@ -149,34 +149,58 @@ impl SubtreePolicy {
     }
 
     /// Returns the denied paths.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result@.map_values(|p: PathBuf| p@).to_set() == self@.denied,
+    ))]
     pub(crate) fn denied_paths(&self) -> &[PathBuf] {
         &self.denied
     }
 
     /// Returns the allowed paths.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result@.map_values(|p: PathBuf| p@).to_set() == self@.allowed,
+    ))]
     pub(crate) fn allowed_paths(&self) -> &[PathBuf] {
         &self.allowed
     }
 
     /// Returns the writable paths; none means that a read-write share is
     /// writable everywhere that the guest can see.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result@.map_values(|p: PathBuf| p@).to_set() == self@.writable,
+    ))]
     pub(crate) fn writable_paths(&self) -> &[PathBuf] {
         &self.writable
     }
 
     /// Returns the rule of the nearest denied or allowed path that contains
     /// `path`, other than `path` itself.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result == (if path@.len() == 0 { None } else { self@.nearest_rule(path@.drop_last()) }),
+    ))]
     fn enclosing_rule(&self, path: &Path) -> Option<Rule> {
         self.nearest_rule(path, false)
     }
 
     /// Returns the rule of the nearest denied or allowed path that contains
     /// `path`, including `path` itself when `inclusive`.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result == (if inclusive { self@.nearest_rule(path@) } else if path@.len() == 0 { None } else { self@.nearest_rule(path@.drop_last()) }),
+    ))]
     fn nearest_rule(&self, path: &Path, inclusive: bool) -> Option<Rule> {
         self.denied
             .iter()
@@ -229,7 +253,11 @@ impl SubtreePolicy {
 
     /// Returns whether some path that the guest can reach is not writable in a
     /// read-write share, so that each modification must check its paths.
-    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        ensures
+            result == (!self@.allowed.is_empty() || !self@.writable.is_empty()),
+    ))]
     pub(crate) fn restricts_writes(&self) -> bool {
         !self.allowed.is_empty() || !self.writable.is_empty()
     }

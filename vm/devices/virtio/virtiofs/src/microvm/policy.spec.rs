@@ -35,7 +35,7 @@ impl SubtreePolicyView {
     /// The kind of the nearest rule containing `p`: walk up from `p` toward
     /// the share's root; the first path on the way (`p` itself included)
     /// that is in the denied or the allowed list decides. `None` if none is.
-    closed spec fn nearest_rule(self, p: PathView) -> Option<Rule> {
+    pub(super) closed spec fn nearest_rule(self, p: PathView) -> Option<Rule> {
         self.first_rule_upward(p, p.len() as int)
     }
 
