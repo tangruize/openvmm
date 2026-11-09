@@ -303,6 +303,55 @@ extended, not replaced.
   interrupt-status word (`CODE-OVERVIEW-DETAILS.md`, "What this means for
   the spec").
 
+**Concurrency: what can run at the same time as a request** (discussed
+2026-11-08). Four sources, for a request such as `rename` on the request
+queue's worker:
+
+1. **The high-priority queue's worker.** It handles only `FORGET`,
+   `BATCH_FORGET` and `INTERRUPT`: it lowers nodes' reference counts and
+   removes a node from the inode table when its count reaches zero. It never
+   changes an inode's path, and an operation that already took its own
+   reference to an inode (`get_inode`'s `Arc`) keeps that inode alive. The
+   microVM has it, so the spec considers it.
+2. **Other request workers.** Not in the microVM, which has one request
+   queue, so `lookup`, `rename`, `create` and the rest run one at a time.
+   Upstream OpenVMM can have several (by default two, at most eight), which
+   is why `VirtioFsInner` has so many `RwLock`s. Open: whether the spec
+   covers only the microVM's case or upstream's too.
+3. **Other host processes,** which can change the shared folder at any time
+   without OpenVMM knowing. See the first stage below.
+4. **Save and restore.** They run only with the admission gate closed, no
+   request in flight, and the queues stopped, so never during a request.
+   The security properties do not need to consider them; the snapshot
+   properties do, in the style of the snapshot spec.
+
+The spec stays simple; the proof carries the concurrency reasoning (e.g.
+that `rename`'s update of the aliases keeps the inode table's rule).
+
+**First stage: assume that no other host process changes the shared
+folder** (agreed 2026-11-08). With this assumption, `LxVolume`'s view is the
+real tree of files, and it changes only through OpenVMM's own calls, so
+each host call's contract says exactly how it changes the view (after
+`rename(a, b)`, the object that was at `a` is at `b`), and the proof follows
+the tree from call to call. This removes the open question of how to write
+a view that changes between calls. Two conditions:
+
+- **It is stated as an assumption**, in this document and later in the
+  trusted list, worded as "no other host process changes the shared folder
+  while the device runs", so that everyone can see which results depend on
+  it. It is not true in general: NVX itself relies on the host changing a
+  share while the VM runs (its benchmark `virtfs_live_roundtrip`, in
+  `nvx/doc/benchmarks.md`, has the guest observe a host rewrite).
+- **The parts that do not need it stay independent of it.** Confinement
+  rests on `openat2` refusing anything outside the share's root, which the
+  host's kernel guarantees even while other processes change the folder,
+  so its proof does not use the assumption, and still holds when the
+  assumption is dropped.
+
+A later stage drops the assumption, using "When permission is judged"
+(B'), and checks which proofs break: exactly the places where a host-side
+change could matter.
+
 **virtio-fs's layers.** Three steps, from the bottom:
 
 1. **The policy as an abstract model.** `SubtreePolicy` gets a view,
