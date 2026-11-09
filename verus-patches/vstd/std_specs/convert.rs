@@ -187,3 +187,46 @@ impl_int_try_from_spec! { i32 => [u8 u16 u32 u64 u128 i8 i16 usize isize] }
 impl_int_try_from_spec! { i64 => [u8 u16 u32 u64 u128 i8 i16 i32 usize isize] }
 impl_int_try_from_spec! { i128 => [u8 u16 u32 u64 u128 i8 i16 i32 i64 usize isize] }
 impl_int_try_from_spec! { isize => [u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 usize] }
+
+// `AsRef` (OpenVMM's patch vstd-0004): a spec-mode model of `as_ref`, in the
+// style of `From` above, so that a contract of a function taking
+// `impl AsRef<T>` can name what the argument refers to.
+verus! {
+
+#[verifier::external_trait_specification]
+#[verifier::external_trait_extension(AsRefSpec via AsRefSpecImpl)]
+pub trait ExAsRef<T: core::marker::PointeeSized>: core::marker::PointeeSized {
+    type ExternalTraitSpecificationFor: core::convert::AsRef<T>;
+
+    /// Whether `as_ref` follows `as_ref_spec`, for this type.
+    spec fn obeys_as_ref_spec() -> bool;
+
+    /// What `as_ref` returns.
+    spec fn as_ref_spec(&self) -> &T;
+
+    fn as_ref(&self) -> (ret: &T)
+        ensures
+            Self::obeys_as_ref_spec() ==> ret == self.as_ref_spec(),
+    ;
+}
+
+/// A reference refers to what its target refers to (std's
+/// `impl AsRef<U> for &T where T: AsRef<U>`).
+impl<'a, T: core::marker::PointeeSized + core::convert::AsRef<U>, U: core::marker::PointeeSized> AsRefSpecImpl<U> for &'a T {
+    open spec fn obeys_as_ref_spec() -> bool {
+        T::obeys_as_ref_spec()
+    }
+
+    open spec fn as_ref_spec(&self) -> &U {
+        (**self).as_ref_spec()
+    }
+}
+
+pub assume_specification<'a, 'b, T: core::marker::PointeeSized + core::convert::AsRef<U>, U: core::marker::PointeeSized>[ <&'a T as core::convert::AsRef<U>>::as_ref ](
+    x: &'b &'a T,
+) -> (ret: &'b U)
+    ensures
+        T::obeys_as_ref_spec() ==> ret == (**x).as_ref_spec(),
+;
+
+} // verus!

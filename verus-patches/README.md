@@ -10,6 +10,7 @@ This directory holds two kinds of patch:
 | `vstd-0001-arc-unsized-view.patch` | **`vstd` `=0.0.0-2026-10-04-0306`** (`source/vstd/view.rs` in the Verus tree) | `Arc<T>`'s `View` and `DeepView` for unsized `T` (e.g. `Arc<str>`); this branch uses the patched copy in `verus-patches/vstd` (see "vstd patches" below) |
 | `vstd-0002-allow-warnings.patch` | the same (`source/vstd/vstd.rs`) | `#![allow(warnings)]`: silences vstd's lint warnings, which show now that it is a path dependency |
 | `vstd-0003-path-view.patch` | the same (`source/vstd/std_specs/path.rs`, new, and `std_specs/mod.rs`) | `std::path::Path` and `PathBuf` declared to Verus, with their view: the path's components, each the bytes of its name (for the virtio-fs spec) |
+| `vstd-0004-as-ref.patch` | the same, after `vstd-0003` (`source/vstd/std_specs/convert.rs` and `std_specs/path.rs`) | a spec of `AsRef::as_ref`, and what it returns for `&T`, `Path` and `PathBuf`, so that a contract of a function taking `impl AsRef<Path>` can name its path (for the virtio-fs spec) |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -520,3 +521,22 @@ profile checks its paths have.
 
 **Check.** `virtiofs` spec-checks with `path@` in its policy's contracts
 (`microvm/policy.rs`).
+
+### vstd-0004-as-ref.patch
+
+**Need.** `lxutil`'s methods take their path as `impl AsRef<Path>`, and
+call `as_ref()` to get it. vstd has no spec of `AsRef`, so a contract
+cannot name the path a method is given.
+
+**Change.** In `std_specs/convert.rs`, a spec of `AsRef` in the style of
+vstd's `From`: an extension trait `AsRefSpec` with `obeys_as_ref_spec()`
+and `as_ref_spec(&self)`, and `as_ref` ensures that it returns
+`as_ref_spec()` when the type obeys it; a reference `&T` refers to what
+`T` refers to. In `std_specs/path.rs`: a `Path` refers to itself, and a
+`PathBuf` to a `Path` with its view (`path_buf_as_path`, uninterpreted,
+with the axiom `axiom_path_buf_as_path_view`). Trusted facts about `std`.
+`&str` and the other `AsRef<Path>` types are not covered: no verified
+caller passes them.
+
+**Check.** vstd builds, and `virtiofs` still verifies (2060 verified, 0
+errors).

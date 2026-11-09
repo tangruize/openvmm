@@ -10,6 +10,7 @@
 //! returns is a trusted fact about `std`.
 
 use super::super::prelude::*;
+use super::convert::AsRefSpecImpl;
 use std::path::{Path, PathBuf};
 
 verus! {
@@ -39,5 +40,51 @@ impl View for Path {
     /// The path's components, each the bytes of its name.
     uninterp spec fn view(&self) -> PathView;
 }
+
+// `AsRef<Path>` for `Path` and `PathBuf` (OpenVMM's patch vstd-0004), so
+// that a contract of a function taking `impl AsRef<Path>` can name the path
+// it is given: a `Path` refers to itself, a `PathBuf` to a `Path` with the
+// same view. Trusted facts about `std`.
+
+/// A `Path` refers to itself.
+impl AsRefSpecImpl<Path> for Path {
+    open spec fn obeys_as_ref_spec() -> bool {
+        true
+    }
+
+    open spec fn as_ref_spec(&self) -> &Path {
+        self
+    }
+}
+
+pub assume_specification<'a>[ <Path as AsRef<Path>>::as_ref ](p: &'a Path) -> (ret: &'a Path)
+    ensures
+        ret == p,
+;
+
+/// The `Path` that a `PathBuf` refers to (`as_ref`, or its `Deref`).
+pub uninterp spec fn path_buf_as_path(p: &PathBuf) -> &Path;
+
+/// It has the `PathBuf`'s view.
+pub broadcast axiom fn axiom_path_buf_as_path_view(p: &PathBuf)
+    ensures
+        (#[trigger] path_buf_as_path(p))@ == p@,
+;
+
+/// A `PathBuf` refers to a `Path` with its view.
+impl AsRefSpecImpl<Path> for PathBuf {
+    open spec fn obeys_as_ref_spec() -> bool {
+        true
+    }
+
+    open spec fn as_ref_spec(&self) -> &Path {
+        path_buf_as_path(self)
+    }
+}
+
+pub assume_specification<'a>[ <PathBuf as AsRef<Path>>::as_ref ](p: &'a PathBuf) -> (ret: &'a Path)
+    ensures
+        ret == path_buf_as_path(p),
+;
 
 } // verus!
