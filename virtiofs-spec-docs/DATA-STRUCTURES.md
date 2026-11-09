@@ -3,8 +3,8 @@
 The structures that layer 3 (`VirtioFs`) keeps, in the order that makes
 each one easy to follow, with one running example: the guest runs `cat
 /mnt/work/a.txt`, on a share of the host directory `/srv/data`. The code is
-Pedro Henrique Penna's, as on this branch (`feature/microvm/dev` at
-`db42fde04`). Words such as "node id" and "lookup count" are introduced
+Pedro Henrique Penna's (`feature/microvm/dev` at `db42fde04`, the base of
+this branch). Words such as "node id" and "lookup count" are introduced
 where they first appear.
 
 Where everything hangs:
@@ -54,9 +54,13 @@ removed (section 2, the lookup count), so a `Vec` would fill with holes; and
 a number is never given to another file, so a stale number from the guest
 is simply not found.
 
-**The table has one lock**, `inodes: RwLock<InodeMap>`: worker A (the
-request queue) adds entries, and worker B (the high-priority queue, for
-`FORGET`) removes them.
+**The table has one lock**, `inodes: RwLock<InodeMap>`. Requests such as
+`lookup` add entries and `FORGET` removes them. The two queues' workers
+(A, the request queue, and B, the high-priority queue, where a normal
+guest sends `FORGET`) both dispatch any request, and the guest chooses the
+queue; but both run on one thread, and a request runs to its end, so
+requests never overlap
+(`CODE-OVERVIEW.md`, "every request runs alone").
 
 Example:
 
@@ -108,16 +112,15 @@ whose main path was removed switches to one of its remaining aliases
 (`remove_alias_prefix`). Also, the inode is shared through `Arc`, so everyone
 holds `&VirtioFsInode`, and Rust lets a field change through a shared
 reference only if it is protected (a lock or an atomic). In the microVM,
-only worker A changes paths and aliases, so these locks are never contended
-there; upstream OpenVMM, with several request workers, needs them.
+requests run one at a time, so these locks are never contended there; upstream OpenVMM, with several request workers, needs them.
 
 **The lookup count.** How many times OpenVMM has handed this node id to the
 guest. It goes up by one for each reply that gives the guest the node id: an
 entry from `lookup`, `create`, `mkdir`, `mknod`, `symlink`, `link`, and each
 entry of a `READDIRPLUS`. `open`, `read` and `write` do not change it (`open`
 gives a handle, not a node id). The guest's kernel keeps the same count, and
-sends `FORGET(node, n)` to give back `n` of them. `FORGET` (worker B,
-`VirtioFs::forget`), while holding the table's lock for writing:
+sends `FORGET(node, n)` to give back `n` of them. `FORGET` (normally on
+worker B; `VirtioFs::forget`), while holding the table's lock for writing:
 
 1. lowers the count by `n`;
 2. if it reaches 0, removes the node from the table (both its entries); from
@@ -197,8 +200,8 @@ pub struct VirtioFsFile {
 - **`inode`**: the inode it was opened on, which it keeps alive while the
   file is open.
 - **`open_flags`**: how the guest opened it (read-only, for writing, ...),
-  fixed for the file's life. The `writable` field of a handle's view comes
-  from it.
+  fixed for the file's life. Whether the handle was opened for writing
+  (its entry in the spec's ghost `handles` map) comes from it.
 - **`directory_snapshot`**: for a directory only, a copy of its entries taken
   at the first read, from which later reads of the listing are served, so
   that a position the guest holds in the listing stays valid across a

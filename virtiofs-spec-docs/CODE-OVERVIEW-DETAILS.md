@@ -4,10 +4,8 @@ The details behind `CODE-OVERVIEW.md`: each of the four layers on its own,
 plus the generic virtio layer under them (layer 0, where the ring buffer
 is), what it does with an example, and then what Pedro Henrique Penna added to
 it, change by change. The code is Pedro's (`microsoft/openvmm`, branch
-`feature/microvm/dev`, commit `bdea9ab19`, 2026-11-05; this branch starts
-from `db42fde04`, 2026-11-06, in which virtio-fs, the FUSE layer and
-`lxutil` are the same, and only the generic virtio layer has two newer
-commits, described under layer 0). Each change
+`feature/microvm/dev`, commit `db42fde04`, 2026-11-06, the base of this
+branch). Each change
 names its commit; its commit message has the full story
 (`git log -1 <commit>`). The dates are those of the rebased chain, not
 always when the work was first done; a change with a pull-request number
@@ -508,7 +506,7 @@ file's attributes.
    the caller's identity. Linux keeps credentials per thread, but the C
    library's `setgroups` and `set*id` change every thread of the process.
    So this module issues the raw system calls (`setfsuid`, `setfsgid`,
-   `setgroups`, `capset`), which change only the calling thread: the worker
+   `setgroups`, `capset`), which change only the calling thread: the device
    thread takes the caller's identity, runs the operation, and restores its
    own. If it cannot take the identity, the operation is not run, and the
    result is `EPERM`.
@@ -558,5 +556,6 @@ The virtio-fs properties map onto these additions:
   layer 3's saved state and restore checks.
 
 The host-side facts each rests on (what `openat2` with these flags refuses,
-what the raw credential calls change) are trusted facts about the host:
-group D1 in `snapshot-spec-docs/LESSONS.md`.
+what the raw credential calls change) are stated in `lxutil`'s trusted
+contracts, the trusted boundary (`CODE-OVERVIEW.md`, "Layer 4 in the
+spec"): group D1 in `snapshot-spec-docs/LESSONS.md`.
