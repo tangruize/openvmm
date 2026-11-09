@@ -130,10 +130,13 @@ only through its invariant, so properties 1-3 need one per lock:
 
 - **`VirtioFs.inodes: RwLock<InodeMap>`**: every node id the guest holds
   maps to an inode, and node ids are unique.
-- **Each inode's `path: RwLock<PathBuf>`**: the path lies inside the share
-  and is visible under the policy; for a writable inode, under a writable
-  path. This carries properties 1 and 2, and is where `rename` changes
-  things: the delicate one.
+- **Each inode's `path: RwLock<PathBuf>`**: the lock's rule says that next
+  to the path, the lock holds one ghost piece, `PointsTo(node -> path)`,
+  for this inode's node id. The request worker holds the other piece, the
+  `GhostMapAuth` of the whole `paths` map. Changing a path needs both
+  pieces, so the path in the lock always equals `paths[node]` in the
+  worker's `Auth`. See "Knowing an inode's path" below (agreed
+  2026-11-09). This is where `rename` changes things: the delicate one.
 - **Each inode's `aliases`**: the same for each of its other names (hard
   links).
 - **`VirtioFs.files: RwLock<HandleMap<...>>`**: every open handle refers to
@@ -149,12 +152,123 @@ depending on another lock (one invariant per lock, about that lock's own
 content); and with one queue, little happens at the same time (the
 admission gate between save and requests is the main exception).
 
-What we need to build: a wrapper that gives `RwLock` an invariant, in the
-style of `mutex_t.rs`. vstd's verified `RwLock` (`vstd/rwlock.rs`,
-`RwLockPredicate`) shows the interface; the production code uses Rust's own
-`RwLock`, so the wrapper is trusted, like our `Mutex` wrapper. These
-invariants come after the policy's spec (layer 1 of the plan), since each
-mentions its `visibility` and `can_write`.
+The locks: vstd's own verified `RwLock<V, Pred>` (`vstd/rwlock.rs`),
+replacing `parking_lot::RwLock` where a lock needs an invariant (decided
+2026-11-09), rather than a trusted wrapper over `parking_lot` like the
+snapshot spec's `mutex_t.rs` (vstd has no `Mutex`, so that one had to be a
+wrapper). Each lock gets its rule as a ghost value when it is created
+(`RwLock::new(val, Ghost(pred))`), so the rule can name that lock's own
+ghost ids, and nothing about the lock is trusted. The cost, in Pedro's
+code: vstd's lock spins instead of sleeping (in the microVM the only
+overlap is `FORGET`'s short read of a path), its handles are released by
+an explicit `release_write` / `release_read`, not when dropped, and Verus
+does not check that they are, and the call sites of `get_path()` (about
+20) change to that form. Each is an entry in `CODE-CHANGES.md`.
+
+## Knowing an inode's path: the ghost `paths` map (agreed 2026-11-09)
+
+**The problem.** The guest names a directory by its node id, not by its
+path: "create `x` in node 7". The integrity rule for `create` is about the
+path, node 7's path + `x`: if it is not writable, `create` fails and changes
+nothing; if `create` succeeds, it was writable. Node 7's path is in its
+inode's `path` lock, and a spec cannot mention what a lock holds, since
+another thread could change it at any time. The code also reads it twice:
+the FUSE handler `create` (`lib.rs:289`) computes `/a/x` with `child_path`
+and checks it (`check_writable_entry`), and then `VirtioFsInode::create`
+(`inode.rs:327`) computes it again with `child_path` and hands that copy
+to the host. The proof must know that both reads give the same path.
+
+**Why they do, in the microVM.** Only the request worker changes a path
+(`rename`, `unlink` and `link`, `inode.rs:239, 514, 537, 553`). The other
+thread, the high-priority worker, runs `FORGET`, which changes the inode
+*table* (`inodes.write()`, `lib.rs:267`) but only reads a path (for
+`dedup_key`, `inode.rs:570`, on volumes keyed by path). So nothing renames
+node 7 while the request worker handles `create`. (Upstream, with several
+request workers, a rename can run between the two reads; it is harmless
+there only because upstream has no per-path rules, just a read-only flag
+for the whole volume.)
+
+**How Verus learns it: vstd's `GhostMapAuth` and `GhostPointsTo`**
+(`vstd/resource/impls/map.rs`).
+
+*The idea.* A `GhostMapAuth` is like a collection of half permissions, one
+for every entry in the map. Whoever owns it can read the whole map. To
+update an entry, it also needs the other half for that entry, a
+`GhostPointsTo` (key -> value). Each piece has an id, and every operation
+requires the ids to match; that id is what the spec pins.
+
+*The operations used here:*
+
+| Operation | What it does | Used when |
+|---|---|---|
+| `auth.insert(n, p)` | adds key `n`, which must be new, and returns `PointsTo(n -> p)` | a new inode (`lookup`, `create`, ...): the `PointsTo` goes into its lock |
+| `points_to.agree(&auth)` | proves `auth@[n] == p` | the worker opens n's lock: its path is the map's |
+| `points_to.update(&mut auth, q)` | changes entry `n` to `q` in both pieces | `rename`, with n's lock taken for writing |
+| `auth.delete_points_to(points_to)` | removes key `n`; needs the `PointsTo` back | an inode is removed |
+
+*Applied to the inodes.* A ghost map `paths`, node id -> path, is split
+into pieces:
+
+| Piece | Says | Where it is |
+|---|---|---|
+| `GhostMapAuth` | the whole map | held by the request worker |
+| `GhostPointsTo(n -> p)` | node n's path is p | inside inode n's `path` lock, with the path |
+
+- Changing node n's path needs both the `Auth` and n's `PointsTo`, which
+  only a writer of n's lock can take out. Only the request worker has the
+  `Auth`, so only it can change a path.
+- While the request worker holds the `Auth`, `paths[n]` is node n's path,
+  without holding n's lock. So the spec of `create` can say "let p =
+  `paths[7]` + `x`".
+- `FORGET` takes n's lock for reading and reads the concrete path. It
+  could also look at n's `PointsTo` (a shared reference is enough to read
+  a token), but cannot change it, and does not need it.
+- The lock's rule pins the ids (LESSONS F): "holds `PointsTo(node ->
+  path@)`, for this inode's node id and the `Auth`'s map id", both given
+  as the lock's ghost rule when it is created; `VirtioFsInner::wf()` says
+  that every inode in the table uses the `Auth`'s map id.
+
+The same pattern as `FracGhost` (the pieces together are needed to change
+the value, so a holder of one piece can trust it), packaged for a map:
+one `Auth` for all inodes, with one id, instead of one `FracGhost` per
+inode.
+
+**The contracts it allows.** The FUSE handlers that change names
+(`create`, `mkdir`, `mknod`, `symlink`, `unlink`, `rename`, `link`) take
+the `Auth` as a tracked argument, passed down from the request worker's
+loop through the FUSE dispatch (ghost parameters on trait methods, patch
+0005). `may_change(p)` is the ghost field of `lxutil`'s `LxVolume`
+(agreed 2026-11-08): set once, right after the policy is attached, to
+`!read_only && policy@.can_write(p)`, and required by every `LxVolume`
+method that changes the host. For `create` of `name` in node `n`, with p =
+`paths[n]` + `name`:
+if p is not writable (`!may_change(p)`), it fails and changes nothing; if
+it succeeds, p was writable. `rename` and `unlink` also say how `paths`
+changes.
+
+**Removed inodes and node ids (decided 2026-11-09).**
+- `FORGET` removes inodes on the high-priority worker, which has no `Auth`,
+  so the inode's `PointsTo` disappears with the inode and the `Auth` keeps
+  a stale entry. Harmless: `HandleMap::insert` (`lib.rs:966`) never hands
+  out an id again (it only counts up, and refuses every insert once it
+  reaches the end, `can_insert`, `lib.rs:1018`).
+- The exception is the guest's FUSE `DESTROY` (`lib.rs:638`, on unmount):
+  it clears the inode table except the root, and starts handing out ids
+  from the beginning again (`lib.rs:1042`). It runs on the request worker,
+  which then replaces its `Auth` with a fresh one (a new id), so the stale
+  entries go with the old one. The root inode stays in the table with its
+  old lock, whose rule names the old id; so **the root gets no
+  `PointsTo`**: its path is always the empty path (the share's root;
+  `rename` and `unlink` act only on children), and its lock's rule is just
+  "the path is empty". Inodes that `DESTROY` removed are no longer in the
+  table, and the spec only speaks of the inodes in the table.
+
+**Open, for later:**
+- "Nothing else on the host changed" (on success) needs a ghost view of the
+  share; until then the `may_change` requirement on `LxVolume`'s changing
+  methods carries it.
+- Changes to a file itself (kind 2), which need all of its names, and
+  `link`.
 
 ## The theme of the spec: protecting the host from the guest
 
@@ -319,8 +433,8 @@ queue's worker:
 2. **Other request workers.** Not in the microVM, which has one request
    queue, so `lookup`, `rename`, `create` and the rest run one at a time.
    Upstream OpenVMM can have several (by default two, at most eight), which
-   is why `VirtioFsInner` has so many `RwLock`s. Open: whether the spec
-   covers only the microVM's case or upstream's too.
+   is why `VirtioFsInner` has so many `RwLock`s. The spec covers only the
+   microVM (decided 2026-11-08).
 3. **Other host processes,** which can change the shared folder at any time
    without OpenVMM knowing. See the first stage below.
 4. **Save and restore.** They run only with the admission gate closed, no
