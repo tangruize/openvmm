@@ -89,6 +89,9 @@ In `virtiofs/src/microvm/` and `aggregate.rs`, about 6,000 lines:
   records relative names and the host objects' identities, never host paths
   or open handles. On restore, each host object is checked to be still the
   same one.
+- **The Windows wrapper** (`lxutil/src/windows/`, about 7,600 lines): host
+  access with Linux semantics on Windows hosts (NTFS), which the microVM
+  uses on WHP (Pedro, 2026-11-09).
 
 ## Async, locks and RPC
 
@@ -133,7 +136,7 @@ through its rule (its invariant), so each lock gets one:
   rule says that its data matches that piece ("The guest's state in the
   spec", below).
 - **Each open file's `file: RwLock<LxFile>`**: no rule for integrity (the
-  handle's entry in `handles` says whether it was opened for writing);
+  handle's entry in `files` says whether it was opened for writing);
   what confinement needs of it is to decide when we work on confinement.
 - **The session's locks and `negotiation`**: what was agreed with the guest
   (the FUSE version and limits) stays fixed after the start.
@@ -168,7 +171,7 @@ VirtioFs
 └── inner: Arc<VirtioFsInner>
     │
     ├── inodes: RwLock<InodeMap>                 LOCK 1: the whole inode table
-    │   │                                        ghost: FracGhost half of `nodes`
+    │   │                                        ghost: FracGhost half of `inodes`
     │   │
     │   └── node id ──► Arc<VirtioFsInode>
     │         │
@@ -183,10 +186,10 @@ VirtioFs
     │         ├── lookup_count: AtomicU64                  atomic, left out for now
     │         │
     │         └── inode_nr, file_type, guest_inode_nr      plain, never change
-    │             volume: Arc<VirtioFsVolume> ────────┐    (recorded in its `nodes` entry)
+    │             volume: Arc<VirtioFsVolume> ────────┐    (recorded in its `inodes` entry)
     │                                                 │
     ├── files: RwLock<HandleMap<Arc<VirtioFsFile>>>   │  LOCK 4: the whole file table
-    │   │                                             │  ghost: FracGhost half of `handles`
+    │   │                                             │  ghost: FracGhost half of `files`
     │   └── handle ──► VirtioFsFile                   │
     │         ├── file: RwLock<LxFile>                │  the open host file
     │         ├── inode: Arc<VirtioFsInode>           │  the node it was opened on
@@ -204,11 +207,11 @@ VirtioFs
                                      └── pinned_identities, strict_paths, exposed_file
 
 
-FuseGhost  (not in any lock: kept by the trusted wrapper, lent to every request handler)
-├── nodes:   FracGhost half                      (other half in LOCK 1)
+VirtioFsGhost  (not in any lock: kept by the trusted wrapper, lent to every request handler)
+├── inodes:  FracGhost half                      (other half in LOCK 1)
 ├── paths:   GhostMapAuth<node id, path>         (entry n's GhostPointsTo in node n's LOCK 2)
 ├── aliases: GhostMapAuth<node id, set of names> (entry n's GhostPointsTo in node n's LOCK 3)
-└── handles: FracGhost half                      (other half in LOCK 4)
+└── files:   FracGhost half                      (other half in LOCK 4)
 ```
 
 An inode's `volume` (`Arc<VirtioFsVolume>`) is its share: the shared host
@@ -228,10 +231,10 @@ the whole map, and the rest sit where the code protects the data:
 
 | Ghost map | Key -> value | Mirrors | Kind | Pieces |
 |---|---|---|---|---|
-| `nodes` | node id -> the node's host object (device, inode number), kind (file, directory, symlink), and its share's write rule | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `FuseGhost` |
-| `paths` | node id -> main path | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `FuseGhost`; inode n's `PointsTo` in inode n's lock 2 |
-| `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `FuseGhost`; inode n's `PointsTo` in inode n's lock 3 |
-| `handles` | handle -> its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `FuseGhost` |
+| `inodes` | node id -> the inode's view: its object, kind, and its volume's `readonly` flag and policy | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `VirtioFsGhost` |
+| `paths` | node id -> main path | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 2 |
+| `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 3 |
+| `files` | handle -> the open file's view: its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `VirtioFsGhost` |
 
 `GhostMapAuth` + `PointsTo` is used only where each entry has its own
 lock: the `Auth` is like a collection of half permissions, one per entry,
@@ -241,20 +244,25 @@ and returns its `PointsTo`; `agree` shows that a `PointsTo` and the `Auth`
 agree; `update` changes an entry with both). Where the whole map is under
 one lock, a `FracGhost` in two halves is enough.
 
-`FuseGhost` is the bundle of the four whole-map pieces. Its type is in the
-`fuse` crate, since the `Fuse` trait's methods take it (decided
-2026-11-09): its contents are FUSE ideas (node ids, paths, names,
-handles), and a share's write rule is held as a plain set of paths, since
-the `fuse` crate cannot name virtiofs's policy type. Its view is
-`FuseGhostView`, the four maps.
+`VirtioFsGhost` is the bundle of the four whole-map pieces, defined in
+virtiofs with virtiofs's own types; its view is `VirtioFsGhostView`, the
+four maps (each piece's value: `FracGhost` and `GhostMapAuth` have a view,
+`@`). How the `Fuse` trait, in the `fuse` crate, can take it and state the
+rules without naming virtiofs's types: "Where the contracts are", below.
 
-**What a `nodes` entry holds.** Node n's host object and kind, from the
-inode's plain fields, and its share's **write rule**: the set of paths the
-guest may write in that share, `{p | !readonly && policy@.can_write(p)}` of
-the inode's `volume`. All are set once, when the inode is added to the
-table, and never change. "Is node n's path + `x` writable?" and "are all of
-node n's names writable?" are then spec functions of the write rule and of
-`paths[n]` and `aliases[n]`. The root is the exception for paths and
+**What an `inodes` entry holds: the inode's view.** `VirtioFsInode`'s
+view is what the spec can read of it through `&self`, its plain fields:
+its object (`(volume id, inode_nr)`, as the inode table keys it,
+`DedupKey::Ino`, `inode.rs:567`), its kind (`file_type`, an `lx::mode_t`,
+the code's own type), and its volume's `readonly` flag and policy (the
+policy's view, `SubtreePolicyView`). All are set when the inode is made
+and never change. Its locked parts (`path`, `aliases`) and its count are
+not in it: they are the `paths` and `aliases` maps. "Is node n's path +
+`x` writable?" and "are all of node n's names writable?" are then spec
+functions of node n's view (`!readonly && policy.can_write(p)`) and of
+`paths[n]` and `aliases[n]`. A handle's entry in `files` is likewise
+`VirtioFsFile`'s view: its node and whether it was opened for writing
+(`open_flags`). The root is the exception for paths and
 names: its path is always empty and its only name is that path, so it has
 no `PointsTo`, and its locks' rules say just that ("Removed inodes and
 node ids", below); the spec's path of a node is the empty path for the root
@@ -262,12 +270,12 @@ and `paths[n]` for any other node, and likewise for its names.
 
 **How the ghost state keeps matching.** Each lock's rule says that the
 real data in it matches the ghost piece in it (the path in inode n's lock 2
-is `paths[n]`, the table in lock 1 is `nodes`, ...). When the code changes
+is `paths[n]`, the table in lock 1 is `inodes`, ...). When the code changes
 data under a lock, the proof changes the ghost value at the same moment:
 it takes the lock's piece out, updates the value with both pieces (the
-lock's and the one in `FuseGhost`), and puts the piece back before the
+lock's and the one in `VirtioFsGhost`), and puts the piece back before the
 lock is released, when Verus checks the rule. E.g. `lookup` adds inode 7 to
-the table, and the proof adds 7 to `nodes` (with its write rule) and to
+the table, and the proof adds 7 to `inodes` (with its view) and to
 `paths` and `aliases` (whose new `PointsTo`s go into inode 7's locks);
 `rename` changes the path of every inode at or below the old name
 (`rename_alias_prefix`), each under its own lock 2 and 3, and the proof
@@ -275,7 +283,7 @@ updates each one's `paths` and `aliases` entries.
 
 The ids pin the pieces (LESSONS F): each lock's rule, given when the lock
 is created (`RwLock::new(val, Ghost(pred))`), names its piece's id. The
-current ids of the `paths` and `aliases` maps are recorded in the `nodes`
+current ids of the `paths` and `aliases` maps are recorded in the `inodes`
 value (in lock 1), and lock 1's rule says that every inode in the table,
 but the root, pins those ids; so `DESTROY`, which starts fresh maps,
 updates the recorded ids under lock 1's write lock ("Removed inodes and
@@ -283,7 +291,7 @@ node ids", below). (`VirtioFsInner::wf()` cannot say any of this: the
 table is behind its lock.)
 
 **Every request runs alone, in the microVM** (checked 2026-11-09). This is
-what lets a request trust `FuseGhost` for its whole length, and why the
+what lets a request trust `VirtioFsGhost` for its whole length, and why the
 two reads of a path in `create` agree: the FUSE handler `create`
 (`lib.rs:289`) computes node 7's path + `x` with `child_path` and checks it
 (`check_writable_entry`), and then `VirtioFsInode::create`
@@ -340,33 +348,82 @@ others** (decided 2026-11-09).
   below) is what this design rests on.
 
 **The contracts it allows.** Every FUSE handler takes the ghost state,
-`Tracked(g): Tracked<&mut FuseGhost>`, passed down from
+`Tracked(g): Tracked<&mut VirtioFsGhost>`, passed down from
 `process_virtiofs_request` through the FUSE dispatch (below). The ones
 that change names (`create`, `mkdir`, `mknod`, `symlink`, `unlink`,
 `rmdir`, `rename`, `link`) follow one rule; for `create` of `name` in node
-`n`, with p = node n's path + `name`: if p is not in node n's write rule,
-it returns an error, and the ghost state is unchanged; if it succeeds, p
-was in it. Each also says how the ghost state changes:
+`n`, with p = node n's path + `name`: if node n may not write p
+(`!readonly && policy.can_write(p)` of node n's view), it returns an
+error, and the ghost state is unchanged; if it succeeds, it may. Each also says how the ghost state changes:
 `create`, `mkdir`, `mknod` and `symlink` add a node; `link` adds a name to
 `aliases`; `unlink`, `rmdir` and `rename` remove or change entries of
 `paths` and `aliases`.
 
-**Where the contracts are: on the `Fuse` trait** (decided 2026-11-09), in
-the `fuse` crate (layer 2), not only on `impl Fuse for VirtioFs` (layer 3).
-This is possible because the ghost state's type is in the `fuse` crate and
-each node's write rule is a plain set of paths, so the rules use only what
-the `fuse` crate can name. It is also needed: `Session::dispatch` calls the
-handlers through `Box<dyn Fuse>`, and through a trait object Verus knows
-only the trait's contract. `VirtioFs` implements the trait, and its proof
+**Where the contracts are: on the `Fuse` trait, with a spec-function
+trait** (decided 2026-11-10, tested on a small example). The `fuse` crate
+defines no data for the ghost state, only the questions its rules ask, as
+a trait of spec functions without bodies, and the `Fuse` trait takes the
+ghost state's type as a parameter:
+
+```rust
+// fuse crate
+pub trait FuseState: Sized {
+    spec fn is_dir(&self, n: u64) -> bool;
+    spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView;
+    spec fn can_write(&self, n: u64, p: PathView) -> bool;
+    spec fn after_mkdir(&self, n: u64, name: Seq<u8>, m: u64) -> Self;
+    ...
+}
+pub trait Fuse<G: View>: Send + Sync where G::V: FuseState {
+    fn mkdir(...) -> (r: lx::Result<fuse_entry_out>)
+        with Tracked(g): Tracked<&mut G>
+        ensures /* the rules, in terms of FuseState's functions */;
+    ...
+}
+```
+
+virtiofs gives the bodies (`impl FuseState for VirtioFsGhostView`), from its
+own types: an inode's view, `SubtreePolicyView::can_write`, and so on. So
+nothing is copied: the rules are stated once, on the trait, and their
+meaning comes from virtiofs, so a reader checks the trait's contracts (when
+an operation may succeed, and that it changes the state as an `after_`
+function says) and virtiofs's bodies (what each function means). The trait
+level is needed: `Session::dispatch` calls the handlers through
+`Box<dyn Fuse<G>>`, and through a trait object Verus knows only the
+trait's contract. The small example (4 verified, 1 rejected, as wanted):
+`Session` learns "Ok ⇒ `can_write`" through `dyn Fuse<G>` for any `G`; the
+worker, with virtiofs's `G`, learns its meaning (the policy's writable
+set); a correct `mkdir` meets the contract; an implementation that returns
+Ok without the rule is rejected. `FuseState` needs `Sized`, so that
+functions such as `after_mkdir` can return the state. The cost is the type
+parameter in normal builds: `Fuse<G>`, `Session<G>`, both implementors,
+and the tests' `Session::new` (a `CODE-CHANGES.md` entry). `VirtioFs` implements the trait, and its proof
 is where the code's policy checks are verified. Every implementor must
 meet the contract: the other one is `SectionFs`
 (`virtiofs/src/section.rs`), and the trait's default bodies return
 `ENOSYS`; so the contract allows "not supported" as an error, which it
 can, since the rules only limit when an operation may succeed.
 
+**No model of the host, for now** (decided 2026-11-10). Integrity's rules
+are all about paths (the path being changed, the node's names), which the
+request and the ghost state give, and the policy decides; the one host fact
+it relies on ("an `lxutil` method changes only the path it is given") is
+trusted, not modeled. Confidentiality's path rules (a lookup succeeds only
+for a visible path; a traverse-only directory lists only the entries that
+lead to allowed paths) are the same. The exception is the identity-based
+hiding (the volume's pinned identities): it is about which object is at a
+path, which only the host knows. So until the spec has a model of the host,
+`lookup`'s contract says "some object" at the path, and does not enforce
+the pinned rule. The model, when it comes (for the pinned identities, or
+for functional correctness): a map path -> (object, kind) per volume, as
+ghost state lent with the rest (it changes with `mkdir`, `rename`,
+`unlink`), tied to the host by `lxutil`'s trusted contracts (`lstat(p)`
+returns what the map has at `p`; `mkdir(p)` adds a directory at `p`; ...),
+which take it as a ghost argument.
+
 **How a request gets the ghost state: a trusted wrapper (agreed
 2026-11-09).** The device thread owns the ghost state of the filesystem,
-`FuseGhost` (above), and lends it to the request it runs.
+`VirtioFsGhost` (above), and lends it to the request it runs.
 The thread's executor (`pal_async`'s `DefaultPool`) is external, so, as
 with the RPC code in the snapshot spec, a trusted wrapper states it, in a
 `_t.rs` file: `with_fs_ghost(fs, f)`, called in one place only,
@@ -374,9 +431,9 @@ with the RPC code in the snapshot spec, a trusted wrapper states it, in a
 contract:
 
 1. **What it gives**: `f` is called once, with the ghost state, whose
-   `nodes` half has the id that the inode table's lock pins
+   `inodes` half has the id that the inode table's lock pins
    (`g.nodes_id() == fs.nodes_id()`, fixed for the device's life). The
-   other ids follow: the `nodes` map's value records the `paths` and
+   other ids follow: the `inodes` map's value records the `paths` and
    `aliases` ids (above), and only one `Auth` of an id exists, so `agree`
    ties each piece to the one in a lock when the handler opens the lock.
 2. **What it takes back**: what `f` leaves in the ghost state (after a
@@ -403,13 +460,15 @@ the request as its caller (`owner.rs:101`), `fuse::Session::dispatch`
   `Fuse` (`trait Fuse: Send + Sync`) and the field `Box<dyn Fuse>`.
 - `Fuse` cannot name virtiofs's ghost type as an associated type (`dyn
   Fuse<G = ...>` is refused), but can as a generic parameter
-  (`trait Fuse<G>`).
+  (`trait Fuse<G>`), which is the design chosen ("Where the contracts are",
+  above).
 - `run_as`'s `&mut dyn FnMut()` (`owner.rs:128`) is refused, and so is a
   closure that captures a `&mut` to the ghost state; a generic closure
-  that takes it as an argument (`FnOnce(Tracked<&mut FuseGhost>)`) works.
+  that takes it as an argument (`FnOnce(Tracked<&mut VirtioFsGhost>)`) works.
 
-So the chain is feasible, with code changes in the `fuse` crate (the trait
-and `Session`) and in `run_as`; each is an entry in `CODE-CHANGES.md`.
+So the chain is feasible, with code changes in the `fuse` crate (the trait,
+its type parameter, and `Session`) and in `run_as`; each is an entry in
+`CODE-CHANGES.md`.
 
 **Where the policy is, and where it is not (decided 2026-11-09).** The
 integrity rule is stated at the FUSE handlers, as above, and they are
@@ -430,7 +489,7 @@ caller that passes a string (plan9 and many tests).
 - `FORGET` removes an inode from the table, but leaves its entries in the
   `paths` and `aliases` maps: the inode's `PointsTo`s stay in its locks,
   and an open file that still holds the inode (through its `Arc`) uses
-  them; its handle's entry in `handles` still names the node. (`rename`
+  them; its handle's entry in `files` still names the node. (`rename`
   then no longer updates that inode, since it updates only the inodes in
   the table, and neither the ghost entry nor the lock changes, so the two
   still agree.) A node id that is gone is harmless: `HandleMap::insert` (`lib.rs:966`) never hands
@@ -440,7 +499,7 @@ caller that passes a string (plan9 and many tests).
   it clears the inode table except the root, and starts handing out ids
   from the beginning again (`lib.rs:1042`). It runs, like every request,
   with the ghost state lent to it, and replaces the `paths` and `aliases`
-  `Auth`s with fresh ones (new ids, recorded in the `nodes` map's value),
+  `Auth`s with fresh ones (new ids, recorded in the `inodes` map's value),
   so the stale entries go with the old ones. It also closes every open file
   (`files.write().clear()`), so no handle keeps a removed inode. The root
   inode stays in the table with its old locks, whose rules were fixed when
@@ -468,7 +527,7 @@ all of them.
   read-only file (`lib.rs:421-426`), so that no new name makes a read-only
   file writable.
 - **In the spec**: "every name of node n is writable" is a spec function of
-  node n's write rule and `aliases[n]` ("The guest's state in the spec"
+  node n's view and `aliases[n]` ("The guest's state in the spec"
   above).
 - **The code knows only the names the guest reached**, by `lookup` or by
   its own `link`; it never asks the host for a file's other names
@@ -518,8 +577,11 @@ input, and each property must hold whatever the guest sends.
 
 ## Properties a spec could promise
 
-Properties 1-4 are the security properties and 6 is snapshots: Pedro's two
-themes, which the spec covers. 5 is deferred.
+Properties 1-4 are the security properties and 6 is snapshots, which the
+spec covers. 5 is deferred. Pedro summarizes his additions to virtio-fs in
+three parts (2026-11-09): snapshot and restore (property 6), the access
+policy (property 2), and the Windows wrapper in `lxutil` ("Layer 4 in the
+spec", below).
 
 1. **Confinement**: every host object the device touches lies inside the
    share.
@@ -662,13 +724,13 @@ conditions:
    closed spec functions `visibility(p)` (visible, traverse-only, hidden)
    and `can_write(p)`, written from the policy's documentation and then
    compared with the code. `SubtreePolicy::new`'s checks become its `wf()`.
-2. **The guest's state as ghost state** (revised 2026-11-09): `FuseGhost`,
-   with its four maps (`nodes`, `paths`, `aliases`, `handles`), lent to
+2. **The guest's state as ghost state** (revised 2026-11-09): `VirtioFsGhost`,
+   with its four maps (`inodes`, `paths`, `aliases`, `files`), lent to
    each request ("The guest's state in the spec", above). Example, after
-   the guest looks up `work/a.txt` and opens it for writing: `nodes: 5 -> {
-   object: (dev 8, ino 4711), kind: file, write rule: the share's }`,
-   `paths: 5 -> work/a.txt`, `aliases: 5 -> {work/a.txt}`, `handles: 9 -> {
-   node: 5, writable: true }`. It changes with the guest's requests: `open`
+   the guest looks up `work/a.txt` and opens it for writing: `inodes: 5 -> {
+   object: (volume 1, inode 4711), kind: S_IFREG, readonly: false, policy:
+   the share's }`, `paths: 5 -> work/a.txt`, `aliases: 5 ->
+   {work/a.txt}`, `files: 9 -> { node: 5, writable: true }`. It changes with the guest's requests: `open`
    and `opendir` add a handle, `release` and `releasedir` remove it;
    `lookup` adds a node; `forget` may remove one (when its count reaches
    zero; the lookup counts, atomics, are left out for now, with
@@ -676,19 +738,19 @@ conditions:
    `create`, `mkdir`, `mknod` and `symlink` add a node (`create` a handle
    too); `link` adds a name; `unlink`, `rmdir` and `rename` remove or
    change names. Its invariant needs no host facts, since whether a path is
-   writable depends only on the path and the write rule: every handle
-   opened for writing belongs to a node whose names are all in its write
-   rule.
+   writable depends only on the path and the node's policy: every handle
+   opened for writing belongs to a node whose names are all writable.
 3. **The operations' contracts**, on the `Fuse` trait's operations, in terms
-   of `FuseGhostView`: an operation that changes something succeeds only on
+   of `VirtioFsGhostView`: an operation that changes something succeeds only on
    a path the guest may write ("The contracts it allows", above); `lookup`
    succeeds only for a name the guest may see and returns that path's node;
    a traverse-only directory lists only the entries that lead to allowed
    paths. The code's checks are not in the contracts: they are how the code
-   meets them. For confidentiality (`lookup`, listings), each `nodes` entry
-   will also need its share's visibility rule, in the same way as its write
-   rule, and the contract needs to know which host object a path leads to;
-   both are to decide when we work on confidentiality.
+   meets them. For confidentiality (`lookup`, listings), the inode's view
+   already has its volume's policy, so `visibility` is there too; what is
+   left to decide when we work on it is how the contract knows which host
+   object a path leads to (and the volume's pinned identities, from the
+   volume's plain fields, in the inode's view).
 
    **Down to the host** (revised 2026-11-09): layer 3's operations are
    proved against the contracts of the `LxVolume` methods they call, and
@@ -715,9 +777,19 @@ layer 4): the confinement walk (`confine_paths`), on which property 1
 rests, and the per-thread credential switching (`unix/credentials.rs`), on
 which property 3 rests. Their proofs are deferred (decided 2026-11-09),
 until we work on properties 1 and 3; until then they are trusted like the
-rest of `lxutil`. The Windows side (`lxutil/src/windows/`, about 7,600
-lines that emulate Linux behavior on NTFS, nearly all upstream code; Pedro
-changed 5 lines of it) is deferred too.
+rest of `lxutil`.
+
+**The Windows side is Pedro's** (Pedro, 2026-11-09, at the spec design
+meeting): `lxutil/src/windows/`, about 7,600 lines that emulate Linux
+behavior on NTFS, which the microVM uses on WHP. Pedro summarizes his
+additions to virtio-fs in three parts: snapshot and restore, the access
+policy, and this Windows wrapper. (Our branch's history starts at
+2026-08-01, after the wrapper was written, so its authorship did not show
+there.) Unlike the Linux side, it is not a thin wrapper: each method
+emulates a Linux call with several Windows calls. So trusting it as a
+whole would put 7,600 lines of logic in the trusted base; how to specify
+it (its contracts as `LxVolume`'s on Linux, proved against trusted facts
+about the Windows calls it makes) is to decide when we work on it.
 
 **virtio-fs's saved state, and the snapshot spec.** The snapshot spec
 covers the MMIO transport, which saves the inner device's private state as
@@ -733,7 +805,7 @@ session's state (layer 2, `SessionState`) and the filesystem's saved state
 the policy), and `save_device` / `restore_device` get contracts on
 `VirtioDevice` (layer 0's plan above): after a restore, the device's state
 is the one that was saved. Open, for when we work on snapshots: the
-guest-visible state is ghost state (`FuseGhost`, kept by the trusted
+guest-visible state is ghost state (`VirtioFsGhost`, kept by the trusted
 wrapper), not a view of the device, and a restore rebuilds the inodes and
 their locks, so how a restore's contract states it, and how the wrapper
 takes the restored ghost state, is still to work out.

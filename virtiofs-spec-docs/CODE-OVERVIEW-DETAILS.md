@@ -510,6 +510,12 @@ file's attributes.
    thread takes the caller's identity, runs the operation, and restores its
    own. If it cannot take the identity, the operation is not run, and the
    result is `EPERM`.
+3. **The Windows wrapper** (`src/windows/`, about 7,600 lines; Pedro,
+   2026-11-09). On a Windows host (WHP), it performs each operation with
+   Linux semantics on NTFS: Linux permissions, symlinks (WSL-style),
+   extended attributes and the rest, mapped onto Windows calls. It was
+   written before 2026-08-01, where this branch's history starts, so no
+   commit of it shows here.
 
 ## What this means for the spec
 
