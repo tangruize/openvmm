@@ -93,6 +93,9 @@ pub trait FuseState: Sized {
     /// change if it was not).
     spec fn after_release(&self, fh: u64) -> Self;
 
+    /// The node of the file open as `fh`.
+    spec fn file_node(&self, fh: u64) -> u64;
+
     /// The file open as `fh` was opened for writing.
     spec fn opened_for_writing(&self, fh: u64) -> bool;
 
@@ -136,6 +139,28 @@ pub trait FuseState: Sized {
     /// the low two bits) is not read-only (`O_RDONLY`, 0).
     open spec fn opens_for_writing(flags: u32) -> bool {
         flags & 3u32 != 0u32
+    }
+
+    /// The state after the lookups `steps` in directory `dir`, one after
+    /// the other: each is a name, the node handed out for it, and its file
+    /// type.
+    open spec fn after_lookups(&self, dir: u64, steps: Seq<(Seq<u8>, u64, lx::mode_t)>) -> Self {
+        steps.fold_left(*self, |st: Self, step: (Seq<u8>, u64, lx::mode_t)|
+            st.after_reach(dir, st.child_path(dir, step.0), step.1, step.2))
+    }
+
+    /// `after` is the result of lookups in directory `dir` (`read_dir_plus`
+    /// looks up each entry it lists), each one allowed by `lookup`'s rules:
+    /// a plain name of the directory, at a path the guest may reach.
+    open spec fn looked_up_in(&self, dir: u64, after: Self) -> bool {
+        exists|steps: Seq<(Seq<u8>, u64, lx::mode_t)>| {
+            &&& #[trigger] self.after_lookups(dir, steps) == after
+            &&& forall|i: int| 0 <= i < steps.len() ==> {
+                let (name, m, kind) = #[trigger] steps[i];
+                &&& self.is_entry(dir, name)
+                &&& self.may_reach(dir, self.child_path(dir, name), kind)
+            }
+        }
     }
 
     /// The common rule of the operations that make a new name `name` in
@@ -192,6 +217,10 @@ impl FuseState for () {
 
     open spec fn opened_for_writing(&self, fh: u64) -> bool {
         false
+    }
+
+    open spec fn file_node(&self, fh: u64) -> u64 {
+        0
     }
 
     open spec fn after_release(&self, fh: u64) -> Self {

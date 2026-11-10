@@ -275,6 +275,10 @@ impl FuseState for VirtioFsGhostView {
         VirtioFsGhostView { files: self.files.remove(fh), ..*self }
     }
 
+    closed spec fn file_node(&self, fh: u64) -> u64 {
+        self.files[fh].node
+    }
+
     /// The open file's flags were for writing (`open_flags`).
     closed spec fn opened_for_writing(&self, fh: u64) -> bool {
         self.files[fh].writable

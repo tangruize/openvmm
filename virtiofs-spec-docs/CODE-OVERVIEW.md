@@ -606,6 +606,39 @@ all of them.
   denied paths by identity, so that no hard link shows them), but not for
   read-only ones: to ask him whether that is intended.
 
+**Open items of the FUSE-level spec** (2026-11-10), to come back to:
+1. **When an operation may fail.** The contracts say when an operation may
+   succeed, and that an error leaves the state unchanged; the `Fuse`
+   trait's doc lists the error conditions they can state (its rules do not
+   hold, a malformed request, not supported). Three more are not yet
+   stated, so the contracts do not yet say when an operation must succeed:
+   a limit reached (needs the counts and caps in the ghost state), a
+   confinement refusal, and a host failure. One way, without a model of
+   the host: each trusted `lxutil` method that fails gives back ghost
+   evidence of it, and the error clause names that evidence (so that an
+   implementation that always fails without calling the host does not
+   meet the contract).
+2. **The lookup counts** (`lookup_count`, atomics): `forget` says only that
+   it may remove the node, and the limits property needs them. Decided
+   (2026-11-10): added with the limits property, not before, since
+   integrity and confidentiality do not need them; then each node's count
+   is a ghost piece tied to the atomic (`atomic_with_ghost!`), every
+   operation that hands out a node says "count + 1", and `forget` says that
+   the node is removed exactly when its count reaches 0.
+3. **The host model**, for the pinned identities ("No model of the host,
+   for now", above).
+4. **What a directory listing shows** (`read_dir`, `read_dir_plus`): the
+   reply is an encoded buffer, not yet decoded by the spec; the
+   traverse-only listing rule (only the entries that lead to allowed paths)
+   is part of confidentiality.
+5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
+   sentinel handle, `get_attr` on it.
+6. **`read_dir_plus` on a handle whose directory node was given back**
+   (`FORGET`): its lookups still happen, but `is_entry` needs the directory
+   in the inode table.
+7. **Pedro's questions**: device nodes from `mknod`; host hard links
+   between a writable and a read-only path.
+
 ## The theme of the spec: protecting the host from the guest
 
 The microVM is a sandbox: NVX uses it to run workloads that the host does

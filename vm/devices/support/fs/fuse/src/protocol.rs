@@ -268,6 +268,7 @@ pub const FUSE_RELEASE_FLOCK_UNLOCK: u32 = (1 << 1);
 /**
  * Getattr flags
  */
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_GETATTR_FH: u32 = (1 << 0);
 
 /**
@@ -562,7 +563,7 @@ pub struct fuse_release_in {
     pub lock_owner: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -573,7 +574,7 @@ pub struct fuse_flush_in {
     pub lock_owner: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]

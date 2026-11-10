@@ -74,6 +74,22 @@ pub struct CreateOut {
 /// `G` is the file system's ghost state (Verus only; nothing of it exists at
 /// runtime), lent to each operation: the operations' contracts are stated on
 /// its view, which answers [`FuseState`]'s questions.
+///
+/// Errors. Each operation's contract says when it may succeed; an error
+/// leaves the state unchanged (`read_dir_plus` keeps the lookups it did
+/// before one). An operation may fail when:
+/// - its rules (its contract's "succeeds only if") do not hold, e.g. a node
+///   the guest does not hold, a name that is not plain, a path the guest may
+///   not write;
+/// - the request is malformed, e.g. unknown open flags, or a buffer larger
+///   than the file system accepts;
+/// - the file system does not support it (`ENOSYS`, the default bodies).
+///
+/// The other reasons are not yet in the contracts, so that they do not yet
+/// say when an operation must succeed: a limit reached (the counts and caps
+/// are not in the spec), a confinement refusal, and a host failure (the
+/// spec has no model of the host). See the virtio-fs spec's open items
+/// (`virtiofs-spec-docs/CODE-OVERVIEW.md`).
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub trait Fuse<G: View>: Send + Sync
 where
@@ -122,7 +138,7 @@ where
             // The node may be gone (when its count reaches zero; the counts
             // are not in the spec yet); never the root.
             final(g)@ == old(g)@
-                || (_node_id != protocol::FUSE_ROOT_ID && final(g)@ == old(g)@.after_forget(_node_id)),
+                || (_node_id != FUSE_ROOT_ID && final(g)@ == old(g)@.after_forget(_node_id)),
     ))]
     fn forget(&self, _node_id: u64, _lookup_count: u64) {
         // No reply is allowed from this message, not even error.
@@ -135,6 +151,14 @@ where
     /// If attributes are retrieved through an open file descriptor (i.e. using `fstat`), the
     /// `fh` parameter will be set to the file handle returned by the `open` call.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
+            r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { old(g)@.holds_file(_fh) } else { old(g)@.holds_node(_request@.node_id) },
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn get_attr(&self, _request: &Request, _flags: u32, _fh: u64) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -161,6 +185,14 @@ where
 
     /// Reads the target of a symbolic link.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn read_link(&self, _request: &Request) -> lx::Result<LxString> {
         Err(lx::Error::ENOSYS)
     }
@@ -404,6 +436,14 @@ where
 
     /// Reads data from an open file.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_arg.fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn read(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
@@ -426,6 +466,14 @@ where
 
     /// Retrieves the attributes of the file system.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn statfs(&self, _request: &Request) -> lx::Result<fuse_kstatfs> {
         Err(lx::Error::ENOSYS)
     }
@@ -447,6 +495,14 @@ where
 
     /// Synchronize file contents.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn fsync(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -474,24 +530,56 @@ where
 
     /// Retrieve an extended attribute on an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn get_xattr(&self, _request: &Request, _name: &LxStr, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Retrieve the size of an extended attribute on an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn get_xattr_size(&self, _request: &Request, _name: &LxStr) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
     }
 
     /// List all extended attributes on an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn list_xattr(&self, _request: &Request, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Retrieve the size of the list of extended attributes on an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn list_xattr_size(&self, _request: &Request) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
     }
@@ -517,6 +605,14 @@ where
     ///
     /// Use `release` to know when the last file descriptor was closed.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_arg.fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn flush(&self, _request: &Request, _arg: &fuse_flush_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -557,6 +653,14 @@ where
     ///
     /// Use `DirEntryWriter` to create a buffer containing directory entries.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a directory the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_arg.fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn read_dir(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
@@ -578,6 +682,14 @@ where
 
     /// Synchronize directory contents.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a directory the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn fsync_dir(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -598,6 +710,14 @@ where
 
     /// Check file access permissions.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest holds.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn access(&self, _request: &Request, _mask: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -701,12 +821,31 @@ where
     /// If you implement this, you must set `FUSE_DO_READDIRPLUS` in `init`. If you implement both
     /// read_dir_plus and read_dir, also set `FUSE_READDIRPLUS_AUTO`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a directory the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_arg.fh),
+            // Each entry listed with its node is looked up, as by `lookup`,
+            // in the open directory: the state after is the result of such
+            // lookups, each allowed by `lookup`'s rules (also on an error,
+            // which may come after some of them).
+            old(g)@.looked_up_in(old(g)@.file_node(_arg.fh), final(g)@),
+    ))]
     fn read_dir_plus(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Find data holes in a sparse file.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest holds open.
+            r is Ok ==> old(g)@.holds_file(_fh),
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn lseek(&self, _request: &Request, _fh: u64, _offset: u64, _whence: u32) -> lx::Result<u64> {
         Err(lx::Error::ENOSYS)
     }
@@ -764,6 +903,14 @@ where
     /// If information is retrieved through an open file descriptor (i.e. using `fstat`), the
     /// `fh` parameter will be set to the file handle returned by the `open` call.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
+            r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { old(g)@.holds_file(_fh) } else { old(g)@.holds_node(_request@.node_id) },
+            // A read changes nothing.
+            final(g)@ == old(g)@,
+    ))]
     fn get_statx(
         &self,
         _request: &Request,
