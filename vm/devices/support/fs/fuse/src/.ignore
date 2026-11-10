@@ -3,3 +3,4 @@
 # carry no copyright header.
 lib.spec.rs
 request.spec.rs
+session.spec.rs

@@ -456,6 +456,14 @@ impl AsyncRun<VirtioFsQueue> for VirtioFsWorker {
     }
 }
 
+/// Handles one request from a queue (both queue workers call this).
+///
+/// Verus: the request's ghost state comes from the trusted keeper
+/// (`fs_ghost_t.rs`). Its proof takes it at the start
+/// (`take_fs_ghost(&worker.fs)`), lends it to `owner::dispatch` for the
+/// request's operation, and gives it back at the end
+/// (`give_back_fs_ghost(&worker.fs, g)`). Not written yet: this body is not
+/// verified yet, and ghost code can only be in a verified body.
 fn process_virtiofs_request(
     worker: &VirtioFsWorker,
     mem: &GuestMemory,

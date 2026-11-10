@@ -21,23 +21,12 @@ use vstd::std_specs::path::PathView;
 verus! {
 
 /// Types that the inode and the volume hold, declared to Verus by name only,
-/// so that their views can read their other fields.
-#[cfg(verus_keep_ghost)]
-#[verifier::external_type_specification]
-#[verifier::external_body]
-#[verifier::reject_recursive_types(R)]
-#[verifier::reject_recursive_types(T)]
-pub struct ExRwLock<R, T: ?Sized>(parking_lot::lock_api::RwLock<R, T>);
-
+/// so that their views can read their other fields (`parking_lot`'s lock
+/// types are declared in the `fuse` crate, which also needs them).
 #[cfg(verus_keep_ghost)]
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExLxVolume(lxutil::LxVolume);
-
-#[cfg(verus_keep_ghost)]
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExRawRwLock(parking_lot::RawRwLock);
 
 /// The view of a `VirtioFsInode`: its plain fields, which never change (its
 /// path and names are behind locks, in `VirtioFsGhostView`'s `paths` and

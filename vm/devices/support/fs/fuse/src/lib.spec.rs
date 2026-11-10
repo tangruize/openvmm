@@ -17,6 +17,21 @@ use vstd::std_specs::path::PathView;
 
 verus! {
 
+/// `parking_lot`'s lock types, declared to Verus by name only, so that the
+/// views of structs that hold one (`Session`, virtio-fs's inode) can read
+/// their other fields.
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(R)]
+#[verifier::reject_recursive_types(T)]
+pub struct ExRwLock<R, T: ?Sized>(parking_lot::lock_api::RwLock<R, T>);
+
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRawRwLock(parking_lot::RawRwLock);
+
 /// std's `BorrowedFd` (the `Mapper` trait's `FileRef` on Unix), declared to
 /// Verus by name only.
 #[cfg(all(verus_keep_ghost, unix))]

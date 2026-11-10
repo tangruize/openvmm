@@ -21,6 +21,10 @@ mod section;
 pub mod spec {
     include!("lib.spec.rs");
 }
+/// The trusted keeper of the file system's ghost state between requests
+/// (Verus only).
+#[cfg(verus_keep_ghost)]
+pub mod fs_ghost_t;
 #[cfg(test)]
 mod test_helpers;
 mod util;

@@ -17,8 +17,14 @@ use fuse::protocol::FUSE_INIT;
 use fuse::protocol::FUSE_INTERRUPT;
 use fuse::protocol::FUSE_RELEASE;
 use fuse::protocol::FUSE_RELEASEDIR;
+#[cfg(verus_keep_ghost)]
+use fuse::spec::FuseGhost;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// Maps guest callers to the host identities that perform their requests.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CallerIdentity {
     /// The owner of the export root, which replaces guest UID 0.
@@ -72,6 +78,24 @@ fn accesses_host_files(opcode: u32) -> bool {
 
 /// Dispatches `request` to `session`, performing it as the host identity of
 /// its caller when `caller_identity` is set.
+///
+/// Verus: lends the request's ghost state `g` on to the session. Its proof
+/// needs `dispatch_with`'s `run_as` to pass `g` to the operation it runs:
+/// `run_as` takes the operation as `&mut dyn FnMut()`, which Verus does not
+/// support, nor a closure that captures `&mut g`; a generic closure that
+/// takes `g` as an argument (`FnOnce(Tracked<&mut VirtioFsGhost>)`) works
+/// (tested), so that is the change `run_as` needs, with the proof.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::allow(undeclared_external_trait))]
+#[cfg_attr(verus_keep_ghost, verus_spec(
+    with Tracked(g): Tracked<&mut crate::spec::VirtioFsGhost>
+    requires
+        session.owns_ghost(old(g)),
+        old(g).wf(),
+    ensures
+        session.owns_ghost(final(g)),
+        final(g).wf(),
+))]
 pub(crate) fn dispatch(
     caller_identity: Option<&CallerIdentity>,
     session: &fuse::Session<crate::spec::VirtioFsGhost>,

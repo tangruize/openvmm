@@ -3,3 +3,4 @@
 # carry no copyright header.
 lib.spec.rs
 inode.spec.rs
+fs_ghost_t.rs

@@ -207,7 +207,7 @@ VirtioFs
                                      └── pinned_identities, strict_paths, exposed_file
 
 
-VirtioFsGhost  (not in any lock: kept by the trusted wrapper, lent to every request handler)
+VirtioFsGhost  (not in any lock: kept by the trusted keeper, lent to every request handler)
 ├── inodes:  FracGhost half                      (other half in LOCK 1)
 ├── paths:   GhostMapAuth<node id, path>         (entry n's GhostPointsTo in node n's LOCK 2)
 ├── aliases: GhostMapAuth<node id, set of names> (entry n's GhostPointsTo in node n's LOCK 3)
@@ -344,7 +344,7 @@ others** (decided 2026-11-09).
   it to the host; between the two reads no lock is held, and the two are
   equal only because nothing else runs in between. With the `Auth` only
   under a lock, the proof could not show copy 1 == copy 2, and rightly so.
-  So the wrapper's assumption ("How a request gets the ghost state",
+  So the keeper's assumption ("How a request gets the ghost state",
   below) is what this design rests on.
 
 **The contracts it allows.** Every FUSE handler takes the ghost state,
@@ -484,31 +484,60 @@ ghost state lent with the rest (it changes with `mkdir`, `rename`,
 returns what the map has at `p`; `mkdir(p)` adds a directory at `p`; ...),
 which take it as a ghost argument.
 
-**How a request gets the ghost state: a trusted wrapper (agreed
-2026-11-09).** The device thread owns the ghost state of the filesystem,
-`VirtioFsGhost` (above), and lends it to the request it runs.
-The thread's executor (`pal_async`'s `DefaultPool`) is external, so, as
-with the RPC code in the snapshot spec, a trusted wrapper states it, in a
-`_t.rs` file: `with_fs_ghost(fs, f)`, called in one place only,
-`process_virtiofs_request`, around the handling of one request. Its
-contract:
+**How a request gets the ghost state: the trusted keeper** (decided
+2026-11-10; `virtiofs/src/fs_ghost_t.rs`). Every operation takes the file
+system's ghost state `g`, and some change it, so between two requests `g`
+has to be kept somewhere, for the next request to get what the previous one
+left. A field of the worker that handles requests would be the natural
+place, but there are two workers, one per queue, each its own task, and
+both handle requests; a tracked value, like any value, is in only one
+place. Sharing it between them in a way Verus checks would need a lock, an
+extra lock and unlock per request in the executable. So the keeping is
+trusted instead: three trusted proof functions (none exists at runtime, so
+the executable is unchanged):
 
-1. **What it gives**: `f` is called once, with the ghost state, whose
-   `inodes` half has the id that the inode table's lock pins
-   (`g.nodes_id() == fs.nodes_id()`, fixed for the device's life). The
-   other ids follow: the `inodes` map's value records the `paths` and
-   `aliases` ids (above), and only one `Auth` of an id exists, so `agree`
-   ties each piece to the one in a lock when the handler opens the lock.
-2. **What it takes back**: what `f` leaves in the ghost state (after a
-   `rename`, say) is what the next call gets.
-3. **What it assumes** (trusted, not checked; written at the top of the
-   `_t.rs` file and in the trusted list):
-   - two calls never overlap: both queue tasks run on the device thread,
-     and `process_virtiofs_request` has no `await` (see "Every request
-     runs alone" above). This breaks if virtio-fs gets a driver of its own
-     (a target CPU) or several threads, or if request handling becomes
-     `async`;
-   - no call inside another: the wrapper is called in one place only.
+| Function | When | Contract |
+|---|---|---|
+| `keep_fs_ghost(fs, g)` | once, at creation (`VirtioFs::new_microvm`) | requires `fs.owns(g)` and `g.wf()`: the keeper now holds `g` |
+| `take_fs_ghost(session) -> g` | at the start of each request (`process_virtiofs_request`) | ensures `session.owns_ghost(g)` and `g.wf()` |
+| `give_back_fs_ghost(session, g)` | at the end of that request | requires `session.owns_ghost(g)` and `g.wf()`, which every operation keeps |
+
+```
+request worker:  take_fs_ghost  -> g
+                 create(.., g)     (may change g: a new node)
+                 give_back(g)   -> the worker no longer has g
+hiprio worker:   take_fs_ghost  -> g   (as create left it)
+                 forget(.., g)
+                 give_back(g)
+```
+
+`g` itself is created, not by the keeper, but in `VirtioFs::new_microvm`'s
+verified proof, together with the inode table (the root alone) and the
+empty file table: it creates the `paths` and `aliases` `Auth`s and the two
+tables' `FracGhost`s, puts one half of each table's into that table's lock,
+and keeps the rest as `g`, so that `g` matches the locks (that is what
+`owns` checks). Only the keeping is trusted. What is assumed, written at
+the top of the file:
+
+1. A take is always followed by its give-back before the next take, so at
+   any moment at most one request has `g`: requests never overlap ("Every
+   request runs alone", above). This breaks if virtio-fs gets a driver of
+   its own (a target CPU) or several threads, or if request handling
+   becomes `async`.
+2. Only `process_virtiofs_request` takes and gives back, and the keeper
+   holds one ghost state per file system, the one its creation kept; so a
+   take gives out what the last give-back (or the creation) left, and it is
+   the session's file system's.
+
+`process_virtiofs_request` and `new_microvm` carry comments saying what
+their proofs do (their bodies are not verified yet, and ghost code can only
+be in a verified body). `Session::dispatch` and `owner::dispatch` take `g`
+and require and keep `owns_ghost(g)` (`Session::owns_ghost(g)`: its file
+system owns `g`) and `g.wf()`, with `external_body` bodies.
+`owner::dispatch_with` is not given to Verus yet: its `run_as` takes the
+operation as `&mut dyn FnMut()`, which Verus does not support; its proof
+needs `run_as` to take a generic closure that takes `g` as an argument
+(below), a code change that comes with that proof.
 
 **Passing the ghost state down: what Verus supports** (tested 2026-11-09, on
 small examples). From `process_virtiofs_request` to `VirtioFs::create`:
@@ -923,6 +952,6 @@ the policy), and `save_device` / `restore_device` get contracts on
 `VirtioDevice` (layer 0's plan above): after a restore, the device's state
 is the one that was saved. Open, for when we work on snapshots: the
 guest-visible state is ghost state (`VirtioFsGhost`, kept by the trusted
-wrapper), not a view of the device, and a restore rebuilds the inodes and
-their locks, so how a restore's contract states it, and how the wrapper
+keeper), not a view of the device, and a restore rebuilds the inodes and
+their locks, so how a restore's contract states it, and how the keeper
 takes the restored ghost state, is still to work out.

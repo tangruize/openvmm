@@ -223,6 +223,15 @@ impl VirtioFs {
     ///
     /// `root_path` is deliberately consumed only while opening the attachment;
     /// it is not retained in the filesystem state or in a saved-state blob.
+    ///
+    /// Verus: this is where the file system's ghost state `g` is created,
+    /// together with the inode table (the root alone) and the empty file
+    /// table, so that it matches them: its proof creates the `paths` and
+    /// `aliases` `Auth`s and the two tables' `FracGhost`s, puts one half of
+    /// each table's into that table's lock, and hands `g` (the rest) to the
+    /// trusted keeper, `keep_fs_ghost(&fs, g)` (`fs_ghost_t.rs`). Not written
+    /// yet: this body is not verified yet, and the locks do not hold ghost
+    /// pieces yet (their rules come next).
     pub fn new_microvm(
         root_path: impl AsRef<Path>,
         profile: MicroVmVirtioFsProfile,

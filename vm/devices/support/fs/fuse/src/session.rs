@@ -45,9 +45,17 @@ const DEFAULT_MAX_PAGES: u32 = 256;
 // a difference.
 const PAGE_SIZE: u32 = 4096;
 
+/// Verus specification of `Session`.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("session.spec.rs");
+}
+
 /// A FUSE session for a file system.
 ///
 /// Handles negotiation and dispatching requests to the file system.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::reject_recursive_types(G))]
 pub struct Session<G: FuseGhost>
 where
     G::V: FuseState,
@@ -83,6 +91,20 @@ where
     }
 
     /// Dispatch a FUSE request to the file system.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verifier::allow(undeclared_external_trait))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this session's file
+            // system's: what each operation requires.
+            self.owns_ghost(old(g)),
+            old(g).wf(),
+        ensures
+            // The request's operation keeps both.
+            self.owns_ghost(final(g)),
+            final(g).wf(),
+    ))]
     pub fn dispatch(
         &self,
         request: Request,
