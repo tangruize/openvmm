@@ -54,7 +54,7 @@ can still be closed after its node is given back. A normal guest sees no
 difference: Linux's driver sends the handle's own node id, and releases
 before it forgets. Test:
 `microvm/policy_tests.rs`, `a_handle_is_used_only_with_its_node_while_the_guest_holds_it`.
-All `virtiofs` tests pass (162, one ignored).
+All `virtiofs` tests passed (162, one ignored).
 
 **The patch** (production code; the full patch, with the test, is in
 `patches/`):
@@ -189,6 +189,142 @@ index cf163f1d7..20ce80e5b 100644
      }
  
      /// Reserve a file handle before opening or creating a host file.
+```
+
+## 2. A rename of a name onto itself drops names from the nodes
+
+*Found 2026-11-10, in a review of the contracts against the code. Fixed:
+`patches/0002-virtiofs-rename-onto-itself-keeps-names.patch` (applies after
+0001).*
+
+**What goes wrong.** `rename(dir, x, dir, x)` (the same name in the same
+directory) changes nothing on the host. But after the host call, the code
+updates the names as for any rename: `remove_alias_prefix(new_path)`, then
+`rename_alias_prefix(old_path, new_path)` (`lib.rs`, `rename`). With the
+two paths equal, the first drops every name at or below `x` from every node
+of the share, and the second finds nothing left to move back. The nodes
+keep their main paths, but their records of their names no longer match the
+host, and the code's later decisions use those records (which names a
+change must find writable, where a main path moves when one is removed).
+Linux's FUSE driver handles a rename onto the same name itself, so only a
+guest whose kernel an attacker controls can send it.
+
+**The fix.** After the permission checks (so that a rename the guest may not
+do is still refused), a rename of a name onto itself returns at once. Test:
+`microvm/policy_tests.rs`, `renaming_a_name_onto_itself_keeps_its_names`
+(fails without the fix).
+
+```diff
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -590,6 +590,12 @@
+         let new_path = new_inode.child_path(new_name)?;
+         self.check_writable_entry(&inode, &old_path)?;
+         self.check_writable_entry(&new_inode, &new_path)?;
++        // Renaming a name onto itself changes nothing on the host; the name
++        // updates below would otherwise drop every name at or below it from
++        // every node (`remove_alias_prefix` of the new path).
++        if old_path == new_path {
++            return Ok(());
++        }
+         let exchange = flags & RENAME_EXCHANGE != 0;
+         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
+         inode.rename(name, &new_inode, new_name, flags)?;
+```
+
+## 3. A create of an existing file skips `open`'s rule for that file
+
+*Found 2026-11-10, in a review of the contracts against the code. Fixed:
+`patches/0003-virtiofs-create-on-existing-file-follows-open.patch` (applies
+after 0002).*
+
+**What goes wrong.** A `create` without `O_EXCL` opens the file at the name
+if one is there, with the guest's flags: `O_TRUNC` truncates it, and
+`O_WRONLY` or `O_RDWR` opens it for writing. `create` checks only that the
+parent directory and the name used are writable (`check_writable`,
+`check_writable_entry`). `open` of the same file also requires every name of
+it to be writable (`check_open_readonly`, through `readonly()`), since a
+change to a file shows through all its names. So a file whose other name is
+not writable cannot be truncated by `open`, but can by `create` at its
+writable name. Under the host assumption (no host hard link across the
+policy's boundary), a file gets such a name only by a guest `link` while
+both names were writable, and then a `rename` that moves the other name
+under a denied path inside a writable one.
+
+**The fix.** Before the host opens the file, a `create` that may write or
+truncate an existing file looks up whether the guest holds that file's node
+(`InodeMap::find`, by the same identity key as the inode table's dedup), and
+applies `open`'s rule to it: EROFS unless every name of it is writable.
+With `O_EXCL`, an existing file makes `create` fail anyway. In the microVM,
+nothing changes the file between this check and the open, since requests
+run one at a time. Test: `microvm/policy_tests.rs`,
+`a_create_that_truncates_an_existing_file_needs_all_its_names_writable`
+(fails without the fix; the test makes the second name with a host hard
+link, which is simpler to set up than the link and rename above).
+
+```diff
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -327,6 +327,7 @@
+         self.check_writable(&inode)?;
+         let path = inode.child_path(name)?;
+         self.check_writable_entry(&inode, &path)?;
++        self.check_create_existing(&inode, &path, options)?;
+         self.preflight_create_inode(&inode, name, &path)?;
+         self.preflight_file_insert()?;
+         let inode_reservation = self.reserve_inode()?;
+@@ -748,6 +749,39 @@
+         }
+     }
+ 
++    /// Check that a `create` that may open an existing file at `path` for
++    /// writing, or truncate it, follows `open`'s rule for that file: if the
++    /// guest holds the file's node, every name of it must be writable (as
++    /// `check_open_readonly` requires of `open`), and EROFS if not. With
++    /// `O_EXCL`, an existing file makes `create` fail anyway.
++    fn check_create_existing(
++        &self,
++        parent: &VirtioFsInode,
++        path: &Path,
++        options: i32,
++    ) -> lx::Result<()> {
++        let changes = matches!(options & lx::O_ACCESS_MASK, lx::O_WRONLY | lx::O_RDWR)
++            || options & lx::O_TRUNC != 0;
++        if options & lx::O_EXCL != 0 || !changes {
++            return Ok(());
++        }
++        let Ok(stat) = parent.volume.lstat(path) else {
++            // Nothing there: the create makes a new file.
++            return Ok(());
++        };
++        let key = if parent.volume.supports_stable_file_id() {
++            DedupKey::Ino(parent.volume_id(), stat.inode_nr)
++        } else {
++            DedupKey::Path(parent.volume_id(), path.to_path_buf())
++        };
++        if let Some(existing) = self.inner.inodes.read().find(&key) {
++            if existing.readonly() {
++                return Err(lx::Error::EROFS);
++            }
++        }
++        Ok(())
++    }
++
+     /// Check whether the open flags are permitted on a read-only filesystem.
+     fn check_open_readonly(&self, inode: &VirtioFsInode, options: i32) -> lx::Result<()> {
+         if !inode.readonly() {
+@@ -1189,6 +1223,11 @@
+         self.inodes_by_node_id.release_reservation(reservation);
+     }
+ 
++    /// The inode that the table holds for `key`, if any.
++    pub fn find(&self, key: &DedupKey) -> Option<Arc<VirtioFsInode>> {
++        self.inodes_by_key.get(key).map(|(inode, _)| Arc::clone(inode))
++    }
++
+     /// Insert an inode into the map, returning its node ID.
+     pub fn insert(&mut self, inode: VirtioFsInode) -> lx::Result<(Arc<VirtioFsInode>, u64)> {
+         // Reuse an existing node id for the same host file; see `DedupKey`
 ```
 
 ## Questions for Pedro (not bugs, yet)

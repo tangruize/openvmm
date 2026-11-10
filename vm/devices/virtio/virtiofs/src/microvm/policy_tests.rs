@@ -377,6 +377,51 @@ fn a_handle_is_used_only_with_its_node_while_the_guest_holds_it() {
 }
 
 #[test]
+fn renaming_a_name_onto_itself_keeps_its_names() {
+    // A rename onto the same name changes nothing on the host, and must not
+    // drop the names at or below it from the nodes.
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let out = lookup(&fs, "out").unwrap();
+    let existing = lookup(&fs, "out/existing").unwrap();
+    fs.rename(&request(out), name("existing"), out, name("existing"), 0)
+        .unwrap();
+    let names = fs.get_inode(existing).unwrap().aliases();
+    assert!(names.contains(&PathBuf::from("out").join("existing")));
+    assert_eq!(share.read("out/existing"), "existing");
+}
+
+#[test]
+fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
+    // One file with two names, one writable (`out/twin`) and one not
+    // (`marker`): `open` refuses to truncate it, and so must a `create` at
+    // the writable name.
+    let share = Share::new();
+    std::fs::hard_link(share.path("marker"), share.path("out/twin")).unwrap();
+    let fs = share.fs(&[], &[], &["out"]);
+    let out = lookup(&fs, "out").unwrap();
+    let twin = lookup(&fs, "out/twin").unwrap();
+    assert_eq!(lookup(&fs, "marker").unwrap(), twin);
+    assert_eq!(
+        error(open(&fs, twin, lx::O_WRONLY | lx::O_TRUNC)),
+        lx::Error::EROFS
+    );
+    let arg = fuse_create_in {
+        flags: (lx::O_WRONLY | lx::O_TRUNC) as u32,
+        mode: lx::S_IFREG | 0o644,
+        umask: 0,
+        padding: 0,
+    };
+    assert_eq!(
+        error(fs.create(&request(out), name("twin"), &arg)),
+        lx::Error::EROFS
+    );
+    assert_eq!(share.read("marker"), "host");
+    // A create of a new name in `out` still succeeds.
+    create(&fs, out, "fresh").unwrap();
+}
+
+#[test]
 fn allowed_paths_stay_readable_inside_a_hidden_subtree() {
     let share = Share::new();
     let fs = share.fs(&["logs", "logs/payloads/private"], &["logs/payloads"], &[]);

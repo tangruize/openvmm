@@ -327,6 +327,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         self.check_writable(&inode)?;
         let path = inode.child_path(name)?;
         self.check_writable_entry(&inode, &path)?;
+        self.check_create_existing(&inode, &path, options)?;
         self.preflight_create_inode(&inode, name, &path)?;
         self.preflight_file_insert()?;
         let inode_reservation = self.reserve_inode()?;
@@ -590,6 +591,12 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         let new_path = new_inode.child_path(new_name)?;
         self.check_writable_entry(&inode, &old_path)?;
         self.check_writable_entry(&new_inode, &new_path)?;
+        // Renaming a name onto itself changes nothing on the host; the name
+        // updates below would otherwise drop every name at or below it from
+        // every node (`remove_alias_prefix` of the new path).
+        if old_path == new_path {
+            return Ok(());
+        }
         let exchange = flags & RENAME_EXCHANGE != 0;
         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
         inode.rename(name, &new_inode, new_name, flags)?;
@@ -740,6 +747,39 @@ impl VirtioFs {
         } else {
             Err(lx::Error::EROFS)
         }
+    }
+
+    /// Check that a `create` that may open an existing file at `path` for
+    /// writing, or truncate it, follows `open`'s rule for that file: if the
+    /// guest holds the file's node, every name of it must be writable (as
+    /// `check_open_readonly` requires of `open`), and EROFS if not. With
+    /// `O_EXCL`, an existing file makes `create` fail anyway.
+    fn check_create_existing(
+        &self,
+        parent: &VirtioFsInode,
+        path: &Path,
+        options: i32,
+    ) -> lx::Result<()> {
+        let changes = matches!(options & lx::O_ACCESS_MASK, lx::O_WRONLY | lx::O_RDWR)
+            || options & lx::O_TRUNC != 0;
+        if options & lx::O_EXCL != 0 || !changes {
+            return Ok(());
+        }
+        let Ok(stat) = parent.volume.lstat(path) else {
+            // Nothing there: the create makes a new file.
+            return Ok(());
+        };
+        let key = if parent.volume.supports_stable_file_id() {
+            DedupKey::Ino(parent.volume_id(), stat.inode_nr)
+        } else {
+            DedupKey::Path(parent.volume_id(), path.to_path_buf())
+        };
+        if let Some(existing) = self.inner.inodes.read().find(&key) {
+            if existing.readonly() {
+                return Err(lx::Error::EROFS);
+            }
+        }
+        Ok(())
     }
 
     /// Check whether the open flags are permitted on a read-only filesystem.
@@ -1181,6 +1221,11 @@ impl InodeMap {
     /// Release an unused node ID reservation.
     pub fn release_reservation(&mut self, reservation: &HandleReservation) {
         self.inodes_by_node_id.release_reservation(reservation);
+    }
+
+    /// The inode that the table holds for `key`, if any.
+    pub fn find(&self, key: &DedupKey) -> Option<Arc<VirtioFsInode>> {
+        self.inodes_by_key.get(key).map(|(inode, _)| Arc::clone(inode))
     }
 
     /// Insert an inode into the map, returning its node ID.
