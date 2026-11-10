@@ -9,6 +9,14 @@ use std::fmt::Write;
 use std::fmt::{self};
 use std::ops;
 use std::str;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
+/// Verus specification of `LxStr`.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("string.spec.rs");
+}
 
 /// An owned string that may or may not be valid utf-8.
 ///
@@ -153,6 +161,8 @@ impl FromIterator<char> for LxString {
 /// A borrowed reference to a string that may or may not be valid utf-8.
 ///
 /// This is analogous to `OsStr` on Linux, but behaves the same on all platforms.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct LxStr {

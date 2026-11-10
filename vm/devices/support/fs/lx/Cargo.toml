@@ -6,10 +6,14 @@ name = "lx"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [dependencies]
 bitfield-struct.workspace = true
 static_assertions.workspace = true
 thiserror.workspace = true
+vstd.workspace = true
 zerocopy.workspace = true
 
 [lints]
