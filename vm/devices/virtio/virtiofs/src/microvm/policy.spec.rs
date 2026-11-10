@@ -8,9 +8,13 @@
 // path is traverse-only; and when a read-write share has writable paths,
 // they are the only parts of it that the guest can modify.
 
+// Used only by spec functions, which a normal build removes.
+#[cfg(verus_keep_ghost)]
 use super::PathVisibility;
+#[cfg(verus_keep_ghost)]
 use super::Rule;
 use super::SubtreePolicy;
+#[cfg(verus_keep_ghost)]
 use std::path::PathBuf;
 use vstd::prelude::*;
 use vstd::std_specs::path::PathView;
@@ -64,7 +68,7 @@ impl SubtreePolicyView {
     /// How the guest can reach `p`: visible if no rule contains it or the
     /// nearest one is an allowed path; if the nearest one is a denied path,
     /// traverse-only when it leads to an allowed path, else hidden.
-    pub closed spec fn visibility(self, p: PathView) -> PathVisibility {
+    pub(crate) closed spec fn visibility(self, p: PathView) -> PathVisibility {
         match self.nearest_rule(p) {
             Some(Rule::Deny) => if self.leads_to_allowed(p) {
                 PathVisibility::TraverseOnly

@@ -74,7 +74,7 @@ fn accesses_host_files(opcode: u32) -> bool {
 /// its caller when `caller_identity` is set.
 pub(crate) fn dispatch(
     caller_identity: Option<&CallerIdentity>,
-    session: &fuse::Session,
+    session: &fuse::Session<crate::spec::VirtioFsGhost>,
     request: fuse::Request,
     sender: &mut impl fuse::ReplySender,
     mapper: Option<&dyn fuse::Mapper>,
@@ -87,7 +87,7 @@ pub(crate) fn dispatch(
 /// GID and either performs the operation as that identity or fails.
 pub(crate) fn dispatch_with(
     caller_identity: Option<&CallerIdentity>,
-    session: &fuse::Session,
+    session: &fuse::Session<crate::spec::VirtioFsGhost>,
     request: fuse::Request,
     sender: &mut impl fuse::ReplySender,
     mapper: Option<&dyn fuse::Mapper>,

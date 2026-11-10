@@ -31,18 +31,30 @@ pub use session::saved_state::SessionStateError;
 use lx::LxStr;
 use lx::LxString;
 use protocol::*;
+use spec::FuseState;
 use std::time::Duration;
+use vstd::prelude::*;
 use zerocopy::FromBytes;
 use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
 
+/// Verus specification of a FUSE filesystem's state: the questions that the
+/// operations' rules ask about it. Included in every build, not only under
+/// `cfg(verus_keep_ghost)`: the `Fuse` trait's bound names `FuseState`, so a
+/// normal build needs it (its spec functions are removed there).
+pub mod spec {
+    include!("lib.spec.rs");
+}
+
 /// Reply data for the `create` operation.
 ///
 /// The `create` operation includes two values in its reply, but fuse.h has no wrapper for the
 /// combination of these values as they're just passed as separate arguments to `fuse_reply_create`
 /// in libfuse.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct CreateOut {
@@ -58,10 +70,41 @@ pub struct CreateOut {
 ///
 /// For many operations, a reply of `ENOSYS` is taken as permanent failure, preventing the client
 /// from ever issuing that operation again.
-pub trait Fuse {
+///
+/// `G` is the file system's ghost state (Verus only; nothing of it exists at
+/// runtime), lent to each operation: the operations' contracts are stated on
+/// its view, which answers [`FuseState`]'s questions.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+pub trait Fuse<G: View>: Send + Sync
+where
+    G::V: FuseState,
+{
     /// Looks up a child of an inode.
     ///
     /// This increases the lookup count of the found entry by one.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only for a name the guest may reach, and hands out
+                // that path's node. Only the path rules: the rule on pinned
+                // identities is about which object is at the path, which the
+                // spec cannot say without a model of the host (deferred). The
+                // kind is the reply's.
+                Ok(entry) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    let p = s.child_path(n, _name@);
+                    let kind = entry.attr.mode & lx::S_IFMT;
+                    &&& s.is_entry(n, _name@)
+                    &&& s.may_reach(n, p, kind)
+                    &&& final(g)@ == s.after_reach(n, p, entry.nodeid, kind)
+                },
+                // An error changes nothing.
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn lookup(&self, _request: &Request, _name: &LxStr) -> lx::Result<fuse_entry_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -72,6 +115,7 @@ pub trait Fuse {
     ///
     /// The client is not guaranteed to send a forget message for every inode if the file system
     /// is unmounted.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn forget(&self, _node_id: u64, _lookup_count: u64) {
         // No reply is allowed from this message, not even error.
     }
@@ -82,21 +126,25 @@ pub trait Fuse {
     ///
     /// If attributes are retrieved through an open file descriptor (i.e. using `fstat`), the
     /// `fh` parameter will be set to the file handle returned by the `open` call.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_attr(&self, _request: &Request, _flags: u32, _fh: u64) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Changes the attributes of a file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_attr(&self, _request: &Request, _arg: &fuse_setattr_in) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Reads the target of a symbolic link.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_link(&self, _request: &Request) -> lx::Result<LxString> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Creates a symbolic link as a child of the specified inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn symlink(
         &self,
         _request: &Request,
@@ -108,6 +156,7 @@ pub trait Fuse {
 
     /// Creates a regular file, fifo, socket, or character or block device node as a child of
     /// the specified inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn mknod(
         &self,
         _request: &Request,
@@ -118,6 +167,23 @@ pub trait Fuse {
     }
 
     /// Creates a directory as a child of the specified inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may add a name, and hands out
+                // a new node for the new directory.
+                Ok(entry) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.may_add_name(n, _name@)
+                    &&& !s.holds_node(entry.nodeid)
+                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), entry.nodeid, lx::S_IFDIR)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn mkdir(
         &self,
         _request: &Request,
@@ -128,11 +194,13 @@ pub trait Fuse {
     }
 
     /// Removes a non-directory child from the specified inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn unlink(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Removes a directory child from the specified inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn rmdir(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -141,6 +209,7 @@ pub trait Fuse {
     ///
     /// The file's original parent is the request's inode, while the new parent is indicated using
     /// `new_dir`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn rename(
         &self,
         _request: &Request,
@@ -153,6 +222,7 @@ pub trait Fuse {
     }
 
     /// Creates a hard-link to an existing inode, as a child of the specified inode..
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn link(&self, _request: &Request, _name: &LxStr, _target: u64) -> lx::Result<fuse_entry_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -165,21 +235,25 @@ pub trait Fuse {
     /// If not implemented, this call will succeed, which can be used if the file system doesn't
     /// need any state for open files, since the inode number is also provided to functions
     /// such as `read` and `write`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn open(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Reads data from an open file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Writes data to an open file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn write(&self, _request: &Request, _arg: &fuse_write_in, _data: &[u8]) -> lx::Result<usize> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Retrieves the attributes of the file system.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn statfs(&self, _request: &Request) -> lx::Result<fuse_kstatfs> {
         Err(lx::Error::ENOSYS)
     }
@@ -188,16 +262,19 @@ pub trait Fuse {
     ///
     /// If not implemented, this call will succeed. Won't be called if `open`
     /// returned `ENOSYS` (the default).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn release(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())
     }
 
     /// Synchronize file contents.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn fsync(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Add or change an extended attribute on an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_xattr(
         &self,
         _request: &Request,
@@ -209,26 +286,31 @@ pub trait Fuse {
     }
 
     /// Retrieve an extended attribute on an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_xattr(&self, _request: &Request, _name: &LxStr, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Retrieve the size of an extended attribute on an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_xattr_size(&self, _request: &Request, _name: &LxStr) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
     }
 
     /// List all extended attributes on an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn list_xattr(&self, _request: &Request, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Retrieve the size of the list of extended attributes on an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn list_xattr_size(&self, _request: &Request) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Remove an extended attribute from an inode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn remove_xattr(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -238,11 +320,13 @@ pub trait Fuse {
     /// This is called for every file descriptor, so may be called more than once.
     ///
     /// Use `release` to know when the last file descriptor was closed.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn flush(&self, _request: &Request, _arg: &fuse_flush_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Negotiate file system parameters with the client.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn init(&self, _info: &mut SessionInfo) {}
 
     /// Opens a directory.
@@ -250,6 +334,7 @@ pub trait Fuse {
     /// If not implemented, this call will succeed, which can be used if the file system doesn't
     /// need any state for open files, since the inode number is also provided to functions
     /// such as `read_dir`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn open_dir(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -257,6 +342,7 @@ pub trait Fuse {
     /// Reads the contents of a directory.
     ///
     /// Use `DirEntryWriter` to create a buffer containing directory entries.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_dir(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
@@ -265,16 +351,19 @@ pub trait Fuse {
     ///
     /// If not implemented, this call will succeed. Won't be called if `opendir`
     /// returned ENOSYS (the default).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn release_dir(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())
     }
 
     /// Synchronize directory contents.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn fsync_dir(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Test for a POSIX file lock.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_lock(&self, _request: &Request, _arg: &fuse_lk_in) -> lx::Result<fuse_file_lock> {
         Err(lx::Error::ENOSYS)
     }
@@ -282,11 +371,13 @@ pub trait Fuse {
     /// Acquire, modify or release a POSIX file lock.
     ///
     /// If not implemented, the client still allows for local file locking.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_lock(&self, _request: &Request, _arg: &fuse_lk_in, _sleep: bool) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Check file access permissions.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn access(&self, _request: &Request, _mask: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -297,6 +388,26 @@ pub trait Fuse {
     /// from [`lx`], using the platform's Linux ABI.
     ///
     /// If not implemented, the client will use `mknod` followed by `open`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may add a name; hands out the
+                // file's node (an existing one, if the file was there and the
+                // create was not exclusive) and a new handle on it.
+                Ok(out) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    let m = out.entry.nodeid;
+                    &&& s.may_add_name(n, _name@)
+                    &&& !s.holds_file(out.open.fh)
+                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), m, lx::S_IFREG)
+                            .after_open(out.open.fh, m, G::V::opens_for_writing(_arg.flags))
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn create(
         &self,
         _request: &Request,
@@ -309,6 +420,7 @@ pub trait Fuse {
     /// Map a file block index to a device block index.
     ///
     /// This method is only relevant for file systems mounted using `fuseblk`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn block_map(&self, _request: &Request, _block: u64, _block_size: u32) -> lx::Result<u64> {
         Err(lx::Error::ENOSYS)
     }
@@ -320,6 +432,7 @@ pub trait Fuse {
     ///
     /// For virtio-fs, the client will call this when the file system is unmounted. After receiving
     /// destroy, another `init` call can be received if the file system is mounted again.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn destroy(&self) {}
 
     /// Submit an ioctl.
@@ -328,6 +441,7 @@ pub trait Fuse {
     ///
     /// This is a somewhat limited subset of the ioctl functionality of libfuse; the additional
     /// functionality seems to only apply to CUSE, however.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn ioctl(
         &self,
         _request: &Request,
@@ -338,6 +452,7 @@ pub trait Fuse {
     }
 
     /// Allocate requested space.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn fallocate(&self, _request: &Request, _arg: &fuse_fallocate_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -348,17 +463,20 @@ pub trait Fuse {
     ///
     /// If you implement this, you must set `FUSE_DO_READDIRPLUS` in `init`. If you implement both
     /// read_dir_plus and read_dir, also set `FUSE_READDIRPLUS_AUTO`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_dir_plus(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Find data holes in a sparse file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn lseek(&self, _request: &Request, _fh: u64, _offset: u64, _whence: u32) -> lx::Result<u64> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Copy data from one file to another without needing to send data through the FUSE kernel
     /// module.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn copy_file_range(
         &self,
         _request: &Request,
@@ -368,6 +486,7 @@ pub trait Fuse {
     }
 
     /// Create a DAX memory mapping.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn setup_mapping(
         &self,
         request: &Request,
@@ -379,6 +498,7 @@ pub trait Fuse {
     }
 
     /// Remove a DAX memory mapping.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn remove_mapping(
         &self,
         request: &Request,
@@ -396,6 +516,7 @@ pub trait Fuse {
     ///
     /// If information is retrieved through an open file descriptor (i.e. using `fstat`), the
     /// `fh` parameter will be set to the file handle returned by the `open` call.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_statx(
         &self,
         _request: &Request,
@@ -416,6 +537,7 @@ pub type FileRef<'a> = std::os::unix::io::BorrowedFd<'a>;
 /// Trait for mapping files into a shared memory region.
 ///
 /// This is used to support DAX with virtio-fs.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub trait Mapper {
     /// Map memory into the region at `offset`.
     fn map(

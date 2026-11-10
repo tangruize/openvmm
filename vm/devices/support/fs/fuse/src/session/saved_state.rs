@@ -109,7 +109,10 @@ impl SessionState {
     }
 }
 
-impl Session {
+impl<G: vstd::prelude::View> Session<G>
+where
+    G::V: crate::spec::FuseState,
+{
     /// Saves typed negotiated protocol state for device-private migration.
     pub fn save_state(&self) -> SessionState {
         let initialized = self.is_initialized();

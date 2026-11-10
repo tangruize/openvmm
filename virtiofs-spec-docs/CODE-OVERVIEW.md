@@ -450,6 +450,14 @@ a few with their fields visible for the contracts (`fuse_entry_out`,
 `fuse_attr`, `fuse_open_out`, `CreateOut`). This cost comes with any
 contract on the trait, (a) or (b).
 
+*Status* (2026-11-10): the contracts of `lookup`, `mkdir` and `create` are on
+the trait (`fuse/src/lib.rs`), with `FuseState` in `fuse/src/lib.spec.rs`
+and virtio-fs's answers in `virtiofs/src/lib.spec.rs` (an inode's view in
+`inode.spec.rs`); Verus checks the spec of `lx`, `fuse` and `virtiofs`
+with 0 errors, every body still `external_body`, and the normal builds
+pass. `lookup`'s contract has the path rules only (see "No model of the
+host, for now").
+
 `VirtioFs` implements the trait, and its proof
 is where the code's policy checks are verified. Every implementor must
 meet the contract: the other one is `SectionFs`

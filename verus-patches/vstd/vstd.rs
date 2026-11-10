@@ -99,6 +99,19 @@ pub mod wrapping;
 #[cfg(verus_keep_ghost)]
 pub mod std_specs;
 
+// OpenVMM's patch vstd-0005: `std_specs` is compiled only under Verus, but
+// ghost types that production code names (ghost state passed as a type
+// parameter) may name `PathView`, so a normal build needs the alias too.
+#[cfg(not(verus_keep_ghost))]
+pub mod std_specs {
+    #[cfg(feature = "std")]
+    pub mod path {
+        /// The view of a `Path` or a `PathBuf`: its components, each the
+        /// bytes of its name (see the Verus build's `std_specs::path`).
+        pub type PathView = crate::seq::Seq<crate::seq::Seq<u8>>;
+    }
+}
+
 // Re-exports all vstd types, traits, and functions that are commonly used or replace
 // regular `core` or `std` definitions.
 pub mod prelude;

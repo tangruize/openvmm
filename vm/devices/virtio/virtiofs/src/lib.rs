@@ -14,6 +14,13 @@ pub use microvm::profile;
 pub mod resolver;
 #[cfg(windows)]
 mod section;
+/// Verus specification of the file system's state, as the guest sees it.
+/// Included in every build, not only under `cfg(verus_keep_ghost)`: its
+/// ghost state is the `Fuse` trait's type parameter (`Fuse<VirtioFsGhost>`),
+/// so a normal build needs the type (its spec functions are removed there).
+pub mod spec {
+    include!("lib.spec.rs");
+}
 #[cfg(test)]
 mod test_helpers;
 mod util;
@@ -40,6 +47,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 // FUSE likes to spam getattr a lot, so having a small timeout on the attributes avoids excessive
 // calls. It also means that a lookup/stat sequence can use the attributes returned by lookup
@@ -130,12 +139,16 @@ fn build_volume(
 ///
 /// Symlinks are exposed without host-side traversal.
 /// Symbolic links are resolved by the guest, in both direct and aggregate mode.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone)]
 pub struct VirtioFs {
     inner: Arc<VirtioFsInner>,
 }
 
-impl Fuse for VirtioFs {
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl Fuse<spec::VirtioFsGhost> for VirtioFs {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn init(&self, info: &mut SessionInfo) {
         microvm::fs::configure_session(self, info);
 
@@ -176,6 +189,7 @@ impl Fuse for VirtioFs {
         };
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_attr(&self, request: &Request, flags: u32, fh: u64) -> lx::Result<fuse_attr_out> {
         let node_id = request.node_id();
         // If a file handle is specified, get the attributes from the open file. This is faster on
@@ -194,6 +208,7 @@ impl Fuse for VirtioFs {
         Ok(fuse_attr_out::new(self.attribute_timeout(), attr))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_statx(
         &self,
         request: &Request,
@@ -221,6 +236,7 @@ impl Fuse for VirtioFs {
         Ok(fuse_statx_out::new(self.attribute_timeout(), flags, statx))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_attr_out> {
         let node_id = request.node_id();
 
@@ -250,6 +266,8 @@ impl Fuse for VirtioFs {
         Ok(fuse_attr_out::new(self.attribute_timeout(), attr))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn lookup(&self, request: &Request, name: &lx::LxStr) -> lx::Result<fuse_entry_out> {
         if self.is_synthetic_root(request.node_id()) {
             return self.lookup_synthetic_root(name);
@@ -258,6 +276,7 @@ impl Fuse for VirtioFs {
         self.lookup_helper(&inode, name)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn forget(&self, node_id: u64, lookup_count: u64) {
         if node_id == FUSE_ROOT_ID {
             return;
@@ -273,6 +292,7 @@ impl Fuse for VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn open(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
         let options = util::open_flags(flags)?;
         let inode = self.get_inode(request.node_id())?;
@@ -286,6 +306,8 @@ impl Fuse for VirtioFs {
         Ok(fuse_open_out::new(fh, self.open_flags()))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn create(
         &self,
         request: &Request,
@@ -324,6 +346,8 @@ impl Fuse for VirtioFs {
         })
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn mkdir(
         &self,
         request: &Request,
@@ -349,6 +373,7 @@ impl Fuse for VirtioFs {
         ))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn mknod(
         &self,
         request: &Request,
@@ -376,6 +401,7 @@ impl Fuse for VirtioFs {
         ))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn symlink(
         &self,
         request: &Request,
@@ -403,6 +429,7 @@ impl Fuse for VirtioFs {
         ))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<fuse_entry_out> {
         if self.is_synthetic_root(request.node_id()) {
             return Err(lx::Error::EROFS);
@@ -441,11 +468,13 @@ impl Fuse for VirtioFs {
         ))
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_link(&self, request: &Request) -> lx::Result<lx::LxString> {
         let inode = self.get_inode(request.node_id())?;
         inode.read_link()
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read(&self, _request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         let file = self.get_file(arg.fh)?;
         let mut buffer = guest_buffer(arg.size)?;
@@ -454,6 +483,7 @@ impl Fuse for VirtioFs {
         Ok(buffer)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Result<usize> {
         if data.len() > MAX_GUEST_BUFFER_SIZE {
             return Err(lx::Error::E2BIG);
@@ -463,11 +493,13 @@ impl Fuse for VirtioFs {
         file.write(data, arg.offset, request.uid())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn release(&self, _request: &Request, arg: &fuse_release_in) -> lx::Result<()> {
         self.remove_file(arg.fh);
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn open_dir(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
         if self.is_synthetic_root(request.node_id()) {
             util::open_flags(flags)?;
@@ -479,6 +511,7 @@ impl Fuse for VirtioFs {
         self.open(request, flags)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_dir(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return self.read_synthetic_root_dir(arg.offset, arg.size, false);
@@ -487,6 +520,7 @@ impl Fuse for VirtioFs {
         file.read_dir(self, arg.offset, arg.size, false)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn read_dir_plus(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return self.read_synthetic_root_dir(arg.offset, arg.size, true);
@@ -495,6 +529,7 @@ impl Fuse for VirtioFs {
         file.read_dir(self, arg.offset, arg.size, true)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn release_dir(&self, request: &Request, arg: &fuse_release_in) -> lx::Result<()> {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return Ok(());
@@ -502,14 +537,17 @@ impl Fuse for VirtioFs {
         self.release(request, arg)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn unlink(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         self.unlink_helper(request, name, 0)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn rmdir(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         self.unlink_helper(request, name, lx::AT_REMOVEDIR)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn rename(
         &self,
         request: &Request,
@@ -546,6 +584,7 @@ impl Fuse for VirtioFs {
         Ok(())
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn statfs(&self, request: &Request) -> lx::Result<fuse_kstatfs> {
         if self.is_synthetic_root(request.node_id()) {
             return Ok(fuse_kstatfs::new(0, 0, 0, 0, 0, 512, 255, 512));
@@ -554,18 +593,21 @@ impl Fuse for VirtioFs {
         inode.stat_fs()
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn fsync(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
         let file = self.get_file(fh)?;
         let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
         file.fsync(data_only)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn fsync_dir(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
         let file = self.get_file(fh)?;
         let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
         file.fsync_dir(data_only)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_xattr(&self, request: &Request, name: &lx::LxStr, size: u32) -> lx::Result<Vec<u8>> {
         if self.is_synthetic_root(request.node_id()) {
             return Err(lx::Error::ENODATA);
@@ -577,6 +619,7 @@ impl Fuse for VirtioFs {
         Ok(value)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn get_xattr_size(&self, request: &Request, name: &lx::LxStr) -> lx::Result<u32> {
         if self.is_synthetic_root(request.node_id()) {
             return Err(lx::Error::ENODATA);
@@ -587,6 +630,7 @@ impl Fuse for VirtioFs {
         Ok(size)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn set_xattr(
         &self,
         request: &Request,
@@ -605,6 +649,7 @@ impl Fuse for VirtioFs {
         inode.set_xattr(name, value, flags)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn list_xattr(&self, request: &Request, size: u32) -> lx::Result<Vec<u8>> {
         if self.is_synthetic_root(request.node_id()) {
             return Ok(Vec::new());
@@ -616,6 +661,7 @@ impl Fuse for VirtioFs {
         Ok(list)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn list_xattr_size(&self, request: &Request) -> lx::Result<u32> {
         if self.is_synthetic_root(request.node_id()) {
             return Ok(0);
@@ -626,6 +672,7 @@ impl Fuse for VirtioFs {
         Ok(size)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn remove_xattr(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         if self.is_synthetic_root(request.node_id()) {
             return Err(lx::Error::EROFS);
@@ -635,6 +682,7 @@ impl Fuse for VirtioFs {
         inode.remove_xattr(name)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     fn destroy(&self) {
         // To get the file system ready for re-mount, clean out any open files and leaked inodes.
         self.inner.files.write().clear();

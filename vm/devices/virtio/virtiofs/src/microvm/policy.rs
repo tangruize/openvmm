@@ -32,13 +32,17 @@ use std::path::PathBuf;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
-/// Verus specification of the access policy.
-#[cfg(verus_keep_ghost)]
+/// Verus specification of the access policy. Included in every build, not
+/// only under `cfg(verus_keep_ghost)`: `SubtreePolicyView` is a field of the
+/// ghost state that the `Fuse` trait's type parameter names
+/// (`crate::spec::VirtioFsGhost`), so a normal build needs it (its spec
+/// functions are removed there).
 pub(crate) mod spec {
     include!("policy.spec.rs");
 
     /// Declarations supporting the spec. Inside `spec`, so that lemmas can
     /// unfold its closed views.
+    #[cfg(verus_keep_ghost)]
     pub(crate) mod proof {
         include!("policy.proof.rs");
     }

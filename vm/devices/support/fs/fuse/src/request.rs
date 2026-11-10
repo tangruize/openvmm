@@ -11,6 +11,14 @@ use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
+/// Verus specification of `Request`.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("request.spec.rs");
+}
 
 // Define an enum for all operations and their arguments.
 fuse_operations! {
@@ -69,6 +77,8 @@ fuse_operations! {
 }
 
 /// A request received from the FUSE kernel module.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct Request {
     header: fuse_in_header,
     operation: FuseOperation,

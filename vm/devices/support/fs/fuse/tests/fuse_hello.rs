@@ -60,7 +60,7 @@ fn fuse_hello() {
 
 struct TestFs {}
 
-impl Fuse for TestFs {
+impl Fuse<()> for TestFs {
     fn get_attr(&self, request: &Request, _flags: u32, _fh: u64) -> lx::Result<fuse_attr_out> {
         let mut attr = fuse_attr_out::new_zeroed();
         attr.attr_valid = 1;

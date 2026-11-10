@@ -19,6 +19,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+
+/// Verus specification of the inode: its view.
+#[cfg(verus_keep_ghost)]
+mod spec {
+    include!("inode.spec.rs");
+}
 
 /// Multiplier used to spread a volume id across the 64-bit inode space when
 /// namespacing inode numbers (see [`namespace_ino`]). It is the 64-bit
@@ -41,6 +49,7 @@ pub(crate) fn namespace_ino(volume_id: u32, raw: lx::ino_t) -> lx::ino_t {
     raw ^ u64::from(volume_id).wrapping_mul(INO_NAMESPACE_MULTIPLIER)
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct VirtioFsVolume {
     pub(crate) volume: Arc<LxVolume>,
     pub(crate) id: u32,
@@ -127,6 +136,7 @@ pub(crate) enum DedupKey {
 }
 
 /// Implements inode callbacks for virtio-fs.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioFsInode {
     pub(crate) volume: Arc<VirtioFsVolume>,
     pub(crate) path: RwLock<PathBuf>,

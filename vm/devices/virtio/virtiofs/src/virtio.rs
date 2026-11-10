@@ -72,7 +72,7 @@ pub struct VirtioFsDevice {
     #[inspect(skip)]
     pub(crate) config: VirtioFsDeviceConfig,
     #[inspect(skip)]
-    pub(crate) fs: Arc<fuse::Session>,
+    pub(crate) fs: Arc<fuse::Session<crate::spec::VirtioFsGhost>>,
     #[inspect(skip)]
     pub(crate) workers: Vec<TaskControl<VirtioFsWorker, VirtioFsQueue>>,
     shmem_size: u64,
@@ -194,7 +194,7 @@ impl VirtioFsDevice {
         notify_corruption: Option<Arc<dyn Fn() + Sync + Send>>,
     ) -> Self
     where
-        Fs: 'static + fuse::Fuse + Send + Sync,
+        Fs: 'static + fuse::Fuse<crate::spec::VirtioFsGhost> + Send + Sync,
     {
         Self::with_num_request_queues(
             driver_source,
@@ -217,7 +217,7 @@ impl VirtioFsDevice {
         num_request_queues: u32,
     ) -> Self
     where
-        Fs: 'static + fuse::Fuse + Send + Sync,
+        Fs: 'static + fuse::Fuse<crate::spec::VirtioFsGhost> + Send + Sync,
     {
         let num_request_queues = num_request_queues.clamp(1, MAX_REQUEST_QUEUES);
 
@@ -406,7 +406,7 @@ impl VirtioDevice for VirtioFsDevice {
 }
 
 pub(crate) struct VirtioFsWorker {
-    fs: Arc<fuse::Session>,
+    fs: Arc<fuse::Session<crate::spec::VirtioFsGhost>>,
     shared_memory_region: Option<Arc<dyn MappedMemoryRegion>>,
     shared_memory_size: u64,
     notify_corruption: Arc<dyn Fn() + Sync + Send>,

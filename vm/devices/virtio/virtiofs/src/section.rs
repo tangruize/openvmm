@@ -225,7 +225,7 @@ impl SectionFs {
     }
 }
 
-impl fuse::Fuse for SectionFs {
+impl fuse::Fuse<crate::spec::VirtioFsGhost> for SectionFs {
     fn lookup(
         &self,
         request: &fuse::Request,

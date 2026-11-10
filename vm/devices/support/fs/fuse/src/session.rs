@@ -5,6 +5,7 @@ pub(crate) mod saved_state;
 
 use super::Fuse;
 use super::Mapper;
+use super::spec::FuseState;
 use super::protocol::*;
 use super::reply::ReplySender;
 use super::request::FuseOperation;
@@ -14,9 +15,12 @@ use parking_lot::RwLock;
 use std::io;
 use std::sync::atomic;
 use thiserror::Error;
+use vstd::prelude::View;
 use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::KnownLayout;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 // These are the flags that libfuse enables by default when calling init.
 const DEFAULT_FLAGS: u32 = FUSE_ASYNC_READ
@@ -44,19 +48,25 @@ const PAGE_SIZE: u32 = 4096;
 /// A FUSE session for a file system.
 ///
 /// Handles negotiation and dispatching requests to the file system.
-pub struct Session {
-    fs: Box<dyn Fuse + Send + Sync>,
+pub struct Session<G: View>
+where
+    G::V: FuseState,
+{
+    fs: Box<dyn Fuse<G>>,
     // Initialized provides a quick way to check if FUSE_INIT is expected without having to take
     // a lock, since operations mostly don't need to access the SessionInfo.
     initialized: atomic::AtomicBool,
     info: RwLock<SessionInfo>,
 }
 
-impl Session {
+impl<G: View> Session<G>
+where
+    G::V: FuseState,
+{
     /// Create a new `Session`.
     pub fn new<T>(fs: T) -> Self
     where
-        T: 'static + Fuse + Send + Sync,
+        T: 'static + Fuse<G>,
     {
         Self {
             fs: Box::new(fs),
@@ -609,6 +619,8 @@ impl Session {
 }
 
 /// Provides information about a session. Public fields may be modified during `init`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Default)]
 pub struct SessionInfo {
     major: u32,
@@ -734,7 +746,7 @@ mod tests {
         state: Arc<Mutex<State>>,
     }
 
-    impl Fuse for TestFs {
+    impl Fuse<()> for TestFs {
         fn init(&self, info: &mut SessionInfo) {
             assert_eq!(self.state.lock().called & INIT_CALLED, 0);
             assert_eq!(info.major(), 7);
@@ -917,7 +929,7 @@ mod tests {
         max_write_override: Option<u32>,
     }
 
-    impl Fuse for InitCapturingFs {
+    impl Fuse<()> for InitCapturingFs {
         fn init(&self, info: &mut SessionInfo) {
             if self.request_direct_io_mmap && info.capable2() & FUSE_DIRECT_IO_ALLOW_MMAP_FLAG2 != 0
             {

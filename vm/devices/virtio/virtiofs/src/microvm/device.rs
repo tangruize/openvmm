@@ -27,7 +27,7 @@ use vmcore::vm_task::VmTaskDriverSource;
 
 struct DormantMicrovmFs;
 
-impl fuse::Fuse for DormantMicrovmFs {}
+impl fuse::Fuse<crate::spec::VirtioFsGhost> for DormantMicrovmFs {}
 
 impl VirtioFsDevice {
     /// Creates the fixed no-DAX microVM virtio-fs device.

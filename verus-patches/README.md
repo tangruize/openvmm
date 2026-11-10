@@ -11,6 +11,7 @@ This directory holds two kinds of patch:
 | `vstd-0002-allow-warnings.patch` | the same (`source/vstd/vstd.rs`) | `#![allow(warnings)]`: silences vstd's lint warnings, which show now that it is a path dependency |
 | `vstd-0003-path-view.patch` | the same (`source/vstd/std_specs/path.rs`, new, and `std_specs/mod.rs`) | `std::path::Path` and `PathBuf` declared to Verus, with their view: the path's components, each the bytes of its name (for the virtio-fs spec) |
 | `vstd-0004-as-ref.patch` | the same, after `vstd-0003` (`source/vstd/std_specs/convert.rs` and `std_specs/path.rs`) | a spec of `AsRef::as_ref`, and what it returns for `&T`, `Path` and `PathBuf`, so that a contract of a function taking `impl AsRef<Path>` can name its path (for the virtio-fs spec) |
+| `vstd-0005-path-view-normal-build.patch` | the same (`source/vstd/vstd.rs`) | in a normal build (without Verus), where `std_specs` is not compiled, the alias `std_specs::path::PathView` alone, for ghost types that production code names (for the virtio-fs spec) |
 
 Local fixes to Verus needed by the snapshot specification work. Each patch
 applies to Verus commit `426d8b0` ("Support /= and %= for signed integers
@@ -540,3 +541,18 @@ caller passes them.
 
 **Check.** vstd builds, and `virtiofs` still verifies (2060 verified, 0
 errors).
+
+
+### vstd-0005-path-view-normal-build.patch
+
+**Need.** vstd compiles `std_specs` only under Verus (`vstd.rs`,
+`#[cfg(verus_keep_ghost)] pub mod std_specs`). The virtio-fs spec passes its
+ghost state to the `Fuse` trait as a type parameter (`Fuse<G>`), so a normal
+build compiles the ghost state's types, whose fields name `PathView`.
+
+**Change.** In a normal build only, a `std_specs` module holding just
+`path::PathView`, the same alias (`Seq<Seq<u8>>`). The Verus build is
+unchanged.
+
+**Check.** `cargo check -p lx -p fuse -p virtiofs` (normal) and Verus on
+`lx`, `fuse` and `virtiofs` both pass.

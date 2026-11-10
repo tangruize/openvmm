@@ -73,7 +73,10 @@ impl Connection {
     }
 
     /// Create a FUSE session and run it until the file system is unmounted.
-    pub fn run<T: 'static + Fuse + Send + Sync>(&mut self, fs: T) -> lx::Result<()> {
+    pub fn run<G: vstd::prelude::View, T: 'static + Fuse<G>>(&mut self, fs: T) -> lx::Result<()>
+    where
+        G::V: crate::spec::FuseState,
+    {
         // TODO: the size of the buffer should be adjusted based on max_write.
         let mut buffer = vec![0u8; 1028 * 1024];
         let session = Session::new(fs);

@@ -1,5 +1,5 @@
 // High-level spec of a FUSE filesystem, as the guest sees it, for human
-// review. DRAFT: not yet included from `lib.rs`, not yet checked by Verus.
+// review.
 //
 // The `fuse` crate defines no data for the filesystem's state: only the
 // questions that the operations' rules ask about it, as spec functions
@@ -11,9 +11,25 @@
 // confidentiality (a node is handed out only for a path the guest may see).
 
 use vstd::prelude::*;
+// Used only by spec functions, which a normal build removes.
+#[cfg(verus_keep_ghost)]
 use vstd::std_specs::path::PathView;
 
 verus! {
+
+/// std's `BorrowedFd` (the `Mapper` trait's `FileRef` on Unix), declared to
+/// Verus by name only.
+#[cfg(all(verus_keep_ghost, unix))]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExBorrowedFd<'a>(std::os::fd::BorrowedFd<'a>);
+
+/// A request's decoded operation and arguments (a `Request`'s field),
+/// declared to Verus by name only: the contracts do not look inside it.
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExFuseOperation(crate::FuseOperation);
 
 /// The questions that the operations' rules ask about a filesystem's state.
 /// `Sized`, so that the `after_` functions can return the state.
@@ -33,10 +49,10 @@ pub trait FuseState: Sized {
     /// The guest may change node `n` itself: through every name of it.
     spec fn node_can_write(&self, n: u64) -> bool;
 
-    /// The guest may reach the host object `object` (`(device_nr,
-    /// inode_nr)`, as `lstat` reports it), of file type `kind`, at path `p`
-    /// of `parent`'s share.
-    spec fn may_reach(&self, parent: u64, p: PathView, object: (u64, u64), kind: lx::mode_t) -> bool;
+    /// The guest may reach an object of file type `kind` at path `p` of
+    /// `parent`'s share, by the path rules. (The rule on pinned identities,
+    /// about which object is at `p`, waits for a model of the host.)
+    spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool;
 
     /// The state after node `m` is handed out for the object at path `p` of
     /// `parent`'s share, of file type `kind`: an existing node gets `p` as
@@ -67,6 +83,12 @@ pub trait FuseState: Sized {
         self.is_dir(parent) && Self::is_plain_name(name)
     }
 
+    /// Open flags `flags` open for writing: their access mode (`O_ACCMODE`,
+    /// the low two bits) is not read-only (`O_RDONLY`, 0).
+    open spec fn opens_for_writing(flags: u32) -> bool {
+        flags & 3u32 != 0u32
+    }
+
     /// The common rule of the operations that make a new name `name` in
     /// `parent` (`create`, `mkdir`, `mknod`, `symlink`, `link`): it names an
     /// entry, `parent` is a directory the guest may change, and the new
@@ -78,66 +100,46 @@ pub trait FuseState: Sized {
     }
 }
 
-} // verus!
+/// The state of a file system that has no ghost state (the `fuse` crate's
+/// tests, `Fuse<()>`): it holds nothing, and permits nothing, so a verified
+/// implementation of `Fuse<()>` could succeed at no operation that the
+/// rules restrict.
+impl FuseState for () {
+    open spec fn holds_node(&self, n: u64) -> bool {
+        false
+    }
 
-// The contracts, on the `Fuse` trait (`lib.rs`), shown here as they would be
-// written there:
-//
-// pub trait Fuse<G: View>: Send + Sync where G::V: FuseState { ... }
-//
-// `g` is the ghost state that every handler is lent; `n` is
-// `request.node_id()`; `name@` is the name's bytes.
-//
-// fn lookup(&self, request: &Request, name: &LxStr) -> (r: lx::Result<fuse_entry_out>)
-//     with Tracked(g): Tracked<&mut G>
-//     ensures
-//         match r {
-//             // Succeeds only for a name the guest may reach, and hands out
-//             // that object's node. The object is only "some object": the
-//             // spec has no model of the host yet, so the rule on pinned
-//             // identities (which object is at `p`) is not enforced by this
-//             // contract; the path rules are. The kind is the reply's.
-//             Ok(entry) => exists|object: (u64, u64)| {
-//                 let s = old(g)@;
-//                 let p = s.child_path(n, name@);
-//                 let kind = entry.attr.mode & lx::S_IFMT;
-//                 &&& s.is_entry(n, name@)
-//                 &&& s.may_reach(n, p, object, kind)
-//                 &&& final(g)@ == s.after_reach(n, p, entry.nodeid, kind)
-//             },
-//             // An error changes nothing.
-//             Err(_) => final(g)@ == old(g)@,
-//         };
-//
-// fn mkdir(&self, request: &Request, name: &LxStr, arg: &fuse_mkdir_in) -> (r: lx::Result<fuse_entry_out>)
-//     with Tracked(g): Tracked<&mut G>
-//     ensures
-//         match r {
-//             // Succeeds only where the guest may add a name, and hands out
-//             // a new node for the new directory.
-//             Ok(entry) => {
-//                 let s = old(g)@;
-//                 &&& s.may_add_name(n, name@)
-//                 &&& !s.holds_node(entry.nodeid)
-//                 &&& final(g)@ == s.after_reach(n, s.child_path(n, name@), entry.nodeid, lx::S_IFDIR)
-//             },
-//             Err(_) => final(g)@ == old(g)@,
-//         };
-//
-// fn create(&self, request: &Request, name: &LxStr, arg: &fuse_create_in) -> (r: lx::Result<CreateOut>)
-//     with Tracked(g): Tracked<&mut G>
-//     ensures
-//         match r {
-//             // Succeeds only where the guest may add a name; hands out the
-//             // file's node (an existing one, if the file was there and the
-//             // create was not exclusive) and a new handle on it.
-//             Ok(out) => {
-//                 let s = old(g)@;
-//                 let m = out.entry.nodeid;
-//                 &&& s.may_add_name(n, name@)
-//                 &&& !s.holds_file(out.open.fh)
-//                 &&& final(g)@ == s.after_reach(n, s.child_path(n, name@), m, lx::S_IFREG)
-//                         .after_open(out.open.fh, m, opens_for_writing(arg.flags))
-//             },
-//             Err(_) => final(g)@ == old(g)@,
-//         };
+    open spec fn is_dir(&self, n: u64) -> bool {
+        false
+    }
+
+    open spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView {
+        seq![]
+    }
+
+    open spec fn can_write(&self, n: u64, p: PathView) -> bool {
+        false
+    }
+
+    open spec fn node_can_write(&self, n: u64) -> bool {
+        false
+    }
+
+    open spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
+        false
+    }
+
+    open spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self {
+        ()
+    }
+
+    open spec fn holds_file(&self, fh: u64) -> bool {
+        false
+    }
+
+    open spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self {
+        ()
+    }
+}
+
+} // verus!

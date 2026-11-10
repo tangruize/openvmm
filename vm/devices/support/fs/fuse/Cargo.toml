@@ -6,6 +6,9 @@ name = "fuse"
 edition.workspace = true
 rust-version.workspace = true
 
+[package.metadata.verus]
+verify = true
+
 [features]
 # Disable tests that do not pass in the CI environment.
 ci = []
@@ -18,6 +21,7 @@ parking_lot.workspace = true
 thiserror.workspace = true
 tracelimit.workspace = true
 tracing.workspace = true
+vstd.workspace = true
 zerocopy.workspace = true
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true

@@ -587,7 +587,7 @@ impl VirtioFs {
         &self,
         profile: &MicroVmVirtioFsProfile,
         state: SavedState,
-        session: &Session,
+        session: &Session<crate::spec::VirtioFsGhost>,
     ) -> anyhow::Result<()> {
         anyhow::ensure!(
             self.microvm_profile() == Some(profile),

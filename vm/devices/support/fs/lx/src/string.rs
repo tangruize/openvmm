@@ -21,6 +21,8 @@ pub mod spec {
 /// An owned string that may or may not be valid utf-8.
 ///
 /// This is analogous to `OsString` on Linux, but behaves the same on all platforms.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Hash, PartialEq, Eq, Default)]
 pub struct LxString {
     bytes: Vec<u8>,

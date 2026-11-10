@@ -1,5 +1,5 @@
 // High-level spec of virtio-fs's state, as the guest sees it, for human
-// review. DRAFT: not yet included from `lib.rs`, not yet checked by Verus.
+// review.
 //
 // The filesystem's ghost state (`VirtioFsGhost`, lent to each request), its
 // view (`VirtioFsGhostView`), and virtio-fs's answers to the `fuse` crate's
@@ -8,16 +8,33 @@
 // state is tied to the locks: `virtiofs-spec-docs/CODE-OVERVIEW.md`, "The
 // guest's state in the spec".
 
-use crate::VirtioFsInode;
 use crate::microvm::policy::spec::SubtreePolicyView;
 use fuse::spec::FuseState;
 use vstd::prelude::*;
-use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
 use vstd::resource::map::GhostMapAuth;
 use vstd::std_specs::path::PathView;
 
 verus! {
+
+/// Types that the inode and the volume hold, declared to Verus by name only,
+/// so that their views can read their other fields.
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+#[verifier::reject_recursive_types(R)]
+#[verifier::reject_recursive_types(T)]
+pub struct ExRwLock<R, T: ?Sized>(parking_lot::lock_api::RwLock<R, T>);
+
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExLxVolume(lxutil::LxVolume);
+
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExRawRwLock(parking_lot::RawRwLock);
 
 /// The view of a `VirtioFsInode`: its plain fields, which never change (its
 /// path and names are behind locks, in `VirtioFsGhostView`'s `paths` and
@@ -34,18 +51,6 @@ pub struct VirtioFsInodeView {
     pub policy: SubtreePolicyView,
 }
 
-impl View for VirtioFsInode {
-    type V = VirtioFsInodeView;
-
-    closed spec fn view(&self) -> VirtioFsInodeView {
-        VirtioFsInodeView {
-            object: (self.volume.id, self.inode_nr),
-            kind: self.file_type,
-            readonly: self.volume.readonly,
-            policy: self.volume.policy@,
-        }
-    }
-}
 
 /// An open file, as the guest holds it: its node (recorded when it was
 /// opened; `VirtioFsFile` keeps its inode, not the node id), and whether it
@@ -134,10 +139,10 @@ impl FuseState for VirtioFsGhostView {
     }
 
     /// `p` is not hidden under the parent's policy, and a traverse-only
-    /// path is a directory. The volume's pinned identities, by `object`, are
-    /// left out until the spec has a model of the host (decided 2026-11-10):
-    /// that rule is about which object is at `p`, which only the host knows.
-    closed spec fn may_reach(&self, parent: u64, p: PathView, object: (u64, u64), kind: lx::mode_t) -> bool {
+    /// path is a directory. The volume's pinned identities are left out
+    /// until the spec has a model of the host (decided 2026-11-10): that rule
+    /// is about which object is at `p`, which only the host knows.
+    closed spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
         let policy = self.inodes[parent].policy;
         &&& policy.visibility(p) != crate::microvm::policy::PathVisibility::Hidden
         &&& policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> kind == lx::S_IFDIR

@@ -14,6 +14,8 @@ use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /*
  * Version negotiation:
@@ -42,11 +44,14 @@ pub const FUSE_KERNEL_VERSION: u32 = 7;
 pub const FUSE_KERNEL_MINOR_VERSION: u32 = 39;
 
 /** The node ID of the root inode */
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_ROOT_ID: u64 = 1;
 
 /* Make sure all structures are padded to 64bit boundary, so 32bit
 userspace works under 64bit kernels */
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_attr {
@@ -102,6 +107,8 @@ pub struct fuse_statx {
     pub _rsvd2: [u64; 14],
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_kstatfs {
@@ -117,6 +124,8 @@ pub struct fuse_kstatfs {
     pub spare: [u32; 6],
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_file_lock {
@@ -388,6 +397,8 @@ pub const FUSE_MIN_READ_BUFFER: u32 = 8192;
 
 pub const FUSE_COMPAT_ENTRY_OUT_SIZE: u32 = 120;
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_entry_out {
@@ -431,6 +442,8 @@ pub struct fuse_getattr_in {
 
 pub const FUSE_COMPAT_ATTR_OUT_SIZE: u32 = 96;
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_attr_out {
@@ -442,6 +455,8 @@ pub struct fuse_attr_out {
 
 pub const FUSE_COMPAT_MKNOD_IN_SIZE: u32 = 8;
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_mknod_in {
@@ -451,6 +466,8 @@ pub struct fuse_mknod_in {
     pub padding: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_mkdir_in {
@@ -478,6 +495,8 @@ pub struct fuse_link_in {
     pub oldnodeid: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Clone, Copy, Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_setattr_in {
@@ -507,6 +526,8 @@ pub struct fuse_open_in {
     pub unused: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_create_in {
@@ -517,6 +538,8 @@ pub struct fuse_create_in {
     pub padding: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_open_out {
@@ -525,6 +548,8 @@ pub struct fuse_open_out {
     pub padding: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_release_in {
@@ -535,6 +560,8 @@ pub struct fuse_release_in {
     pub lock_owner: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_flush_in {
@@ -544,6 +571,8 @@ pub struct fuse_flush_in {
     pub lock_owner: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_read_in {
@@ -558,6 +587,8 @@ pub struct fuse_read_in {
 
 pub const FUSE_COMPAT_WRITE_IN_SIZE: u32 = 24;
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_write_in {
@@ -614,6 +645,8 @@ pub struct fuse_getxattr_out {
     pub padding: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_lk_in {
@@ -715,6 +748,8 @@ pub struct fuse_bmap_out {
     pub block: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_ioctl_in {
@@ -764,6 +799,8 @@ pub struct fuse_notify_poll_wakeup_out {
     pub kh: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_fallocate_in {
@@ -774,6 +811,8 @@ pub struct fuse_fallocate_in {
     pub padding: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_in_header {
@@ -889,6 +928,8 @@ pub struct fuse_lseek_out {
     pub offset: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_copy_file_range_in {
@@ -903,6 +944,8 @@ pub struct fuse_copy_file_range_in {
 
 pub const FUSE_SETUPMAPPING_FLAG_WRITE: u64 = (1 << 0);
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_setupmapping_in {
@@ -941,6 +984,8 @@ pub struct fuse_syncfs_in {
 }
 
 #[bitfield(u32)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct StatxFlags {
     #[bits(13)]
@@ -961,6 +1006,8 @@ pub struct fuse_statx_in {
     pub mask: u32,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct fuse_statx_out {

@@ -17,6 +17,8 @@ use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 pub use string::LxStr;
 pub use string::LxString;
@@ -41,11 +43,14 @@ pub const GID_INVALID: gid_t = gid_t::MAX;
 
 pub const S_IFIFO: u32 = 0x1000;
 pub const S_IFCHR: u32 = 0x2000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFDIR: u32 = 0x4000;
 pub const S_IFBLK: u32 = 0x6000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFREG: u32 = 0x8000;
 pub const S_IFLNK: u32 = 0xa000;
 pub const S_IFSOCK: u32 = 0xc000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFMT: u32 = 0xf000;
 pub const S_ISUID: u32 = 0o4000;
 pub const S_ISGID: u32 = 0o2000;
@@ -188,6 +193,8 @@ pub const XATTR_CREATE: i32 = 0x1;
 pub const XATTR_REPLACE: i32 = 0x2;
 
 /// Wraps a Linux error code in a strongly-typed struct.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Copy, Clone, Error, Eq, PartialEq)]
 #[error("{err} ({0})", err = str_error(*.0))]
 pub struct Error(i32);
@@ -284,6 +291,8 @@ impl From<&std::time::Duration> for Timespec {
 }
 
 #[bitfield(u32)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct StatExMask {
     pub file_type: bool,     // STATX_TYPE

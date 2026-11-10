@@ -155,7 +155,7 @@ mod linux {
     /// virtio-fs worker dispatches them.
     struct Share {
         directory: TempDir,
-        session: Session,
+        session: Session<crate::spec::VirtioFsGhost>,
         caller_identity: Option<CallerIdentity>,
         next_unique: u64,
     }
@@ -256,7 +256,7 @@ mod linux {
             node_id: u64,
             (uid, gid): (u32, u32),
             body: &[u8],
-            dispatch: impl FnOnce(Option<&CallerIdentity>, &Session, Request, &mut Reply),
+            dispatch: impl FnOnce(Option<&CallerIdentity>, &Session<crate::spec::VirtioFsGhost>, Request, &mut Reply),
         ) -> (i32, Vec<u8>) {
             let header = fuse_in_header {
                 len: (size_of::<fuse_in_header>() + body.len()) as u32,
