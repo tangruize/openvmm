@@ -354,6 +354,29 @@ fn writes_succeed_only_under_writable_paths() {
 }
 
 #[test]
+fn a_handle_is_used_only_with_its_node_while_the_guest_holds_it() {
+    // After FORGET, nothing keeps a node's names up to date, and they decide
+    // which writes through its handles are allowed; so a handle is refused
+    // once its node is given back, and with another node's id.
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let existing = lookup(&fs, "out/existing").unwrap();
+    let marker = lookup(&fs, "marker").unwrap();
+    let fh = open(&fs, existing, lx::O_RDWR).unwrap();
+    assert_eq!(write(&fs, existing, fh, b"x").unwrap(), 1);
+
+    // The handle with another node's id.
+    assert_eq!(error(write(&fs, marker, fh, b"x")), lx::Error::EBADF);
+
+    // The handle after its node is given back.
+    fs.forget(existing, 1);
+    assert_eq!(error(write(&fs, existing, fh, b"x")), lx::Error::EINVAL);
+
+    // It can still be closed.
+    release(&fs, existing, fh);
+}
+
+#[test]
 fn allowed_paths_stay_readable_inside_a_hidden_subtree() {
     let share = Share::new();
     let fs = share.fs(&["logs", "logs/payloads/private"], &["logs/payloads"], &[]);

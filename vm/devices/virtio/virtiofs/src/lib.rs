@@ -197,7 +197,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         // Windows and works if the file was deleted. The synthetic root's directory handle has no
         // backing file, so fall through to the node-based branch for it.
         let attr = if flags & FUSE_GETATTR_FH != 0 && !self.is_synthetic_root_handle(node_id, fh) {
-            let file = self.get_file(fh)?;
+            let file = self.get_file(node_id, fh)?;
             file.get_attr()?
         } else if self.is_synthetic_root(node_id) {
             self.synthetic_root_attr()
@@ -226,7 +226,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         let statx = if getattr_flags & FUSE_GETATTR_FH != 0
             && !self.is_synthetic_root_handle(node_id, fh)
         {
-            let file = self.get_file(fh)?;
+            let file = self.get_file(node_id, fh)?;
             file.get_statx()?
         } else if self.is_synthetic_root(node_id) {
             self.synthetic_root_statx(mask)
@@ -250,7 +250,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         // If a file handle is specified, set the attributes on the open file. This is faster on
         // Windows and works if the file was deleted.
         let attr = if arg.valid & FATTR_FH != 0 {
-            let file = self.get_file(arg.fh)?;
+            let file = self.get_file(node_id, arg.fh)?;
             // Block truncation and other modifications on readonly filesystems
             if arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 {
                 self.check_writable(file.inode())?;
@@ -485,8 +485,8 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
-    fn read(&self, _request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
-        let file = self.get_file(arg.fh)?;
+    fn read(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
+        let file = self.get_file(request.node_id(), arg.fh)?;
         let mut buffer = guest_buffer(arg.size)?;
         let size = file.read(&mut buffer, arg.offset)?;
         buffer.truncate(size);
@@ -499,7 +499,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         if data.len() > MAX_GUEST_BUFFER_SIZE {
             return Err(lx::Error::E2BIG);
         }
-        let file = self.get_file(arg.fh)?;
+        let file = self.get_file(request.node_id(), arg.fh)?;
         self.check_writable(file.inode())?;
         file.write(data, arg.offset, request.uid())
     }
@@ -530,7 +530,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return self.read_synthetic_root_dir(arg.offset, arg.size, false);
         }
-        let file = self.get_file(arg.fh)?;
+        let file = self.get_file(request.node_id(), arg.fh)?;
         file.read_dir(self, arg.offset, arg.size, false)
     }
 
@@ -540,7 +540,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return self.read_synthetic_root_dir(arg.offset, arg.size, true);
         }
-        let file = self.get_file(arg.fh)?;
+        let file = self.get_file(request.node_id(), arg.fh)?;
         file.read_dir(self, arg.offset, arg.size, true)
     }
 
@@ -615,16 +615,16 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
-    fn fsync(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
-        let file = self.get_file(fh)?;
+    fn fsync(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
+        let file = self.get_file(request.node_id(), fh)?;
         let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
         file.fsync(data_only)
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
-    fn fsync_dir(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
-        let file = self.get_file(fh)?;
+    fn fsync_dir(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
+        let file = self.get_file(request.node_id(), fh)?;
         let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
         file.fsync_dir(data_only)
     }
@@ -897,14 +897,30 @@ impl VirtioFs {
     }
 
     /// Retrieve the file object with the specified file handle.
-    fn get_file(&self, fh: u64) -> lx::Result<Arc<VirtioFsFile>> {
-        let files = self.inner.files.read();
-        let file = files.get(fh).ok_or_else(|| {
-            tracelimit::warn_ratelimited!(fh, "Request for unknown file");
-            lx::Error::EBADF
-        })?;
-
-        Ok(Arc::clone(file))
+    /// Looks up the open file `fh` of a request about node `node_id`.
+    ///
+    /// The handle must belong to the request's node, and the guest must still
+    /// hold that node. After `FORGET`, nothing keeps the node's path and names
+    /// up to date (a rename updates only the inodes in the table), and they
+    /// decide what a request through the handle may do: which paths are
+    /// writable (`check_writable`), and where `read_dir_plus` looks up the
+    /// entries it lists. A guest that gave the node back but kept the handle
+    /// could otherwise write to a file that a rename has since moved to a
+    /// path it may not write, or get nodes of the wrong objects.
+    fn get_file(&self, node_id: u64, fh: u64) -> lx::Result<Arc<VirtioFsFile>> {
+        let file = {
+            let files = self.inner.files.read();
+            Arc::clone(files.get(fh).ok_or_else(|| {
+                tracelimit::warn_ratelimited!(fh, "Request for unknown file");
+                lx::Error::EBADF
+            })?)
+        };
+        let inode = self.get_inode(node_id)?;
+        if !std::ptr::eq(&*inode, file.inode()) {
+            tracelimit::warn_ratelimited!(node_id, fh, "Request for a file of another node");
+            return Err(lx::Error::EBADF);
+        }
+        Ok(file)
     }
 
     /// Reserve a file handle before opening or creating a host file.

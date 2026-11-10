@@ -291,7 +291,7 @@ fn directory_snapshot_survives_host_mutation_after_restore() {
     let handle = source
         .insert_file(Arc::clone(&root).open(lx::O_RDONLY).unwrap())
         .unwrap();
-    let file = source.get_file(handle).unwrap();
+    let file = source.get_file(FUSE_ROOT_ID, handle).unwrap();
 
     let first_page = file.read_dir(&source, 0, 32, false).unwrap();
     assert!(!first_page.is_empty());
@@ -315,7 +315,7 @@ fn directory_snapshot_survives_host_mutation_after_restore() {
         .restore_microvm_state(&profile, state, &session)
         .unwrap();
     let continuation = destination
-        .get_file(handle)
+        .get_file(FUSE_ROOT_ID, handle)
         .unwrap()
         .read_dir(&destination, continuation_offset, 4096, false)
         .unwrap();

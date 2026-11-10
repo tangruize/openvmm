@@ -633,11 +633,8 @@ all of them.
    is part of confidentiality.
 5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
    sentinel handle, `get_attr` on it.
-6. **`read_dir_plus` on a handle whose directory node was given back**
-   (`FORGET`): its lookups still happen, but `is_entry` needs the directory
-   in the inode table.
-7. **Pedro's questions**: device nodes from `mknod`; host hard links
-   between a writable and a read-only path.
+6. **Pedro's questions** (`BUGS.md`): device nodes from `mknod`; host hard
+   links between a writable and a read-only path.
 
 ## The theme of the spec: protecting the host from the guest
 
