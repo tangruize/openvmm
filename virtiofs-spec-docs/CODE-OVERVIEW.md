@@ -628,7 +628,11 @@ all of them.
    operation that hands out a node says "count + 1", and `forget` says that
    the node is removed exactly when its count reaches 0.
 3. **The host model**, for the pinned identities ("No model of the host,
-   for now", above).
+   for now", above). Also the root: a lookup whose object is the root's own
+   (found by the inode table's dedup) gives the root's node, and changes the
+   root's main path in the code (`VirtioFsInode::lookup`), while the spec
+   keeps the root's path empty; only the host can make a name lead to the
+   root's object.
 4. **What a directory listing shows** (`read_dir`, `read_dir_plus`): the
    reply is an encoded buffer, not yet decoded by the spec; the
    traverse-only listing rule (only the entries that lead to allowed paths)

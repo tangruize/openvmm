@@ -173,7 +173,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
-            r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.holds_file(_fh) } else { g@.holds_node(_request@.node_id) },
+            r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
     ))]
     fn get_attr(&self, _request: &Request, _flags: u32, _fh: u64) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
@@ -190,7 +190,7 @@ where
             // Changing attributes (anything beyond the handle and the lock owner) succeeds only on a
             // file the guest may change: the open file `fh`, or the request's node.
             r is Ok ==> (_arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 ==> if _arg.valid & FATTR_FH != 0 {
-                g@.holds_file(_arg.fh) && g@.file_can_write(_arg.fh)
+                g@.uses_handle(_request@.node_id, _arg.fh) && g@.file_can_write(_arg.fh)
             } else {
                 g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id)
             }),
@@ -508,7 +508,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
-            r is Ok ==> g@.holds_file(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
     ))]
     fn read(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
@@ -524,7 +524,7 @@ where
         ensures
             // Succeeds only on a file the guest opened for writing, and may
             // change.
-            r is Ok ==> g@.holds_file(_arg.fh) && g@.opened_for_writing(_arg.fh) && g@.file_can_write(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh) && g@.opened_for_writing(_arg.fh) && g@.file_can_write(_arg.fh),
     ))]
     fn write(&self, _request: &Request, _arg: &fuse_write_in, _data: &[u8]) -> lx::Result<usize> {
         Err(lx::Error::ENOSYS)
@@ -575,7 +575,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
-            r is Ok ==> g@.holds_file(_fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _fh),
     ))]
     fn fsync(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -690,7 +690,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
-            r is Ok ==> g@.holds_file(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
     ))]
     fn flush(&self, _request: &Request, _arg: &fuse_flush_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -745,7 +745,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a directory the guest holds open.
-            r is Ok ==> g@.holds_file(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
     ))]
     fn read_dir(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
@@ -781,7 +781,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a directory the guest holds open.
-            r is Ok ==> g@.holds_file(_fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _fh),
     ))]
     fn fsync_dir(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -796,7 +796,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
-            r is Ok ==> g@.holds_file(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
     ))]
     fn get_lock(&self, _request: &Request, _arg: &fuse_lk_in) -> lx::Result<fuse_file_lock> {
         Err(lx::Error::ENOSYS)
@@ -813,7 +813,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open (a lock changes no contents).
-            r is Ok ==> g@.holds_file(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
     ))]
     fn set_lock(&self, _request: &Request, _arg: &fuse_lk_in, _sleep: bool) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -853,14 +853,15 @@ where
             match r {
                 // Succeeds only where the guest may add a name; hands out the
                 // file's node (an existing one, if the file was there and the
-                // create was not exclusive) and a new handle on it.
+                // create was not exclusive; its kind is the reply's, since that
+                // file may be a FIFO, say) and a new handle on it.
                 Ok(out) => {
                     let s = old(g)@;
                     let n = _request@.node_id;
                     let m = out.entry.nodeid;
                     &&& s.may_add_name(n, _name@)
                     &&& !s.holds_file(out.open.fh)
-                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), m, lx::S_IFREG)
+                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), m, out.entry.attr.mode & lx::S_IFMT)
                             .after_open(out.open.fh, m, G::V::opens_for_writing(_arg.flags))
                 },
                 Err(_) => final(g)@ == old(g)@,
@@ -931,7 +932,7 @@ where
             // Succeeds only on an open file the guest may change: an ioctl can
             // change a file (its flags, say), and the spec does not tell them
             // apart.
-            r is Ok ==> g@.holds_file(_arg.fh) && g@.file_can_write(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh) && g@.file_can_write(_arg.fh),
     ))]
     fn ioctl(
         &self,
@@ -952,7 +953,7 @@ where
         ensures
             // Succeeds only on a file the guest opened for writing, and may
             // change.
-            r is Ok ==> g@.holds_file(_arg.fh) && g@.opened_for_writing(_arg.fh) && g@.file_can_write(_arg.fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh) && g@.opened_for_writing(_arg.fh) && g@.file_can_write(_arg.fh),
     ))]
     fn fallocate(&self, _request: &Request, _arg: &fuse_fallocate_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -975,7 +976,7 @@ where
             self.owns(final(g)),
             final(g).wf(),
             // Succeeds only on a directory the guest holds open.
-            r is Ok ==> old(g)@.holds_file(_arg.fh),
+            r is Ok ==> old(g)@.uses_handle(_request@.node_id, _arg.fh),
             // Each entry listed with its node is looked up, as by `lookup`,
             // in the open directory: the state after is the result of such
             // lookups, each allowed by `lookup`'s rules (also on an error,
@@ -995,7 +996,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
-            r is Ok ==> g@.holds_file(_fh),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _fh),
     ))]
     fn lseek(&self, _request: &Request, _fh: u64, _offset: u64, _whence: u32) -> lx::Result<u64> {
         Err(lx::Error::ENOSYS)
@@ -1012,7 +1013,9 @@ where
         ensures
             // Succeeds only into a file the guest opened for writing, and may
             // change (the destination, `fh_out`).
-            r is Ok ==> g@.holds_file(_arg.fh_out) && g@.opened_for_writing(_arg.fh_out) && g@.file_can_write(_arg.fh_out),
+            r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh_in)
+                && g@.uses_handle(_arg.nodeid_out, _arg.fh_out)
+                && g@.opened_for_writing(_arg.fh_out) && g@.file_can_write(_arg.fh_out),
     ))]
     fn copy_file_range(
         &self,
@@ -1033,7 +1036,7 @@ where
             // Succeeds only on a file the guest holds open; a writable mapping
             // (the guest then changes the file through its memory) only on one
             // opened for writing, that the guest may change.
-            r is Ok ==> g@.holds_file(arg.fh)
+            r is Ok ==> g@.uses_handle(request@.node_id, arg.fh)
                 && (arg.flags & FUSE_SETUPMAPPING_FLAG_WRITE != 0
                     ==> g@.opened_for_writing(arg.fh) && g@.file_can_write(arg.fh)),
     ))]
@@ -1074,7 +1077,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
-            r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.holds_file(_fh) } else { g@.holds_node(_request@.node_id) },
+            r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
     ))]
     fn get_statx(
         &self,

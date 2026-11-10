@@ -169,9 +169,19 @@ pub trait FuseState: Sized {
     }
 
     /// Open flags `flags` open for writing: their access mode (`O_ACCMODE`,
-    /// the low two bits) is not read-only (`O_RDONLY`, 0).
+    /// the low two bits) is `O_WRONLY` (1) or `O_RDWR` (2). (Mode 3 neither
+    /// reads nor writes.)
     open spec fn opens_for_writing(flags: u32) -> bool {
-        flags & 3u32 != 0u32
+        flags & 3u32 == 1u32 || flags & 3u32 == 2u32
+    }
+
+    /// A request about node `n` may use handle `fh`: the guest holds both,
+    /// and `fh` is `n`'s (a handle is not used after its node is given back,
+    /// nor with another node's id).
+    open spec fn uses_handle(&self, n: u64, fh: u64) -> bool {
+        &&& self.holds_node(n)
+        &&& self.holds_file(fh)
+        &&& self.file_node(fh) == n
     }
 
     /// The state after the lookups `steps` in directory `dir`, one after

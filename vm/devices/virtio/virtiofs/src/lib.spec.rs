@@ -193,11 +193,16 @@ impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
     }
 }
 
-/// A dormant device has no share, so no node or handle: it owns any ghost
-/// state.
+/// A dormant device has no share, so no node, name or handle: its ghost
+/// state is the empty one.
 impl FuseOwns<VirtioFsGhost> for crate::microvm::device::DormantMicrovmFs {
     open spec fn owns(&self, g: &VirtioFsGhost) -> bool {
-        true
+        g@ == VirtioFsGhostView {
+            inodes: Map::empty(),
+            paths: Map::empty(),
+            aliases: Map::empty(),
+            files: Map::empty(),
+        }
     }
 }
 
@@ -246,8 +251,11 @@ impl FuseState for VirtioFsGhostView {
         !self.inodes[n].readonly && self.inodes[n].policy.can_write(p)
     }
 
+    /// Through its main path and every name of it (`readonly()`:
+    /// `policy_permits_writes` checks the primary path and every alias).
     closed spec fn node_can_write(&self, n: u64) -> bool {
-        forall|q: PathView| #[trigger] self.names_of(n).contains(q) ==> self.can_write(n, q)
+        &&& self.can_write(n, self.path_of(n))
+        &&& forall|q: PathView| #[trigger] self.names_of(n).contains(q) ==> self.can_write(n, q)
     }
 
     /// `p` is not hidden under the parent's policy, and a traverse-only
@@ -361,7 +369,8 @@ impl FuseState for VirtioFsGhostView {
     /// node is no longer in the table).
     closed spec fn file_can_write(&self, fh: u64) -> bool {
         let f = self.files[fh];
-        forall|q: PathView| #[trigger] self.names_of(f.node).contains(q) ==> !f.inode.readonly && f.inode.policy.can_write(q)
+        &&& !f.inode.readonly && f.inode.policy.can_write(self.path_of(f.node))
+        &&& forall|q: PathView| #[trigger] self.names_of(f.node).contains(q) ==> !f.inode.readonly && f.inode.policy.can_write(q)
     }
 
     closed spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self {
