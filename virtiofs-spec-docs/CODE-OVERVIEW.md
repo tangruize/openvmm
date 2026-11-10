@@ -395,9 +395,62 @@ trait's contract. The small example (4 verified, 1 rejected, as wanted):
 worker, with virtiofs's `G`, learns its meaning (the policy's writable
 set); a correct `mkdir` meets the contract; an implementation that returns
 Ok without the rule is rejected. `FuseState` needs `Sized`, so that
-functions such as `after_mkdir` can return the state. The cost is the type
-parameter in normal builds: `Fuse<G>`, `Session<G>`, both implementors,
-and the tests' `Session::new` (a `CODE-CHANGES.md` entry). `VirtioFs` implements the trait, and its proof
+functions such as `after_mkdir` can return the state.
+
+*Why a type parameter, and what it costs* (decided 2026-11-10). The
+handlers take `&self` and the state is behind locks, so no view of a Rust
+data structure can say what a call changes: the spec needs a ghost
+variable, passed into each handler. The question is only where its type
+is defined:
+
+- **(a), chosen: in virtiofs, passed to the trait as `G`** (`Fuse<G>`). The
+  `fuse` crate never knows what `G` is made of (that `VirtioFsGhost` holds
+  `GhostMapAuth`s and `FracGhost` halves is virtiofs's business, for its
+  proof): its contracts use only what the bound promises, that `G` has a
+  view (`old(g)@`, `final(g)@`) and that the view answers `FuseState`'s
+  questions; virtiofs fixes `G = VirtioFsGhost` and gives the answers. No
+  copies of virtiofs's types.
+- **(b): in the `fuse` crate, as a fixed type** (`FuseGhost`), named only in
+  the ghost argument (`with Tracked(g): Tracked<&mut FuseGhost>`), which a
+  normal build removes. But the `fuse` crate cannot name virtiofs's types,
+  so its contents would be copies built from types it can name (a node's
+  write rule as a set of paths instead of virtiofs's policy, ...), kept in
+  step with virtiofs by hand. Rejected for that.
+  (An associated type, `type Ghost`, is refused through `dyn Fuse`; a type
+  parameter per method makes the trait unusable as `dyn Fuse`; Rust cannot
+  add a type parameter only in Verus builds.)
+
+The cost of (a), in normal builds (`cargo build`, without Verus): `G`
+appears in the code itself, not only in Verus attributes. So:
+1. signatures in Pedro's and upstream code change: `Fuse` becomes
+   `Fuse<G>`, `Session` becomes `Session<G>`, and every place that names
+   them (`virtio.rs`, `owner.rs`, `SectionFs`, the tests' `Session::new`);
+   a `CODE-CHANGES.md` entry;
+2. the compiler must see the ghost state's type, and every type its fields
+   name, in normal builds too (a normal build keeps a ghost struct's
+   fields; tested): so the spec files that define them are included
+   without `cfg(verus_keep_ghost)`: `fuse/src/lib.spec.rs`,
+   `virtiofs/src/lib.spec.rs`, `microvm/policy.spec.rs` (for
+   `SubtreePolicyView`, a field of an inode's view), and `lx`'s
+   `string.spec.rs` (for consistency). Only their type definitions are
+   left in a normal build: Verus's macro removes their spec functions, and
+   their `.proof.rs` files stay under `cfg(verus_keep_ghost)`.
+
+Nothing changes at runtime: no value of these types is ever created,
+stored or passed (the ghost argument itself is removed in normal builds);
+the compiler only checks that the types exist, as for any type named in a
+signature. Tested on two small crates built both ways
+(`cargo build`, and Verus: a wrong `mkdir` in the other crate is rejected
+through the trait's contract).
+
+Separately, Verus processes a trait as a whole (a trait's method cannot be
+left out), so every type that the `Fuse` trait's 45 methods name is
+declared to Verus: about 30, most opaque (`verus_verify(external_body)`),
+a few with their fields visible for the contracts (`fuse_entry_out`,
+`fuse_attr`, `fuse_open_out`, `CreateOut`). This cost comes with any
+contract on the trait, (a) or (b).
+
+`VirtioFs` implements the trait, and its proof
 is where the code's policy checks are verified. Every implementor must
 meet the contract: the other one is `SectionFs`
 (`virtiofs/src/section.rs`), and the trait's default bodies return
