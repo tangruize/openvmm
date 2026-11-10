@@ -294,6 +294,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn open(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
         let options = util::open_flags(flags)?;
         let inode = self.get_inode(request.node_id())?;
@@ -499,12 +500,14 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn release(&self, _request: &Request, arg: &fuse_release_in) -> lx::Result<()> {
         self.remove_file(arg.fh);
         Ok(())
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn open_dir(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
         if self.is_synthetic_root(request.node_id()) {
             util::open_flags(flags)?;
@@ -535,6 +538,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn release_dir(&self, request: &Request, arg: &fuse_release_in) -> lx::Result<()> {
         if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
             return Ok(());

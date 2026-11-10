@@ -81,6 +81,10 @@ pub trait FuseState: Sized {
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
 
+    /// The state after handle `fh` is released: it is no longer held (no
+    /// change if it was not).
+    spec fn after_release(&self, fh: u64) -> Self;
+
     /// The file open as `fh` was opened for writing.
     spec fn opened_for_writing(&self, fh: u64) -> bool;
 
@@ -107,6 +111,11 @@ pub trait FuseState: Sized {
     /// holds, and `name` is one plain name.
     open spec fn is_entry(&self, parent: u64, name: Seq<u8>) -> bool {
         self.is_dir(parent) && Self::is_plain_name(name)
+    }
+
+    /// Open flags `flags` truncate the file (`O_TRUNC`, 0o1000).
+    open spec fn truncates(flags: u32) -> bool {
+        flags & 0o1000u32 != 0u32
     }
 
     /// `rename` flags `flags` ask to swap the two names (Linux's
@@ -175,6 +184,10 @@ impl FuseState for () {
 
     open spec fn opened_for_writing(&self, fh: u64) -> bool {
         false
+    }
+
+    open spec fn after_release(&self, fh: u64) -> Self {
+        ()
     }
 
     open spec fn same_share(&self, a: u64, b: u64) -> bool {

@@ -251,6 +251,10 @@ impl FuseState for VirtioFsGhostView {
         self.files.contains_key(fh)
     }
 
+    closed spec fn after_release(&self, fh: u64) -> Self {
+        VirtioFsGhostView { files: self.files.remove(fh), ..*self }
+    }
+
     /// The open file's flags were for writing (`open_flags`).
     closed spec fn opened_for_writing(&self, fh: u64) -> bool {
         self.files[fh].writable

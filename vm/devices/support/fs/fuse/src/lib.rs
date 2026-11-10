@@ -372,6 +372,24 @@ where
     /// need any state for open files, since the inode number is also provided to functions
     /// such as `read` and `write`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only on a node the guest holds, and, to open a file for
+                // writing or to truncate it, only if the guest may change it;
+                // hands out a new handle on it.
+                Ok(out) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.holds_node(n)
+                    &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
+                    &&& !s.holds_file(out.fh)
+                    &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn open(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -409,6 +427,12 @@ where
     /// If not implemented, this call will succeed. Won't be called if `open`
     /// returned `ENOSYS` (the default).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // The handle is gone (if the guest held it).
+            final(g)@ == old(g)@.after_release(_arg.fh),
+    ))]
     fn release(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())
     }
@@ -499,6 +523,24 @@ where
     /// need any state for open files, since the inode number is also provided to functions
     /// such as `read_dir`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only on a node the guest holds, and, to open a directory for
+                // writing or to truncate it, only if the guest may change it;
+                // hands out a new handle on it.
+                Ok(out) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.holds_node(n)
+                    &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
+                    &&& !s.holds_file(out.fh)
+                    &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn open_dir(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -516,6 +558,12 @@ where
     /// If not implemented, this call will succeed. Won't be called if `opendir`
     /// returned ENOSYS (the default).
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // The handle is gone (if the guest held it).
+            final(g)@ == old(g)@.after_release(_arg.fh),
+    ))]
     fn release_dir(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())
     }
