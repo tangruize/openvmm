@@ -144,9 +144,11 @@ pub const FATTR_GID: u32 = (1 << 2);
 pub const FATTR_SIZE: u32 = (1 << 3);
 pub const FATTR_ATIME: u32 = (1 << 4);
 pub const FATTR_MTIME: u32 = (1 << 5);
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FATTR_FH: u32 = (1 << 6);
 pub const FATTR_ATIME_NOW: u32 = (1 << 7);
 pub const FATTR_MTIME_NOW: u32 = (1 << 8);
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FATTR_LOCKOWNER: u32 = (1 << 9);
 pub const FATTR_CTIME: u32 = (1 << 10);
 pub const FATTR_KILL_SUIDGID: u32 = (1 << 11);
@@ -495,7 +497,7 @@ pub struct fuse_link_in {
     pub oldnodeid: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Clone, Copy, Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -587,7 +589,7 @@ pub struct fuse_read_in {
 
 pub const FUSE_COMPAT_WRITE_IN_SIZE: u32 = 24;
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -799,7 +801,7 @@ pub struct fuse_notify_poll_wakeup_out {
     pub kh: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -928,7 +930,7 @@ pub struct fuse_lseek_out {
     pub offset: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]

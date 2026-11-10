@@ -133,6 +133,20 @@ where
 
     /// Changes the attributes of a file.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Changing attributes (anything beyond the handle and the lock owner) succeeds only on a
+            // file the guest may change: the open file `fh`, or the request's node.
+            r is Ok ==> (_arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 ==> if _arg.valid & FATTR_FH != 0 {
+                old(g)@.holds_file(_arg.fh) && old(g)@.file_can_write(_arg.fh)
+            } else {
+                old(g)@.holds_node(_request@.node_id) && old(g)@.node_can_write(_request@.node_id)
+            }),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn set_attr(&self, _request: &Request, _arg: &fuse_setattr_in) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
     }
@@ -370,6 +384,16 @@ where
 
     /// Writes data to an open file.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest opened for writing, and may
+            // change.
+            r is Ok ==> old(g)@.holds_file(_arg.fh) && old(g)@.opened_for_writing(_arg.fh) && old(g)@.file_can_write(_arg.fh),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn write(&self, _request: &Request, _arg: &fuse_write_in, _data: &[u8]) -> lx::Result<usize> {
         Err(lx::Error::ENOSYS)
     }
@@ -397,6 +421,15 @@ where
 
     /// Add or change an extended attribute on an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest may change.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id) && old(g)@.node_can_write(_request@.node_id),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn set_xattr(
         &self,
         _request: &Request,
@@ -433,6 +466,15 @@ where
 
     /// Remove an extended attribute from an inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a node the guest may change.
+            r is Ok ==> old(g)@.holds_node(_request@.node_id) && old(g)@.node_can_write(_request@.node_id),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn remove_xattr(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -575,6 +617,16 @@ where
 
     /// Allocate requested space.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only on a file the guest opened for writing, and may
+            // change.
+            r is Ok ==> old(g)@.holds_file(_arg.fh) && old(g)@.opened_for_writing(_arg.fh) && old(g)@.file_can_write(_arg.fh),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn fallocate(&self, _request: &Request, _arg: &fuse_fallocate_in) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -599,6 +651,16 @@ where
     /// Copy data from one file to another without needing to send data through the FUSE kernel
     /// module.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Succeeds only into a file the guest opened for writing, and may
+            // change (the destination, `fh_out`).
+            r is Ok ==> old(g)@.holds_file(_arg.fh_out) && old(g)@.opened_for_writing(_arg.fh_out) && old(g)@.file_can_write(_arg.fh_out),
+            // The ghost state never changes: these change a file's contents
+            // or attributes, not the nodes, names or handles.
+            final(g)@ == old(g)@,
+    ))]
     fn copy_file_range(
         &self,
         _request: &Request,

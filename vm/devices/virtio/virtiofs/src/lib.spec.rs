@@ -53,10 +53,13 @@ pub struct VirtioFsInodeView {
 
 
 /// An open file, as the guest holds it: its node (recorded when it was
-/// opened; `VirtioFsFile` keeps its inode, not the node id), and whether it
-/// was opened for writing (`open_flags`).
+/// opened; `VirtioFsFile` keeps its inode, not the node id), its inode's view
+/// (`VirtioFsFile::inode`: an open file keeps its inode, even after `FORGET`
+/// removes the node from the table), and whether it was opened for writing
+/// (`open_flags`).
 pub struct VirtioFsFileView {
     pub node: u64,
+    pub inode: VirtioFsInodeView,
     pub writable: bool,
 }
 
@@ -248,9 +251,22 @@ impl FuseState for VirtioFsGhostView {
         self.files.contains_key(fh)
     }
 
+    /// The open file's flags were for writing (`open_flags`).
+    closed spec fn opened_for_writing(&self, fh: u64) -> bool {
+        self.files[fh].writable
+    }
+
+    /// Every name of the file's node is writable under its inode's volume
+    /// (the file's own copy of the inode's view, which holds even when the
+    /// node is no longer in the table).
+    closed spec fn file_can_write(&self, fh: u64) -> bool {
+        let f = self.files[fh];
+        forall|q: PathView| #[trigger] self.names_of(f.node).contains(q) ==> !f.inode.readonly && f.inode.policy.can_write(q)
+    }
+
     closed spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self {
         VirtioFsGhostView {
-            files: self.files.insert(fh, VirtioFsFileView { node: m, writable }),
+            files: self.files.insert(fh, VirtioFsFileView { node: m, inode: self.inodes[m], writable }),
             ..*self
         }
     }

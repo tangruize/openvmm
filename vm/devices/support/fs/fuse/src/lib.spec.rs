@@ -81,6 +81,13 @@ pub trait FuseState: Sized {
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
 
+    /// The file open as `fh` was opened for writing.
+    spec fn opened_for_writing(&self, fh: u64) -> bool;
+
+    /// The guest may change the file open as `fh`: through every name of
+    /// its node.
+    spec fn file_can_write(&self, fh: u64) -> bool;
+
     /// The state after handle `fh` is opened on node `m`, for writing or not.
     spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self;
 
@@ -159,6 +166,14 @@ impl FuseState for () {
     }
 
     open spec fn holds_file(&self, fh: u64) -> bool {
+        false
+    }
+
+    open spec fn file_can_write(&self, fh: u64) -> bool {
+        false
+    }
+
+    open spec fn opened_for_writing(&self, fh: u64) -> bool {
         false
     }
 

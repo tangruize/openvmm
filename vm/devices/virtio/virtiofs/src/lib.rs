@@ -237,6 +237,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_attr_out> {
         let node_id = request.node_id();
 
@@ -487,6 +488,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Result<usize> {
         if data.len() > MAX_GUEST_BUFFER_SIZE {
             return Err(lx::Error::E2BIG);
@@ -637,6 +639,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn set_xattr(
         &self,
         request: &Request,
@@ -679,6 +682,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn remove_xattr(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         if self.is_synthetic_root(request.node_id()) {
             return Err(lx::Error::EROFS);
