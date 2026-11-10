@@ -164,17 +164,51 @@ does not check that they are, and the call sites of `get_path()` (about
 It owns one inode table and one file table, shared by all its shares:
 
 ```
-VirtioFs.inner
-├── inodes: RwLock<InodeMap>               lock 1: the whole inode table
-│     node id -> VirtioFsInode
-│       ├── path:    RwLock<PathBuf>             lock 2, one per inode: its main path
-│       ├── aliases: RwLock<BTreeSet<PathBuf>>   lock 3, one per inode: every name
-│       │                                        the code knows (the main path among
-│       │                                        them; hard links add more)
-│       └── inode_nr, file_type, volume          plain fields, set when the inode
-│                                                is made, never changed
-└── files: RwLock<HandleMap<...>>          lock 4: the whole file table
-      handle -> VirtioFsFile (its inode, how it was opened, ...)
+VirtioFs
+└── inner: Arc<VirtioFsInner>
+    │
+    ├── inodes: RwLock<InodeMap>                 LOCK 1: the whole inode table
+    │   │                                        ghost: FracGhost half of `nodes`
+    │   │
+    │   └── node id ──► Arc<VirtioFsInode>
+    │         │
+    │         ├── path: RwLock<PathBuf>                    LOCK 2 (one per inode)
+    │         │     its main path in the share             ghost: GhostPointsTo(n -> path),
+    │         │                                                   entry n of `paths`
+    │         │
+    │         ├── aliases: RwLock<BTreeSet<PathBuf>>       LOCK 3 (one per inode)
+    │         │     every name the code knows              ghost: GhostPointsTo(n -> names),
+    │         │     (main path included)                          entry n of `aliases`
+    │         │
+    │         ├── lookup_count: AtomicU64                  atomic, left out for now
+    │         │
+    │         └── inode_nr, file_type, guest_inode_nr      plain, never change
+    │             volume: Arc<VirtioFsVolume> ────────┐    (recorded in its `nodes` entry)
+    │                                                 │
+    ├── files: RwLock<HandleMap<Arc<VirtioFsFile>>>   │  LOCK 4: the whole file table
+    │   │                                             │  ghost: FracGhost half of `handles`
+    │   └── handle ──► VirtioFsFile                   │
+    │         ├── file: RwLock<LxFile>                │  the open host file
+    │         ├── inode: Arc<VirtioFsInode>           │  the node it was opened on
+    │         ├── open_flags                          │  plain: read-only / for writing
+    │         └── directory_snapshot: RwLock<...>     │  a directory's listing
+    │                                                 │
+    ├── mode: Direct | Aggregate(...)                 │
+    ├── microvm_profile, caller_identity              │  plain
+    └── negotiation: RwLock<FuseNegotiation>          │  agreed FUSE version and limits
+                                                      ▼
+                                   VirtioFsVolume  (one per share; all fields plain, fixed)
+                                     ├── volume: Arc<LxVolume>    host access (lxutil)
+                                     ├── id, readonly
+                                     ├── policy: SubtreePolicy    denied / allowed / writable
+                                     └── pinned_identities, strict_paths, exposed_file
+
+
+FuseGhost  (not in any lock: kept by the trusted wrapper, lent to every request handler)
+├── nodes:   FracGhost half                      (other half in LOCK 1)
+├── paths:   GhostMapAuth<node id, path>         (entry n's GhostPointsTo in node n's LOCK 2)
+├── aliases: GhostMapAuth<node id, set of names> (entry n's GhostPointsTo in node n's LOCK 3)
+└── handles: FracGhost half                      (other half in LOCK 4)
 ```
 
 An inode's `volume` (`Arc<VirtioFsVolume>`) is its share: the shared host
@@ -316,6 +350,19 @@ was in it. Each also says how the ghost state changes:
 `create`, `mkdir`, `mknod` and `symlink` add a node; `link` adds a name to
 `aliases`; `unlink`, `rmdir` and `rename` remove or change entries of
 `paths` and `aliases`.
+
+**Where the contracts are: on the `Fuse` trait** (decided 2026-11-09), in
+the `fuse` crate (layer 2), not only on `impl Fuse for VirtioFs` (layer 3).
+This is possible because the ghost state's type is in the `fuse` crate and
+each node's write rule is a plain set of paths, so the rules use only what
+the `fuse` crate can name. It is also needed: `Session::dispatch` calls the
+handlers through `Box<dyn Fuse>`, and through a trait object Verus knows
+only the trait's contract. `VirtioFs` implements the trait, and its proof
+is where the code's policy checks are verified. Every implementor must
+meet the contract: the other one is `SectionFs`
+(`virtiofs/src/section.rs`), and the trait's default bodies return
+`ENOSYS`; so the contract allows "not supported" as an error, which it
+can, since the rules only limit when an operation may succeed.
 
 **How a request gets the ghost state: a trusted wrapper (agreed
 2026-11-09).** The device thread owns the ghost state of the filesystem,
@@ -464,7 +511,8 @@ input, and each property must hold whatever the guest sends.
 
 ## Where a spec would attach
 
-- the `Fuse` trait's operations, as the FUSE layer calls them;
+- the `Fuse` trait's operations (its contracts, on the trait itself:
+  "Where the contracts are", above);
 - building the device (`new_microvm`, `new_microvm_aggregate`);
 - the device's save and restore.
 
