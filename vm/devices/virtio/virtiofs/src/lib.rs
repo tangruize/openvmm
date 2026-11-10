@@ -541,16 +541,19 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn unlink(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         self.unlink_helper(request, name, 0)
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn rmdir(&self, request: &Request, name: &lx::LxStr) -> lx::Result<()> {
         self.unlink_helper(request, name, lx::AT_REMOVEDIR)
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn rename(
         &self,
         request: &Request,

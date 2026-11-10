@@ -66,6 +66,18 @@ pub trait FuseState: Sized {
     /// link): `p` among its names; its main path stays.
     spec fn after_link(&self, m: u64, p: PathView) -> Self;
 
+    /// `after` is the state once every name at or below path `p` of node
+    /// `n`'s share is gone (`unlink`, `rmdir`): each node loses those names,
+    /// and one whose main path was among them takes one of its remaining
+    /// names as its main path, if it has any.
+    spec fn unlinked(&self, n: u64, p: PathView, after: Self) -> bool;
+
+    /// `after` is the state once path `p` of node `n`'s share is renamed to
+    /// `q`: with `exchange`, the names at or below `p` and `q` swap;
+    /// without, the names at or below `q` are gone (as `unlinked`), and then
+    /// those at or below `p` move to the same place below `q`.
+    spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool;
+
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
 
@@ -88,6 +100,12 @@ pub trait FuseState: Sized {
     /// holds, and `name` is one plain name.
     open spec fn is_entry(&self, parent: u64, name: Seq<u8>) -> bool {
         self.is_dir(parent) && Self::is_plain_name(name)
+    }
+
+    /// `rename` flags `flags` ask to swap the two names (Linux's
+    /// `RENAME_EXCHANGE`, 2).
+    open spec fn is_exchange(flags: u32) -> bool {
+        flags & 2u32 != 0u32
     }
 
     /// Open flags `flags` open for writing: their access mode (`O_ACCMODE`,
@@ -145,6 +163,14 @@ impl FuseState for () {
     }
 
     open spec fn same_share(&self, a: u64, b: u64) -> bool {
+        false
+    }
+
+    open spec fn unlinked(&self, n: u64, p: PathView, after: Self) -> bool {
+        false
+    }
+
+    open spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool {
         false
     }
 

@@ -115,6 +115,43 @@ impl VirtioFsGhostView {
     }
 }
 
+impl VirtioFsGhostView {
+    /// Node `m` is in the inode table, in volume `v`.
+    closed spec fn in_volume(self, m: u64, v: u32) -> bool {
+        self.inodes.contains_key(m) && self.inodes[m].object.0 == v
+    }
+
+    /// Path `x` after `p` is renamed to `q`: at or below `p`, the same place
+    /// below `q` (`renamed_path`, `inode.rs`).
+    closed spec fn moved(x: PathView, p: PathView, q: PathView) -> PathView {
+        if p.is_prefix_of(x) {
+            q + x.subrange(p.len() as int, x.len() as int)
+        } else {
+            x
+        }
+    }
+
+    /// Path `x` after `p` and `q` are swapped (`exchanged_path`, `inode.rs`).
+    closed spec fn exchanged(x: PathView, p: PathView, q: PathView) -> PathView {
+        if p.is_prefix_of(x) {
+            Self::moved(x, p, q)
+        } else if q.is_prefix_of(x) {
+            Self::moved(x, q, p)
+        } else {
+            x
+        }
+    }
+
+    /// Every name and main path of the nodes of volume `v`, changed by `f`.
+    closed spec fn map_names(self, v: u32, f: spec_fn(PathView) -> PathView) -> Self {
+        VirtioFsGhostView {
+            paths: self.paths.map_entries(|m: u64, x: PathView| if self.in_volume(m, v) { f(x) } else { x }),
+            aliases: self.aliases.map_entries(|m: u64, xs: Set<PathView>| if self.in_volume(m, v) { xs.map(f) } else { xs }),
+            ..self
+        }
+    }
+}
+
 impl FuseState for VirtioFsGhostView {
     closed spec fn holds_node(&self, n: u64) -> bool {
         self.inodes.contains_key(n)
@@ -176,6 +213,35 @@ impl FuseState for VirtioFsGhostView {
 
     closed spec fn after_link(&self, m: u64, p: PathView) -> Self {
         VirtioFsGhostView { aliases: self.aliases.insert(m, self.aliases[m].insert(p)), ..*self }
+    }
+
+    closed spec fn unlinked(&self, n: u64, p: PathView, after: Self) -> bool {
+        let v = self.inodes[n].object.0;
+        &&& after.inodes == self.inodes
+        &&& after.files == self.files
+        &&& after.aliases.dom() == self.aliases.dom()
+        &&& after.paths.dom() == self.paths.dom()
+        // Each node of the share loses the names at or below `p`.
+        &&& forall|m: u64| #[trigger] self.aliases.contains_key(m) ==> after.aliases[m] == if self.in_volume(m, v) {
+            self.aliases[m].filter(|x: PathView| !p.is_prefix_of(x))
+        } else {
+            self.aliases[m]
+        }
+        // One whose main path was among them takes a remaining name, if any.
+        &&& forall|m: u64| #[trigger] self.paths.contains_key(m) ==> if self.in_volume(m, v) && p.is_prefix_of(self.paths[m]) && !after.aliases[m].is_empty() {
+            after.aliases[m].contains(after.paths[m])
+        } else {
+            after.paths[m] == self.paths[m]
+        }
+    }
+
+    closed spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool {
+        let v = self.inodes[n].object.0;
+        if exchange {
+            after == self.map_names(v, |x: PathView| Self::exchanged(x, p, q))
+        } else {
+            exists|mid: Self| #[trigger] self.unlinked(n, q, mid) && after == mid.map_names(v, |x: PathView| Self::moved(x, p, q))
+        }
     }
 
     closed spec fn holds_file(&self, fh: u64) -> bool {

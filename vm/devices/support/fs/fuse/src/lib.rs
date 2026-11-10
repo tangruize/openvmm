@@ -233,12 +233,50 @@ where
 
     /// Removes a non-directory child from the specified inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may remove the name: the
+                // directory may be changed, and the name's path is writable.
+                // Every name at or below that path is gone after.
+                Ok(()) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    let p = s.child_path(n, _name@);
+                    &&& s.is_entry(n, _name@)
+                    &&& s.node_can_write(n)
+                    &&& s.can_write(n, p)
+                    &&& s.unlinked(n, p, final(g)@)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn unlink(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
 
     /// Removes a directory child from the specified inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may remove the name: the
+                // directory may be changed, and the name's path is writable.
+                // Every name at or below that path is gone after.
+                Ok(()) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    let p = s.child_path(n, _name@);
+                    &&& s.is_entry(n, _name@)
+                    &&& s.node_can_write(n)
+                    &&& s.can_write(n, p)
+                    &&& s.unlinked(n, p, final(g)@)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn rmdir(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
     }
@@ -248,6 +286,31 @@ where
     /// The file's original parent is the request's inode, while the new parent is indicated using
     /// `new_dir`.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only within one share, where the guest may change
+                // both directories and write both paths. After, either the
+                // two names are swapped (`RENAME_EXCHANGE`), or the new name's
+                // old entries are gone and the old name's are at the new one.
+                Ok(()) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    let p = s.child_path(n, _name@);
+                    let q = s.child_path(_new_dir, _new_name@);
+                    &&& s.is_entry(n, _name@)
+                    &&& s.is_entry(_new_dir, _new_name@)
+                    &&& s.same_share(n, _new_dir)
+                    &&& s.node_can_write(n)
+                    &&& s.node_can_write(_new_dir)
+                    &&& s.can_write(n, p)
+                    &&& s.can_write(_new_dir, q)
+                    &&& s.renamed(n, p, q, G::V::is_exchange(_flags), final(g)@)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn rename(
         &self,
         _request: &Request,
