@@ -50,7 +50,11 @@ Style reference: [microsoft/verified-storage](https://github.com/microsoft/verif
   - `<file>.proof.rs`: spec that need not be checked by a human, such as the
     contracts of functions called by `LoadedVm::save` or by a unit's save,
     and declarations of types to Verus; and lemmas.
-  - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`:
+  - Both are included from `<file>.rs` under `#[cfg(verus_keep_ghost)]`
+    (one exception: a `.spec.rs` file whose types a normal build needs,
+    because production code names one of them, e.g. ghost state passed as
+    a trait's type parameter, as virtio-fs's `Fuse<G>`, is included without
+    `cfg`; a normal build then keeps only its type definitions):
     `<file>.spec.rs` as `mod spec`, and `<file>.proof.rs` as `mod proof`
     *inside* `spec`, so that lemmas can unfold the spec's closed views (a
     closed body is visible in its module and the modules within it).
