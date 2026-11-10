@@ -19,11 +19,13 @@
 //
 // HOW IT IS USED.
 //
-// 1. Once, when the file system is created (`VirtioFs::new_microvm`): its
-//    verified proof creates the ghost pieces together with the inode table
-//    and the file table (half of each `FracGhost` into its table's lock, the
-//    rest into `g`), so that `g` matches the locks; then it hands `g` to the
-//    keeper: `keep_fs_ghost(fs, g)`.
+// 1. Once, when the file system is created: `VirtioFs::new_microvm` creates
+//    the ghost pieces together with the inode table and the file table (half
+//    of each `FracGhost` into its table's lock, the rest into `g`), so that
+//    `g` matches the locks, and hands `g` out; its contract demands it (a `g`
+//    that the new file system owns, well formed, and new), so its proof must
+//    create it. The device's setup (`VirtioFsDevice::new_microvm_hostfs`)
+//    then hands `g` to the keeper: `keep_fs_ghost(fs, g)`.
 // 2. For each request (`process_virtiofs_request`, which both queue workers
 //    call): `take_fs_ghost(session)` gives out `g`; the request lends it down
 //    to its operation (`owner::dispatch` -> `Session::dispatch` -> the

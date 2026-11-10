@@ -28,6 +28,12 @@ verus! {
 #[verifier::external_body]
 pub struct ExLxVolume(lxutil::LxVolume);
 
+/// `anyhow::Error` (the error of `VirtioFs::new_microvm`), by name only.
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExAnyhowError(anyhow::Error);
+
 /// The view of a `VirtioFsInode`: its plain fields, which never change (its
 /// path and names are behind locks, in `VirtioFsGhostView`'s `paths` and
 /// `aliases`).
@@ -122,6 +128,16 @@ impl VirtioFsGhostView {
 }
 
 impl VirtioFsGhostView {
+    /// The state of a new file system: the root is the only node in the inode
+    /// table (an aggregate's root is synthetic: then there is none), and
+    /// there are no names and no open handles.
+    pub closed spec fn is_new(self) -> bool {
+        &&& self.inodes.dom().subset_of(set![fuse::protocol::FUSE_ROOT_ID])
+        &&& self.paths.dom() == Set::<u64>::empty()
+        &&& self.aliases.dom() == Set::<u64>::empty()
+        &&& self.files.dom() == Set::<u64>::empty()
+    }
+
     /// Node `m` is in the inode table, in volume `v`.
     closed spec fn in_volume(self, m: u64, v: u32) -> bool {
         self.inodes.contains_key(m) && self.inodes[m].object.0 == v

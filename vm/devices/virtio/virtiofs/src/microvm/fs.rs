@@ -43,6 +43,12 @@ use crate::VirtioFsMode;
 use crate::aggregate::AggregateState;
 use crate::file::VirtioFsFile;
 use crate::inode::VirtioFsInode;
+#[cfg(verus_keep_ghost)]
+use fuse::spec::FuseGhost;
+#[cfg(verus_keep_ghost)]
+use fuse::spec::FuseOwns;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use crate::inode::VirtioFsVolume;
 use anyhow::Context;
 use fuse::Session;
@@ -218,6 +224,7 @@ fn open_microvm_volume(
     Ok((volume, root_inode, root_stat))
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl VirtioFs {
     /// Creates a filesystem attachment for the fixed microVM profile.
     ///
@@ -226,12 +233,27 @@ impl VirtioFs {
     ///
     /// Verus: this is where the file system's ghost state `g` is created,
     /// together with the inode table (the root alone) and the empty file
-    /// table, so that it matches them: its proof creates the `paths` and
-    /// `aliases` `Auth`s and the two tables' `FracGhost`s, puts one half of
-    /// each table's into that table's lock, and hands `g` (the rest) to the
-    /// trusted keeper, `keep_fs_ghost(&fs, g)` (`fs_ghost_t.rs`). Not written
-    /// yet: this body is not verified yet, and the locks do not hold ghost
-    /// pieces yet (their rules come next).
+    /// table, so that it matches them; on success it hands `g` out, and the
+    /// device's setup hands it to the trusted keeper (`keep_fs_ghost`,
+    /// `fs_ghost_t.rs`). The contract demands it: a `g` that the new file
+    /// system owns (so its pieces match the locks), well formed, and the
+    /// state of a new file system (the root alone; no names, no handles). Its
+    /// proof creates the pieces with a lemma (the `paths` and `aliases`
+    /// `Auth`s, and the two tables' `FracGhost`s, one half of each into its
+    /// table's lock).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut Option<crate::spec::VirtioFsGhost>>
+        ensures
+            r is Ok ==> match *final(g) {
+                Some(g) => {
+                    &&& r->Ok_0.owns(&g)
+                    &&& g.wf()
+                    &&& g@.is_new()
+                },
+                None => false,
+            },
+    ))]
     pub fn new_microvm(
         root_path: impl AsRef<Path>,
         profile: MicroVmVirtioFsProfile,
@@ -282,6 +304,7 @@ impl VirtioFs {
     ///
     /// Like [`Self::new_microvm`], the paths are consumed only while opening
     /// the attachment.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn new_microvm_aggregate(
         root_paths: &[impl AsRef<Path>],
         profile: MicroVmVirtioFsProfile,
@@ -341,20 +364,24 @@ impl VirtioFs {
         })
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn microvm_profile(&self) -> Option<&MicroVmVirtioFsProfile> {
         self.inner.microvm_profile.as_ref()
     }
 
     /// Returns the mapping of guest callers to host identities, if requests
     /// run as their callers.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn caller_identity(&self) -> Option<CallerIdentity> {
         self.inner.caller_identity
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn is_microvm(&self) -> bool {
         self.inner.microvm_profile.is_some()
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_inode_insert(&self, inode: &VirtioFsInode) -> lx::Result<()> {
         if self.is_microvm() {
             self.inner.inodes.read().preflight_microvm_insert(inode)
@@ -363,6 +390,7 @@ impl VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_new_inode_path(&self, path: &Path) -> lx::Result<()> {
         if self.is_microvm() {
             self.inner.inodes.read().preflight_microvm_new_inode(path)
@@ -371,6 +399,7 @@ impl VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_create_inode(
         &self,
         parent: &VirtioFsInode,
@@ -387,6 +416,7 @@ impl VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_alias_add(&self, inode: &VirtioFsInode, path: &Path) -> lx::Result<()> {
         if self.is_microvm() {
             self.inner
@@ -398,6 +428,7 @@ impl VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_rename_aliases(
         &self,
         volume_id: u32,
@@ -415,11 +446,13 @@ impl VirtioFs {
         }
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_file_insert(&self) -> lx::Result<()> {
         let files = self.inner.files.read();
         validate_file_insert(self, &files)
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn save_microvm_state(
         &self,
         profile: &MicroVmVirtioFsProfile,
@@ -592,6 +625,7 @@ impl VirtioFs {
         })
     }
 
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn restore_microvm_state(
         &self,
         profile: &MicroVmVirtioFsProfile,

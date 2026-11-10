@@ -9,6 +9,8 @@ use anyhow::Context as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// Stable device-private attachment identifier of the microVM share.
 pub const MICROVM_ATTACHMENT_ID: &str = "fs:microvm0";
@@ -430,6 +432,8 @@ fn validate_opened_object(
 /// A profile describes either a single share or an aggregate, whose synthetic
 /// read-only root lists one named child per host directory. Each child carries
 /// its own root identity and access policy, so an aggregate has neither.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MicroVmVirtioFsProfile {
     stable_id: String,

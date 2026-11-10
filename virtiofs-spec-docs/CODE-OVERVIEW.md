@@ -498,7 +498,7 @@ the executable is unchanged):
 
 | Function | When | Contract |
 |---|---|---|
-| `keep_fs_ghost(fs, g)` | once, at creation (`VirtioFs::new_microvm`) | requires `fs.owns(g)` and `g.wf()`: the keeper now holds `g` |
+| `keep_fs_ghost(fs, g)` | once, at creation (the device's setup, with the `g` that `VirtioFs::new_microvm` hands out) | requires `fs.owns(g)` and `g.wf()`: the keeper now holds `g` |
 | `take_fs_ghost(session) -> g` | at the start of each request (`process_virtiofs_request`) | ensures `session.owns_ghost(g)` and `g.wf()` |
 | `give_back_fs_ghost(session, g)` | at the end of that request | requires `session.owns_ghost(g)` and `g.wf()`, which every operation keeps |
 
@@ -511,12 +511,18 @@ hiprio worker:   take_fs_ghost  -> g   (as create left it)
                  give_back(g)
 ```
 
-`g` itself is created, not by the keeper, but in `VirtioFs::new_microvm`'s
-verified proof, together with the inode table (the root alone) and the
-empty file table: it creates the `paths` and `aliases` `Auth`s and the two
-tables' `FracGhost`s, puts one half of each table's into that table's lock,
-and keeps the rest as `g`, so that `g` matches the locks (that is what
-`owns` checks). Only the keeping is trusted. What is assumed, written at
+`g` itself is created, not by the keeper, but by `VirtioFs::new_microvm`,
+together with the inode table (the root alone) and the empty file table,
+and handed out (a ghost argument, `Tracked<&mut Option<VirtioFsGhost>>`).
+Its contract demands it, so that the proof must create it: on success, a
+`g` that the new file system owns, well formed, and new (`is_new()`: the
+root alone, no names, no handles). Its proof creates the `paths` and
+`aliases` `Auth`s and the two tables' `FracGhost`s with a lemma, puts one
+half of each table's into that table's lock, and keeps the rest as `g`;
+once `owns` has its real body, it holds only if the locks hold the matching
+halves, so the creation cannot be skipped. The device's setup
+(`VirtioFsDevice::new_microvm_hostfs`) then hands `g` to the keeper. Only
+the keeping is trusted. What is assumed, written at
 the top of the file:
 
 1. A take is always followed by its give-back before the next take, so at
