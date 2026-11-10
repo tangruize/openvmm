@@ -648,7 +648,7 @@ pub struct fuse_getxattr_out {
     pub padding: u32,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -751,7 +751,7 @@ pub struct fuse_bmap_out {
     pub block: u64,
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -945,9 +945,10 @@ pub struct fuse_copy_file_range_in {
     pub flags: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_SETUPMAPPING_FLAG_WRITE: u64 = (1 << 0);
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
