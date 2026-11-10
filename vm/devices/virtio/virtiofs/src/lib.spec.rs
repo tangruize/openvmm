@@ -168,6 +168,16 @@ impl FuseState for VirtioFsGhostView {
         }
     }
 
+    /// The two inodes' volumes are the same (an inode's object is its
+    /// volume's id and its inode number).
+    closed spec fn same_share(&self, a: u64, b: u64) -> bool {
+        self.inodes[a].object.0 == self.inodes[b].object.0
+    }
+
+    closed spec fn after_link(&self, m: u64, p: PathView) -> Self {
+        VirtioFsGhostView { aliases: self.aliases.insert(m, self.aliases[m].insert(p)), ..*self }
+    }
+
     closed spec fn holds_file(&self, fh: u64) -> bool {
         self.files.contains_key(fh)
     }

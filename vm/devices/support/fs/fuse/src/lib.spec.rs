@@ -59,6 +59,13 @@ pub trait FuseState: Sized {
     /// its main path and among its names; a new one starts with `p` alone.
     spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self;
 
+    /// Nodes `a` and `b` are in the same share.
+    spec fn same_share(&self, a: u64, b: u64) -> bool;
+
+    /// The state after path `p` becomes one more name of node `m` (a hard
+    /// link): `p` among its names; its main path stays.
+    spec fn after_link(&self, m: u64, p: PathView) -> Self;
+
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
 
@@ -135,6 +142,14 @@ impl FuseState for () {
 
     open spec fn holds_file(&self, fh: u64) -> bool {
         false
+    }
+
+    open spec fn same_share(&self, a: u64, b: u64) -> bool {
+        false
+    }
+
+    open spec fn after_link(&self, m: u64, p: PathView) -> Self {
+        ()
     }
 
     open spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self {

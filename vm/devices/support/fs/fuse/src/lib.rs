@@ -145,6 +145,24 @@ where
 
     /// Creates a symbolic link as a child of the specified inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may add a name, and hands out
+                // the node of the new symbolic link: a new node, or an existing one of
+                // the same identity (a node the guest still holds for a removed
+                // object whose inode number the host reused: the file system
+                // keys nodes by identity, so `after_reach` covers both).
+                Ok(entry) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.may_add_name(n, _name@)
+                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), entry.nodeid, lx::S_IFLNK)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn symlink(
         &self,
         _request: &Request,
@@ -157,6 +175,24 @@ where
     /// Creates a regular file, fifo, socket, or character or block device node as a child of
     /// the specified inode.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may add a name, and hands out
+                // the node of the new file (of the type the reply reports): a new node, or an existing one of
+                // the same identity (a node the guest still holds for a removed
+                // object whose inode number the host reused: the file system
+                // keys nodes by identity, so `after_reach` covers both).
+                Ok(entry) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.may_add_name(n, _name@)
+                    &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), entry.nodeid, entry.attr.mode & lx::S_IFMT)
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn mknod(
         &self,
         _request: &Request,
@@ -173,12 +209,14 @@ where
         ensures
             match r {
                 // Succeeds only where the guest may add a name, and hands out
-                // a new node for the new directory.
+                // the node of the new directory: a new node, or an existing one of
+                // the same identity (a node the guest still holds for a removed
+                // object whose inode number the host reused: the file system
+                // keys nodes by identity, so `after_reach` covers both).
                 Ok(entry) => {
                     let s = old(g)@;
                     let n = _request@.node_id;
                     &&& s.may_add_name(n, _name@)
-                    &&& !s.holds_node(entry.nodeid)
                     &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), entry.nodeid, lx::S_IFDIR)
                 },
                 Err(_) => final(g)@ == old(g)@,
@@ -223,6 +261,27 @@ where
 
     /// Creates a hard-link to an existing inode, as a child of the specified inode..
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            match r {
+                // Succeeds only where the guest may add a name, for a target
+                // node in the same share that the guest may change (a new name
+                // must not make a read-only file writable); the new name is
+                // the target's, and the reply is the target's node.
+                Ok(entry) => {
+                    let s = old(g)@;
+                    let n = _request@.node_id;
+                    &&& s.may_add_name(n, _name@)
+                    &&& s.holds_node(_target)
+                    &&& s.same_share(n, _target)
+                    &&& s.node_can_write(_target)
+                    &&& entry.nodeid == _target
+                    &&& final(g)@ == s.after_link(_target, s.child_path(n, _name@))
+                },
+                Err(_) => final(g)@ == old(g)@,
+            },
+    ))]
     fn link(&self, _request: &Request, _name: &LxStr, _target: u64) -> lx::Result<fuse_entry_out> {
         Err(lx::Error::ENOSYS)
     }

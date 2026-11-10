@@ -48,6 +48,7 @@ pub const S_IFDIR: u32 = 0x4000;
 pub const S_IFBLK: u32 = 0x6000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFREG: u32 = 0x8000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFLNK: u32 = 0xa000;
 pub const S_IFSOCK: u32 = 0xc000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
