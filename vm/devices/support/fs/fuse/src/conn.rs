@@ -73,7 +73,7 @@ impl Connection {
     }
 
     /// Create a FUSE session and run it until the file system is unmounted.
-    pub fn run<G: vstd::prelude::View, T: 'static + Fuse<G>>(&mut self, fs: T) -> lx::Result<()>
+    pub fn run<G: crate::spec::FuseGhost, T: 'static + Fuse<G>>(&mut self, fs: T) -> lx::Result<()>
     where
         G::V: crate::spec::FuseState,
     {

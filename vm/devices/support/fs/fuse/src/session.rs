@@ -5,6 +5,7 @@ pub(crate) mod saved_state;
 
 use super::Fuse;
 use super::Mapper;
+use super::spec::FuseGhost;
 use super::spec::FuseState;
 use super::protocol::*;
 use super::reply::ReplySender;
@@ -15,7 +16,6 @@ use parking_lot::RwLock;
 use std::io;
 use std::sync::atomic;
 use thiserror::Error;
-use vstd::prelude::View;
 use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::KnownLayout;
@@ -48,7 +48,7 @@ const PAGE_SIZE: u32 = 4096;
 /// A FUSE session for a file system.
 ///
 /// Handles negotiation and dispatching requests to the file system.
-pub struct Session<G: View>
+pub struct Session<G: FuseGhost>
 where
     G::V: FuseState,
 {
@@ -59,7 +59,7 @@ where
     info: RwLock<SessionInfo>,
 }
 
-impl<G: View> Session<G>
+impl<G: FuseGhost> Session<G>
 where
     G::V: FuseState,
 {

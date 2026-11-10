@@ -31,8 +31,11 @@ pub use session::saved_state::SessionStateError;
 use lx::LxStr;
 use lx::LxString;
 use protocol::*;
+use spec::FuseGhost;
+use spec::FuseOwns;
 use spec::FuseState;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 use zerocopy::FromBytes;
 use zerocopy::FromZeros;
@@ -91,7 +94,7 @@ pub struct CreateOut {
 /// spec has no model of the host). See the virtio-fs spec's open items
 /// (`virtiofs-spec-docs/CODE-OVERVIEW.md`).
 #[cfg_attr(verus_keep_ghost, verus_verify)]
-pub trait Fuse<G: View>: Send + Sync
+pub trait Fuse<G: FuseGhost>: Send + Sync + FuseOwns<G>
 where
     G::V: FuseState,
 {
@@ -101,7 +104,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only for a name the guest may reach, and hands out
                 // that path's node. Only the path rules: the rule on pinned
@@ -134,7 +143,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             // The node may be gone (when its count reaches zero; the counts
             // are not in the spec yet); never the root.
             final(g)@ == old(g)@
@@ -153,6 +168,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
             r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.holds_file(_fh) } else { g@.holds_node(_request@.node_id) },
@@ -165,6 +183,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Changing attributes (anything beyond the handle and the lock owner) succeeds only on a
             // file the guest may change: the open file `fh`, or the request's node.
@@ -182,6 +203,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -194,7 +218,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may add a name, and hands out
                 // the node of the new symbolic link: a new node, or an existing one of
@@ -224,7 +254,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may add a name, and hands out
                 // the node of the new file (of the type the reply reports): a new node, or an existing one of
@@ -253,7 +289,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may add a name, and hands out
                 // the node of the new directory: a new node, or an existing one of
@@ -282,7 +324,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may remove the name: the
                 // directory may be changed, and the name's path is writable.
@@ -307,7 +355,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may remove the name: the
                 // directory may be changed, and the name's path is writable.
@@ -335,7 +389,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only within one share, where the guest may change
                 // both directories and write both paths. After, either the
@@ -373,7 +433,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may add a name, for a target
                 // node in the same share that the guest may change (a new name
@@ -407,7 +473,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only on a node the guest holds, and, to open a file for
                 // writing or to truncate it, only if the guest may change it;
@@ -431,6 +503,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
             r is Ok ==> g@.holds_file(_arg.fh),
@@ -443,6 +518,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest opened for writing, and may
             // change.
@@ -456,6 +534,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -471,7 +552,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             // The handle is gone (if the guest held it).
             final(g)@ == old(g)@.after_release(_arg.fh),
     ))]
@@ -483,6 +570,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
             r is Ok ==> g@.holds_file(_fh),
@@ -495,6 +585,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest may change.
             r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
@@ -513,6 +606,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -525,6 +621,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -537,6 +636,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -549,6 +651,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -561,6 +666,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest may change.
             r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
@@ -577,6 +685,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
             r is Ok ==> g@.holds_file(_arg.fh),
@@ -597,7 +708,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only on a node the guest holds, and, to open a directory for
                 // writing or to truncate it, only if the guest may change it;
@@ -623,6 +740,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> g@.holds_file(_arg.fh),
@@ -638,7 +758,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             // The handle is gone (if the guest held it).
             final(g)@ == old(g)@.after_release(_arg.fh),
     ))]
@@ -650,6 +776,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> g@.holds_file(_fh),
@@ -662,6 +791,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
             r is Ok ==> g@.holds_file(_arg.fh),
@@ -676,6 +808,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open (a lock changes no contents).
             r is Ok ==> g@.holds_file(_arg.fh),
@@ -688,6 +823,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -705,7 +843,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             match r {
                 // Succeeds only where the guest may add a name; hands out the
                 // file's node (an existing one, if the file was there and the
@@ -737,6 +881,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
@@ -755,7 +902,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             // Every handle and every node but the root is gone (the guest
             // unmounted; a new mount starts from the root).
             final(g)@ == old(g)@.after_destroy(),
@@ -771,6 +924,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on an open file the guest may change: an ioctl can
             // change a file (its flags, say), and the spec does not tell them
@@ -790,6 +946,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest opened for writing, and may
             // change.
@@ -808,7 +967,13 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&mut G>
+        requires
+            // The ghost state is well formed, and is this file system's.
+            self.owns(old(g)),
+            old(g).wf(),
         ensures
+            self.owns(final(g)),
+            final(g).wf(),
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> old(g)@.holds_file(_arg.fh),
             // Each entry listed with its node is looked up, as by `lookup`,
@@ -825,6 +990,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open.
             r is Ok ==> g@.holds_file(_fh),
@@ -838,6 +1006,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only into a file the guest opened for writing, and may
             // change (the destination, `fh_out`).
@@ -855,6 +1026,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on a file the guest holds open; a writable mapping
             // (the guest then changes the file through its memory) only on one
@@ -895,6 +1069,9 @@ where
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
         with Tracked(g): Tracked<&G>
+        requires
+            self.owns(g),
+            g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
             r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.holds_file(_fh) } else { g@.holds_node(_request@.node_id) },

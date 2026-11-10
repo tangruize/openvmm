@@ -9,8 +9,11 @@
 // guest's state in the spec".
 
 use crate::microvm::policy::spec::SubtreePolicyView;
+use fuse::spec::FuseGhost;
+use fuse::spec::FuseOwns;
 use fuse::spec::FuseState;
 use vstd::prelude::*;
+use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
 use vstd::resource::map::GhostMapAuth;
 use vstd::std_specs::path::PathView;
@@ -76,10 +79,21 @@ pub struct VirtioFsGhostView {
     pub files: Map<u64, VirtioFsFileView>,
 }
 
+/// The value of the inode table's ghost piece: the inodes' views, and the ids
+/// of the current `paths` and `aliases` maps (recorded here, in the inode
+/// table's lock, so that `DESTROY`, which starts fresh maps, updates them
+/// under that lock's write lock: `CODE-OVERVIEW.md`, "How the ghost state
+/// keeps matching").
+pub struct InodeTable {
+    pub inodes: Map<u64, VirtioFsInodeView>,
+    pub paths_id: Loc,
+    pub aliases_id: Loc,
+}
+
 /// The ghost state, lent to each request: the four whole-map pieces (the
 /// other pieces are in the locks).
 pub tracked struct VirtioFsGhost {
-    pub tracked inodes: FracGhost<Map<u64, VirtioFsInodeView>>,
+    pub tracked inodes: FracGhost<InodeTable>,
     pub tracked paths: GhostMapAuth<u64, PathView>,
     pub tracked aliases: GhostMapAuth<u64, Set<PathView>>,
     pub tracked files: FracGhost<Map<u64, VirtioFsFileView>>,
@@ -90,7 +104,7 @@ impl View for VirtioFsGhost {
 
     closed spec fn view(&self) -> VirtioFsGhostView {
         VirtioFsGhostView {
-            inodes: self.inodes@,
+            inodes: self.inodes@.inodes,
             paths: self.paths@,
             aliases: self.aliases@,
             files: self.files@,
@@ -155,7 +169,65 @@ impl VirtioFsGhostView {
     }
 }
 
+/// Well formed: the view's invariant, and the ids of the `paths` and
+/// `aliases` maps that the inode table records are those of this state's
+/// `Auth`s.
+impl FuseGhost for VirtioFsGhost {
+    closed spec fn wf(&self) -> bool {
+        &&& self@.inv()
+        &&& self.inodes@.paths_id == self.paths.id()
+        &&& self.inodes@.aliases_id == self.aliases.id()
+    }
+}
+
+/// `g` is this file system's: `g`'s pieces are the ones its locks hold.
+///
+/// PLACEHOLDER (`true`): the locks do not hold ghost pieces yet (they are
+/// `parking_lot` locks); the body comes with the locks' rules, next: the id
+/// of `g`'s inode-table half is the one that this file system's inode-table
+/// lock pins, and likewise for the file table. Open item in
+/// `virtiofs-spec-docs/CODE-OVERVIEW.md`.
+impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
+    closed spec fn owns(&self, g: &VirtioFsGhost) -> bool {
+        true
+    }
+}
+
+/// A dormant device has no share, so no node or handle: it owns any ghost
+/// state.
+impl FuseOwns<VirtioFsGhost> for crate::microvm::device::DormantMicrovmFs {
+    open spec fn owns(&self, g: &VirtioFsGhost) -> bool {
+        true
+    }
+}
+
+/// `SectionFs` (Windows only) is not part of the microVM; its ghost state is
+/// not tied to its data (no contract of its operations is proved).
+#[cfg(windows)]
+impl FuseOwns<VirtioFsGhost> for crate::section::SectionFs {
+    open spec fn owns(&self, g: &VirtioFsGhost) -> bool {
+        true
+    }
+}
+
 impl FuseState for VirtioFsGhostView {
+    /// The structural facts that every operation keeps: every node in the
+    /// inode table but the root has a main path and names, and its main path
+    /// is among its names when it has any (a node whose names were all
+    /// removed keeps its last main path); every open handle's node has
+    /// names (an open file keeps its inode, and its entries, after `FORGET`).
+    closed spec fn inv(&self) -> bool {
+        &&& forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
+            &&& self.paths.contains_key(m)
+            &&& self.aliases.contains_key(m)
+            &&& !self.aliases[m].is_empty() ==> self.aliases[m].contains(self.paths[m])
+        }
+        &&& forall|fh: u64| #[trigger] self.files.contains_key(fh) ==> {
+            let m = self.files[fh].node;
+            m == fuse::protocol::FUSE_ROOT_ID || self.aliases.contains_key(m)
+        }
+    }
+
     closed spec fn holds_node(&self, n: u64) -> bool {
         self.inodes.contains_key(n)
     }

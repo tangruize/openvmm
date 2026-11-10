@@ -635,7 +635,27 @@ all of them.
    is part of confidentiality.
 5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
    sentinel handle, `get_attr` on it.
-6. **Pedro's questions** (`BUGS.md`): device nodes from `mknod`; host hard
+6. **Visibility at the time of an operation on a node.** Every operation on
+   a node the guest holds first re-checks, at that moment, that none of the
+   node's names is hidden and that none passes through a symbolic link
+   (`get_inode` -> `validate_confined_object`, `microvm/inode.rs:181`): a
+   node can come to have a hidden name after it was handed out, as when a
+   `rename` moves its directory onto a denied path inside a writable one.
+   The contracts of the operations on a node (the reads, `set_xattr`,
+   `open`, ...) say only that the guest holds the node, which is weaker
+   than the code: a confidentiality rule to add ("succeeds only if none of
+   the node's names is hidden"). Not an invariant of the state, since the
+   code does not keep it between operations; it checks it at each one.
+7. **`owns`'s body in virtio-fs is a placeholder** (`true`). Every
+   operation requires and keeps `self.owns(g)` (the ghost state is this file
+   system's) and `g.wf()` (well formed: its view's `inv()`, and the ids that
+   the inode table records are those of its `Auth`s), both declared at the
+   FUSE level (`FuseOwns`, `FuseGhost`). virtio-fs's `wf()` and `inv()` have
+   their real bodies; `owns` cannot yet, since the locks do not hold ghost
+   pieces (they are `parking_lot` locks): its body comes with the locks'
+   rules (the id of `g`'s inode-table half is the one the inode-table lock
+   pins, and likewise for the file table).
+8. **Pedro's questions** (`BUGS.md`): device nodes from `mknod`; host hard
    links between a writable and a read-only path.
 
 ## The theme of the spec: protecting the host from the guest

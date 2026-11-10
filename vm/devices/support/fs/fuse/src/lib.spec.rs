@@ -31,9 +31,42 @@ pub struct ExBorrowedFd<'a>(std::os::fd::BorrowedFd<'a>);
 #[verifier::external_body]
 pub struct ExFuseOperation(crate::FuseOperation);
 
+/// What the `Fuse` trait asks of a file system's ghost state `G` itself (not
+/// of its view): that it is well formed. As for any concrete type, `wf()`
+/// includes its view's invariant (`self@.inv()`), and the consistency of
+/// what the view does not show (in virtio-fs, the ids of its pieces).
+pub trait FuseGhost: View + Sized where <Self as View>::V: FuseState {
+    spec fn wf(&self) -> bool;
+}
+
+/// What the `Fuse` trait asks of a file system about a ghost state `g`:
+/// that `g` is this file system's (in virtio-fs, that `g`'s pieces are the
+/// ones its locks hold).
+pub trait FuseOwns<G> {
+    spec fn owns(&self, g: &G) -> bool;
+}
+
+/// A file system with no ghost state (the `fuse` crate's tests, `G = ()`)
+/// owns the one there is.
+impl<T> FuseOwns<()> for T {
+    open spec fn owns(&self, g: &()) -> bool {
+        true
+    }
+}
+
+/// `()` has no pieces: it is always well formed.
+impl FuseGhost for () {
+    open spec fn wf(&self) -> bool {
+        true
+    }
+}
+
 /// The questions that the operations' rules ask about a filesystem's state.
 /// `Sized`, so that the `after_` functions can return the state.
 pub trait FuseState: Sized {
+    /// The state's invariant: what every operation keeps.
+    spec fn inv(&self) -> bool;
+
     /// `n` is a node the guest holds.
     spec fn holds_node(&self, n: u64) -> bool;
 
@@ -179,6 +212,10 @@ pub trait FuseState: Sized {
 /// implementation of `Fuse<()>` could succeed at no operation that the
 /// rules restrict.
 impl FuseState for () {
+    open spec fn inv(&self) -> bool {
+        true
+    }
+
     open spec fn holds_node(&self, n: u64) -> bool {
         false
     }

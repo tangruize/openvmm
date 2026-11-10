@@ -109,7 +109,7 @@ impl SessionState {
     }
 }
 
-impl<G: vstd::prelude::View> Session<G>
+impl<G: crate::spec::FuseGhost> Session<G>
 where
     G::V: crate::spec::FuseState,
 {

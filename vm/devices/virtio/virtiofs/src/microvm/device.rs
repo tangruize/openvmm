@@ -24,8 +24,11 @@ use vmcore::save_restore::RestoreError;
 use vmcore::save_restore::SaveError;
 use vmcore::save_restore::SavedStateBlob;
 use vmcore::vm_task::VmTaskDriverSource;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
-struct DormantMicrovmFs;
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+pub(crate) struct DormantMicrovmFs;
 
 impl fuse::Fuse<crate::spec::VirtioFsGhost> for DormantMicrovmFs {}
 
