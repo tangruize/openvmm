@@ -116,6 +116,18 @@ Following verified-storage:
   (`impl View for ConcreteJournalEntry { type V = JournalEntry; }`).
 - A view is composed of named abstract parts, as in
   `KeyTableView { durable: KeyTableSnapshot, tentative: Option<KeyTableSnapshot>, ... }`.
+- **A plain-value type gets no `View`, and no type is its own view**
+  (the user, 2026-11-09). When the spec means exactly a type's value (a
+  record of plain fields that the spec reads as they are), the spec uses
+  the value itself, as verified-storage does with `SetupParameters`,
+  `PersistentMemoryConstants`, and its keys and items (`AtomicKvStore`'s
+  `Map<K, (I, Seq<L>)>`). A type is never its own view (`impl View for Foo
+  { type V = Foo; }`, `view() = *self`): either it has no `View`, or its
+  view is a different, abstract type, which is where the spec means
+  something other than the bits (`SaturatingU64` -> `int`, its unbounded
+  value; `ConcreteJournalEntry` -> `JournalEntry`, with `u64` -> `int` and
+  `Vec<u8>` -> `Seq<u8>`). verified-storage has no `View` impl of the first
+  kind.
 
 Applied here:
 
