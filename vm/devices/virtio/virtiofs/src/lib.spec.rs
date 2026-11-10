@@ -251,6 +251,26 @@ impl FuseState for VirtioFsGhostView {
         self.files.contains_key(fh)
     }
 
+    /// The node leaves the inode table. Its entries in `paths` and
+    /// `aliases` stay (an open file may still hold its inode), and so do its
+    /// open files.
+    closed spec fn after_forget(&self, n: u64) -> Self {
+        VirtioFsGhostView { inodes: self.inodes.remove(n), ..*self }
+    }
+
+    /// The file table is empty, the inode table keeps only the root (if it
+    /// is there: an aggregate's root is synthetic, not in the table), and
+    /// the `paths` and `aliases` maps start afresh (`DESTROY` replaces their
+    /// `Auth`s, and node ids start over).
+    closed spec fn after_destroy(&self) -> Self {
+        VirtioFsGhostView {
+            inodes: self.inodes.restrict(set![fuse::protocol::FUSE_ROOT_ID]),
+            paths: Map::empty(),
+            aliases: Map::empty(),
+            files: Map::empty(),
+        }
+    }
+
     closed spec fn after_release(&self, fh: u64) -> Self {
         VirtioFsGhostView { files: self.files.remove(fh), ..*self }
     }

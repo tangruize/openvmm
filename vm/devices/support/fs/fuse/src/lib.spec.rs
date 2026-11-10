@@ -78,6 +78,14 @@ pub trait FuseState: Sized {
     /// those at or below `p` move to the same place below `q`.
     spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool;
 
+    /// The state after node `n` is given back (`forget`, when its count
+    /// reaches zero): the guest no longer holds it.
+    spec fn after_forget(&self, n: u64) -> Self;
+
+    /// The state after `destroy` (the guest unmounted): no handle, and no
+    /// node but the root.
+    spec fn after_destroy(&self) -> Self;
+
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
 
@@ -187,6 +195,14 @@ impl FuseState for () {
     }
 
     open spec fn after_release(&self, fh: u64) -> Self {
+        ()
+    }
+
+    open spec fn after_forget(&self, n: u64) -> Self {
+        ()
+    }
+
+    open spec fn after_destroy(&self) -> Self {
         ()
     }
 

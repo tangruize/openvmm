@@ -116,6 +116,14 @@ where
     /// The client is not guaranteed to send a forget message for every inode if the file system
     /// is unmounted.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // The node may be gone (when its count reaches zero; the counts
+            // are not in the spec yet); never the root.
+            final(g)@ == old(g)@
+                || (_node_id != protocol::FUSE_ROOT_ID && final(g)@ == old(g)@.after_forget(_node_id)),
+    ))]
     fn forget(&self, _node_id: u64, _lookup_count: u64) {
         // No reply is allowed from this message, not even error.
     }
@@ -645,6 +653,13 @@ where
     /// For virtio-fs, the client will call this when the file system is unmounted. After receiving
     /// destroy, another `init` call can be received if the file system is mounted again.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(g): Tracked<&mut G>
+        ensures
+            // Every handle and every node but the root is gone (the guest
+            // unmounted; a new mount starts from the root).
+            final(g)@ == old(g)@.after_destroy(),
+    ))]
     fn destroy(&self) {}
 
     /// Submit an ioctl.

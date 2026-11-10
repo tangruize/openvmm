@@ -278,6 +278,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn forget(&self, node_id: u64, lookup_count: u64) {
         if node_id == FUSE_ROOT_ID {
             return;
@@ -697,6 +698,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn destroy(&self) {
         // To get the file system ready for re-mount, clean out any open files and leaked inodes.
         self.inner.files.write().clear();
