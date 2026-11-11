@@ -3,7 +3,7 @@
 
 macro_rules! lx_errors {
     ($($name:ident = $value:expr;)*) => {
-        $(pub const $name: i32 = $value;)*
+        $(#[cfg_attr(verus_keep_ghost, verus_verify)] pub const $name: i32 = $value;)*
 
         /// Returns a string representation of the error.
         ///

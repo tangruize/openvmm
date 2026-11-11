@@ -87,6 +87,9 @@ pub struct VirtioFsGhostView {
     pub aliases: Map<u64, Set<PathView>>,
     /// Each open handle.
     pub files: Map<u64, VirtioFsFileView>,
+    /// This file system is an aggregate: node 1 is its synthetic root, not
+    /// in the inode table (`InodeMap::aggregate`). Fixed at creation.
+    pub aggregate: bool,
 }
 
 /// The value of the inode table's ghost piece: the inodes' views, and the ids
@@ -102,6 +105,8 @@ pub struct InodeTable {
     pub keys: Map<u64, int>,
     pub paths_id: Loc,
     pub aliases_id: Loc,
+    /// The table is an aggregate's (`InodeMap::aggregate`).
+    pub aggregate: bool,
 }
 
 /// The ghost state, lent to each request: the four whole-map pieces (the
@@ -131,6 +136,7 @@ impl View for VirtioFsGhost {
             paths: Map::new(t.inodes.dom().remove(fuse::protocol::FUSE_ROOT_ID), |n: u64| self.paths@[t.keys[n]]),
             aliases: Map::new(t.inodes.dom().remove(fuse::protocol::FUSE_ROOT_ID), |n: u64| self.aliases@[t.keys[n]]),
             files: self.files@,
+            aggregate: t.aggregate,
         }
     }
 }
@@ -229,6 +235,7 @@ impl RwLockPredicate<InodeTableLocked> for InodeTableRule {
     closed spec fn inv(self, v: InodeTableLocked) -> bool {
         &&& v.half@.id() == self.id
         &&& v.half@@.inodes == v.table.inodes_by_node_id.values@.map_values(|i: Arc<VirtioFsInode>| i@)
+        &&& v.half@@.aggregate == v.table.aggregate
     }
 }
 
@@ -309,6 +316,7 @@ impl FuseOwns<VirtioFsGhost> for crate::microvm::device::DormantMicrovmFs {
             paths: Map::empty(),
             aliases: Map::empty(),
             files: Map::empty(),
+            aggregate: false,
         }
     }
 }
@@ -458,6 +466,7 @@ impl FuseState for VirtioFsGhostView {
             paths: Map::empty(),
             aliases: Map::empty(),
             files: Map::empty(),
+            aggregate: self.aggregate,
         }
     }
 
@@ -488,6 +497,20 @@ impl FuseState for VirtioFsGhostView {
             files: self.files.insert(fh, VirtioFsFileView { node: m, inode: self.inodes[m], writable }),
             ..*self
         }
+    }
+
+    /// An aggregate's root (node 1, `VirtioFs::is_synthetic_root`).
+    closed spec fn is_synthetic(&self, n: u64) -> bool {
+        self.aggregate && n == fuse::protocol::FUSE_ROOT_ID
+    }
+
+    /// Any code: without a model of the host, the spec cannot say which
+    /// codes the host fails with (lxutil hands on the host's own). A host
+    /// model may narrow it; it would then also need, as rules, the failures
+    /// the code checks that the rules leave out (see `CODE-OVERVIEW.md`,
+    /// "When an operation fails").
+    closed spec fn host_error(code: i32) -> bool {
+        true
     }
 }
 

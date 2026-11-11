@@ -705,17 +705,28 @@ all of them.
   read-only ones: to ask him whether that is intended.
 
 **Open items of the FUSE-level spec** (2026-11-10), to come back to:
-1. **When an operation may fail.** The contracts say when an operation may
-   succeed, and that an error leaves the state unchanged; the `Fuse`
-   trait's doc lists the error conditions they can state (its rules do not
-   hold, a malformed request, not supported). Three more are not yet
-   stated, so the contracts do not yet say when an operation must succeed:
-   a limit reached (needs the counts and caps in the ghost state), a
-   confinement refusal, and a host failure. One way, without a model of
-   the host: each trusted `lxutil` method that fails gives back ghost
-   evidence of it, and the error clause names that evidence (so that an
-   implementation that always fails without calling the host does not
-   meet the contract).
+1. **When an operation fails** (started 2026-11-10; Jay's style). Each
+   operation gets a set of rules, each a condition and its code, at the
+   FUSE level (`FuseState`, `fuse/src/lib.spec.rs`: e.g. `unlink_errors`),
+   and its contract says `fails_with(r, rules)`: if any rule applies, the
+   operation fails, with the code of one of the rules that apply, or with a
+   host error. The order in which the code checks does not matter. The
+   host is one more rule, which may always apply (`host_error`: virtio-fs
+   answers "any code", having no host model), so the codes are pinned only
+   in the spec's terms; what the contract does guarantee is that the
+   operation fails. New FUSE-level question: `is_synthetic(n)` (virtio-fs:
+   an aggregate's root, which returns `EROFS`; its view now records whether
+   the file system is an aggregate). Codes are compared as numbers
+   (`e.code() == lx::EROFS`, `lx/src/error.spec.rs`): Verus refuses
+   `lx::Error::EROFS` (a public constant built from a private field).
+   Done: `unlink`, `rmdir`, `rename`. Still to do: the other operations.
+   Left out of the rules, for now (failures the code checks that no rule
+   names; harmless while `host_error` is "any code", but needed as rules if
+   a host model narrows it): a hidden path for a new entry (`EACCES`), the
+   microVM's extra name rules (`\` or `:` in a name, `EINVAL`; a path too
+   long, `E2BIG`), the limits (`ENOSPC`, `E2BIG`), and a single-file share
+   (`ENOTDIR`, `EACCES`). Not stated: when an operation must succeed
+   (needs a host model).
 2. **The lookup counts** (`lookup_count`, atomics): `forget` says only that
    it may remove the node, and the limits property needs them. Decided
    (2026-11-10): added with the limits property, not before, since

@@ -154,6 +154,13 @@ pub trait FuseState: Sized {
     /// The state after handle `fh` is opened on node `m`, for writing or not.
     spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self;
 
+    /// `n` is a node the file system made up, not a host object, which the
+    /// guest may not change (virtio-fs: an aggregate's root).
+    spec fn is_synthetic(&self, n: u64) -> bool;
+
+    /// `code` is an error code the host may fail with.
+    spec fn host_error(code: i32) -> bool;
+
     // The rules built from the questions above, the same for every
     // filesystem: spec functions with bodies, which every implementor gets.
 
@@ -219,6 +226,53 @@ pub trait FuseState: Sized {
                 &&& self.may_reach(dir, self.child_path(dir, name), kind)
             }
         }
+    }
+
+    // When an operation fails. Each operation's rules are a set of codes:
+    // each rule is a condition and its code, and the set holds the codes of
+    // the rules that apply. The order in which the code checks them does not
+    // matter: when several apply, the operation fails with one of their
+    // codes (`fails_with`).
+
+    /// The general rule: if any of the rules applies (`errors` holds a
+    /// code), the operation fails, with the code of one of the rules that
+    /// apply, or with an error of the host's (which may fail first).
+    open spec fn fails_with<T>(r: Result<T, lx::Error>, errors: ISet<i32>) -> bool {
+        (exists|c: i32| #[trigger] errors.contains(c)) ==> match r {
+            Ok(_) => false,
+            Err(e) => errors.contains(e.code()) || Self::host_error(e.code()),
+        }
+    }
+
+    /// The rules of `unlink` and `rmdir` of `name` in directory `n`.
+    open spec fn unlink_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.is_synthetic(n) && c == lx::EROFS
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && {
+                ||| !self.node_can_write(n) && c == lx::EROFS
+                ||| !self.is_dir(n) && c == lx::ENOTDIR
+                ||| !Self::is_plain_name(name) && c == lx::EINVAL
+                ||| !self.can_write(n, self.child_path(n, name)) && c == lx::EROFS
+            }
+        })
+    }
+
+    /// The rules of `rename` of `name` in directory `n` to `new_name` in
+    /// directory `m`.
+    open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
+            ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
+            ||| self.holds_node(n) && self.holds_node(m) && {
+                ||| !self.same_share(n, m) && c == lx::EXDEV
+                ||| (!self.node_can_write(n) || !self.node_can_write(m)) && c == lx::EROFS
+                ||| (!self.is_dir(n) || !self.is_dir(m)) && c == lx::ENOTDIR
+                ||| (!Self::is_plain_name(name) || !Self::is_plain_name(new_name)) && c == lx::EINVAL
+                ||| (!self.can_write(n, self.child_path(n, name))
+                    || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
+            }
+        })
     }
 
     /// The common rule of the operations that make a new name `name` in
@@ -315,6 +369,14 @@ impl FuseState for () {
 
     open spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self {
         ()
+    }
+
+    open spec fn is_synthetic(&self, n: u64) -> bool {
+        false
+    }
+
+    open spec fn host_error(code: i32) -> bool {
+        true
     }
 }
 

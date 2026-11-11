@@ -194,11 +194,17 @@ pub const XATTR_CREATE: i32 = 0x1;
 pub const XATTR_REPLACE: i32 = 0x2;
 
 /// Wraps a Linux error code in a strongly-typed struct.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Copy, Clone, Error, Eq, PartialEq)]
 #[error("{err} ({0})", err = str_error(*.0))]
 pub struct Error(i32);
+
+/// The spec of `Error` (Verus only).
+#[cfg(verus_keep_ghost)]
+pub mod error_spec {
+    include!("error.spec.rs");
+}
 
 impl From<io::Error> for Error {
     // Map IO errors to the appropriate Linux error code.
