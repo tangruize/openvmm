@@ -374,6 +374,14 @@ impl FuseGhost for VirtioFsGhost {
                 |x: PathView| self@.can_write(n, x),
                 |x: PathView| !self@.is_hidden(n, x),
             )
+        // Each disk is a tree, so every step but the last of a node's name is
+        // a directory there: no name passes through a symbolic link, and the
+        // microVM's walk of each name (`validate_confined_paths`, `ELOOP`)
+        // never fails. True as the share was attached (`attached_disk`), and
+        // kept: each call that makes a path needs its parent to be a
+        // directory, and a directory is removed only when empty.
+        &&& forall|n: u64| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
+            ==> self.disks[t.inodes[n].volume]@.is_tree()
         // A directory has one path on the disk, so no name but the root's own
         // leads to the root's object. True as the share was attached
         // (`attached_disk`), and kept: `link` never links a directory, and

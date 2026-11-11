@@ -120,10 +120,27 @@ impl HostDisk {
             && self.objects[x].kind == lx::S_IFDIR ==> x == y
     }
 
+    /// Path `p`'s parent is a directory on the disk (the share's root has
+    /// no parent).
+    pub open spec fn parent_is_dir(self, p: PathView) -> bool {
+        p.len() > 0 ==> {
+            &&& self.objects.contains_key(p.drop_last())
+            &&& self.objects[p.drop_last()].kind == lx::S_IFDIR
+        }
+    }
+
+    /// The disk is a tree: every object's parent is a directory on the disk.
+    /// So every step but the last of an object's path is a directory, and no
+    /// path to an object passes through a symbolic link.
+    pub open spec fn is_tree(self) -> bool {
+        forall|x: PathView| #[trigger] self.objects.contains_key(x) ==> self.parent_is_dir(x)
+    }
+
     /// The host assumptions about the share as attached (`attached_disk`).
     pub open spec fn as_attached(self, writable: spec_fn(PathView) -> bool, visible: spec_fn(PathView) -> bool) -> bool {
         &&& self.no_mixed_links(writable, visible)
         &&& self.directories_have_one_path()
+        &&& self.is_tree()
     }
 
     /// `after` is this disk, or this disk with one new object at path `p`,
@@ -131,7 +148,8 @@ impl HostDisk {
     /// failed leaves.
     pub open spec fn unchanged_or_made(self, p: PathView, after: HostDisk) -> bool {
         ||| after == self
-        ||| !self.objects.contains_key(p) && exists|o: HostObject| after.objects == #[trigger] self.objects.insert(p, o)
+        ||| !self.objects.contains_key(p) && self.parent_is_dir(p)
+            && exists|o: HostObject| after.objects == #[trigger] self.objects.insert(p, o)
     }
 }
 
@@ -165,6 +183,8 @@ impl VolumeDisk {
 ///    nor NTFS lets a directory have hard links, and a share contains no
 ///    mount point (the host assumption in `lib.spec.rs`), so no bind mount
 ///    gives one a second path either.
+/// 3. The share is a tree (`is_tree`): every object's parent is a directory
+///    on the disk, as a file system's names are.
 ///
 /// WHY AN AXIOM. The other host assumptions (`lib.spec.rs`) are about how
 /// the host behaves, and are already built into the trusted contracts of

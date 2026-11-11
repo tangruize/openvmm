@@ -46,10 +46,9 @@ object a name reaches: every name of a node names the node's object on the
 disk, and a hidden object is not reached through another name (pinned
 identities), no object has both a writable path and a visible read-only
 one (host hard links), and the share's root is the intended directory
-(its identity, in `owns`). The spec does not yet say that a path passes
-through no symbolic link
-(virtio-fs's own walk, which is defense in depth on top of the kernel's
-guard). And it rests on host assumptions: no other host process changes
+(its identity, in `owns`), and no node's name passes through a symbolic
+link (each disk is a tree; virtio-fs's own walk, defense in depth on top
+of the kernel's guard, never fails). And it rests on host assumptions: no other host process changes
 the share, a share contains no mount point (on Linux), and different
 paths are different objects (on Windows, where lxutil opens paths
 case-insensitively, and 8.3 short names are other names).
@@ -748,7 +747,7 @@ all of them.
 
 | Property | Status |
 |---|---|
-| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); with the host model (2026-11-11), every object an `lxutil` call reads, opens or changes is one on the share's disk (in the contracts); that a call changes nothing outside the share (the kernel's guard, on Linux and Windows) is trusted, in words, and could be made a contract (a declared `HostOutside` that every `lxutil` method takes by shared reference; `lxutil/src/lib.spec.rs` says why it is not, for now). Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Pinned identities: done 2026-11-11 with the host model (`wf`: a pinned object has a name only at its own path, and pinned objects stay on the disk). The root's identity: done 2026-11-11 (`owns`: the object at each volume's root path is the one the profile's identity names; `wf`: a directory has one path, so no other name leads to the root's object). Waits for the rest of the host model: the symbolic-link walk |
+| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); with the host model (2026-11-11), every object an `lxutil` call reads, opens or changes is one on the share's disk (in the contracts); that a call changes nothing outside the share (the kernel's guard, on Linux and Windows) is trusted, in words, and could be made a contract (a declared `HostOutside` that every `lxutil` method takes by shared reference; `lxutil/src/lib.spec.rs` says why it is not, for now). Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Pinned identities: done 2026-11-11 with the host model (`wf`: a pinned object has a name only at its own path, and pinned objects stay on the disk). The root's identity: done 2026-11-11 (`owns`: the object at each volume's root path is the one the profile's identity names; `wf`: a directory has one path, so no other name leads to the root's object). The symbolic-link walk: done 2026-11-11 (`wf`: each disk is a tree, so no node's name passes through a link; the microVM's walk never fails) |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |

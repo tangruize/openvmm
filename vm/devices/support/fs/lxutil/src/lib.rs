@@ -356,6 +356,7 @@ impl LxVolume {
                 &&& flags & lx::O_CREAT != 0
                 &&& f.object().kind == lx::S_IFREG
                 &&& old(disk)@.is_new_ino(f.object().ino)
+                &&& old(disk)@.parent_is_dir(path.as_ref_spec()@)
                 &&& final(disk)@.objects == old(disk)@.objects.insert(path.as_ref_spec()@, f.object())
             },
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -415,6 +416,7 @@ impl LxVolume {
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
+                && old(disk)@.parent_is_dir(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: lx::S_IFDIR }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -472,6 +474,7 @@ impl LxVolume {
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFLNK
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
+                && old(disk)@.parent_is_dir(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: lx::S_IFLNK }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -573,6 +576,7 @@ impl LxVolume {
             // A new node at the path, the object the stat describes.
             r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
+                && old(disk)@.parent_is_dir(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -613,6 +617,7 @@ impl LxVolume {
             } else {
                 &&& old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 &&& !path.as_ref_spec()@.is_prefix_of(new_path.as_ref_spec()@)
+                &&& old(disk)@.parent_is_dir(new_path.as_ref_spec()@)
                 &&& !new_path.as_ref_spec()@.is_prefix_of(path.as_ref_spec()@)
                 &&& if flags & 2 != 0 {
                     &&& old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
@@ -671,6 +676,7 @@ impl LxVolume {
                 && old(disk)@.objects[path.as_ref_spec()@].kind != lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
                 && st.inode_nr == old(disk)@.objects[path.as_ref_spec()@].ino
+                && old(disk)@.parent_is_dir(new_path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(new_path.as_ref_spec()@, old(disk)@.objects[path.as_ref_spec()@]),
             r is Err ==> final(disk)@ == old(disk)@,
     ))]

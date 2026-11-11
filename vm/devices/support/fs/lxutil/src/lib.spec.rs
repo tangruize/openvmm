@@ -5,9 +5,13 @@
 // 2026-11-11): every object a call reads, opens or changes is one on the
 // share's disk (`lstat` reports the object at the share path, `open` opens
 // it, and each change is stated exactly on the disk).
+// The paths virtio-fs hands over pass through no symbolic link: in the spec
+// (virtio-fs's `wf`: each disk is a tree, so every step but the last of a
+// node's name is a directory).
 // TRUSTED, in words only: a call changes nothing outside the share, and
 // follows no symbolic link on the way (but a final one, for the methods
-// about links: `lstat`, `read_link`). The host model covers only the share,
+// about links: `lstat`, `read_link`), whatever the path; for the paths
+// virtio-fs hands over, there is none on the way. The host model covers only the share,
 // so no contract can mention what is outside it. It could be turned into
 // a contract: a trusted, declared-only value `HostOutside` (the host outside
 // every share) that every `lxutil` method takes by shared reference, which
@@ -50,10 +54,10 @@
 // what its disk holds.
 // ASSUMED (a host assumption about the share as attached, decided
 // 2026-11-11): no host hard link joins a path the guest may write and a
-// visible path it may not (Pedro's setup rule), and a directory has one
-// path. Unlike the others, these are about what the disk holds, not how the
-// host behaves, so they are an axiom (`host_t.rs`, `attached_disk`, which
-// says why).
+// visible path it may not (Pedro's setup rule), a directory has one path,
+// and the share is a tree. Unlike the others, these are about what the disk
+// holds, not how the host behaves, so they are an axiom (`host_t.rs`,
+// `attached_disk`, which says why).
 // See `virtiofs-spec-docs/CODE-OVERVIEW.md`, property 1 (confinement).
 
 use super::LxVolume;

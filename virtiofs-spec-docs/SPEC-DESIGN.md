@@ -63,7 +63,8 @@ root's object. It does not yet say that no path passes through a link.
 - as the share was attached: no host hard link joined a path the guest may
   write and a visible path it may not (Pedro's setup rule), and a
   directory had one path (no directory hard links on Linux or NTFS, and no
-  mount point). These are about what the disk held, not how the host
+  mount point), and the share was a tree (every object's parent a
+  directory). These are about what the disk held, not how the host
   behaves, so they are an axiom (`attached_disk`, `lxutil/src/host_t.rs`);
   the others are built into `lxutil`'s trusted contracts;
 - on Windows, paths that differ name for name are different objects: no
@@ -475,9 +476,9 @@ What is trusted is that `lxutil` always uses these flags.
 microVM walks each name of the node and refuses a link on the way (`ELOOP`,
 `validate_confined_paths`), and refuses an opened link
 (`reject_opened_symlink`). It is defense in depth; the claim rests on the
-kernel's guard. (Stating it needs more of the host model than is written:
-whether a path passes through a link, which the disk's objects do not say
-yet.)
+kernel's guard. With the host model (2026-11-11), `wf` says each disk is a
+tree, so every step but the last of a node's name is a directory: no name
+passes through a link, and the walk never fails.
 
 **In the contracts, from virtio-fs's checks** (each a question virtio-fs
 answers): hidden paths (`is_hidden`, `EACCES`), names with `\` or `:`
@@ -497,8 +498,8 @@ single-file shares (`may_reach`, `is_hidden`).
   with its volume), and the contracts of `lxutil`'s methods in terms of it
   (`lib.rs`; `LxFile::fstat` too). It rests on the host assumptions. Its
   one axiom, `attached_disk`, states the assumptions about the share as
-  attached (hard links, one path per directory) for a disk no call has
-  changed (`untouched`).
+  attached (hard links, one path per directory, a tree) for a disk no call
+  has changed (`untouched`).
   virtio-fs keeps each volume's disk in `g` (`VirtioFsGhost::disks`, not in
   the view), and `wf` says every name of a node names, on its volume's
   disk, the node's object (`InodeTable::host_inos`, which the inode table's
@@ -557,15 +558,15 @@ Spots that look hard:
 
 Each is in `CODE-OVERVIEW.md`'s open items or status table.
 
-- **The rest of the host model** (items 3, 8, 9): the symbolic-link walk,
-  and `DT_UNK` entries. (Confinement's last part, that a call changes
+- **The rest of the host model** (items 3, 8, 9): `DT_UNK` entries. (Confinement's last part, that a call changes
   nothing outside the share, stays in words; it could be a contract, a
   declared `HostOutside` taken by shared reference: `lxutil/src/lib.spec.rs`
   says why it is not, for now.) (Done: the host
   model itself, `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of
   each node's names to its object, bug 3's rule in `create`'s contract,
   the pinned identities, host hard links, one path per directory, and the
-  root's identity in `owns`, from `microvm/profile.spec.rs`.)
+  root's identity in `owns`, from `microvm/profile.spec.rs`, and the
+  symbolic-link walk: each disk is a tree, in `wf`.)
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on
