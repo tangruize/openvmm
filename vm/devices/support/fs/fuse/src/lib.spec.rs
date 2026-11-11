@@ -326,9 +326,10 @@ pub trait FuseState: Sized {
     }
 
     // ---- Rules: when an operation fails, by operation: names, nodes,
-    // opening, file I/O, directories. (`unlink`, `rmdir`, `mkdir`, `mknod`:
+    // opening, file I/O, directories, extended attributes. (`unlink`,
+    // `rmdir`, `mkdir`, `mknod`:
     // `entry_errors`; `read_link`, `statfs`: `node_errors`; `fsync`,
-    // `fsync_dir`: `handle_errors`.)
+    // `fsync_dir`: `handle_errors`; `get_statx`: `get_attr_errors`.)
 
     /// The rules of `lookup` of `name` in directory `n` (not in a synthetic
     /// node: open item 5): the guest holds `n`, a directory; `name` is one
@@ -463,6 +464,33 @@ pub trait FuseState: Sized {
             ||| self.handle_errors(n, fh).contains(c)
             ||| Self::buffer_too_large(size) && c == lx::E2BIG
             ||| self.uses_handle(n, fh) && !self.node_can_write(n) && c == lx::EROFS
+        })
+    }
+
+    /// The rules of reading node `n`'s extended attributes, into a buffer of
+    /// `size` bytes if any (`get_xattr`: `Some`; `get_xattr_size`: `None`),
+    /// or of listing them (`listing`: `list_xattr`, `list_xattr_size`): a
+    /// synthetic node has none to read (`ENODATA`), and lists none; else, the
+    /// guest holds `n`, and the size.
+    open spec fn xattr_read_errors(&self, n: u64, size: Option<nat>, listing: bool) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| !listing && self.is_synthetic(n) && c == lx::ENODATA
+            ||| !self.is_synthetic(n) && {
+                ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| size matches Some(k) && Self::buffer_too_large(k) && c == lx::E2BIG
+            }
+        })
+    }
+
+    /// The rules of changing node `n`'s extended attributes (`set_xattr`, of
+    /// a value of `size` bytes; `remove_xattr`, `None`): a synthetic node is
+    /// not changed; the size; the guest holds `n`, and may change it.
+    open spec fn xattr_write_errors(&self, n: u64, size: Option<nat>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.is_synthetic(n) && c == lx::EROFS
+            ||| size matches Some(k) && Self::buffer_too_large(k) && c == lx::E2BIG
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && !self.node_can_write(n) && c == lx::EROFS
         })
     }
 

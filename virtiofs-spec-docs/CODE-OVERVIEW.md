@@ -723,10 +723,13 @@ all of them.
    Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
    `symlink`, `link`, `open`, `open_dir`, `lookup`, `get_attr`, `set_attr`,
    `read_link`, `statfs`, `read`, `write`, `fsync`, `read_dir`,
-   `read_dir_plus`, `fsync_dir`; `release` and
+   `read_dir_plus`, `fsync_dir`, `get_statx`, and the extended attributes
+   (`xattr_read_errors`, `xattr_write_errors`): every operation virtio-fs
+   implements; `release` and
    `release_dir` always succeed (`r is Ok`). No rules for the operations
    virtio-fs leaves to the trait's default (`ENOSYS`): `flush`,
-   `fallocate`, `lseek`, `copy_file_range`, and the like. More questions:
+   `fallocate`, `lseek`, `copy_file_range`, `access`, the locks, `ioctl`,
+   the mappings, `poll`. More questions:
    `buffer_too_large` (virtio-fs: over 1 MiB, `E2BIG`); running out of
    memory for the buffer (`ENOMEM`) is left under "host". Shared rule sets: `entry_errors`, `handle_errors` (a
    request through a handle), `node_errors`. `is_hidden(n, p)` (virtio-fs:
@@ -739,8 +742,8 @@ all of them.
    target, `ENOENT`; over 4095 bytes, `ENAMETOOLONG`); for it the view
    records whether the file system is a microVM's, which `owns` ties to its
    profile. Left under "host": `create` on an existing file (bug 3's check:
-   whether a file exists is the host's to say). Still to do: the other
-   operations.
+   whether a file exists is the host's to say). Every operation virtio-fs
+   implements now has its rules (done 2026-11-10).
    Left out of the rules, for now (failures the code checks that no rule
    names; harmless while `host_error` is "any code", but needed as rules if
    a host model narrows it): the microVM's extra name rules (`\` or `:` in

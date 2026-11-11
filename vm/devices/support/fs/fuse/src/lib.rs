@@ -95,7 +95,9 @@ pub struct CreateOut {
 /// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`), and
 /// `open` and `open_dir` (`release` and `release_dir` always succeed), and
 /// `lookup`, `get_attr`, `set_attr`, `read_link`, `statfs`, `read`, `write`,
-/// `fsync`, `read_dir`, `read_dir_plus`, `fsync_dir`.
+/// `fsync`, `read_dir`, `read_dir_plus`, `fsync_dir`, `get_statx`, and the
+/// extended attributes. The operations virtio-fs leaves to the default
+/// bodies (`ENOSYS`) have none.
 ///
 /// The other reasons are not yet in the contracts, so that they do not yet
 /// say when an operation must succeed: a limit reached (the counts and caps
@@ -634,6 +636,8 @@ where
         ensures
             // Succeeds only on a node the guest may change.
             r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_write_errors(_request@.node_id, Some(_value@.len()))),
     ))]
     fn set_xattr(
         &self,
@@ -655,6 +659,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, Some(_size as nat), false)),
     ))]
     fn get_xattr(&self, _request: &Request, _name: &LxStr, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
@@ -670,6 +676,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, None, false)),
     ))]
     fn get_xattr_size(&self, _request: &Request, _name: &LxStr) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
@@ -685,6 +693,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, Some(_size as nat), true)),
     ))]
     fn list_xattr(&self, _request: &Request, _size: u32) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
@@ -700,6 +710,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, None, true)),
     ))]
     fn list_xattr_size(&self, _request: &Request) -> lx::Result<u32> {
         Err(lx::Error::ENOSYS)
@@ -715,6 +727,8 @@ where
         ensures
             // Succeeds only on a node the guest may change.
             r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.xattr_write_errors(_request@.node_id, None)),
     ))]
     fn remove_xattr(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -1133,6 +1147,8 @@ where
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
             r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.get_attr_errors(_request@.node_id, _getattr_flags, _fh)),
     ))]
     fn get_statx(
         &self,
