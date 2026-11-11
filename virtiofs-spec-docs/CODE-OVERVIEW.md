@@ -721,8 +721,13 @@ all of them.
    (`e.code() == lx::EROFS`, `lx/src/error.spec.rs`): Verus refuses
    `lx::Error::EROFS` (a public constant built from a private field).
    Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
-   `symlink`, `link`, `open`, `open_dir`; `release` and `release_dir`
-   always succeed (`r is Ok`). More FUSE-level questions: `bad_open_flags`
+   `symlink`, `link`, `open`, `open_dir`, `lookup`, `get_attr`, `set_attr`,
+   `read_link`, `statfs`; `release` and `release_dir` always succeed
+   (`r is Ok`). Shared rule sets: `entry_errors`, `handle_errors` (a
+   request through a handle), `node_errors`. `is_hidden(n, p)` (virtio-fs:
+   the share's policy hides `p`; `child_path` refuses it with `EACCES`
+   before the host is asked) is in every rule set that makes a child's
+   path. More FUSE-level questions: `bad_open_flags`
    (`util::open_flags`: `O_CREAT`, `O_EXCL`, or a flag `create` refuses), `bad_create_flags` (flags
    that `util::create_flags` refuses, from lx's constants, which differ by
    CPU architecture) and `bad_symlink_target` (microVM only: an empty
@@ -733,9 +738,8 @@ all of them.
    operations.
    Left out of the rules, for now (failures the code checks that no rule
    names; harmless while `host_error` is "any code", but needed as rules if
-   a host model narrows it): a hidden path for a new entry (`EACCES`), the
-   microVM's extra name rules (`\` or `:` in a name, `EINVAL`; a path too
-   long, `E2BIG`), the limits (`ENOSPC`, `E2BIG`), and a single-file share
+   a host model narrows it): the microVM's extra name rules (`\` or `:` in
+   a name, `EINVAL`; a path too long, `E2BIG`), the limits (`ENOSPC`, `E2BIG`), and a single-file share
    (`ENOTDIR`, `EACCES`). Not stated: when an operation must succeed
    (needs a host model).
 2. **The lookup counts** (`lookup_count`, atomics): `forget` says only that
@@ -756,11 +760,13 @@ all of them.
    traverse-only listing rule (only the entries that lead to allowed paths)
    is part of confidentiality.
 5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
-   sentinel handle, `get_attr` on it. Known wrong until then: `open_dir`'s
-   success clause says the guest holds the node, but on an aggregate's
-   root (not in the inode table) `open_dir` succeeds with a sentinel handle
-   (`SYNTHETIC_ROOT_FH`) that is not in the file table either. Its error
-   rules already allow for it (`open_dir_errors`).
+   sentinel handle, `get_attr` on it. Known wrong until then: the success
+   clauses of `open_dir`, `lookup`, `get_attr` and `statfs` say the guest
+   holds the node (`lookup`: a directory), but on an aggregate's root (not
+   in the inode table) each succeeds (`open_dir` with a sentinel handle,
+   `SYNTHETIC_ROOT_FH`, not in the file table either). Their error rules
+   already allow for it: they leave a synthetic node out (`is_synthetic`),
+   or, for `lookup` and `get_attr`, say nothing of it yet.
 6. **Visibility at the time of an operation on a node.** Every operation on
    a node the guest holds first re-checks, at that moment, that none of the
    node's names is hidden and that none passes through a symbolic link

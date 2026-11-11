@@ -158,6 +158,9 @@ pub trait FuseState: Sized {
     /// guest may not change (virtio-fs: an aggregate's root).
     spec fn is_synthetic(&self, n: u64) -> bool;
 
+    /// Path `p` of node `n`'s share is hidden: the guest may not see it.
+    spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
+
     /// `code` is an error code the host may fail with.
     spec fn host_error(code: i32) -> bool;
 
@@ -268,8 +271,69 @@ pub trait FuseState: Sized {
                 ||| !self.is_dir(n) && c == lx::ENOTDIR
                 ||| !Self::is_plain_name(name) && c == lx::EINVAL
                 ||| !self.can_write(n, self.child_path(n, name)) && c == lx::EROFS
+                ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
             }
         })
+    }
+
+    /// The rules of `lookup` of `name` in directory `n` (not in a synthetic
+    /// node: open item 5): the guest holds `n`, a directory; `name` is one
+    /// plain name; and its path is not hidden.
+    open spec fn lookup_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| !self.is_synthetic(n) && {
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && {
+                ||| !self.is_dir(n) && c == lx::ENOTDIR
+                ||| !Self::is_plain_name(name) && c == lx::EINVAL
+                ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
+            }
+        })
+    }
+
+    /// The rules of a request about node `n` through handle `fh`: the guest
+    /// holds `fh` (`EBADF`) and `n` (`EINVAL`), and `fh` is `n`'s (`EBADF`).
+    open spec fn handle_errors(&self, n: u64, fh: u64) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| !self.holds_file(fh) && c == lx::EBADF
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_file(fh) && self.holds_node(n) && self.file_node(fh) != n && c == lx::EBADF
+        })
+    }
+
+    /// The rules of `get_attr` of node `n` (not a synthetic node: open item
+    /// 5): with `FUSE_GETATTR_FH` (`flags`), `handle_errors` of `fh`; else,
+    /// the guest holds `n`.
+    open spec fn get_attr_errors(&self, n: u64, flags: u32, fh: u64) -> ISet<i32> {
+        ISet::new(|c: i32| !self.is_synthetic(n) && if flags & crate::protocol::FUSE_GETATTR_FH != 0 {
+            self.handle_errors(n, fh).contains(c)
+        } else {
+            !self.holds_node(n) && c == lx::EINVAL
+        })
+    }
+
+    /// The rules of `set_attr` of node `n`, with `valid` (and handle `fh`
+    /// with `FATTR_FH`): a synthetic node is not changed; else, as
+    /// `get_attr`, and a change (anything beyond the handle and the lock
+    /// owner) needs that the guest may change `n`.
+    open spec fn set_attr_errors(&self, n: u64, valid: u32, fh: u64) -> ISet<i32> {
+        let changes = valid & !(crate::protocol::FATTR_FH | crate::protocol::FATTR_LOCKOWNER) != 0;
+        ISet::new(|c: i32| {
+            ||| self.is_synthetic(n) && c == lx::EROFS
+            ||| !self.is_synthetic(n) && if valid & crate::protocol::FATTR_FH != 0 {
+                ||| self.handle_errors(n, fh).contains(c)
+                ||| self.uses_handle(n, fh) && changes && !self.node_can_write(n) && c == lx::EROFS
+            } else {
+                ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.holds_node(n) && changes && !self.node_can_write(n) && c == lx::EROFS
+            }
+        })
+    }
+
+    /// The rules of a request about node `n` alone (`read_link`, `statfs`):
+    /// the guest holds `n`, or it is a synthetic node (`statfs`, with
+    /// `synthetic_ok`).
+    open spec fn node_errors(&self, n: u64, synthetic_ok: bool) -> ISet<i32> {
+        ISet::new(|c: i32| !self.holds_node(n) && !(synthetic_ok && self.is_synthetic(n)) && c == lx::EINVAL)
     }
 
     /// The rules of `create` of `name` in directory `n`, with flags
@@ -340,6 +404,8 @@ pub trait FuseState: Sized {
                 ||| (!Self::is_plain_name(name) || !Self::is_plain_name(new_name)) && c == lx::EINVAL
                 ||| (!self.can_write(n, self.child_path(n, name))
                     || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
+                ||| (self.is_hidden(n, self.child_path(n, name))
+                    || self.is_hidden(m, self.child_path(m, new_name))) && c == lx::EACCES
             }
         })
     }
@@ -453,6 +519,10 @@ impl FuseState for () {
     }
 
     open spec fn bad_open_flags(flags: u32) -> bool {
+        false
+    }
+
+    open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
         false
     }
 

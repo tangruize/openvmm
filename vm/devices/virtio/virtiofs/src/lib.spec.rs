@@ -530,6 +530,12 @@ impl FuseState for VirtioFsGhostView {
         flags & !supported != 0u32
     }
 
+    /// By the share's policy (`ensure_path_allowed`, which `child_path`
+    /// applies).
+    closed spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
+        self.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
+    }
+
     /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
     /// a flag `create` does not support either.
     closed spec fn bad_open_flags(flags: u32) -> bool {

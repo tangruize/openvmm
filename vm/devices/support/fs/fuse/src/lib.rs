@@ -93,7 +93,8 @@ pub struct CreateOut {
 /// any rule applies, it fails, with the code of one of the rules that apply,
 /// or a host error. So far for the operations that change names (`unlink`,
 /// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`), and
-/// `open` and `open_dir` (`release` and `release_dir` always succeed).
+/// `open` and `open_dir` (`release` and `release_dir` always succeed), and
+/// `lookup`, `get_attr`, `set_attr`, `read_link`, `statfs`.
 ///
 /// The other reasons are not yet in the contracts, so that they do not yet
 /// say when an operation must succeed: a limit reached (the counts and caps
@@ -136,6 +137,8 @@ where
                 // An error changes nothing.
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.lookup_errors(_request@.node_id, _name@)),
     ))]
     fn lookup(&self, _request: &Request, _name: &LxStr) -> lx::Result<fuse_entry_out> {
         Err(lx::Error::ENOSYS)
@@ -181,6 +184,8 @@ where
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
             r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.get_attr_errors(_request@.node_id, _flags, _fh)),
     ))]
     fn get_attr(&self, _request: &Request, _flags: u32, _fh: u64) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
@@ -201,6 +206,8 @@ where
             } else {
                 g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id)
             }),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.set_attr_errors(_request@.node_id, _arg.valid, _arg.fh)),
     ))]
     fn set_attr(&self, _request: &Request, _arg: &fuse_setattr_in) -> lx::Result<fuse_attr_out> {
         Err(lx::Error::ENOSYS)
@@ -216,6 +223,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.node_errors(_request@.node_id, false)),
     ))]
     fn read_link(&self, _request: &Request) -> lx::Result<LxString> {
         Err(lx::Error::ENOSYS)
@@ -563,6 +572,8 @@ where
         ensures
             // Succeeds only on a node the guest holds.
             r is Ok ==> g@.holds_node(_request@.node_id),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.node_errors(_request@.node_id, true)),
     ))]
     fn statfs(&self, _request: &Request) -> lx::Result<fuse_kstatfs> {
         Err(lx::Error::ENOSYS)
