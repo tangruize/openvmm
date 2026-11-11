@@ -219,7 +219,8 @@ pub trait FuseState: Sized {
     /// `after` is the state once path `p` of node `n`'s share is renamed to
     /// `q`: with `exchange`, the names at or below `p` and `q` swap;
     /// without, the names at or below `q` are gone (as `unlinked`), and then
-    /// those at or below `p` move to the same place below `q`.
+    /// those at or below `p` move to the same place below `q`. A rename of a
+    /// path onto itself (`p == q`) leaves the state as it is.
     spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool;
 
     /// The state after node `n` is given back (`forget`, when its count

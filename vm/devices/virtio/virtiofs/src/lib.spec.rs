@@ -503,7 +503,10 @@ impl FuseState for VirtioFsGhostView {
 
     closed spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool {
         let v = self.inodes[n].volume;
-        if exchange {
+        if p == q {
+            // A rename of a path onto itself changes nothing (POSIX `rename(2)`).
+            after == *self
+        } else if exchange {
             after == self.map_names(v, |x: PathView| Self::exchanged(x, p, q))
         } else {
             exists|mid: Self| #[trigger] self.unlinked(n, q, mid) && after == mid.map_names(v, |x: PathView| Self::moved(x, p, q))
