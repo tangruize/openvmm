@@ -1,5 +1,6 @@
 // Spec of `VirtioFsInode`: its view, for human review.
 
+use super::InodeAliases;
 use super::InodePath;
 use super::VirtioFsInode;
 use crate::spec::VirtioFsInodeView;
@@ -17,6 +18,13 @@ verus! {
 /// id `map_id`, at the inode's key `key`), and its value is the path in the
 /// lock; so the path in the lock always equals `paths[key]` in the map's
 /// `Auth`, which the request holds.
+///
+/// SPEC: the core of the rule is part of the spec: the piece is this
+/// inode's entry of the `paths` map (`id`, `key`), and its value is the real
+/// path (`value`). It is what makes the contracts' paths the paths the code
+/// hands to the host.
+/// TODO (proof agent): the rest is the proof's to settle (e.g. how the key
+/// is chosen); it may add facts or fields, but must keep the core.
 // Only Verus reads the rule's fields.
 #[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
 pub ghost struct PathRule {
@@ -39,6 +47,46 @@ impl RwLockPredicate<InodePath> for PathRule {
                     &&& piece.id() == self.map_id
                     &&& piece.key() == self.key
                     &&& piece.value() == v.path@
+                },
+                None => false,
+            }
+        }
+    }
+}
+
+/// The rule of an inode's aliases lock: like `PathRule`, for the `aliases`
+/// map. For the root: its only name is the empty path, and there is no
+/// ghost piece. For any other inode: the piece is this inode's entry of the
+/// `aliases` map (the same key as its path lock's), and its value is the set
+/// of the real names.
+///
+/// SPEC: the core, as for `PathRule` (`id`, `key`, `value`).
+/// TODO (proof agent): the rest (e.g. that the key is the path lock's: a
+/// fact of the inode, or of the inode table's rule); it may add facts or
+/// fields, but must keep the core.
+// Only Verus reads the rule's fields.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+pub ghost struct AliasesRule {
+    /// The inode's ghost key: its entry in the `aliases` map.
+    pub key: int,
+    /// The id of the `aliases` map.
+    pub map_id: Loc,
+    /// Whether the inode is the root.
+    pub is_root: bool,
+}
+
+impl RwLockPredicate<InodeAliases> for AliasesRule {
+    closed spec fn inv(self, v: InodeAliases) -> bool {
+        let names = v.aliases@.map(|p: std::path::PathBuf| p@);
+        if self.is_root {
+            &&& names == set![Seq::<Seq<u8>>::empty()]
+            &&& v.piece@ is None
+        } else {
+            match v.piece@ {
+                Some(piece) => {
+                    &&& piece.id() == self.map_id
+                    &&& piece.key() == self.key
+                    &&& piece.value() == names
                 },
                 None => false,
             }

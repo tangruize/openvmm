@@ -160,6 +160,29 @@ an explicit `release_write` / `release_read`, not when dropped, and Verus
 does not check that they are, and the call sites of `get_path()` (about
 20) change to that form. Each is an entry in `CODE-CHANGES.md`.
 
+**Who writes what in the locks' rules** (agreed 2026-11-10):
+
+- *Spec (written here, reviewed by people):* the swap of each lock to
+  vstd's `RwLock` and the ghost field next to its data (a code change); the
+  rule's type, with the fields that `owns` needs (the ghost pieces' ids);
+  and each rule's **core**: the ghost piece in the lock is this lock's
+  entry of its ghost map, and it equals the data in the lock (for the path
+  lock: `piece.id() == map_id`, `piece.key() == key`, and
+  `piece.value() == v.path@`). The core is spec
+  because it is the only thing that ties `g@` to the real data: without
+  it, a contract such as `write`'s ("every name of the file is writable")
+  would be about ghost names, not the paths the code hands to the host.
+- *TODO for the proof agent:* everything else in the rules (extra facts and
+  fields, e.g. how an inode's ghost key is chosen), the internal facts in
+  `VirtioFsGhost::wf`, the real creation of the ghost pieces and rules
+  (now `assume_new()`, marked PLACEHOLDER, e.g. in `VirtioFsInode::with_attr`),
+  and all proofs. It must keep each rule's core. Each rule's comment marks
+  its core (SPEC) and what is left (TODO).
+
+The path and aliases locks' rules (`PathRule`, `AliasesRule`,
+`inode.spec.rs`) are written in full, as worked examples; the proof may
+revise all but their core.
+
 ## The guest's state in the spec: real data and ghost state (agreed 2026-11-09)
 
 **The real data.** One `VirtioFs` is the whole filesystem the guest sees

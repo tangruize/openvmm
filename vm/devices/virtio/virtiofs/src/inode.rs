@@ -10,7 +10,6 @@ use lx::LxString;
 use lxutil::LxCreateOptions;
 use lxutil::LxVolume;
 use lxutil::PathBufExt;
-use parking_lot::RwLock;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -22,6 +21,7 @@ use std::sync::atomic::Ordering;
 use vstd::prelude::Ghost;
 use vstd::prelude::Tracked;
 use vstd::prelude::int;
+use vstd::prelude::Set;
 use vstd::resource::map::GhostPointsTo;
 use vstd::std_specs::path::PathView;
 #[cfg(verus_keep_ghost)]
@@ -156,6 +156,17 @@ pub(crate) struct InodePath {
     >,
 }
 
+/// An inode's names, with their ghost piece: its entry of the ghost
+/// `aliases` map (`None` for the root, whose only name is the empty path).
+/// The piece is ghost (`Tracked`): nothing of it exists at runtime.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+// Only Verus reads the ghost piece.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+pub(crate) struct InodeAliases {
+    pub(crate) aliases: BTreeSet<PathBuf>,
+    pub(crate) piece: Tracked<Option<GhostPointsTo<int, Set<PathView>>>>,
+}
+
 /// Implements inode callbacks for virtio-fs.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioFsInode {
@@ -166,7 +177,7 @@ pub struct VirtioFsInode {
     /// path (`virtiofs-spec-docs/CODE-OVERVIEW.md`, "The guest's state in the
     /// spec").
     pub(crate) path: vstd::rwlock::RwLock<InodePath, spec::PathRule>,
-    pub(crate) aliases: RwLock<BTreeSet<PathBuf>>,
+    pub(crate) aliases: vstd::rwlock::RwLock<InodeAliases, spec::AliasesRule>,
     pub(crate) lookup_count: AtomicU64,
     inode_nr: lx::ino_t,
     file_type: lx::mode_t,
@@ -203,7 +214,15 @@ impl VirtioFsInode {
                 },
                 Ghost::assume_new(),
             ),
-            aliases: RwLock::new(aliases),
+            // PLACEHOLDERS (Verus only), as for `path`: the ghost piece (from
+            // the `aliases` map's `Auth`, at the same key) and the rule.
+            aliases: vstd::rwlock::RwLock::new(
+                InodeAliases {
+                    aliases,
+                    piece: Tracked::assume_new(),
+                },
+                Ghost::assume_new(),
+            ),
             lookup_count: AtomicU64::new(1),
             inode_nr: stat.inode_nr,
             file_type: stat.mode & lx::S_IFMT,
@@ -282,7 +301,9 @@ impl VirtioFsInode {
     /// Increments the lookup count.
     pub fn lookup(&self, new_path: PathBuf) {
         self.lookup_count.fetch_add(1, Ordering::AcqRel);
-        self.aliases.write().insert(new_path.clone());
+        let (mut aliases, aliases_handle) = self.aliases.acquire_write();
+        aliases.aliases.insert(new_path.clone());
+        aliases_handle.release_write(aliases);
         let (mut path, handle) = self.path.acquire_write();
         path.path = new_path;
         handle.release_write(path);
@@ -544,32 +565,39 @@ impl VirtioFsInode {
 
     /// Returns all host-relative aliases currently known to the guest.
     pub(crate) fn aliases(&self) -> Vec<PathBuf> {
-        self.aliases.read().iter().cloned().collect()
+        let handle = self.aliases.acquire_read();
+        let aliases = handle.borrow().aliases.iter().cloned().collect();
+        handle.release_read();
+        aliases
     }
 
     /// Adds an alias after a successful hard link.
     pub(crate) fn add_alias(&self, path: PathBuf) {
-        self.aliases.write().insert(path);
+        let (mut aliases, handle) = self.aliases.acquire_write();
+        aliases.aliases.insert(path);
+        handle.release_write(aliases);
     }
 
     /// Removes all aliases at or below an unlinked directory path.
     pub(crate) fn remove_alias_prefix(&self, path: &Path) {
-        let mut aliases = self.aliases.write();
+        let (mut aliases, aliases_handle) = self.aliases.acquire_write();
         let removed_primary = self.get_path().starts_with(path);
-        aliases.retain(|alias| !alias.starts_with(path));
+        aliases.aliases.retain(|alias| !alias.starts_with(path));
         if removed_primary {
-            if let Some(alias) = aliases.first() {
+            if let Some(alias) = aliases.aliases.first() {
                 let (mut primary, handle) = self.path.acquire_write();
                 primary.path = alias.clone();
                 handle.release_write(primary);
             }
         }
+        aliases_handle.release_write(aliases);
     }
 
     /// Replaces an alias prefix after a successful rename.
     pub(crate) fn rename_alias_prefix(&self, old: &Path, new: &Path) {
-        let mut aliases = self.aliases.write();
+        let (mut aliases, aliases_handle) = self.aliases.acquire_write();
         let replacements: Vec<_> = aliases
+            .aliases
             .iter()
             .filter_map(|alias| {
                 alias
@@ -579,10 +607,10 @@ impl VirtioFsInode {
             })
             .collect();
         for (old_alias, new_alias) in &replacements {
-            aliases.remove(old_alias);
-            aliases.insert(new_alias.clone());
+            aliases.aliases.remove(old_alias);
+            aliases.aliases.insert(new_alias.clone());
         }
-        drop(aliases);
+        aliases_handle.release_write(aliases);
 
         let (mut path, handle) = self.path.acquire_write();
         let suffix = path.path.strip_prefix(old).ok().map(ToOwned::to_owned);
@@ -594,12 +622,13 @@ impl VirtioFsInode {
 
     /// Swaps two alias prefixes after a successful `RENAME_EXCHANGE`.
     pub(crate) fn exchange_alias_prefixes(&self, first: &Path, second: &Path) {
-        let mut aliases = self.aliases.write();
-        *aliases = aliases
+        let (mut aliases, aliases_handle) = self.aliases.acquire_write();
+        aliases.aliases = aliases
+            .aliases
             .iter()
             .map(|alias| exchanged_path(alias, first, second))
             .collect();
-        drop(aliases);
+        aliases_handle.release_write(aliases);
 
         let (mut path, handle) = self.path.acquire_write();
         path.path = exchanged_path(&path.path, first, second);

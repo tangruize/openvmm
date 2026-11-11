@@ -138,7 +138,9 @@ impl VirtioFsInode {
         if aliases.is_empty() {
             return Err(lx::Error::EINVAL);
         }
-        *inode.aliases.write() = aliases;
+        let (mut locked, handle) = inode.aliases.acquire_write();
+        locked.aliases = aliases;
+        handle.release_write(locked);
         Ok(inode)
     }
 
