@@ -54,6 +54,8 @@ intended directory, or that no path passes through a link.
 - no other host process changes the share while the device runs;
 - a share contains no mount point (on Linux; on Windows mount points are
   refused, see section 7);
+- no two volumes share a host directory (so only a volume's own calls
+  change what its disk holds: the host model);
 - on Windows, paths that differ name for name are different objects: no
   name of a share reaches an object in another case (`SECRET` for
   `secret`) or by an 8.3 short name (`SECRE~1`). lxutil opens every path
@@ -477,10 +479,11 @@ single-file shares (`may_reach`, `is_hidden`).
 - The keeper's three axioms, and assumptions A1 and A2 (section 6).
 - `lxutil`'s method bodies (`external_body`), and the confinement fact in
   words (section 7).
-- The first piece of a host model, as `lxutil` postconditions:
-  `mkdir_stat` returns the stat of a directory, `symlink_stat` that of a
-  symbolic link (`lxutil/src/lib.spec.rs`). Each makes the object and
-  stats it by name; under the host assumptions, the name still names it.
+- The host model (`lxutil/src/host_t.rs`, 2026-11-11): what a share holds
+  on disk (`HostDisk`: the object at each path), the disk value per volume
+  (`VolumeDisk`, declared only; `LxVolumeOptions::new_volume` hands it out
+  with its volume), and the contracts of `lxutil`'s methods in terms of it
+  (`lib.rs`; `LxFile::fstat` too). It rests on the host assumptions.
 - The host assumptions (section 1).
 - `std` facts in the patched vstd: a path's view (`vstd-0003`,
   uninterpreted, what `Path::components` yields), `AsRef::as_ref` for

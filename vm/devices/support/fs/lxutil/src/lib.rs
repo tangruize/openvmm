@@ -30,13 +30,21 @@ pub use path::PathBufExt;
 pub use path::PathExt;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
+// A normal build removes the macro's ghost argument (`new_volume`).
+#[cfg(not(verus_keep_ghost))]
+use vstd::prelude::proof_with;
 #[cfg(verus_keep_ghost)]
 use vstd::std_specs::convert::AsRefSpec;
 
-/// Verus specification of `LxVolume`'s paths.
+/// Verus specification of `LxVolume`'s paths, and the host model.
 #[cfg(verus_keep_ghost)]
 pub mod spec {
     include!("lib.spec.rs");
+
+    /// The host model: what a share holds on the host disk (TRUSTED).
+    pub mod host {
+        include!("host_t.rs");
+    }
 }
 #[cfg(unix)]
 pub use unix::credentials::FsIdentity;
@@ -45,6 +53,8 @@ pub use unix::credentials::with_fs_identity;
 
 /// An error initializing a host filesystem volume.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub enum VolumeError {
     /// Opening or initializing the volume failed.
     #[error("failed to initialize filesystem volume")]
@@ -138,14 +148,31 @@ impl LxVolume {
 
     /// Retrieves the attributes of a file. Symlinks are not followed.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            // The object at the path.
+            r matches Ok(st) ==> disk@.objects.contains_key(path.as_ref_spec()@)
+                && st.inode_nr == disk@.objects[path.as_ref_spec()@].ino
+                && st.mode & lx::S_IFMT == disk@.objects[path.as_ref_spec()@].kind,
+    ))]
     pub fn lstat(&self, path: impl AsRef<Path>) -> lx::Result<lx::Stat> {
         self.inner.lstat(path.as_ref()).map(|x| x.into())
     }
 
     /// Retrieves the statx details of a file. Symlinks are not followed.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            r is Ok ==> disk@.objects.contains_key(path.as_ref_spec()@),
+    ))]
     pub fn statx(&self, path: impl AsRef<Path>) -> lx::Result<lx::StatEx> {
         self.inner.lstat(path.as_ref())
     }
@@ -195,7 +222,16 @@ impl LxVolume {
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            // Changes the object's attributes, not which object is where.
+            r matches Ok(st) ==> disk@.objects.contains_key(path.as_ref_spec()@)
+                && st.inode_nr == disk@.objects[path.as_ref_spec()@].ino,
+    ))]
     pub fn set_attr_stat(
         &self,
         path: impl AsRef<Path>,
@@ -299,7 +335,25 @@ impl LxVolume {
     /// Alternate data streams are not supported. Use [`PathExt`] to convert Linux filenames.
     /// Nonblocking, direct I/O, no-atime, and synchronization flags are ignored on Windows.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        requires
+            old(disk).volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            final(disk).volume() == old(disk).volume(),
+            // An object at the path is the one opened; else `O_CREAT` makes
+            // a regular file there.
+            r matches Ok(f) ==> if old(disk)@.objects.contains_key(path.as_ref_spec()@) {
+                &&& f.object() == old(disk)@.objects[path.as_ref_spec()@]
+                &&& final(disk)@ == old(disk)@
+            } else {
+                &&& flags & lx::O_CREAT != 0
+                &&& f.object().kind == lx::S_IFREG
+                &&& final(disk)@.objects == old(disk)@.objects.insert(path.as_ref_spec()@, f.object())
+            },
+            r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
+    ))]
     pub fn open(
         &self,
         path: impl AsRef<Path>,
@@ -344,12 +398,18 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
         requires
+            old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
-            // TRUSTED (a host fact; `lib.spec.rs`): the stat of the new
-            // directory.
-            r matches Ok(stat) ==> stat.mode & lx::S_IFMT == lx::S_IFDIR,
+            final(disk).volume() == old(disk).volume(),
+            // A new directory at the path, the object the stat describes.
+            r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFDIR
+                && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && final(disk)@.objects == old(disk)@.objects.insert(
+                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: lx::S_IFDIR }),
+            r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn mkdir_stat(
         &self,
@@ -393,12 +453,18 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
         requires
+            old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
-            // TRUSTED (a host fact; `lib.spec.rs`): the stat of the new
-            // symbolic link.
-            r matches Ok(stat) ==> stat.mode & lx::S_IFMT == lx::S_IFLNK,
+            final(disk).volume() == old(disk).volume(),
+            // A new symbolic link at the path, the object the stat describes.
+            r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFLNK
+                && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && final(disk)@.objects == old(disk)@.objects.insert(
+                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: lx::S_IFLNK }),
+            r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn symlink_stat(
         &self,
@@ -417,7 +483,14 @@ impl LxVolume {
     /// NTFS symlinks will be translated to a Unix-style path. WSL-style symlinks are returned as
     /// is. Use `PathExt` or `PathBufExt` to convert the result to a native path if required.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            r is Ok ==> disk@.objects.contains_key(path.as_ref_spec()@) && disk@.objects[path.as_ref_spec()@].kind == lx::S_IFLNK,
+    ))]
     pub fn read_link(&self, path: impl AsRef<Path>) -> lx::Result<lx::LxString> {
         self.inner.read_link(path.as_ref())
     }
@@ -431,7 +504,19 @@ impl LxVolume {
     ///
     /// NTFS directory symbolic links are counted as files, not directories.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        requires
+            old(disk).volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            final(disk).volume() == old(disk).volume(),
+            // The path is gone (with `AT_REMOVEDIR`, an empty directory).
+            r is Ok ==> old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && old(disk)@.nothing_below(path.as_ref_spec()@)
+                && final(disk)@.objects == old(disk)@.objects.remove(path.as_ref_spec()@),
+            r is Err ==> final(disk)@ == old(disk)@,
+    ))]
     pub fn unlink(&self, path: impl AsRef<Path>, flags: i32) -> lx::Result<()> {
         self.inner.unlink(path.as_ref(), flags)
     }
@@ -466,7 +551,19 @@ impl LxVolume {
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        requires
+            old(disk).volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            final(disk).volume() == old(disk).volume(),
+            // A new node at the path, the object the stat describes.
+            r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && final(disk)@.objects == old(disk)@.objects.insert(
+                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
+            r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
+    ))]
     pub fn mknod_stat(
         &self,
         path: impl AsRef<Path>,
@@ -485,7 +582,39 @@ impl LxVolume {
     /// This function will use POSIX rename if the file system supports it. No flags are currently
     /// supported.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@), LxVolume::is_share_path(new_path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        requires
+            old(disk).volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+            LxVolume::is_share_path(new_path.as_ref_spec()@),
+        ensures
+            final(disk).volume() == old(disk).volume(),
+            // `RENAME_EXCHANGE` (2) swaps the two paths' subtrees; else the
+            // old path's subtree moves to the new path (`RENAME_NOREPLACE`,
+            // 1: only where nothing is), and `RENAME_WHITEOUT` (4) leaves a
+            // character device at the old path. Onto itself: no change.
+            r is Ok ==> if path.as_ref_spec()@ == new_path.as_ref_spec()@ {
+                final(disk)@ == old(disk)@
+            } else {
+                &&& old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                &&& !path.as_ref_spec()@.is_prefix_of(new_path.as_ref_spec()@)
+                &&& !new_path.as_ref_spec()@.is_prefix_of(path.as_ref_spec()@)
+                &&& if flags & 2 != 0 {
+                    &&& old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
+                    &&& final(disk)@ == old(disk)@.exchanged(path.as_ref_spec()@, new_path.as_ref_spec()@)
+                } else {
+                    &&& flags & 1 != 0 ==> !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
+                    &&& if flags & 4 != 0 {
+                        exists|ino: u64| final(disk)@.objects == #[trigger] old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@).objects.insert(
+                            path.as_ref_spec()@, spec::host::HostObject { ino, kind: lx::S_IFCHR })
+                    } else {
+                        final(disk)@ == old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@)
+                    }
+                }
+            },
+            r is Err ==> final(disk)@ == old(disk)@,
+    ))]
     pub fn rename(
         &self,
         path: impl AsRef<Path>,
@@ -513,7 +642,21 @@ impl LxVolume {
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@), LxVolume::is_share_path(new_path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        requires
+            old(disk).volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+            LxVolume::is_share_path(new_path.as_ref_spec()@),
+        ensures
+            final(disk).volume() == old(disk).volume(),
+            // A new path for the object at the old path.
+            r matches Ok(st) ==> old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
+                && st.inode_nr == old(disk)@.objects[path.as_ref_spec()@].ino
+                && final(disk)@.objects == old(disk)@.objects.insert(new_path.as_ref_spec()@, old(disk)@.objects[path.as_ref_spec()@]),
+            r is Err ==> final(disk)@ == old(disk)@,
+    ))]
     pub fn link_stat(
         &self,
         path: impl AsRef<Path>,
@@ -532,7 +675,12 @@ impl LxVolume {
     /// The `StatFs::fs_type` and `StatFs::flags` field will not be set as they are not relevant
     /// to Windows.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+    ))]
     pub fn stat_fs(&self, path: impl AsRef<Path>) -> lx::Result<lx::StatFs> {
         self.inner.stat_fs(path.as_ref())
     }
@@ -556,7 +704,12 @@ impl LxVolume {
     /// is a small possibility of a race where an attribute created by another thread gets
     /// overwritten.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+    ))]
     pub fn set_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -584,7 +737,12 @@ impl LxVolume {
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+    ))]
     pub fn get_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -612,7 +770,12 @@ impl LxVolume {
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+    ))]
     pub fn list_xattr(&self, path: impl AsRef<Path>, list: Option<&mut [u8]>) -> lx::Result<usize> {
         self.inner.list_xattr(path.as_ref(), list)
     }
@@ -631,7 +794,12 @@ impl LxVolume {
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        requires
+            disk.volume() == self.id(),
+            LxVolume::is_share_path(path.as_ref_spec()@),
+    ))]
     pub fn remove_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -660,13 +828,21 @@ pub struct LxFile {
     inner: sys::LxFile,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl LxFile {
     /// Retrieves attributes of the file system containing this open file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn stat_fs(&self) -> lx::Result<lx::StatFs> {
         self.inner.stat_fs()
     }
 
     /// Retrieves the attributes of the file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        ensures
+            // TRUSTED (`host_t.rs`): the stat of the object the file is open on.
+            r matches Ok(st) ==> st.inode_id == self.object().ino,
+    ))]
     pub fn fstat(&self) -> lx::Result<lx::StatEx> {
         self.inner.fstat()
     }
@@ -694,6 +870,7 @@ impl LxFile {
     ///
     /// If `SetAttributes::ctime` is set, the ctime is set to the current time rather than the
     /// specified value.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn set_attr(&self, attr: SetAttributes) -> lx::Result<()> {
         self.inner.set_attr(attr)
     }
@@ -709,6 +886,7 @@ impl LxFile {
     ///
     /// Unlike the normal `truncate` syscall on Linux, this function does not follow symlinks.
     /// The `thread_uid` argument is ignored, and the thread's actual capabilities are used.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn truncate(&self, size: lx::off_t, thread_uid: lx::uid_t) -> lx::Result<()> {
         let mut attr = SetAttributes::default();
         attr.size = Some(size);
@@ -723,6 +901,7 @@ impl LxFile {
     /// Chmod is only fully supported if metadata is enabled and the file system supports it.
     /// Without metadata, chmod only changes the read-only attribute if all write bites are
     /// removed from the mode.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn chmod(&self, mode: lx::mode_t) -> lx::Result<()> {
         let mut attr = SetAttributes::default();
         attr.mode = Some(mode);
@@ -735,6 +914,7 @@ impl LxFile {
     ///
     /// Chown is only fully supported if metadata is enabled and the file system supports it.
     /// Without metadata, chown silently succeeds without taking any action.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn chown(&self, uid: Option<lx::uid_t>, gid: Option<lx::gid_t>) -> lx::Result<()> {
         let mut attr = SetAttributes::default();
         attr.uid = uid;
@@ -745,6 +925,7 @@ impl LxFile {
     /// Changes a file's time stamps.
     ///
     /// The change time of the file is always set to the current time if this function is called.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn set_times(&self, atime: SetTime, mtime: SetTime) -> lx::Result<()> {
         let mut attr = SetAttributes::default();
         attr.atime = atime;
@@ -758,6 +939,7 @@ impl LxFile {
     /// Returns the number of bytes read.
     ///
     /// On Windows, the file pointer is changed after this operation, while on Unix, it is not.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn pread(&self, buffer: &mut [u8], offset: lx::off_t) -> lx::Result<usize> {
         self.inner.pread(buffer, offset)
     }
@@ -776,6 +958,7 @@ impl LxFile {
     /// # Unix
     ///
     /// The `thread_uid` argument is ignored, and the thread's actual capabilities are used.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn pwrite(
         &self,
         buffer: &[u8],
@@ -801,6 +984,7 @@ impl LxFile {
     /// # Unix
     ///
     /// The . and .. entries are returned only if the underlying file system returns them.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn read_dir<F>(&mut self, offset: lx::off_t, callback: F) -> lx::Result<()>
     where
         F: FnMut(lx::DirEntry) -> lx::Result<bool>,
@@ -811,6 +995,7 @@ impl LxFile {
     /// Synchronizes the file's buffer.
     ///
     /// This function can optionally synchronize only data, not metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn fsync(&self, data_only: bool) -> lx::Result<()> {
         self.inner.fsync(data_only)
     }
@@ -819,6 +1004,7 @@ impl LxFile {
     ///
     /// The `data_only` request may be upgraded to a full sync on platforms that do not support
     /// data-only synchronization of directories.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn fsync_dir(&self, data_only: bool) -> lx::Result<()> {
         self.inner.fsync_dir(data_only)
     }
@@ -831,6 +1017,8 @@ impl LxFile {
 ///
 /// These options have no effect on Unix platforms.
 #[derive(Clone)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 pub struct LxVolumeOptions {
     uid: Option<lx::uid_t>,
     gid: Option<lx::uid_t>,
@@ -850,8 +1038,10 @@ pub struct LxVolumeOptions {
     confine_paths: bool,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl LxVolumeOptions {
     /// Create a new `LxVolumeOptions` with default options.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn new() -> Self {
         Self {
             uid: None,
@@ -875,6 +1065,7 @@ impl LxVolumeOptions {
 
     /// Create a new 'LxVolumeOptions' using a semi-colon separated list of options of the form
     /// uid=1000;gid=1000;symlinkroot=/mnt/
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn from_option_string(option_string: &str) -> Self {
         let mut options = Self::new();
         for next in option_string.split(';') {
@@ -1060,35 +1251,50 @@ impl LxVolumeOptions {
     /// Creates a new `LxVolume` with the current options.
     ///
     /// Setup failures retain host capability diagnostics and their underlying OS error.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with -> disk: Tracked<spec::host::VolumeDisk>
+        ensures
+            // TRUSTED (`host_t.rs`): the new volume's disk, the only one.
+            r matches Ok(v) ==> disk@.volume() == v.id(),
+    ))]
     pub fn new_volume(&self, root_path: impl AsRef<Path>) -> Result<LxVolume, VolumeError> {
+        // The new volume's disk (TRUSTED, `host_t.rs`): a ghost value, made
+        // here, the one place one is made.
+        proof_with! {|= Tracked::assume_new()}
         LxVolume::new_with_options(root_path, self)
     }
 
     /// Set the owner user ID for all files.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn uid(&mut self, uid: lx::uid_t) -> &mut Self {
         self.uid = Some(uid);
         self
     }
 
     /// Set the owner group ID for all files.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn gid(&mut self, gid: lx::gid_t) -> &mut Self {
         self.gid = Some(gid);
         self
     }
 
     /// Sets the mode bits for all files. Directories will add 'x' automatically if 'r' is set to allow list.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn mode(&mut self, mode: u32) -> &mut Self {
         self.mode = Some(mode & 0o777);
         self
     }
 
     /// Set the owner user ID for files without metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn default_uid(&mut self, uid: lx::uid_t) -> &mut Self {
         self.default_uid = uid;
         self
     }
 
     /// Set the owner group ID for files without metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn default_gid(&mut self, gid: lx::gid_t) -> &mut Self {
         self.default_gid = gid;
         self
@@ -1096,18 +1302,21 @@ impl LxVolumeOptions {
 
     /// Set a mask of mode bits that will always be disabled on files and directories that have no
     /// metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn umask(&mut self, umask: u32) -> &mut Self {
         self.umask = !(umask & 0o7777);
         self
     }
 
     /// Set a mask of mode bits that will always be disabled on files that have no metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn fmask(&mut self, fmask: u32) -> &mut Self {
         self.fmask = !(fmask & 0o7777);
         self
     }
 
     /// Set a mask of mode bits that will always be disabled on directories that have no metadata.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn dmask(&mut self, dmask: u32) -> &mut Self {
         self.dmask = !(dmask & 0o7777);
         self
@@ -1117,6 +1326,7 @@ impl LxVolumeOptions {
     ///
     /// This will be ignored if the underlying file system does not support the required features
     /// to emulate Linux attributes on Windows.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn metadata(&mut self, metadata: bool) -> &mut Self {
         self.metadata = metadata;
         self
@@ -1125,6 +1335,7 @@ impl LxVolumeOptions {
     /// Apply additional file restrictions.
     ///
     /// Hide files and directories that are marked as hidden or may cause hydration (e.g. OneDrive backed).
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn sandbox(&mut self, enabled: bool) -> &mut Self {
         self.sandbox = enabled;
         self
@@ -1133,6 +1344,7 @@ impl LxVolumeOptions {
     /// Exclude specific file extensions when sandbox mode is enabled.
     ///
     /// Hide files and directories with specific file extensions. Do not allow creation of new files with these extensions.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn sandbox_disallowed_extensions(&mut self, disallowed_extensions: Vec<&str>) -> &mut Self {
         let mut disallowed_extensions = disallowed_extensions
             .into_iter()
@@ -1151,6 +1363,7 @@ impl LxVolumeOptions {
     ///
     /// This does not affect the behavior of existing case sensitive directories, where operations
     /// will be case sensitive and new directories will inherit the flag.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn create_case_sensitive_dirs(&mut self, create_case_sensitive_dirs: bool) -> &mut Self {
         self.create_case_sensitive_dirs = create_case_sensitive_dirs;
         self
@@ -1159,6 +1372,7 @@ impl LxVolumeOptions {
     /// Set the root used to translate absolute Windows symlinks paths.
     ///
     /// EXAMPLE: A symlink to C:\my\target will return /mnt/c/my/target if symlink_root is set to "/mnt/".
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn symlink_root(&mut self, symlink_root: &str) -> &mut Self {
         self.symlink_root = symlink_root.to_string();
         self
@@ -1170,6 +1384,7 @@ impl LxVolumeOptions {
     ///
     /// N.B. Since some attributes may be related, replacing the returned attributes is deemed easier and safer than
     ///      trying to union overrides with existing attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn override_xattr(&mut self, name: &str, val: &[u8]) -> &mut Self {
         let mut val_data = Vec::with_capacity(val.len());
         val_data.extend_from_slice(val);
@@ -1182,12 +1397,14 @@ impl LxVolumeOptions {
     /// This flag is not enforced by `LxVolume` itself. It is intended to be
     /// read by higher-level layers (e.g., virtio-fs) via [`is_readonly`](Self::is_readonly)
     /// to reject write operations with `EROFS`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn readonly(&mut self, readonly: bool) -> &mut Self {
         self.readonly = readonly;
         self
     }
 
     /// Returns whether the volume is configured as readonly.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn is_readonly(&self) -> bool {
         self.readonly
     }
@@ -1205,6 +1422,7 @@ impl LxVolumeOptions {
     /// New symbolic links are always created as WSL-style links. Windows path resolution never
     /// follows them, so a link created through the volume can never redirect a later host path
     /// lookup. Existing NT symbolic links and junctions are not affected.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn confine_paths(&mut self, enabled: bool) -> &mut Self {
         self.confine_paths = enabled;
         self

@@ -27,14 +27,15 @@
 // The policy compares names exactly, so without the assumption a guest
 // could remove or rename a hidden file by such a name (a question for
 // Pedro, `BUGS.md`).
-// TRUSTED (a host fact, decided 2026-11-11; the first piece of a host
-// model): `mkdir_stat` and `symlink_stat` return the stat of the object they
-// made, a directory or a symbolic link (their `ensures`, in `lib.rs`). Each
-// makes the object and then stats it by name (on Linux `mkdirat` or
-// `symlinkat`, then `fstatat`); under the host assumption that no other host
-// process changes the share, the name still names the new object. (Their
-// doc says the stat is "susceptible to a race": that race is a host
-// process's change, which the assumption rules out.)
+// TRUSTED, the host model (`host_t.rs`, written 2026-11-11): what a share
+// holds on the host disk (the object at each path), a disk value per volume
+// that the volume's methods take, and each method's contract in terms of it
+// (in `lib.rs`). For example, `mkdir_stat` makes the directory and then
+// stats it by name (on Linux `mkdirat`, then `fstatat`); under the host
+// assumptions, the name still names the new object, so the stat is its.
+// ASSUMED (a host assumption, decided 2026-11-11, with the host model): no
+// two volumes share a host directory, so only a volume's own calls change
+// what its disk holds.
 // See `virtiofs-spec-docs/CODE-OVERVIEW.md`, property 1 (confinement).
 
 use super::LxVolume;

@@ -2,3 +2,4 @@
 # walker honors `.ignore` files): files written for the Verus work, which
 # carry no copyright header.
 string.spec.rs
+error.spec.rs

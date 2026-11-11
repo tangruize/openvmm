@@ -43,6 +43,7 @@ pub const GID_INVALID: gid_t = gid_t::MAX;
 
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFIFO: u32 = 0x1000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFCHR: u32 = 0x2000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFDIR: u32 = 0x4000;
@@ -348,6 +349,8 @@ pub struct StatExMask {
 }
 
 #[bitfield(u64)]
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
 pub struct StatExAttributes {
     #[bits(2)]
@@ -371,6 +374,8 @@ pub struct StatExAttributes {
     pub _rsvd: u64,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct StatExTimestamp {
@@ -397,7 +402,7 @@ impl From<Timespec> for StatExTimestamp {
     }
 }
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, Default)]
