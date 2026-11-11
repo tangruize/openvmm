@@ -99,6 +99,24 @@ pub(crate) fn configure_session(fs: &VirtioFs, info: &mut SessionInfo) {
     }
 }
 
+/// Validates the file type of a guest `mknod`: the microVM makes only
+/// regular files (a type of 0 is one, as for `mknod(2)`), FIFOs and sockets,
+/// never a character or block device, which could give the guest a host
+/// device through the share. Defense in depth: the device is not meant to
+/// run with `CAP_MKNOD`, which the host's kernel requires for a device node.
+/// The error is `EPERM`, as Linux reports a device node made without it.
+pub(crate) fn validate_mknod_mode(fs: &VirtioFs, mode: u32) -> lx::Result<()> {
+    if fs.is_microvm()
+        && !matches!(
+            mode & lx::S_IFMT,
+            0 | lx::S_IFREG | lx::S_IFIFO | lx::S_IFSOCK
+        )
+    {
+        return Err(lx::Error::EPERM);
+    }
+    Ok(())
+}
+
 /// The longest symbolic link target, in bytes, that Linux accepts.
 const MAX_SYMLINK_TARGET_BYTES: usize = 4095;
 

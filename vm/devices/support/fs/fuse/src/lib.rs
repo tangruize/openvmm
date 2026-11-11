@@ -292,12 +292,13 @@ where
                     let s = old(g)@;
                     let n = _request@.node_id;
                     &&& s.may_add_name(n, _name@)
+                    &&& !s.refuses_mknod(_arg.mode)
                     &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), entry.nodeid, entry.attr.mode & lx::S_IFMT)
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
             // Fails where one of its rules applies.
-            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
+            G::V::fails_with(r, old(g)@.mknod_errors(_request@.node_id, _name@, _arg.mode)),
     ))]
     fn mknod(
         &self,

@@ -329,12 +329,22 @@ link, which is simpler to set up than the link and rename above).
 
 ## Questions for Pedro (not bugs, yet)
 
-- **Device nodes from `mknod`.** `mknod` accepts any file type the guest
-  asks for, character and block devices included; if OpenVMM ever runs
-  with `CAP_MKNOD` and the share is not on a `nodev` filesystem, a guest
-  with one writable path could make a node for a host disk and read it
-  through the share. Is it intended to rely on OpenVMM never having
-  `CAP_MKNOD`?
+- **Device nodes from `mknod`** (answered by Pedro, 2026-11-10: "the
+  profile [should] accept only regular files, FIFOs and sockets in mknod,
+  as defense in depth"; done, code change 24). `mknod` accepted any file
+  type the guest asked for, character and block devices included; with
+  `CAP_MKNOD`, and a share not on a `nodev` filesystem, a guest with one
+  writable path could make a node for a host disk. The microVM now refuses
+  every type but a regular file (or 0, which is one), a FIFO or a socket,
+  with `EPERM` (what Linux reports for a device node made without
+  `CAP_MKNOD`), before asking the host. Found while testing it: Linux lets
+  any user make a character device numbered 0:0 without `CAP_MKNOD` (a
+  "whiteout", which overlayfs uses to mark a file deleted), so the guest
+  could already make those; on a share that is an overlayfs upper layer,
+  that would hide a lower file from the merged view. The check closes it.
+  Test `mknod_makes_no_device_node` (fails without the check: the
+  character device 0:0 is made); patch
+  `patches/0005-virtiofs-microvm-mknod-makes-no-device-node.patch`.
 - **Host hard links between a writable and a read-only path**, which the
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
   file itself, and its other names").

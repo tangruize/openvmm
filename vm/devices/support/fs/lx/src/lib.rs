@@ -41,6 +41,7 @@ pub const MODE_VALID_BITS: mode_t = S_IFMT | 0o7777;
 pub const UID_INVALID: uid_t = uid_t::MAX;
 pub const GID_INVALID: gid_t = gid_t::MAX;
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFIFO: u32 = 0x1000;
 pub const S_IFCHR: u32 = 0x2000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
@@ -50,6 +51,7 @@ pub const S_IFBLK: u32 = 0x6000;
 pub const S_IFREG: u32 = 0x8000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFLNK: u32 = 0xa000;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFSOCK: u32 = 0xc000;
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const S_IFMT: u32 = 0xf000;

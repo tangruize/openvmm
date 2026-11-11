@@ -1,0 +1,98 @@
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 81ad8357f..151c3221a 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -483,6 +483,7 @@ fn mknod(
+         }
+         let inode = self.get_inode(request.node_id())?;
+         self.check_writable(&inode)?;
++        microvm::fs::validate_mknod_mode(self, arg.mode)?;
+         let path = inode.child_path(name)?;
+         self.check_writable_entry(&inode, &path)?;
+         self.preflight_new_inode_path(&path)?;
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/fs.rs b/vm/devices/virtio/virtiofs/src/microvm/fs.rs
+index 1405a331c..46d693448 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/fs.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/fs.rs
+@@ -99,6 +99,24 @@ pub(crate) fn configure_session(fs: &VirtioFs, info: &mut SessionInfo) {
+     }
+ }
+ 
++/// Validates the file type of a guest `mknod`: the microVM makes only
++/// regular files (a type of 0 is one, as for `mknod(2)`), FIFOs and sockets,
++/// never a character or block device, which could give the guest a host
++/// device through the share. Defense in depth: the device is not meant to
++/// run with `CAP_MKNOD`, which the host's kernel requires for a device node.
++/// The error is `EPERM`, as Linux reports a device node made without it.
++pub(crate) fn validate_mknod_mode(fs: &VirtioFs, mode: u32) -> lx::Result<()> {
++    if fs.is_microvm()
++        && !matches!(
++            mode & lx::S_IFMT,
++            0 | lx::S_IFREG | lx::S_IFIFO | lx::S_IFSOCK
++        )
++    {
++        return Err(lx::Error::EPERM);
++    }
++    Ok(())
++}
++
+ /// The longest symbolic link target, in bytes, that Linux accepts.
+ const MAX_SYMLINK_TARGET_BYTES: usize = 4095;
+ 
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+index ac99c8212..9724c2f5e 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+@@ -839,3 +839,52 @@ fn a_listing_leaves_out_an_entry_hidden_by_a_later_rename() {
+     assert_eq!(names, ["..", "a"]);
+     release(&fs, d, fh);
+ }
++
++/// Makes a node of file type and mode `mode` with `mknod`.
++fn mknod(fs: &VirtioFs, parent: u64, node_name: &str, mode: u32) -> lx::Result<u64> {
++    let arg = fuse::protocol::fuse_mknod_in {
++        mode,
++        rdev: 0,
++        umask: 0,
++        padding: 0,
++    };
++    Ok(fs.mknod(&request(parent), name(node_name), &arg)?.nodeid)
++}
++
++#[test]
++fn mknod_makes_no_device_node() {
++    // The microVM makes only regular files, FIFOs and sockets with mknod, and
++    // refuses a device node before asking the host (defense in depth: the
++    // host would refuse it too, unless the device had CAP_MKNOD).
++    let share = Share::new();
++    let fs = share.fs(&[], &[], &["out"]);
++    let out = lookup(&fs, "out").unwrap();
++    for kind in [lx::S_IFCHR, lx::S_IFBLK] {
++        assert_eq!(
++            error(mknod(&fs, out, "device", kind | 0o600)),
++            lx::Error::EPERM
++        );
++        // Refused before the host is asked: an existing name gives EPERM, not
++        // the host's EEXIST.
++        assert_eq!(
++            error(mknod(&fs, out, "existing", kind | 0o600)),
++            lx::Error::EPERM
++        );
++    }
++    assert!(!share.path("out/device").exists());
++
++    mknod(&fs, out, "fifo", lx::S_IFIFO | 0o600).unwrap();
++    mknod(&fs, out, "file", lx::S_IFREG | 0o600).unwrap();
++    use std::os::unix::fs::FileTypeExt;
++    assert!(
++        std::fs::symlink_metadata(share.path("out/fifo"))
++            .unwrap()
++            .file_type()
++            .is_fifo()
++    );
++    assert!(
++        std::fs::symlink_metadata(share.path("out/file"))
++            .unwrap()
++            .is_file()
++    );
++}

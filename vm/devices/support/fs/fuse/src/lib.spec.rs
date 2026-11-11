@@ -243,6 +243,10 @@ pub trait FuseState: Sized {
     /// support.
     spec fn bad_create_flags(flags: u32) -> bool;
 
+    /// The file system refuses to make a node of mode `mode` (its file type,
+    /// the `S_IFMT` bits) with `mknod`.
+    spec fn refuses_mknod(&self, mode: u32) -> bool;
+
     /// `open`'s (and `open_dir`'s) flags `flags` hold one that the file
     /// system does not accept.
     spec fn bad_open_flags(flags: u32) -> bool;
@@ -460,6 +464,16 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
             ||| Self::bad_create_flags(flags) && c == lx::EINVAL
+        })
+    }
+
+    /// The rules of `mknod` of `name` in directory `n`, of mode `mode`:
+    /// `entry_errors`, and the file type (`EPERM`, as Linux reports a device
+    /// node made without `CAP_MKNOD`).
+    open spec fn mknod_errors(&self, n: u64, name: Seq<u8>, mode: u32) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.entry_errors(n, name).contains(c)
+            ||| self.refuses_mknod(mode) && c == lx::EPERM
         })
     }
 
@@ -725,6 +739,10 @@ impl FuseState for () {
     }
 
     open spec fn bad_create_flags(flags: u32) -> bool {
+        false
+    }
+
+    open spec fn refuses_mknod(&self, mode: u32) -> bool {
         false
     }
 

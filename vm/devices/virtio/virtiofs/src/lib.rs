@@ -483,6 +483,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         }
         let inode = self.get_inode(request.node_id())?;
         self.check_writable(&inode)?;
+        microvm::fs::validate_mknod_mode(self, arg.mode)?;
         let path = inode.child_path(name)?;
         self.check_writable_entry(&inode, &path)?;
         self.preflight_new_inode_path(&path)?;

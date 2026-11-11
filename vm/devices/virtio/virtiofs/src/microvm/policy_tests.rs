@@ -839,3 +839,52 @@ fn a_listing_leaves_out_an_entry_hidden_by_a_later_rename() {
     assert_eq!(names, ["..", "a"]);
     release(&fs, d, fh);
 }
+
+/// Makes a node of file type and mode `mode` with `mknod`.
+fn mknod(fs: &VirtioFs, parent: u64, node_name: &str, mode: u32) -> lx::Result<u64> {
+    let arg = fuse::protocol::fuse_mknod_in {
+        mode,
+        rdev: 0,
+        umask: 0,
+        padding: 0,
+    };
+    Ok(fs.mknod(&request(parent), name(node_name), &arg)?.nodeid)
+}
+
+#[test]
+fn mknod_makes_no_device_node() {
+    // The microVM makes only regular files, FIFOs and sockets with mknod, and
+    // refuses a device node before asking the host (defense in depth: the
+    // host would refuse it too, unless the device had CAP_MKNOD).
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let out = lookup(&fs, "out").unwrap();
+    for kind in [lx::S_IFCHR, lx::S_IFBLK] {
+        assert_eq!(
+            error(mknod(&fs, out, "device", kind | 0o600)),
+            lx::Error::EPERM
+        );
+        // Refused before the host is asked: an existing name gives EPERM, not
+        // the host's EEXIST.
+        assert_eq!(
+            error(mknod(&fs, out, "existing", kind | 0o600)),
+            lx::Error::EPERM
+        );
+    }
+    assert!(!share.path("out/device").exists());
+
+    mknod(&fs, out, "fifo", lx::S_IFIFO | 0o600).unwrap();
+    mknod(&fs, out, "file", lx::S_IFREG | 0o600).unwrap();
+    use std::os::unix::fs::FileTypeExt;
+    assert!(
+        std::fs::symlink_metadata(share.path("out/fifo"))
+            .unwrap()
+            .file_type()
+            .is_fifo()
+    );
+    assert!(
+        std::fs::symlink_metadata(share.path("out/file"))
+            .unwrap()
+            .is_file()
+    );
+}

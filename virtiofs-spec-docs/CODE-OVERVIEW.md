@@ -868,8 +868,12 @@ all of them.
    locks' creation (`InodeTableLocked::new_lock`, `FileTableLocked::new_lock`,
    `VirtioFsInode::with_attr`) still uses `assume_new()` placeholders, which
    the proof of `new_microvm` and of the inode builders replaces.
-8. **Pedro's questions** (`BUGS.md`): device nodes from `mknod`; host hard
-   links between a writable and a read-only path.
+8. **Pedro's questions** (`BUGS.md`). Device nodes from `mknod`: answered
+   and done (2026-11-10): the microVM makes only regular files, FIFOs and
+   sockets (code change 24), and the spec says so (new question
+   `refuses_mknod`: in `mknod`'s success clause, and `mknod_errors`,
+   `EPERM`). Still open: host hard links between a writable and a
+   read-only path (needs the host model, with item 3).
 
 ## The theme of the spec: protecting the host from the guest
 

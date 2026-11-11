@@ -458,7 +458,7 @@ pub struct fuse_attr_out {
 
 pub const FUSE_COMPAT_MKNOD_IN_SIZE: u32 = 8;
 
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]

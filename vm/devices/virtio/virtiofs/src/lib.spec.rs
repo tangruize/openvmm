@@ -631,6 +631,15 @@ impl FuseState for VirtioFsGhostView {
         }
     }
 
+    /// In the microVM (`microvm::fs::validate_mknod_mode`): any file type
+    /// but a regular file (or 0, which is one), a FIFO or a socket: never a
+    /// device node.
+    closed spec fn refuses_mknod(&self, mode: u32) -> bool {
+        let kind = mode & lx::S_IFMT;
+        &&& self.microvm
+        &&& !(kind == 0 || kind == lx::S_IFREG || kind == lx::S_IFIFO || kind == lx::S_IFSOCK)
+    }
+
     /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
     /// a flag `create` does not support either.
     closed spec fn bad_open_flags(flags: u32) -> bool {
