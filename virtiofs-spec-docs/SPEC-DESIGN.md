@@ -531,7 +531,10 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
 - **The host model** (items 3, 8, 9): pinned identities, host hard links
   between a read-only and a writable path, the share's root's identity,
   a name that leads to the root's own object, the symbolic-link walk,
-  `DT_UNK` entries, and the confinement fact as a contract.
+  `DT_UNK` entries, the confinement fact as a contract, and bug 3's rule
+  in `create`'s contract (an existing file opened for writing or
+  truncating needs every name of its node writable; checked by the code,
+  not yet stated).
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on
