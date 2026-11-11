@@ -769,7 +769,18 @@ all of them.
 4. **What a directory listing shows** (`read_dir`, `read_dir_plus`): the
    reply is an encoded buffer, not yet decoded by the spec; the
    traverse-only listing rule (only the entries that lead to allowed paths)
-   is part of confidentiality.
+   is part of confidentiality. Decided (2026-11-10): the rule is the
+   code's: every name listed (but `.` and `..`) was listable
+   (`entry_listable`: visible, or traverse-only and a directory) when the
+   handle's listing was built. In the microVM the listing is cached at the
+   handle's first read and served from the cache after
+   (`directory_snapshot`), so the spec keeps each open directory's cache as
+   ghost state; "listable now" would be false after the guest renames the
+   directory between two reads, and would leak nothing (`BUGS.md`, a note
+   for Pedro, not a bug). Needs a decoder of the reply's records
+   (`fuse_dirent`, and `fuse_entry_out` before each for `read_dir_plus`).
+   An entry whose type the host reports as unknown (`DT_UNK`) is a
+   directory if the host says so; that answer waits for the host model.
 5. **The aggregate's synthetic root** (done 2026-11-10). Node 1 of an
    aggregate is not in the inode table, and its entries are the shares.
    The FUSE contracts stay as they are, but one: virtio-fs's answers have

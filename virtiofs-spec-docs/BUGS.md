@@ -338,3 +338,26 @@ link, which is simpler to set up than the link and rename above).
 - **Host hard links between a writable and a read-only path**, which the
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
   file itself, and its other names").
+- **A directory listing is filtered once, when it starts (a note, not a
+  bug).** In the microVM, a directory handle's listing is cached at its
+  first read (`VirtioFsFile::directory_snapshot`,
+  `build_microvm_directory_snapshot`, `microvm/file.rs`): the code reads
+  the whole host directory and keeps the entries the policy lets the guest
+  list (`entry_listable`), judged against the directory's path at that
+  moment; later reads, and a restore, serve the rest of the cache as it
+  is. If the guest renames the directory between two reads, a later reply
+  can hold a name whose path is hidden by then. Example: `/pub/w/secret`
+  is hidden; the guest opens `/pub/d`, reads `a` with a small buffer (the
+  cache holds `a` and `secret`), renames `/pub/d` to `/pub/w`, and reads
+  `secret`. This leaks nothing: the name was listable when the cache was
+  built, and what is now at `/pub/w/secret` is what the guest moved there
+  (a rename cannot replace a directory that has entries). It is also
+  allowed by POSIX (a listing may reflect the directory as of when it
+  started), and the cache keeps the listing's offsets stable across reads
+  and save/restore. The one surprise: two handles on the same directory
+  can list different entries (an older one still shows `secret`). If you
+  prefer every reply to judge its entries against the directory's path at
+  that moment, it is one `entry_listable` call per entry handed out, the
+  cache and its offsets unchanged. The spec follows the code: every name
+  listed was listable when the handle's listing was built
+  (`CODE-OVERVIEW.md`, open item 4).
