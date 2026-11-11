@@ -112,6 +112,12 @@ pub trait FuseState: Sized {
     /// Path `p` of node `n`'s share is hidden: the guest may not see it.
     spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
 
+    /// None of node `n`'s names (nor its main path) is hidden now, as the
+    /// file system checks before each operation on a node: a node can come
+    /// to have a hidden name after it was handed out (a `rename` of one of
+    /// its directories).
+    spec fn names_visible(&self, n: u64) -> bool;
+
     /// The guest may reach an object of file type `kind` at path `p` of
     /// `parent`'s share, by the path rules. (The rule on pinned identities,
     /// about which object is at `p`, waits for a model of the host.)
@@ -216,7 +222,9 @@ pub trait FuseState: Sized {
     /// `name` in `parent` names an entry: `parent` is a directory the guest
     /// holds, and `name` is one plain name.
     open spec fn is_entry(&self, parent: u64, name: Seq<u8>) -> bool {
-        self.is_dir(parent) && Self::is_plain_name(name)
+        &&& self.is_dir(parent)
+        &&& self.names_visible(parent)
+        &&& Self::is_plain_name(name)
     }
 
     /// Open flags `flags` truncate the file (`O_TRUNC`, 0o1000).
@@ -239,11 +247,17 @@ pub trait FuseState: Sized {
 
     // ---- Rules: when an operation may succeed (with the contracts' `Ok` clauses).
 
-    /// A request about node `n` may use handle `fh`: the guest holds both,
-    /// and `fh` is `n`'s (a handle is not used after its node is given back,
-    /// nor with another node's id).
+    /// A request may use node `n`: the guest holds it, and none of its
+    /// names is hidden now.
+    open spec fn uses_node(&self, n: u64) -> bool {
+        self.holds_node(n) && self.names_visible(n)
+    }
+
+    /// A request about node `n` may use handle `fh`: it may use `n`
+    /// (`uses_node`), the guest holds `fh`, and `fh` is `n`'s (a handle is
+    /// not used after its node is given back, nor with another node's id).
     open spec fn uses_handle(&self, n: u64, fh: u64) -> bool {
-        &&& self.holds_node(n)
+        &&& self.uses_node(n)
         &&& self.holds_file(fh)
         &&& self.file_node(fh) == n
     }
@@ -297,12 +311,20 @@ pub trait FuseState: Sized {
         }
     }
 
+    /// The guest holds `n`, but one of its names is hidden (`names_visible`):
+    /// every operation on a node (but `release`, `forget`) checks that first,
+    /// and fails with `EACCES`.
+    open spec fn hidden_names(&self, n: u64, c: i32) -> bool {
+        self.holds_node(n) && !self.names_visible(n) && c == lx::EACCES
+    }
+
     /// The rules of a request about node `n` alone (`read_link`, `statfs`):
     /// the guest holds `n`, or it is a synthetic node (`statfs`, with
     /// `synthetic_ok`).
     open spec fn node_errors(&self, n: u64, synthetic_ok: bool) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| !synthetic_ok && self.is_synthetic(n) && c == lx::EINVAL
         })
     }
@@ -314,6 +336,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| !self.holds_file(fh) && c == lx::EBADF
             ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| self.holds_file(fh) && self.holds_node(n) && self.file_node(fh) != n && c == lx::EBADF
             ||| self.is_synthetic_handle(fh) && c == lx::EBADF
             ||| self.is_synthetic(n) && c == lx::EINVAL
@@ -327,6 +350,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| self.is_synthetic(n) && c == lx::EROFS
             ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && {
                 ||| !self.node_can_write(n) && c == lx::EROFS
                 ||| !self.is_dir(n) && c == lx::ENOTDIR
@@ -355,6 +379,7 @@ pub trait FuseState: Sized {
                 && c == lx::ENOENT
             ||| !self.is_synthetic(n) && {
                 ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.hidden_names(n, c)
                 ||| self.holds_node(n) && {
                     ||| !self.is_dir(n) && c == lx::ENOTDIR
                     ||| !Self::is_plain_name(name) && c == lx::EINVAL
@@ -391,6 +416,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
             ||| (!self.holds_node(target) || self.is_synthetic(target)) && c == lx::EINVAL
+            ||| self.hidden_names(target, c)
             ||| self.holds_node(n) && self.holds_node(target) && !self.same_share(n, target) && c == lx::EXDEV
             ||| self.holds_node(target) && !self.node_can_write(target) && c == lx::EXDEV
         })
@@ -402,6 +428,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
             ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
+            ||| self.hidden_names(n, c) || self.hidden_names(m, c)
             ||| self.holds_node(n) && self.holds_node(m) && {
                 ||| !self.same_share(n, m) && c == lx::EXDEV
                 ||| (!self.node_can_write(n) || !self.node_can_write(m)) && c == lx::EROFS
@@ -422,7 +449,8 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| !self.is_synthetic(n) && if flags & crate::protocol::FUSE_GETATTR_FH != 0 {
             self.handle_errors(n, fh).contains(c)
         } else {
-            !self.holds_node(n) && c == lx::EINVAL
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
         })
     }
 
@@ -439,6 +467,7 @@ pub trait FuseState: Sized {
                 ||| self.uses_handle(n, fh) && changes && !self.node_can_write(n) && c == lx::EROFS
             } else {
                 ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.hidden_names(n, c)
                 ||| self.holds_node(n) && changes && !self.node_can_write(n) && c == lx::EROFS
             }
         })
@@ -451,6 +480,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| Self::bad_open_flags(flags) && c == lx::EINVAL
             ||| (!self.holds_node(n) || self.is_synthetic(n)) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
         })
@@ -462,6 +492,7 @@ pub trait FuseState: Sized {
         ISet::new(|c: i32| {
             ||| Self::bad_open_flags(flags) && c == lx::EINVAL
             ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && !self.is_synthetic(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
         })
@@ -496,6 +527,7 @@ pub trait FuseState: Sized {
             ||| !listing && self.is_synthetic(n) && c == lx::ENODATA
             ||| !self.is_synthetic(n) && {
                 ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.hidden_names(n, c)
                 ||| size matches Some(k) && Self::buffer_too_large(k) && c == lx::E2BIG
             }
         })
@@ -509,6 +541,7 @@ pub trait FuseState: Sized {
             ||| self.is_synthetic(n) && c == lx::EROFS
             ||| size matches Some(k) && Self::buffer_too_large(k) && c == lx::E2BIG
             ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && !self.node_can_write(n) && c == lx::EROFS
         })
     }
@@ -556,6 +589,10 @@ impl FuseState for () {
 
     open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
         false
+    }
+
+    open spec fn names_visible(&self, n: u64) -> bool {
+        true
     }
 
     open spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {

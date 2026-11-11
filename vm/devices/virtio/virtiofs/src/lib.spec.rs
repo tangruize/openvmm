@@ -604,6 +604,17 @@ impl FuseState for VirtioFsGhostView {
         size > 1024 * 1024
     }
 
+    /// In the microVM (whose volumes have strict paths): none of the node's
+    /// names, nor its main path, is hidden (`get_inode` ->
+    /// `validate_confined_object`, `microvm/inode.rs`). Always, outside the
+    /// microVM, and for an aggregate's root (neither is checked).
+    closed spec fn names_visible(&self, n: u64) -> bool {
+        self.microvm && !self.is_synthetic(n) ==> {
+            &&& !self.is_hidden(n, self.path_of(n))
+            &&& forall|q: PathView| #[trigger] self.names_of(n).contains(q) ==> !self.is_hidden(n, q)
+        }
+    }
+
     /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
     /// a flag `create` does not support either.
     closed spec fn bad_open_flags(flags: u32) -> bool {

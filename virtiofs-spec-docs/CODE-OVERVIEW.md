@@ -796,17 +796,26 @@ all of them.
    and removes children (`add_child`, `remove_child`) outside any request;
    its rule says nothing of them, so the contracts about its root cannot be
    proved.
-6. **Visibility at the time of an operation on a node.** Every operation on
-   a node the guest holds first re-checks, at that moment, that none of the
-   node's names is hidden and that none passes through a symbolic link
-   (`get_inode` -> `validate_confined_object`, `microvm/inode.rs:181`): a
-   node can come to have a hidden name after it was handed out, as when a
-   `rename` moves its directory onto a denied path inside a writable one.
-   The contracts of the operations on a node (the reads, `set_xattr`,
-   `open`, ...) say only that the guest holds the node, which is weaker
-   than the code: a confidentiality rule to add ("succeeds only if none of
-   the node's names is hidden"). Not an invariant of the state, since the
-   code does not keep it between operations; it checks it at each one.
+6. **Visibility at the time of an operation on a node** (done
+   2026-11-10). Every operation on a node the guest holds first re-checks,
+   at that moment, that none of the node's names is hidden and that none
+   passes through a symbolic link (`get_inode` -> `validate_confined_object`,
+   `microvm/inode.rs`): a node can come to have a hidden name after it was
+   handed out, as when a `rename` moves one of its directories so that its
+   path lands on a denied one. The contracts now say so: a new FUSE-level
+   question `names_visible(n)` (virtio-fs: in the microVM, whose volumes
+   have strict paths, none of the node's names nor its main path is
+   hidden; always, outside the microVM and for an aggregate's root), a rule
+   `uses_node(n)` (held, and its names visible) in the success clauses that
+   said "held", and in `uses_handle` (the operations through a handle reach
+   the node through `get_file` -> `get_inode`) and `is_entry` (the
+   directory of `lookup`, the operations that change an entry, and
+   `read_dir_plus`'s lookups). Not in `release`, `release_dir`, `forget`,
+   `destroy`, which do not check. Error side: `hidden_names` (held, a name
+   hidden -> `EACCES`) in every rule set whose node goes through
+   `get_inode`. The symbolic-link part (`ELOOP`) is the host's. Not an
+   invariant of the state, since the code does not keep it between
+   operations; it checks it at each one.
 7. **`owns`'s body in virtio-fs** (done 2026-11-10). Every operation
    requires and keeps `self.owns(g)` (the ghost state is this file
    system's) and `g.wf()`, both declared at the FUSE level (`FuseOwns`,

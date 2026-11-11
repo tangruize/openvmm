@@ -186,7 +186,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
-            r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
+            r is Ok ==> if _flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.uses_node(_request@.node_id) },
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.get_attr_errors(_request@.node_id, _flags, _fh)),
     ))]
@@ -207,7 +207,7 @@ where
             r is Ok ==> (_arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 ==> if _arg.valid & FATTR_FH != 0 {
                 g@.uses_handle(_request@.node_id, _arg.fh) && g@.file_can_write(_arg.fh)
             } else {
-                g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id)
+                g@.uses_node(_request@.node_id) && g@.node_can_write(_request@.node_id)
             }),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.set_attr_errors(_request@.node_id, _arg.valid, _arg.fh)),
@@ -225,7 +225,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.node_errors(_request@.node_id, false)),
     ))]
@@ -480,7 +480,7 @@ where
                     let s = old(g)@;
                     let n = _request@.node_id;
                     &&& s.may_add_name(n, _name@)
-                    &&& s.holds_node(_target)
+                    &&& s.uses_node(_target)
                     &&& s.same_share(n, _target)
                     &&& s.node_can_write(_target)
                     &&& entry.nodeid == _target
@@ -520,7 +520,7 @@ where
                 Ok(out) => {
                     let s = old(g)@;
                     let n = _request@.node_id;
-                    &&& s.holds_node(n)
+                    &&& s.uses_node(n)
                     &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
                     &&& !s.holds_file(out.fh)
                     &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
@@ -578,7 +578,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.node_errors(_request@.node_id, true)),
     ))]
@@ -635,7 +635,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest may change.
-            r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_write_errors(_request@.node_id, Some(_value@.len()))),
     ))]
@@ -658,7 +658,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, Some(_size as nat), false)),
     ))]
@@ -675,7 +675,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, None, false)),
     ))]
@@ -692,7 +692,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, Some(_size as nat), true)),
     ))]
@@ -709,7 +709,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_read_errors(_request@.node_id, None, true)),
     ))]
@@ -726,7 +726,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest may change.
-            r is Ok ==> g@.holds_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id) && g@.node_can_write(_request@.node_id),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.xattr_write_errors(_request@.node_id, None)),
     ))]
@@ -784,7 +784,7 @@ where
                         &&& s.is_synthetic_handle(out.fh)
                         &&& final(g)@ == s
                     } else {
-                        &&& s.holds_node(n)
+                        &&& s.uses_node(n)
                         &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
                         &&& !s.holds_file(out.fh)
                         &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
@@ -899,7 +899,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
     ))]
     fn access(&self, _request: &Request, _mask: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -960,7 +960,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on a node the guest holds.
-            r is Ok ==> g@.holds_node(_request@.node_id),
+            r is Ok ==> g@.uses_node(_request@.node_id),
     ))]
     fn block_map(&self, _request: &Request, _block: u64, _block_size: u32) -> lx::Result<u64> {
         Err(lx::Error::ENOSYS)
@@ -1152,7 +1152,7 @@ where
             g.wf(),
         ensures
             // Succeeds only on the open file `fh` (with `FUSE_GETATTR_FH`), or on a node the guest holds.
-            r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.holds_node(_request@.node_id) },
+            r is Ok ==> if _getattr_flags & FUSE_GETATTR_FH != 0 { g@.uses_handle(_request@.node_id, _fh) } else { g@.uses_node(_request@.node_id) },
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.get_attr_errors(_request@.node_id, _getattr_flags, _fh)),
     ))]
