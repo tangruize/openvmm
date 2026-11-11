@@ -747,7 +747,7 @@ all of them.
 
 | Property | Status |
 |---|---|
-| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); that `lxutil` then stays beneath the share's root (the kernel's guard, on Linux and Windows) is trusted, in words. Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Waits for the host model: the root's identity, pinned identities, the symbolic-link walk, and the trusted half as a contract |
+| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); that `lxutil` then stays beneath the share's root (the kernel's guard, on Linux and Windows) is trusted, in words. Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Pinned identities: done 2026-11-11 with the host model (`wf`: a pinned object has a name only at its own path, and pinned objects stay on the disk). Waits for the rest of the host model: the root's identity, the symbolic-link walk, and the trusted half as a contract |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |
@@ -812,8 +812,9 @@ all of them.
    entry it hands out (bug 8, fixed 2026-11-11, was a case where it did
    not: a reply that failed partway kept the references of the entries
    already looked up).
-3. **The host model**, for the pinned identities ("No model of the host,
-   for now", above). Also the root: a lookup whose object is the root's own
+3. **The host model** (started 2026-11-11: `lxutil/src/host_t.rs`, the
+   disks in `g`, and in `wf` the ties of nodes to objects and the pinned
+   identities; earlier "No model of the host, for now", above). Also the root: a lookup whose object is the root's own
    (found by the inode table's dedup) gives the root's node, and changes the
    root's main path in the code (`VirtioFsInode::lookup`), while the spec
    keeps the root's path empty; only the host can make a name lead to the

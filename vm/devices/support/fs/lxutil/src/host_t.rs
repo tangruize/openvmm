@@ -23,9 +23,11 @@ use vstd::std_specs::path::PathView;
 
 verus! {
 
-/// One object on the host disk: its inode number and its file type (the
-/// `S_IFMT` bits).
+/// One object on the host disk: its device and inode numbers (its identity)
+/// and its file type (the `S_IFMT` bits).
 pub struct HostObject {
+    /// Its device number.
+    pub dev: u64,
     /// Its inode number.
     pub ino: u64,
     /// Its file type (`S_IFREG`, `S_IFDIR`, `S_IFLNK`, ...).

@@ -159,6 +159,7 @@ impl LxVolume {
         ensures
             // The object at the path.
             r matches Ok(st) ==> disk@.objects.contains_key(path.as_ref_spec()@)
+                && st.device_nr == disk@.objects[path.as_ref_spec()@].dev
                 && st.inode_nr == disk@.objects[path.as_ref_spec()@].ino
                 && st.mode & lx::S_IFMT == disk@.objects[path.as_ref_spec()@].kind,
     ))]
@@ -413,7 +414,7 @@ impl LxVolume {
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFDIR }),
+                    path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: lx::S_IFDIR }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn mkdir_stat(
@@ -469,7 +470,7 @@ impl LxVolume {
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFLNK }),
+                    path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: lx::S_IFLNK }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn symlink_stat(
@@ -568,7 +569,7 @@ impl LxVolume {
             r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
+                    path.as_ref_spec()@, host::HostObject { dev: st.device_nr, ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn mknod_stat(
@@ -613,8 +614,8 @@ impl LxVolume {
                 } else {
                     &&& flags & 1 != 0 ==> !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
                     &&& if flags & 4 != 0 {
-                        exists|ino: u64| final(disk)@.objects == #[trigger] old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@).objects.insert(
-                            path.as_ref_spec()@, host::HostObject { ino, kind: lx::S_IFCHR })
+                        exists|dev: u64, ino: u64| final(disk)@.objects == #[trigger] old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@).objects.insert(
+                            path.as_ref_spec()@, host::HostObject { dev, ino, kind: lx::S_IFCHR })
                     } else {
                         final(disk)@ == old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@)
                     }

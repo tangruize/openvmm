@@ -39,8 +39,8 @@ pub struct ExAnyhowError(anyhow::Error);
 /// path and names are behind locks, in `VirtioFsGhostView`'s `paths` and
 /// `aliases`).
 pub struct VirtioFsInodeView {
-    /// Its volume's id: its share. (Not its host inode number: which host
-    /// object an inode is waits for a model of the host.)
+    /// Its volume's id: its share. (Its host object is not in the view:
+    /// `InodeTable::host_inos`, and the disks in `g`.)
     pub volume: u32,
     /// Its file type, the `S_IFMT` bits (`file_type`).
     pub kind: lx::mode_t,
@@ -51,6 +51,10 @@ pub struct VirtioFsInodeView {
     /// Its volume's exposed file, for a single-file share (the only path the
     /// guest may reach in it: `exposed_file`), else `None`.
     pub exposed: Option<PathView>,
+    /// Its volume's pinned objects (`pinned_identities`), by device and inode
+    /// number: the hidden objects recorded when the share was attached, each
+    /// with the only path at which the guest may reach it, if any.
+    pub pinned: Map<(u64, u64), Option<PathView>>,
 }
 
 
@@ -75,6 +79,8 @@ pub struct VirtioFsShareView {
     pub root: PathView,
     /// The exposed file, for a single-file share (then also its root).
     pub exposed: Option<PathView>,
+    /// The share's pinned objects (as `VirtioFsInodeView::pinned`).
+    pub pinned: Map<(u64, u64), Option<PathView>>,
 }
 
 /// virtio-fs's state, as the guest sees it.
@@ -338,7 +344,8 @@ impl FuseGhost for VirtioFsGhost {
         &&& forall|k: int| #[trigger] self.paths@.contains_key(k) ==> k < self.next_key
         &&& forall|k: int| #[trigger] self.aliases@.contains_key(k) ==> k < self.next_key
         // The host model: each volume's disk is its `LxVolume`'s, and every
-        // name of a node names, on its volume's disk, the node's object.
+        // name of a node names, on its volume's disk, the node's object, which
+        // is reachable there by the pinned identities.
         &&& forall|v: u32| #[trigger] t.lx_volumes.contains_key(v) ==> {
             &&& self.disks.contains_key(v)
             &&& self.disks[v].volume() == t.lx_volumes[v]
@@ -346,9 +353,19 @@ impl FuseGhost for VirtioFsGhost {
         &&& forall|n: u64, q: PathView| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
             && #[trigger] self@.names_of(n).contains(q) ==> {
             let disk = self.disks[t.inodes[n].volume]@;
+            let o = disk.objects[q];
             &&& disk.objects.contains_key(q)
-            &&& disk.objects[q].ino == t.host_inos[n]
+            &&& o.ino == t.host_inos[n]
+            // A pinned object (a hidden one, recorded when the share was
+            // attached) has a name only at its own path, if it has one
+            // (`ensure_object_allowed`).
+            &&& t.inodes[n].pinned.contains_key((o.dev, o.ino)) ==> t.inodes[n].pinned[(o.dev, o.ino)] == Some(q)
         }
+        // The pinned objects stay on their volume's disk (the guest may not
+        // remove or move a hidden path, nor one above it: `hides_below`).
+        &&& forall|n: u64, k: (u64, u64)| #[trigger] t.inodes.contains_key(n) && #[trigger] t.inodes[n].pinned.contains_key(k)
+            ==> exists|x: PathView| #[trigger] self.disks[t.inodes[n].volume]@.objects.contains_key(x)
+                && (self.disks[t.inodes[n].volume]@.objects[x].dev, self.disks[t.inodes[n].volume]@.objects[x].ino) == k
     }
 }
 
@@ -505,6 +522,7 @@ impl FuseState for VirtioFsGhostView {
                     readonly: share.readonly,
                     policy: share.policy,
                     exposed: share.exposed,
+                    pinned: share.pinned,
                 }
             } else {
                 VirtioFsInodeView { kind, ..self.inodes[parent] }

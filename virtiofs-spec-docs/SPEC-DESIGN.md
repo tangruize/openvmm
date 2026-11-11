@@ -546,7 +546,8 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
   `DT_UNK` entries, and the confinement fact as a contract. (The host
   model's first part is written: `lxutil/src/host_t.rs`, the disks in `g`,
   and `wf`'s tie of each node's names to its object; with it, bug 3's rule
-  is in `create`'s contract.)
+  is in `create`'s contract, and the pinned identities are in `wf`: a
+  pinned object has a name only at its own path, and stays on the disk.)
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on

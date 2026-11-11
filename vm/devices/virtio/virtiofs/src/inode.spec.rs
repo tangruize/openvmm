@@ -10,6 +10,11 @@ use crate::spec::VirtioFsShareView;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::rwlock::RwLockPredicate;
+// Used only by spec functions, which a normal build removes.
+#[cfg(verus_keep_ghost)]
+use std::path::PathBuf;
+#[cfg(verus_keep_ghost)]
+use vstd::std_specs::path::PathView;
 
 verus! {
 
@@ -80,7 +85,7 @@ pub ghost struct AliasesRule {
 
 impl RwLockPredicate<InodeAliases> for AliasesRule {
     closed spec fn inv(self, v: InodeAliases) -> bool {
-        let names = v.aliases@.map(|p: std::path::PathBuf| p@);
+        let names = v.aliases@.map(|p: PathBuf| p@);
         if self.is_root {
             &&& names == set![Seq::<Seq<u8>>::empty()]
             &&& v.piece@ is None
@@ -114,7 +119,16 @@ impl VirtioFsVolume {
                 Some(file) => Some(file@),
                 None => None,
             },
+            pinned: self.pinned_view(),
         }
+    }
+
+    /// Its pinned objects (`pinned_identities`), with their paths' views.
+    pub(crate) closed spec fn pinned_view(&self) -> Map<(u64, u64), Option<PathView>> {
+        self.pinned_identities@.map_values(|reachable_at: Option<PathBuf>| match reachable_at {
+            Some(p) => Some(p@),
+            None => None,
+        })
     }
 }
 
@@ -145,6 +159,7 @@ impl View for VirtioFsInode {
                 Some(file) => Some(file@),
                 None => None,
             },
+            pinned: self.volume.pinned_view(),
         }
     }
 }
