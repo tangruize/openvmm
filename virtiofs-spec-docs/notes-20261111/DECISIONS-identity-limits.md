@@ -11,19 +11,21 @@ I did, what I did not take, and why. The options are those of
   request that touches host files as the mapped caller; the seven others
   (`INIT`, `DESTROY`, `FORGET`, `BATCH_FORGET`, `INTERRUPT`, `RELEASE`,
   `RELEASEDIR`) as OpenVMM.
-- **D2. Checked: the mapping only; trusted, in words: the switching.** Done:
-  `maps`, `wf` (never host root), and contracts on `for_export_root_owner`,
-  `host_identity`, `accesses_host_files`. The trusted part (T1-T4:
-  `with_fs_identity` changes only the thread's credentials, holds the identity
-  while the operation runs, restores it, runs it synchronously; and every host
-  call of a request is made inside `session.dispatch`) is in words at the top of
-  the file. Not taken: a thread-credential token on every `lxutil` call (the
-  note's option A): it would check little beyond the single wrap point until the
-  host model also says what an identity may do. Not done either: the contract on
-  `with_fs_identity` and `dispatch_with`, because `run_as` takes its operation as
-  `&mut dyn FnMut()`, which Verus cannot specify. The file says how it becomes a
-  contract once `run_as` takes a generic closure, the change the keeper's proof
-  already needs (left to the proof agent, as before).
+- **D2. Checked: the mapping, and that the request runs as `runs_as`.**
+  (Revised after Shan's review, 2026-11-11: the first version left the
+  switching in words.) `Session::dispatch` requires the thread's credential
+  token (`lx::cred::ThreadCred`) to be `runs_as`, and `dispatch_with`'s proof
+  shows it. Trusted: the token's meaning, as contracts on `lxutil`'s
+  `switch_fs_identity` and `FsIdentityGuard::restore`, and two keeper axioms
+  (the token goes with `g`). This needed a code change for verification only,
+  not for Pedro (code change 33): `run_as`'s `&mut dyn FnMut()` closure became
+  the trait `SwitchIdentity`, and `lxutil` exposes `with_fs_identity`'s two
+  halves. A generic closure was tried first: Verus's attribute style cannot,
+  on stable Rust, put a contract on a closure expression or build a tracked
+  value in it; patching Verus for that was judged harder than the change. Not
+  taken: the token on every `lxutil` call (option A), which adds little until
+  the host model says what an identity may do. In words still: every host call
+  of a request is made inside `Session::dispatch`.
 - **D3. Exempt requests and restore run as OpenVMM: accepted.** In words under
   "not claimed". No `BUGS.md` entry: Pedro documents restore's reopening as
   OpenVMM, and the exempt requests only close descriptors.
@@ -31,11 +33,10 @@ I did, what I did not take, and why. The options are those of
   them; the security content is "never host root, never OpenVMM's capabilities
   or groups". Not taken: also assuming no other host user's files are in the
   share (a deployment rule the code does not enforce).
-- **D5. Where the trusted words are: in `owner.spec.rs`**, beside the property,
-  not in a new `lxutil/src/unix/credentials_t.rs`. The note recommended the
-  `_t.rs` file, but with no trusted contract to put there yet, a file of words
-  only would be read apart from what it is about. When the contract comes, it
-  belongs in `credentials_t.rs`.
+- **D5. Where the trusted part is:** the token in `lx/src/cred_t.rs` (`lx`,
+  because `fuse` names it and depends only on `lx`), the contracts on
+  `lxutil/src/unix/credentials.rs`'s two functions, and the words in
+  `owner.spec.rs`.
 - Small additions it needed (Verus-only): `RequestView` gains `opcode`, `uid`,
   `gid`; `fuse` re-exports `RequestView`; seven opcode constants and
   `CallerIdentity` are visible to Verus.

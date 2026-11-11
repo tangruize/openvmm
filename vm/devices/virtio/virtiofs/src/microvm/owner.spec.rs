@@ -2,7 +2,8 @@
 // each request (written 2026-11-11; `virtiofs-spec-docs/notes-20261111/
 // DESIGN-identity.md`).
 //
-// THE PROPERTY (`CallerIdentity::runs_as`). In the default owner mode
+// THE PROPERTY (`CallerIdentity::runs_as`, as the thread credential token's
+// view, `lx/src/cred_t.rs`). In the default owner mode
 // (`Vmm`, `caller_identity` is `None`), every request runs as OpenVMM, with
 // the device thread's own credentials. In `Caller` mode (`--mount-owner
 // caller`, Linux only), a request that touches host files runs as its
@@ -14,32 +15,31 @@
 // is "never host root, never OpenVMM's capabilities or groups", not "the
 // right user".
 //
-// CHECKED: the mapping (`maps`, `wf`, the contracts of
-// `for_export_root_owner`, `host_identity` and `accesses_host_files`).
+// IN THE SPEC: the mapping (`maps`, `wf`, the contracts of
+// `for_export_root_owner`, `host_identity` and `accesses_host_files`); and
+// that the request runs as `runs_as`: `Session::dispatch` requires the
+// thread's credential token (`lx::cred::ThreadCred`) to be `runs_as`, and
+// `dispatch_with` calls it with `CallerIdentity::runs_as(caller_identity,
+// request@)` (its proof shows the token is that: `Own` in `Vmm` mode and for
+// the seven exempt requests, `Switched` with the mapped ids between
+// `SwitchIdentity::switch` and `restore` otherwise). This needed a change for
+// verification only (`CODE-CHANGES.md`): `run_as`'s closure became the
+// `SwitchIdentity` trait, and `lxutil` exposes `switch_fs_identity`'s two
+// halves.
 //
-// TRUSTED, in words (the identity's trusted part, as with confinement):
-// (T1) `lxutil::with_fs_identity` (`lxutil/src/unix/credentials.rs`)
-// changes the calling thread's credentials only: `setfsuid`, `setfsgid`,
-// `setgroups`, and `capset` of the thread. (T2) While its operation runs,
-// the thread's filesystem ids are the identity, its supplementary groups at
-// most that gid, and it has no effective capability; if it cannot take the
-// identity, the operation does not run and it fails with `EPERM`. (T3)
-// After the operation, the thread's credentials are what they were (or the
-// process panics). (T4) The operation runs synchronously on that thread.
-// And: every host call of a request is made inside `session.dispatch`,
-// which `dispatch_with` runs whole inside `run_as` (`owner.rs`, lexically),
-// and the seven requests that touch no host file make no `lxutil` call
-// (`release` closes a file descriptor).
-//
-// HOW IT CAN BECOME A CONTRACT. `run_as` takes its operation as
-// `&mut dyn FnMut()`, which Verus cannot specify; once it takes a generic
-// closure (the change the keeper's proof already needs, `dispatch`'s doc),
-// `with_fs_identity` gets a trusted contract: the operation runs with a
-// thread-credential token whose view is the identity, and `dispatch_with`
-// ensures that `session.dispatch` ran only as `runs_as` says, or not at all
-// (and the reply is `EPERM`). Checking every `lxutil` call against the
-// token (each would take it) adds little beyond that one wrap point until
-// the host model also says what an identity may do (decided 2026-11-11).
+// TRUSTED: the token's meaning, as a contract on `lxutil`'s
+// `switch_fs_identity` and `FsIdentityGuard::restore` (`lx/src/cred_t.rs`,
+// `lxutil/src/unix/credentials.rs`): (T1) they change only the calling
+// thread's credentials (`setfsuid`, `setfsgid`, `setgroups`, `capset`); (T2)
+// after a switch, the thread's filesystem ids are the identity, its
+// supplementary groups at most that gid, and it has no effective capability,
+// or it fails with `EPERM` and nothing changed; (T3) `restore` (or a drop,
+// on a panic) brings the thread's own credentials back. In words only:
+// every host call of a request is made inside `Session::dispatch` (it is the
+// one place a request's operation runs), and the seven exempt requests make
+// no `lxutil` call (`release` closes a file descriptor). Checking every
+// `lxutil` call against the token (each would take it) adds little until the
+// host model also says what an identity may do (decided 2026-11-11).
 //
 // NOT CLAIMED: what the kernel then permits that identity (mode bits, ACLs,
 // the owner of new files); that a write through a handle opened earlier by
@@ -51,15 +51,6 @@ use super::CallerIdentity;
 use vstd::prelude::*;
 
 verus! {
-
-/// As whom the host performs a request.
-pub(crate) enum RunAs {
-    /// As OpenVMM: the device thread's own credentials.
-    Vmm,
-    /// As host user `uid` and group `gid`, with no other group and no
-    /// capability.
-    Caller { uid: u32, gid: u32 },
-}
 
 impl CallerIdentity {
     /// The share root's owner and group, which replace guest UID 0 and GID 0.
@@ -91,14 +82,16 @@ impl CallerIdentity {
     }
 
     /// Property 3: as whom the host performs `request`, with the device's
-    /// mapping `caller_identity` (`None` in the default `Vmm` mode).
-    pub(crate) open spec fn runs_as(caller_identity: Option<CallerIdentity>, request: fuse::RequestView) -> RunAs {
+    /// mapping `caller_identity` (`None` in the default `Vmm` mode): with
+    /// the thread's own credentials (OpenVMM's), or switched to the caller's
+    /// mapped ids.
+    pub(crate) open spec fn runs_as(caller_identity: Option<CallerIdentity>, request: fuse::RequestView) -> lx::cred::ThreadCredView {
         match caller_identity {
             Some(ci) if Self::touches_host_files(request.opcode) => {
                 let (uid, gid) = ci.maps(request.uid, request.gid);
-                RunAs::Caller { uid, gid }
+                lx::cred::ThreadCredView::Switched { uid, gid }
             },
-            _ => RunAs::Vmm,
+            _ => lx::cred::ThreadCredView::Own,
         }
     }
 }

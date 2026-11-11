@@ -91,15 +91,24 @@ where
     }
 
     /// Dispatch a FUSE request to the file system.
+    ///
+    /// Verus: `cred` is the calling thread's credentials while the request
+    /// runs, which must be `runs_as`, as whom the caller says the request
+    /// runs (property 3, identity: `virtiofs/src/microvm/owner.spec.rs`).
+    /// Every host call of the request is made in here.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verifier::allow(undeclared_external_trait))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(g): Tracked<&mut G>
+        with Tracked(g): Tracked<&mut G>,
+            Tracked(cred): Tracked<&lx::cred::ThreadCred>,
+            Ghost(runs_as): Ghost<lx::cred::ThreadCredView>
         requires
             // The ghost state is well formed, and is this session's file
             // system's: what each operation requires.
             self.owns_ghost(old(g)),
             old(g).wf(),
+            // The request runs as `runs_as`.
+            cred@ == runs_as,
         ensures
             // The request's operation keeps both.
             self.owns_ghost(final(g)),

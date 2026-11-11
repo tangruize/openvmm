@@ -10,6 +10,8 @@
 //! affecting the rest of the process.
 
 use super::util;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 /// The ID that no user or group has. `setfsuid` and `setfsgid` report the current ID without
 /// changing it when passed this value.
@@ -38,6 +40,8 @@ struct CapabilityData {
 type Capabilities = [CapabilityData; 2];
 
 /// A host filesystem identity.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FsIdentity {
     /// The filesystem user ID.
@@ -76,10 +80,71 @@ impl FsIdentity {
 /// Panics if the thread's original credentials cannot be restored, because the thread would
 /// otherwise run unrelated work under the wrong identity.
 pub fn with_fs_identity<T>(identity: FsIdentity, operation: impl FnOnce() -> T) -> lx::Result<T> {
-    let credentials = SwitchedCredentials::switch(identity).map_err(|_| lx::Error::EPERM)?;
+    let guard = switch_fs_identity(identity)?;
     let result = operation();
-    drop(credentials);
+    guard.restore();
     Ok(result)
+}
+
+/// Switches the calling thread's filesystem identity to `identity`, as
+/// [`with_fs_identity`] does around its operation, and returns a guard that
+/// restores the thread's credentials, when it is restored or dropped (also
+/// on a panic). The guard must stay on this thread.
+///
+/// Verus (for verification only; `virtiofs-spec-docs/CODE-CHANGES.md`): the
+/// two halves of [`with_fs_identity`], so that a caller can switch, run, and
+/// restore in straight-line code, which Verus can specify, rather than in a
+/// closure. TRUSTED contract (`lx/src/cred_t.rs`): the thread's credentials
+/// become `identity` (no other supplementary group, no effective
+/// capability), or they stay the thread's own and the result is `EPERM`.
+///
+/// # Errors
+///
+/// Returns `EPERM` if the thread cannot assume `identity`, as
+/// [`with_fs_identity`].
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(r =>
+    with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
+    requires
+        old(cred)@ == lx::cred::ThreadCredView::Own,
+    ensures
+        r is Ok ==> final(cred)@ == (lx::cred::ThreadCredView::Switched { uid: identity.uid, gid: identity.gid }),
+        r is Err ==> final(cred)@ == lx::cred::ThreadCredView::Own && r->Err_0.code() == lx::EPERM,
+))]
+pub fn switch_fs_identity(identity: FsIdentity) -> lx::Result<FsIdentityGuard> {
+    let credentials = SwitchedCredentials::switch(identity).map_err(|_| lx::Error::EPERM)?;
+    Ok(FsIdentityGuard { credentials })
+}
+
+/// The original credentials of a thread whose filesystem identity
+/// [`switch_fs_identity`] switched: restored when the guard is restored or
+/// dropped.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+pub struct FsIdentityGuard {
+    credentials: SwitchedCredentials,
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl FsIdentityGuard {
+    /// Restores the thread's original credentials.
+    ///
+    /// Verus: TRUSTED contract (`lx/src/cred_t.rs`): the thread's
+    /// credentials are its own again.
+    ///
+    /// # Panics
+    ///
+    /// Panics if they cannot be restored, as [`with_fs_identity`].
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
+        requires
+            old(cred)@ is Switched,
+        ensures
+            final(cred)@ == lx::cred::ThreadCredView::Own,
+    ))]
+    pub fn restore(self) {
+        drop(self.credentials);
+    }
 }
 
 /// The original credentials of a thread whose filesystem identity was switched.

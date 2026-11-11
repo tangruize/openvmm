@@ -229,6 +229,13 @@ pub mod error_spec {
     include!("error.spec.rs");
 }
 
+/// The calling thread's host credentials, as a ghost token (Verus only;
+/// TRUSTED).
+#[cfg(verus_keep_ghost)]
+pub mod cred {
+    include!("cred_t.rs");
+}
+
 impl From<io::Error> for Error {
     // Map IO errors to the appropriate Linux error code.
     fn from(error: io::Error) -> Self {

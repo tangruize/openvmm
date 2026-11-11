@@ -3,3 +3,4 @@
 # carry no copyright header.
 string.spec.rs
 error.spec.rs
+cred_t.rs

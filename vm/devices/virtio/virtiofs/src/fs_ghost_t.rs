@@ -27,7 +27,9 @@
 //    create it. The device's setup (`VirtioFsDevice::new_microvm_hostfs`)
 //    then hands `g` to the keeper: `keep_fs_ghost(fs, g)`.
 // 2. For each request (`process_virtiofs_request`, which both queue workers
-//    call): `take_fs_ghost(session)` gives out `g`; the request lends it down
+//    call): `take_fs_ghost(session)` gives out `g` (and `take_thread_cred()`
+//    the thread's credential token, its own, which goes back with
+//    `give_back_thread_cred` the same way); the request lends it down
 //    to its operation (`owner::dispatch` -> `Session::dispatch` -> the
 //    handler, e.g. `VirtioFs::create`); then `give_back_fs_ghost(session, g)`
 //    takes it back, as the operation left it.
@@ -94,6 +96,23 @@ pub axiom fn give_back_fs_ghost(session: &Session<VirtioFsGhost>, tracked g: Vir
     requires
         session.owns_ghost(&g),
         g.wf(),
+;
+
+/// At the start of a request: the keeper also gives out the device thread's
+/// credential token (`lx::cred::ThreadCred`, property 3), which is the
+/// thread's own between requests: a request that switched the thread's
+/// identity switched it back (`owner::dispatch` ensures it). A1 holds for
+/// the token as for `g`: one request at a time has it.
+pub axiom fn take_thread_cred() -> (tracked cred: lx::cred::ThreadCred)
+    ensures
+        cred@ == lx::cred::ThreadCredView::Own,
+;
+
+/// At the end of a request: the keeper takes the token back, the thread's
+/// own again.
+pub axiom fn give_back_thread_cred(tracked cred: lx::cred::ThreadCred)
+    requires
+        cred@ == lx::cred::ThreadCredView::Own,
 ;
 
 } // verus!

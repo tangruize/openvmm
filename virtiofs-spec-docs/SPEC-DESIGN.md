@@ -489,7 +489,11 @@ single-file shares (`may_reach`, `is_hidden`).
 
 ## 8. What is trusted
 
-- The keeper's three axioms, and assumptions A1 and A2 (section 6).
+- The keeper's axioms (the ghost state's three, and the credential
+  token's two), and assumptions A1 and A2 (section 6).
+- The thread's credential token (`lx/src/cred_t.rs`: declared only) and
+  the contracts of `lxutil`'s `switch_fs_identity` and
+  `FsIdentityGuard::restore` (property 3).
 - `lxutil`'s method bodies (`external_body`), and the confinement fact in
   words (section 7).
 - The host model (`lxutil/src/host_t.rs`, 2026-11-11): what a share holds
@@ -529,6 +533,9 @@ single-file shares (`may_reach`, `is_hidden`).
   approval, and an entry in `CODE-CHANGES.md`. Ghost arguments and ghost
   fields are not executable changes.
 - **Replace every PLACEHOLDER** (section 5), and no new `assume_new`.
+- **`dispatch_with` calls `Session::dispatch` with `runs_as` =
+  `CallerIdentity::runs_as(caller_identity, request@)`**: that ghost
+  argument is part of the spec (property 3).
 - **At creation, call `attached_disk`** once per volume
   (`VirtioFs::new_microvm`), with the share's policy, for `wf`'s facts on
   hard links and on directories' paths; after that, the operations keep
@@ -572,9 +579,11 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
 - **Limits** (property 4): done 2026-11-11 (`within_limits` in `inv`, and
   error rules for lack of room), but for the listings' caches (checked
   only at save) and `rename`'s byte cap.
-- **Identity** (property 3): done 2026-11-11 as a spec
-  (`microvm/owner.spec.rs`), with `with_fs_identity`'s effect trusted in
-  words until `run_as` takes a generic closure.
+- **Identity** (property 3): done 2026-11-11 (`microvm/owner.spec.rs`):
+  `Session::dispatch` requires the thread's credential token to be
+  `runs_as`; trusted: the token's meaning (`lx/src/cred_t.rs`, the
+  contracts of `switch_fs_identity` and `restore`), and in words that every
+  host call of a request is made inside `Session::dispatch`.
 - **The lookup counts** (item 2): not needed by the limits; they wait for
   `forget`'s correctness, liveness and snapshots.
 - **virtio-fs's save and restore** (property 6), including a new `g` on

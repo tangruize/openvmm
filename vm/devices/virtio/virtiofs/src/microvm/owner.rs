@@ -104,22 +104,21 @@ fn accesses_host_files(opcode: u32) -> bool {
 /// Dispatches `request` to `session`, performing it as the host identity of
 /// its caller when `caller_identity` is set.
 ///
-/// Verus: lends the request's ghost state `g` on to the session. Its proof
-/// needs `dispatch_with`'s `run_as` to pass `g` to the operation it runs:
-/// `run_as` takes the operation as `&mut dyn FnMut()`, which Verus does not
-/// support, nor a closure that captures `&mut g`; a generic closure that
-/// takes `g` as an argument (`FnOnce(Tracked<&mut VirtioFsGhost>)`) works
-/// (tested), so that is the change `run_as` needs, with the proof.
+/// Verus: lends the request's ghost state `g` and the thread's credential
+/// token `cred` (its own, before and after) on to the session.
 #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 #[cfg_attr(verus_keep_ghost, verifier::allow(undeclared_external_trait))]
 #[cfg_attr(verus_keep_ghost, verus_spec(
-    with Tracked(g): Tracked<&mut crate::spec::VirtioFsGhost>
+    with Tracked(g): Tracked<&mut crate::spec::VirtioFsGhost>,
+        Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
     requires
         session.owns_ghost(old(g)),
         old(g).wf(),
+        old(cred)@ == lx::cred::ThreadCredView::Own,
     ensures
         session.owns_ghost(final(g)),
         final(g).wf(),
+        final(cred)@ == lx::cred::ThreadCredView::Own,
 ))]
 pub(crate) fn dispatch(
     caller_identity: Option<&CallerIdentity>,
@@ -128,43 +127,70 @@ pub(crate) fn dispatch(
     sender: &mut impl fuse::ReplySender,
     mapper: Option<&dyn fuse::Mapper>,
 ) {
-    dispatch_with(caller_identity, session, request, sender, mapper, run_as);
+    dispatch_with(
+        caller_identity,
+        session,
+        request,
+        sender,
+        mapper,
+        &mut HostIdentity::default(),
+    );
 }
 
 /// Dispatches `request` like [`dispatch`], but performs a request that runs
-/// as its caller through `run_as`, which receives the caller's host UID and
-/// GID and either performs the operation as that identity or fails.
+/// as its caller through `identity`, which switches the thread to the
+/// caller's host UID and GID, or fails, and switches it back.
+///
+/// Verus: the proof of this body shows property 3. It must call
+/// `session.dispatch` with `runs_as` = `CallerIdentity::runs_as(
+/// caller_identity, request@)` (SPEC: that ghost argument is part of the
+/// spec), which `Session::dispatch` requires the credential token to be; the
+/// token is `Switched` only between `identity.switch` and `identity.restore`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::allow(undeclared_external_trait))]
+#[cfg_attr(verus_keep_ghost, verus_spec(
+    with Tracked(g): Tracked<&mut crate::spec::VirtioFsGhost>,
+        Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
+    requires
+        session.owns_ghost(old(g)),
+        old(g).wf(),
+        old(cred)@ == lx::cred::ThreadCredView::Own,
+    ensures
+        session.owns_ghost(final(g)),
+        final(g).wf(),
+        final(cred)@ == lx::cred::ThreadCredView::Own,
+))]
 pub(crate) fn dispatch_with(
     caller_identity: Option<&CallerIdentity>,
     session: &fuse::Session<crate::spec::VirtioFsGhost>,
     request: fuse::Request,
     sender: &mut impl fuse::ReplySender,
     mapper: Option<&dyn fuse::Mapper>,
-    run_as: impl FnOnce(lx::uid_t, lx::gid_t, &mut dyn FnMut()) -> lx::Result<()>,
+    identity: &mut impl SwitchIdentity,
 ) {
     match caller_identity {
         Some(caller_identity) if accesses_host_files(request.opcode()) => {
             let unique = request.unique();
             let (uid, gid) = caller_identity.host_identity(request.uid(), request.gid());
-            let mut request = Some(request);
-            let result = run_as(uid, gid, &mut || {
-                if let Some(request) = request.take() {
+            match identity.switch(uid, gid) {
+                Ok(()) => {
                     session.dispatch(request, sender, mapper);
+                    identity.restore();
                 }
-            });
-            if let Err(error) = result {
-                tracelimit::warn_ratelimited!(
-                    uid,
-                    gid,
-                    error = error.value(),
-                    "virtio-fs request cannot run as its caller; failing it with EPERM"
-                );
-                if let Err(error) = sender.send_error(unique, lx::Error::EPERM.value()) {
-                    tracelimit::error_ratelimited!(
-                        unique,
-                        error = &error as &dyn std::error::Error,
-                        "Failed to send reply",
+                Err(error) => {
+                    tracelimit::warn_ratelimited!(
+                        uid,
+                        gid,
+                        error = error.value(),
+                        "virtio-fs request cannot run as its caller; failing it with EPERM"
                     );
+                    if let Err(error) = sender.send_error(unique, lx::Error::EPERM.value()) {
+                        tracelimit::error_ratelimited!(
+                            unique,
+                            error = &error as &dyn std::error::Error,
+                            "Failed to send reply",
+                        );
+                    }
                 }
             }
         }
@@ -172,14 +198,73 @@ pub(crate) fn dispatch_with(
     }
 }
 
-/// Performs `operation` as host `uid` and `gid`.
-#[cfg(target_os = "linux")]
-fn run_as(uid: lx::uid_t, gid: lx::gid_t, operation: &mut dyn FnMut()) -> lx::Result<()> {
-    lxutil::with_fs_identity(lxutil::FsIdentity { uid, gid }, operation)
+/// Switches the calling thread's filesystem identity for a request, and back
+/// ([`HostIdentity`]; the tests use their own).
+///
+/// Verus (for verification only; `virtiofs-spec-docs/CODE-CHANGES.md`): this
+/// replaces a `run_as` closure that took the operation as `&mut dyn FnMut()`,
+/// which Verus cannot specify, so that `dispatch_with` switches, dispatches,
+/// and restores in straight-line code.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+pub(crate) trait SwitchIdentity {
+    /// Switches the thread to host `uid` and `gid`, or fails (then the thread
+    /// keeps its own credentials).
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
+        requires
+            old(cred)@ == lx::cred::ThreadCredView::Own,
+        ensures
+            r is Ok ==> final(cred)@ == (lx::cred::ThreadCredView::Switched { uid, gid }),
+            r is Err ==> final(cred)@ == lx::cred::ThreadCredView::Own,
+    ))]
+    fn switch(&mut self, uid: lx::uid_t, gid: lx::gid_t) -> lx::Result<()>;
+
+    /// Switches the thread back to its own credentials.
+    #[cfg_attr(verus_keep_ghost, verus_spec(
+        with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>
+        requires
+            old(cred)@ is Switched,
+        ensures
+            final(cred)@ == lx::cred::ThreadCredView::Own,
+    ))]
+    fn restore(&mut self);
 }
 
-/// Fails, because the profile accepts caller ownership only on Linux.
-#[cfg(not(target_os = "linux"))]
-fn run_as(_uid: lx::uid_t, _gid: lx::gid_t, _operation: &mut dyn FnMut()) -> lx::Result<()> {
-    Err(lx::Error::EPERM)
+/// The host's identity switching (`lxutil::switch_fs_identity`), which the
+/// profile accepts only on Linux.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[derive(Default)]
+pub(crate) struct HostIdentity {
+    /// The guard of the current switch, which restores the thread's
+    /// credentials (also when dropped, on a panic).
+    #[cfg(target_os = "linux")]
+    guard: Option<lxutil::FsIdentityGuard>,
+}
+
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+impl SwitchIdentity for HostIdentity {
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>))]
+    fn switch(&mut self, uid: lx::uid_t, gid: lx::gid_t) -> lx::Result<()> {
+        #[cfg(target_os = "linux")]
+        {
+            self.guard = Some(lxutil::switch_fs_identity(lxutil::FsIdentity { uid, gid })?);
+            Ok(())
+        }
+        // Fails, because the profile accepts caller ownership only on Linux.
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = (uid, gid);
+            Err(lx::Error::EPERM)
+        }
+    }
+
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(cred): Tracked<&mut lx::cred::ThreadCred>))]
+    fn restore(&mut self) {
+        #[cfg(target_os = "linux")]
+        if let Some(guard) = self.guard.take() {
+            guard.restore();
+        }
+    }
 }

@@ -128,13 +128,38 @@ mod linux {
     #[derive(Default)]
     struct Recorder(Vec<(u32, u32)>);
 
-    impl Recorder {
-        fn run_as(&mut self) -> impl FnOnce(u32, u32, &mut dyn FnMut()) -> lx::Result<()> + '_ {
-            |uid, gid, operation| {
-                self.0.push((uid, gid));
-                operation();
-                Ok(())
-            }
+    impl owner::SwitchIdentity for Recorder {
+        fn switch(&mut self, uid: u32, gid: u32) -> lx::Result<()> {
+            self.0.push((uid, gid));
+            Ok(())
+        }
+
+        fn restore(&mut self) {}
+    }
+
+    /// Refuses every identity, as a VMM that cannot switch does.
+    struct Refuse;
+
+    impl owner::SwitchIdentity for Refuse {
+        fn switch(&mut self, _uid: u32, _gid: u32) -> lx::Result<()> {
+            Err(lx::Error::EPERM)
+        }
+
+        fn restore(&mut self) {
+            unreachable!("nothing was switched");
+        }
+    }
+
+    /// Fails the test if a request runs as its caller.
+    struct NeverSwitch(&'static str);
+
+    impl owner::SwitchIdentity for NeverSwitch {
+        fn switch(&mut self, _uid: u32, _gid: u32) -> lx::Result<()> {
+            unreachable!("{}", self.0);
+        }
+
+        fn restore(&mut self) {
+            unreachable!("{}", self.0);
         }
     }
 
@@ -182,7 +207,7 @@ mod linux {
                 FUSE_ROOT_ID,
                 foreign,
                 init.as_bytes(),
-                |_, _, _| unreachable!("negotiation never runs as its caller"),
+                &mut NeverSwitch("negotiation never runs as its caller"),
             );
             assert_eq!(error, 0);
             share
@@ -230,22 +255,22 @@ mod linux {
         }
 
         /// Sends one request like [`Self::send`], but performs a request that
-        /// runs as its caller through `run_as`.
+        /// runs as its caller through `identity`.
         fn send_with(
             &mut self,
             opcode: u32,
             node_id: u64,
             caller: (u32, u32),
             body: &[u8],
-            run_as: impl FnOnce(u32, u32, &mut dyn FnMut()) -> lx::Result<()>,
+            identity: &mut impl owner::SwitchIdentity,
         ) -> (i32, Vec<u8>) {
             self.exchange(
                 opcode,
                 node_id,
                 caller,
                 body,
-                |identity, session, request, reply| {
-                    owner::dispatch_with(identity, session, request, reply, None, run_as);
+                |caller_identity, session, request, reply| {
+                    owner::dispatch_with(caller_identity, session, request, reply, None, identity);
                 },
             )
         }
@@ -256,7 +281,12 @@ mod linux {
             node_id: u64,
             (uid, gid): (u32, u32),
             body: &[u8],
-            dispatch: impl FnOnce(Option<&CallerIdentity>, &Session<crate::spec::VirtioFsGhost>, Request, &mut Reply),
+            dispatch: impl FnOnce(
+                Option<&CallerIdentity>,
+                &Session<crate::spec::VirtioFsGhost>,
+                Request,
+                &mut Reply,
+            ),
         ) -> (i32, Vec<u8>) {
             let header = fuse_in_header {
                 len: (size_of::<fuse_in_header>() + body.len()) as u32,
@@ -290,16 +320,16 @@ mod linux {
         }
 
         /// Creates a directory like [`Self::mkdir`], but performs the request
-        /// through `run_as`.
+        /// through `identity`.
         fn mkdir_with(
             &mut self,
             parent: u64,
             name: &str,
             caller: (u32, u32),
-            run_as: impl FnOnce(u32, u32, &mut dyn FnMut()) -> lx::Result<()>,
+            identity: &mut impl owner::SwitchIdentity,
         ) -> (i32, u64) {
             let (error, payload) =
-                self.send_with(FUSE_MKDIR, parent, caller, &mkdir_body(name), run_as);
+                self.send_with(FUSE_MKDIR, parent, caller, &mkdir_body(name), identity);
             (error, entry_node_id(error, &payload))
         }
 
@@ -348,16 +378,14 @@ mod linux {
             ("foreign", foreign, foreign),
         ] {
             let mut recorder = Recorder::default();
-            let (error, _) = share.mkdir_with(FUSE_ROOT_ID, name, caller, recorder.run_as());
+            let (error, _) = share.mkdir_with(FUSE_ROOT_ID, name, caller, &mut recorder);
             assert_eq!(error, 0, "{name}");
             assert_eq!(recorder.0, [expected], "{name}");
         }
 
         // A request that cannot run as its caller fails without being
         // performed.
-        let (error, _) = share.mkdir_with(FUSE_ROOT_ID, "denied", foreign, |_, _, _| {
-            Err(lx::Error::EPERM)
-        });
+        let (error, _) = share.mkdir_with(FUSE_ROOT_ID, "denied", foreign, &mut Refuse);
         assert_eq!(error, EPERM);
         assert!(!share.directory.path().join("denied").exists());
     }
