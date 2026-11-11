@@ -35,7 +35,8 @@ pub(crate) mod spec {
 /// Reserved file handle `open_dir` returns for the synthetic aggregate root;
 /// `read_dir`/`read_dir_plus`/`release_dir` recognize it and serve the root
 /// registry instead of the handle map. `u64::MAX` can't collide with a real
-/// handle, since `HandleMap` allocates from 1 upward.
+/// handle: `HandleMap` allocates from 1 upward and never hands out
+/// `u64::MAX` (`HandleMap::can_insert`).
 pub(crate) const SYNTHETIC_ROOT_FH: u64 = u64::MAX;
 
 /// A single host folder exposed as a named child of the synthetic aggregate root.

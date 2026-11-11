@@ -238,6 +238,8 @@ Findings are ordered by severity.
 
 ## 10. `SYNTHETIC_ROOT_FH = u64::MAX` can be handed out by the file table
 
+*Status (2026-11-11): confirmed; a real bug of low severity (`BUGS.md` bug 7). Fixed in the code (code change 29: `HandleMap` never hands out `u64::MAX`; restore needs no change); the spec is unchanged.*
+
 - Spec: `fuse/lib.rs:526`, `790` and `937` (`!s.holds_file(out.fh)`).
   `vfs/lib.spec.rs:516-518` and `587-589` (`u64::MAX` is always held in an
   aggregate).

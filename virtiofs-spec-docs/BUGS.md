@@ -5,7 +5,7 @@ Bugs in Pedro Henrique Penna's virtio-fs (`feature/microvm/dev` at
 guest triggers it, and the fix. Fixed on this branch; each fix is also a
 `CODE-CHANGES.md` entry, and a patch in `patches/`, for Pedro.
 
-The patches in `patches/` (0001-0008) are for Pedro's code itself: they
+The patches in `patches/` (0001-0009) are for Pedro's code itself: they
 apply in order to `feature/microvm/dev` at `db42fde04`, and after each
 one, `virtiofs` builds, its tests pass (each patch adds one), and
 `cargo fmt` and `clippy` are clean (checked 2026-11-11). They hold the
@@ -544,6 +544,70 @@ index 92b2b9bc6..26afe0915 100644
          self.check_writable(file.inode())?;
          file.write(data, arg.offset, request.uid())
      }
+```
+
+## 7. The file table can hand out the aggregate root's own handle
+
+*Found 2026-11-11, from an independent review of the contracts against the
+code. Low severity: it needs 2^64 - 2 opens, or a restored counter at its
+last value. Fixed:
+`patches/0009-virtiofs-the-file-table-never-hands-out-the-root-handle.patch`
+(applies after 0008).*
+
+**What goes wrong.** In an aggregate, the handle `u64::MAX` is the
+synthetic root's own (`SYNTHETIC_ROOT_FH`): `read_dir`, `read_dir_plus`
+and `release_dir` serve the root's registry for it, not the file table.
+Its comment says it "can't collide with a real handle, since `HandleMap`
+allocates from 1 upward". But `HandleMap` hands out every value from its
+start up to `u64::MAX` itself, and stops only when the counter wraps to 0
+(`can_insert`; the test `handle_map_stops_after_max_handle` hands out
+`u64::MAX`). So an `open` can return `u64::MAX`, and then one handle means
+both a file and the root. A restore accepts any saved counter above every
+saved handle, `u64::MAX` included, so a saved state can bring the counter
+there at once.
+
+**The fix.** `HandleMap` never hands out `u64::MAX`: a table whose counter
+reaches it is full (`ENOSPC`, as when the counter wraps). Restore needs no
+change: it requires the counter to be above every saved handle, so no
+saved handle is `u64::MAX`. The comment is corrected. Test:
+`handle_map_stops_after_max_handle` (fails without the fix); the tests of a
+full table now use `u64::MAX - 1` as the last handle.
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/aggregate.rs b/vm/devices/virtio/virtiofs/src/aggregate.rs
+index 5b9694132..bbf05e91f 100644
+--- a/vm/devices/virtio/virtiofs/src/aggregate.rs
++++ b/vm/devices/virtio/virtiofs/src/aggregate.rs
+@@ -27,7 +27,8 @@
+ /// Reserved file handle `open_dir` returns for the synthetic aggregate root;
+ /// `read_dir`/`read_dir_plus`/`release_dir` recognize it and serve the root
+ /// registry instead of the handle map. `u64::MAX` can't collide with a real
+-/// handle, since `HandleMap` allocates from 1 upward.
++/// handle: `HandleMap` allocates from 1 upward and never hands out
++/// `u64::MAX` (`HandleMap::can_insert`).
+ pub(crate) const SYNTHETIC_ROOT_FH: u64 = u64::MAX;
+ 
+ /// A single host folder exposed as a named child of the synthetic aggregate root.
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 26afe0915..b4b5a4435 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -1106,8 +1106,14 @@ fn is_current(&self, reservation: &HandleReservation) -> bool {
+         Arc::ptr_eq(&self.generation, &reservation.generation)
+     }
+ 
++    /// Whether the next handle may be handed out. `u64::MAX` never is: it is
++    /// the aggregate root's own handle (`aggregate::SYNTHETIC_ROOT_FH`), so a
++    /// table that reaches it is full. (A restored table starts above every
++    /// saved handle, so it never holds `u64::MAX` either.)
+     pub fn can_insert(&self) -> bool {
+-        self.next_handle != 0 && !self.values.contains_key(&self.next_handle)
++        self.next_handle != 0
++            && self.next_handle != u64::MAX
++            && !self.values.contains_key(&self.next_handle)
+     }
+ 
+     /// Retrieves a value from the map.
 ```
 
 ## Questions for Pedro (not bugs, yet)

@@ -1,0 +1,150 @@
+diff --git a/vm/devices/virtio/virtiofs/src/aggregate.rs b/vm/devices/virtio/virtiofs/src/aggregate.rs
+index 5b9694132..bbf05e91f 100644
+--- a/vm/devices/virtio/virtiofs/src/aggregate.rs
++++ b/vm/devices/virtio/virtiofs/src/aggregate.rs
+@@ -27,7 +27,8 @@
+ /// Reserved file handle `open_dir` returns for the synthetic aggregate root;
+ /// `read_dir`/`read_dir_plus`/`release_dir` recognize it and serve the root
+ /// registry instead of the handle map. `u64::MAX` can't collide with a real
+-/// handle, since `HandleMap` allocates from 1 upward.
++/// handle: `HandleMap` allocates from 1 upward and never hands out
++/// `u64::MAX` (`HandleMap::can_insert`).
+ pub(crate) const SYNTHETIC_ROOT_FH: u64 = u64::MAX;
+ 
+ /// A single host folder exposed as a named child of the synthetic aggregate root.
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 26afe0915..b4b5a4435 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -1106,8 +1106,14 @@ fn is_current(&self, reservation: &HandleReservation) -> bool {
+         Arc::ptr_eq(&self.generation, &reservation.generation)
+     }
+ 
++    /// Whether the next handle may be handed out. `u64::MAX` never is: it is
++    /// the aggregate root's own handle (`aggregate::SYNTHETIC_ROOT_FH`), so a
++    /// table that reaches it is full. (A restored table starts above every
++    /// saved handle, so it never holds `u64::MAX` either.)
+     pub fn can_insert(&self) -> bool {
+-        self.next_handle != 0 && !self.values.contains_key(&self.next_handle)
++        self.next_handle != 0
++            && self.next_handle != u64::MAX
++            && !self.values.contains_key(&self.next_handle)
+     }
+ 
+     /// Retrieves a value from the map.
+@@ -1791,8 +1797,8 @@ fn plain_readdir_revalidates_sandbox_ancestors() {
+     fn unused_reservations_release_on_drop() {
+         let root = tempfile::tempdir().unwrap();
+         let fs = VirtioFs::new(root.path(), None).unwrap();
+-        fs.inner.files.write().next_handle = u64::MAX;
+-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
++        fs.inner.files.write().next_handle = u64::MAX - 1;
++        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX - 1;
+ 
+         let file = fs.reserve_file().unwrap();
+         let inode = fs.reserve_inode().unwrap();
+@@ -1801,8 +1807,8 @@ fn unused_reservations_release_on_drop() {
+         drop(file);
+         drop(inode);
+ 
+-        assert_eq!(fs.reserve_file().unwrap().reservation.handle, u64::MAX);
+-        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX);
++        assert_eq!(fs.reserve_file().unwrap().reservation.handle, u64::MAX - 1);
++        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX - 1);
+     }
+ 
+     #[test]
+@@ -1862,7 +1868,7 @@ fn create_releases_inode_when_file_reservation_fails() {
+         let root = tempfile::tempdir().unwrap();
+         let fs = VirtioFs::new(root.path(), None).unwrap();
+         fs.inner.files.write().next_handle = 0;
+-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
++        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX - 1;
+ 
+         let result = fs.create(
+             &request(FUSE_ROOT_ID),
+@@ -1872,7 +1878,7 @@ fn create_releases_inode_when_file_reservation_fails() {
+ 
+         assert!(matches!(result, Err(lx::Error::ENOSPC)));
+         assert!(!root.path().join("file").exists());
+-        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX);
++        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX - 1);
+     }
+ 
+     #[test]
+@@ -1880,8 +1886,8 @@ fn create_releases_both_reservations_on_host_failure() {
+         let root = tempfile::tempdir().unwrap();
+         std::fs::write(root.path().join("file"), b"original").unwrap();
+         let fs = VirtioFs::new(root.path(), None).unwrap();
+-        fs.inner.files.write().next_handle = u64::MAX;
+-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
++        fs.inner.files.write().next_handle = u64::MAX - 1;
++        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX - 1;
+ 
+         let result = fs.create(
+             &request(FUSE_ROOT_ID),
+@@ -1898,8 +1904,8 @@ fn create_releases_both_reservations_on_host_failure() {
+             std::fs::read(root.path().join("file")).unwrap(),
+             b"original"
+         );
+-        assert_eq!(fs.reserve_file().unwrap().reservation.handle, u64::MAX);
+-        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX);
++        assert_eq!(fs.reserve_file().unwrap().reservation.handle, u64::MAX - 1);
++        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX - 1);
+     }
+ 
+     #[test]
+@@ -1912,7 +1918,7 @@ fn deduplicated_inode_releases_unused_reservation() {
+             .lookup_child(lx::LxStr::from_bytes(b"file"))
+             .unwrap();
+         let (existing, node_id) = fs.insert_inode(inode).unwrap();
+-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
++        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX - 1;
+ 
+         let reservation = fs.reserve_inode().unwrap();
+         let (inode, _) = root_inode
+@@ -1922,7 +1928,7 @@ fn deduplicated_inode_releases_unused_reservation() {
+ 
+         assert!(Arc::ptr_eq(&existing, &reused));
+         assert_eq!(reused_node_id, node_id);
+-        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX);
++        assert_eq!(fs.reserve_inode().unwrap().reservation.handle, u64::MAX - 1);
+     }
+ 
+     #[test]
+@@ -2038,11 +2044,17 @@ fn inode_reservation_does_not_survive_destroy() {
+ 
+     #[test]
+     fn handle_map_stops_after_max_handle() {
+-        let mut handles = HandleMap::starting_at(u64::MAX);
++        // `u64::MAX` is the aggregate root's own handle, never handed out.
++        let mut handles = HandleMap::starting_at(u64::MAX - 1);
+ 
+-        assert_eq!(handles.insert("last"), Some(u64::MAX));
+-        assert_eq!(handles.get(u64::MAX), Some(&"last"));
++        assert_eq!(handles.insert("last"), Some(u64::MAX - 1));
++        assert_eq!(handles.get(u64::MAX - 1), Some(&"last"));
+         assert_eq!(handles.insert("overflow"), None);
++        assert_eq!(handles.reserve().map(|r| r.handle), None);
++
++        let mut handles = HandleMap::<&str>::starting_at(u64::MAX);
++        assert_eq!(handles.insert("reserved"), None);
++        assert_eq!(handles.get(u64::MAX), None);
+     }
+ 
+     #[test]
+@@ -2081,11 +2093,11 @@ fn handle_map_ignores_stale_reservation_release() {
+ 
+     #[test]
+     fn handle_map_reuses_latest_released_reservation() {
+-        let mut handles = HandleMap::starting_at(u64::MAX);
++        let mut handles = HandleMap::starting_at(u64::MAX - 1);
+ 
+         let reservation = handles.reserve().unwrap();
+-        assert_eq!(reservation.handle, u64::MAX);
++        assert_eq!(reservation.handle, u64::MAX - 1);
+         handles.release_reservation(&reservation);
+-        assert_eq!(handles.insert("last"), Some(u64::MAX));
++        assert_eq!(handles.insert("last"), Some(u64::MAX - 1));
+     }
+ }
