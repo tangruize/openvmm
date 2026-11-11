@@ -750,7 +750,7 @@ all of them.
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |
 | 5. The operations' meaning (the bytes read and written) | deferred |
-| 6. Snapshots | specified earlier, on the snapshot spec's branch |
+| 6. Snapshots | virtio-fs's own save and restore (`save_microvm_state`, `restore_microvm_state`, `validate_microvm_state`): not started. (The earlier snapshot spec, on its own branch, is of the VM-level orchestration, `vmm_core/state_unit`, not of virtio-fs's state.) Design prep 2026-11-11 |
 
 **Open items of the FUSE-level spec** (2026-11-10), to come back to:
 1. **When an operation fails** (started 2026-11-10; Jay's style). Each
