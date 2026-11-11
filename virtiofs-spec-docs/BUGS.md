@@ -348,6 +348,17 @@ link, which is simpler to set up than the link and rename above).
 - **Host hard links between a writable and a read-only path**, which the
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
   file itself, and its other names").
+- **Mount points inside a microVM share.** `openat2` with
+  `RESOLVE_BENEATH` keeps every path beneath the share's root, but does not
+  stop it from crossing a mount point inside the share (`LxVolume`'s doc:
+  "Mount crossings ... are not restricted"): with a bind mount of, say, the
+  host's `/var` at `<share>/data`, the guest reads `/var` through
+  `data/...`. The spec's confinement claim assumes that a microVM share
+  contains no mount point (only the host's setup can put one there). Is
+  that the intent? If so, adding `RESOLVE_NO_XDEV` to `openat2` (for
+  `confine_paths`, or the microVM's volumes) would let the kernel enforce
+  it, and the assumption would go; if a share may contain mounts on
+  purpose, the claim is "beneath the root in the host's namespace" only.
 - **A directory listing is filtered once, when it starts (a note, not a
   bug).** In the microVM, a directory handle's listing is cached at its
   first read (`VirtioFsFile::directory_snapshot`,

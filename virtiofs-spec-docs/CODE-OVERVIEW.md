@@ -900,11 +900,15 @@ all of them.
      (and so nothing outside it), and `lxutil`'s trusted contracts say
      which object of the model a call acts on; confinement then follows in
      the spec, and the trusted words above become a contract.
-   - *Decisions still open:* (a) mount points inside a share
-     (`RESOLVE_BENEATH` does not stop a path from crossing into a
-     filesystem mounted inside the share): a host assumption ("no mount
-     inside a share"), or a claim of "beneath the root in the namespace"
-     only; (b) Windows (no `openat2`: WSL-style links, which Windows does
+   - *Decided (a), 2026-11-10: mount points inside a share.*
+     `RESOLVE_BENEATH` does not stop a path from crossing into a filesystem
+     mounted inside the share (`LxVolume`'s doc: "Mount crossings ... are
+     not restricted"); only the host's setup can put a mount there. The
+     claim assumes, as a host assumption, that a share contains no mount
+     point, so that "beneath the root" is "inside the share". Pedro's code
+     does not state that assumption: a question for him (`BUGS.md`; if he
+     confirms, `RESOLVE_NO_XDEV` would let the kernel enforce it).
+   - *Decisions still open:* (b) Windows (no `openat2`: WSL-style links, which Windows does
      not follow, and virtio-fs's walk of each path, `validate_confined_paths`,
      which refuses a symbolic link on the way): trust it and mark it first
      for a proof, or leave Windows out of the claim; and check that `lstat`

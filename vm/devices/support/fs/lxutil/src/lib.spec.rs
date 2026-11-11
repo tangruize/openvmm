@@ -11,6 +11,9 @@
 // handling and virtio-fs's walk of each path before it is used
 // (`validate_confined_paths`) do it; not verified. Limits (`LxVolume`'s doc):
 // mount points inside the share and existing hard links are not restricted.
+// ASSUMED (a host assumption, decided 2026-11-10): a share contains no mount
+// point, so "beneath the root" is "inside the share" (only the host's setup
+// can put one there; a question for Pedro, `BUGS.md`).
 // See `virtiofs-spec-docs/CODE-OVERVIEW.md`, property 1 (confinement).
 
 use super::LxVolume;
