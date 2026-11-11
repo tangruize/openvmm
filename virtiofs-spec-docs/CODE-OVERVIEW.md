@@ -41,10 +41,11 @@ would still hold (`logs/gateway/passwd` is a visible name, and the
 operation was allowed on it), but the guest would read the host's
 `/etc/passwd`. Confinement is what rules that out.
 
-What neither part says yet, and a model of the host would: *which* object
-a name reaches. So the spec cannot yet say that a hidden object is not
-reached through another name (pinned identities), that a read-only file is
-not changed through a writable hard link, that the share's root is the
+The host model (`lxutil/src/host_t.rs`, started 2026-11-11) says *which*
+object a name reaches: every name of a node names the node's object on the
+disk, and a hidden object is not reached through another name (pinned
+identities). The spec does not yet say that a read-only file is not
+changed through a writable hard link, that the share's root is the
 intended directory, or that a path passes through no symbolic link
 (virtio-fs's own walk, which is defense in depth on top of the kernel's
 guard). And it rests on host assumptions: no other host process changes
@@ -574,14 +575,13 @@ trusted, not modeled. Confidentiality's path rules (a lookup succeeds only
 for a visible path; a traverse-only directory lists only the entries that
 lead to allowed paths) are the same. The exception is the identity-based
 hiding (the volume's pinned identities): it is about which object is at a
-path, which only the host knows. So until the spec has a model of the host,
-`lookup`'s contract says "some object" at the path, and does not enforce
-the pinned rule. The model, when it comes (for the pinned identities, or
-for functional correctness): a map path -> (object, kind) per volume, as
-ghost state lent with the rest (it changes with `mkdir`, `rename`,
-`unlink`), tied to the host by `lxutil`'s trusted contracts (`lstat(p)`
-returns what the map has at `p`; `mkdir(p)` adds a directory at `p`; ...),
-which take it as a ghost argument.
+path, which only the host knows. The host model (written 2026-11-11,
+`lxutil/src/host_t.rs`) is that: a map path -> (device, inode number, kind)
+per volume (`HostDisk`), in a disk value per volume kept in `g` (not in the
+view), tied to the host by `lxutil`'s trusted contracts (`lstat(p)` returns
+what the map has at `p`; `mkdir(p)` adds a directory at `p`; ...), which
+take it as a ghost argument. With it, `wf` states the pinned rule: a pinned
+object has a name only at its own path.
 
 **How a request gets the ghost state: the trusted keeper** (decided
 2026-11-10; `virtiofs/src/fs_ghost_t.rs`). Every operation takes the file

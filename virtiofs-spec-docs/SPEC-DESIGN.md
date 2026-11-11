@@ -43,11 +43,13 @@ Part 1 alone is not enough. If the volume followed a host link
 `logs/gateway` -> `/etc`, a read of the visible name `logs/gateway/passwd`
 would meet every contract and still read the host's `/etc/passwd`.
 
-**What neither part says**, for want of a host model: which object a name
-reaches. So the spec does not say that a hidden object is not reached
-through another name (pinned identities), that a read-only file is not
-changed through a writable hard link, that the share's root is the
-intended directory, or that no path passes through a link.
+**What the host model adds** (`lxutil/src/host_t.rs`, started 2026-11-11):
+which object a name reaches. With it, the spec says that every name of a
+node names the node's object on the disk, and that a hidden object is not
+reached through another name (pinned identities). It does not yet say
+that a read-only file is not changed through a writable hard link, that
+the share's root is the intended directory, or that no path passes
+through a link.
 
 **Host assumptions.** The spec holds only if:
 
@@ -209,7 +211,8 @@ G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
 and `fails_with` (`fuse/src/lib.spec.rs:383`) means: if any rule applies,
 the operation fails, with the code of one of the rules that apply, or with
 a host error (`host_error`). The order in which the code checks does not
-matter. virtio-fs answers `host_error` "any code" (it has no host model), so
+matter. virtio-fs answers `host_error` "any code" (the host model does not
+say which errors the host gives), so
 what the proof must show is that the operation fails, whenever a rule
 applies.
 
@@ -466,8 +469,9 @@ What is trusted is that `lxutil` always uses these flags.
 microVM walks each name of the node and refuses a link on the way (`ELOOP`,
 `validate_confined_paths`), and refuses an opened link
 (`reject_opened_symlink`). It is defense in depth; the claim rests on the
-kernel's guard. (Stating it would need a host model: whether a path
-passes through a link is a fact about the host.)
+kernel's guard. (Stating it needs more of the host model than is written:
+whether a path passes through a link, which the disk's objects do not say
+yet.)
 
 **In the contracts, from virtio-fs's checks** (each a question virtio-fs
 answers): hidden paths (`is_hidden`, `EACCES`), names with `\` or `:`
@@ -540,14 +544,13 @@ Spots that look hard:
 
 Each is in `CODE-OVERVIEW.md`'s open items or status table.
 
-- **The host model** (items 3, 8, 9): pinned identities, host hard links
-  between a read-only and a writable path, the share's root's identity,
-  a name that leads to the root's own object, the symbolic-link walk,
-  `DT_UNK` entries, and the confinement fact as a contract. (The host
-  model's first part is written: `lxutil/src/host_t.rs`, the disks in `g`,
-  and `wf`'s tie of each node's names to its object; with it, bug 3's rule
-  is in `create`'s contract, and the pinned identities are in `wf`: a
-  pinned object has a name only at its own path, and stays on the disk.)
+- **The rest of the host model** (items 3, 8, 9): host hard links between
+  a read-only and a writable path, the share's root's identity, a name
+  that leads to the root's own object, the symbolic-link walk, `DT_UNK`
+  entries, and the confinement fact as a contract. (Done with its first
+  part: `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of each
+  node's names to its object, bug 3's rule in `create`'s contract, and the
+  pinned identities in `wf`.)
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on
