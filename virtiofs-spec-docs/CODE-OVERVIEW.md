@@ -44,9 +44,10 @@ operation was allowed on it), but the guest would read the host's
 The host model (`lxutil/src/host_t.rs`, started 2026-11-11) says *which*
 object a name reaches: every name of a node names the node's object on the
 disk, and a hidden object is not reached through another name (pinned
-identities). The spec does not yet say that a read-only file is not
-changed through a writable hard link, that the share's root is the
-intended directory, or that a path passes through no symbolic link
+identities), no object has both a writable path and a visible read-only
+one (host hard links), and the share's root is the intended directory
+(its identity, in `owns`). The spec does not yet say that a path passes
+through no symbolic link
 (virtio-fs's own walk, which is defense in depth on top of the kernel's
 guard). And it rests on host assumptions: no other host process changes
 the share, a share contains no mount point (on Linux), and different
