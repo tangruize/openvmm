@@ -90,6 +90,9 @@ pub struct VirtioFsGhostView {
     /// This file system is an aggregate: node 1 is its synthetic root, not
     /// in the inode table (`InodeMap::aggregate`). Fixed at creation.
     pub aggregate: bool,
+    /// This file system is a microVM's (it has the microVM profile, which
+    /// adds checks). Fixed at creation.
+    pub microvm: bool,
 }
 
 /// The value of the inode table's ghost piece: the inodes' views, and the ids
@@ -120,6 +123,8 @@ pub tracked struct VirtioFsGhost {
     pub tracked files: FracGhost<Map<u64, VirtioFsFileView>>,
     /// The ghost key that the next inode created gets.
     pub ghost next_key: int,
+    /// The file system is a microVM's (`owns` ties it to the profile).
+    pub ghost microvm: bool,
 }
 
 impl View for VirtioFsGhost {
@@ -137,6 +142,7 @@ impl View for VirtioFsGhost {
             aliases: Map::new(t.inodes.dom().remove(fuse::protocol::FUSE_ROOT_ID), |n: u64| self.aliases@[t.keys[n]]),
             files: self.files@,
             aggregate: t.aggregate,
+            microvm: self.microvm,
         }
     }
 }
@@ -304,6 +310,7 @@ impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
     closed spec fn owns(&self, g: &VirtioFsGhost) -> bool {
         &&& self.inner.inodes.pred().id == g.inodes.id()
         &&& self.inner.files.pred().id == g.files.id()
+        &&& g.microvm == (self.inner.microvm_profile is Some)
     }
 }
 
@@ -317,6 +324,7 @@ impl FuseOwns<VirtioFsGhost> for crate::microvm::device::DormantMicrovmFs {
             aliases: Map::empty(),
             files: Map::empty(),
             aggregate: false,
+            microvm: true,
         }
     }
 }
@@ -467,6 +475,7 @@ impl FuseState for VirtioFsGhostView {
             aliases: Map::empty(),
             files: Map::empty(),
             aggregate: self.aggregate,
+            microvm: self.microvm,
         }
     }
 
@@ -511,6 +520,25 @@ impl FuseState for VirtioFsGhostView {
     /// "When an operation fails").
     closed spec fn host_error(code: i32) -> bool {
         true
+    }
+
+    /// A flag outside those `util::create_flags` accepts.
+    closed spec fn bad_create_flags(flags: u32) -> bool {
+        let supported = (lx::O_ACCESS_MASK | lx::O_CREAT | lx::O_EXCL | lx::O_TRUNC | lx::O_APPEND
+            | lx::O_NONBLOCK | lx::O_DSYNC | lx::O_DIRECT | lx::O_DIRECTORY | lx::O_NOATIME
+            | lx::O_SYNC | lx::__FMODE_EXEC | lx::O_LARGEFILE | lx::O_NOFOLLOW) as u32;
+        flags & !supported != 0u32
+    }
+
+    /// In the microVM (`microvm::fs::validate_symlink_target`): an empty
+    /// target (`ENOENT`), or one longer than 4095 bytes (`ENAMETOOLONG`,
+    /// `MAX_SYMLINK_TARGET_BYTES`), as Linux does.
+    closed spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool {
+        &&& self.microvm
+        &&& {
+            ||| target.len() == 0 && code == lx::ENOENT
+            ||| target.len() > 4095 && code == lx::ENAMETOOLONG
+        }
     }
 }
 

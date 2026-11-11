@@ -707,7 +707,8 @@ all of them.
 **Open items of the FUSE-level spec** (2026-11-10), to come back to:
 1. **When an operation fails** (started 2026-11-10; Jay's style). Each
    operation gets a set of rules, each a condition and its code, at the
-   FUSE level (`FuseState`, `fuse/src/lib.spec.rs`: e.g. `unlink_errors`),
+   FUSE level (`FuseState`, `fuse/src/lib.spec.rs`: e.g. `entry_errors`,
+   shared by the operations that remove or make an entry),
    and its contract says `fails_with(r, rules)`: if any rule applies, the
    operation fails, with the code of one of the rules that apply, or with a
    host error. The order in which the code checks does not matter. The
@@ -719,7 +720,15 @@ all of them.
    the file system is an aggregate). Codes are compared as numbers
    (`e.code() == lx::EROFS`, `lx/src/error.spec.rs`): Verus refuses
    `lx::Error::EROFS` (a public constant built from a private field).
-   Done: `unlink`, `rmdir`, `rename`. Still to do: the other operations.
+   Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
+   `symlink`, `link`. More FUSE-level questions: `bad_create_flags` (flags
+   that `util::create_flags` refuses, from lx's constants, which differ by
+   CPU architecture) and `bad_symlink_target` (microVM only: an empty
+   target, `ENOENT`; over 4095 bytes, `ENAMETOOLONG`); for it the view
+   records whether the file system is a microVM's, which `owns` ties to its
+   profile. Left under "host": `create` on an existing file (bug 3's check:
+   whether a file exists is the host's to say). Still to do: the other
+   operations.
    Left out of the rules, for now (failures the code checks that no rule
    names; harmless while `host_error` is "any code", but needed as rules if
    a host model narrows it): a hidden path for a new entry (`EACCES`), the
@@ -762,7 +771,8 @@ all of them.
    system's) and `g.wf()`, both declared at the FUSE level (`FuseOwns`,
    `FuseGhost`). `owns` now says that the ids of `g`'s two table halves are
    the ones the file system's two table locks' rules pin
-   (`inner.inodes.pred().id`, `inner.files.pred().id`); the inode table
+   (`inner.inodes.pred().id`, `inner.files.pred().id`), and that `g`
+   records whether the file system has the microVM profile; the inode table
    records the ids of the `paths` and `aliases` maps (`wf`), and each
    inode's locks hold its entries of them. Left to the proof (TODO): the
    locks' creation (`InodeTableLocked::new_lock`, `FileTableLocked::new_lock`,

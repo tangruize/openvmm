@@ -89,9 +89,10 @@ pub struct CreateOut {
 /// - the file system does not support it (`ENOSYS`, the default bodies).
 ///
 /// Where an operation must fail: its error rules (`FuseState`, e.g.
-/// `unlink_errors`: each a condition and its code) and `fails_with`: if
+/// `entry_errors`: each a condition and its code) and `fails_with`: if
 /// any rule applies, it fails, with the code of one of the rules that apply,
-/// or a host error. So far for `unlink`, `rmdir` and `rename`.
+/// or a host error. So far for the operations that change names (`unlink`,
+/// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`).
 ///
 /// The other reasons are not yet in the contracts, so that they do not yet
 /// say when an operation must succeed: a limit reached (the counts and caps
@@ -244,6 +245,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.symlink_errors(_request@.node_id, _name@, _target@)),
     ))]
     fn symlink(
         &self,
@@ -280,6 +283,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
     ))]
     fn mknod(
         &self,
@@ -315,6 +320,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
     ))]
     fn mkdir(
         &self,
@@ -352,7 +359,7 @@ where
                 Err(_) => final(g)@ == old(g)@,
             },
             // Fails where one of its rules applies.
-            G::V::fails_with(r, old(g)@.unlink_errors(_request@.node_id, _name@)),
+            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
     ))]
     fn unlink(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -384,8 +391,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
-            // Fails where one of its rules applies (`unlink`'s).
-            G::V::fails_with(r, old(g)@.unlink_errors(_request@.node_id, _name@)),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
     ))]
     fn rmdir(&self, _request: &Request, _name: &LxStr) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -468,6 +475,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.link_errors(_request@.node_id, _name@, _target)),
     ))]
     fn link(&self, _request: &Request, _name: &LxStr, _target: u64) -> lx::Result<fuse_entry_out> {
         Err(lx::Error::ENOSYS)
@@ -877,6 +886,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.create_errors(_request@.node_id, _name@, _arg.flags)),
     ))]
     fn create(
         &self,

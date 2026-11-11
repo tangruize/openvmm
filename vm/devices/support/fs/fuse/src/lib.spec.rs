@@ -161,6 +161,14 @@ pub trait FuseState: Sized {
     /// `code` is an error code the host may fail with.
     spec fn host_error(code: i32) -> bool;
 
+    /// `create`'s flags `flags` hold one that the file system does not
+    /// support.
+    spec fn bad_create_flags(flags: u32) -> bool;
+
+    /// The file system refuses `target` as a symbolic link's target, with
+    /// `code`.
+    spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool;
+
     // The rules built from the questions above, the same for every
     // filesystem: spec functions with bodies, which every implementor gets.
 
@@ -244,8 +252,10 @@ pub trait FuseState: Sized {
         }
     }
 
-    /// The rules of `unlink` and `rmdir` of `name` in directory `n`.
-    open spec fn unlink_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
+    /// The rules of changing the entry `name` in directory `n`: removing it
+    /// (`unlink`, `rmdir`), or making it (`create`, `mkdir`, `mknod`,
+    /// `symlink`, `link`).
+    open spec fn entry_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.is_synthetic(n) && c == lx::EROFS
             ||| !self.holds_node(n) && c == lx::EINVAL
@@ -255,6 +265,38 @@ pub trait FuseState: Sized {
                 ||| !Self::is_plain_name(name) && c == lx::EINVAL
                 ||| !self.can_write(n, self.child_path(n, name)) && c == lx::EROFS
             }
+        })
+    }
+
+    /// The rules of `create` of `name` in directory `n`, with flags
+    /// `flags`: `entry_errors`, and the flags.
+    open spec fn create_errors(&self, n: u64, name: Seq<u8>, flags: u32) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.entry_errors(n, name).contains(c)
+            ||| Self::bad_create_flags(flags) && c == lx::EINVAL
+        })
+    }
+
+    /// The rules of `symlink` of `name` in directory `n`, to `target`:
+    /// `entry_errors`, and the target.
+    open spec fn symlink_errors(&self, n: u64, name: Seq<u8>, target: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.entry_errors(n, name).contains(c)
+            ||| self.bad_symlink_target(target, c)
+        })
+    }
+
+    /// The rules of `link` of `name` in directory `n`, for node `target`:
+    /// `entry_errors`; the guest holds `target`, in `n`'s share; and the
+    /// guest may change `target` (else `EXDEV`: a new name of an object the
+    /// guest may not change is refused as if it were on another file
+    /// system).
+    open spec fn link_errors(&self, n: u64, name: Seq<u8>, target: u64) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.entry_errors(n, name).contains(c)
+            ||| !self.holds_node(target) && c == lx::EINVAL
+            ||| self.holds_node(n) && self.holds_node(target) && !self.same_share(n, target) && c == lx::EXDEV
+            ||| self.holds_node(target) && !self.node_can_write(target) && c == lx::EXDEV
         })
     }
 
@@ -377,6 +419,14 @@ impl FuseState for () {
 
     open spec fn host_error(code: i32) -> bool {
         true
+    }
+
+    open spec fn bad_create_flags(flags: u32) -> bool {
+        false
+    }
+
+    open spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool {
+        false
     }
 }
 
