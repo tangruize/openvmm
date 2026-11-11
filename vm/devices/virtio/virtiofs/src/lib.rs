@@ -537,6 +537,12 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         }
         let inode = self.get_inode(request.node_id())?;
         let target_inode = self.get_inode(target)?;
+        // Like Linux's linkat, refuse a new name for an object whose names are
+        // all gone: its stored path may now name another object, which the
+        // host would link instead.
+        if target_inode.aliases().is_empty() {
+            return Err(lx::Error::ENOENT);
+        }
         // Like Linux's linkat, which reports a read-only destination before a
         // link across filesystems, check where the link would go first.
         self.check_writable(&inode)?;

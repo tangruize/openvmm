@@ -168,6 +168,10 @@ pub trait FuseState: Sized {
     /// its directories).
     spec fn names_visible(&self, n: u64) -> bool;
 
+    /// Node `n` still has a name in its share: a node whose names are all
+    /// gone (`unlink`, `rename` over it) may still be used, but has none.
+    spec fn has_names(&self, n: u64) -> bool;
+
     /// The guest may reach an object of file type `kind` at path `p` of
     /// `parent`'s share, by the path rules. (The rule on pinned identities,
     /// about which object is at `p`, waits for a model of the host.)
@@ -502,7 +506,8 @@ pub trait FuseState: Sized {
     /// `entry_errors`; the guest holds `target`, in `n`'s share; and the
     /// guest may change `target` (else `EXDEV`: a new name of an object the
     /// guest may not change is refused as if it were on another file
-    /// system).
+    /// system); and `target` still has a name (else `ENOENT`, as Linux
+    /// refuses a new name for an unlinked file).
     open spec fn link_errors(&self, n: u64, name: Seq<u8>, target: u64) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
@@ -510,6 +515,7 @@ pub trait FuseState: Sized {
             ||| self.hidden_names(target, c)
             ||| self.holds_node(n) && self.holds_node(target) && !self.same_share(n, target) && c == lx::EXDEV
             ||| self.holds_node(target) && !self.node_can_write(target) && c == lx::EXDEV
+            ||| self.holds_node(target) && !self.has_names(target) && c == lx::ENOENT
         })
     }
 
@@ -686,6 +692,10 @@ impl FuseState for () {
     }
 
     open spec fn names_visible(&self, n: u64) -> bool {
+        true
+    }
+
+    open spec fn has_names(&self, n: u64) -> bool {
         true
     }
 

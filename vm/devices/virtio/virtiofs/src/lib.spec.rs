@@ -678,6 +678,12 @@ impl FuseState for VirtioFsGhostView {
         }
     }
 
+    /// The node's names are not all gone (`link` checks its aliases: its
+    /// main path outlives them, and may name another object by then).
+    closed spec fn has_names(&self, n: u64) -> bool {
+        !self.names_of(n).is_empty()
+    }
+
     /// In the microVM (`microvm::fs::validate_mknod_mode`): any file type
     /// but a regular file (or 0, which is one), a FIFO or a socket: never a
     /// device node.

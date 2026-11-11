@@ -15,6 +15,8 @@ Findings are ordered by severity.
 
 ## 1. `rename` of a name onto itself: the contract demands that names be dropped, and the code (after bug fix 2) keeps them
 
+*Status (2026-11-11): confirmed; fixed in the spec (`renamed`: `p == q` leaves the state as it is).*
+
 - Spec: `fuse/lib.rs:434-447` (`s.renamed(n, p, q, is_exchange(flags), final(g)@)`),
   `vfs/lib.spec.rs:504-511` (`renamed`, the non-exchange branch:
   `unlinked(n, q, mid)`, then `map_names(moved p->q)`).
@@ -35,6 +37,8 @@ Findings are ordered by severity.
   in the contract's `Ok` branch: `p == q ==> final(g)@ == s`.
 
 ## 2. `link` to a node that has no names left breaks `inv`, so `final(g).wf()` is false (and the code links the wrong object)
+
+*Status (2026-11-11): confirmed; fixed in the code (code change 26, `BUGS.md` bug 4: `link` refuses a target with no names, `ENOENT`) and the spec (question `has_names`, in `link`'s rules and success).*
 
 - Spec: `fuse/lib.rs:480-489` (`final(g)@ == s.after_link(target, ...)`,
   plus `final(g).wf()`). `vfs/lib.spec.rs:480-482` (`after_link` adds `p` to

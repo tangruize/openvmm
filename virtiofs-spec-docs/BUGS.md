@@ -327,6 +327,51 @@ link, which is simpler to set up than the link and rename above).
          // Reuse an existing node id for the same host file; see `DedupKey`
 ```
 
+## 4. A link to a file whose names are all gone links another file
+
+*Found 2026-11-11, in an independent review of the contracts against the
+code. Fixed: `patches/0006-virtiofs-link-refuses-an-object-with-no-names.patch`
+(applies after 0005).*
+
+**What goes wrong.** Each node keeps its names (aliases) and a main path,
+the name the code uses on the host. When the last name of a file is
+removed (`unlink`, or a `rename` over it), the node keeps its main path,
+which may then name another object: for example, the guest creates a new
+file at the same name. A `link` to the old node then calls
+`link_stat(target.get_path(), new_name)`, so the host links the **new**
+file, and the code adds the new name to the **old** node. The old node now
+has a name of another object, and its reply carries the new file's
+attributes. It also has a name that is not its main path, which breaks the
+spec's invariant (a node with names has its main path among them). A Linux
+guest kernel normally refuses such a link itself (its count of the file's
+links is 0), so only a guest whose kernel an attacker controls can send it.
+
+**The fix.** As Linux's `linkat` refuses a new name for a file whose links
+are all gone, `link` refuses a target node with no names left, with
+`ENOENT`, before the host is asked. Test: `microvm/policy_tests.rs`,
+`a_link_to_an_object_with_no_names_left_is_refused` (fails without the
+fix: the host links the new file as `b`).
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 151c3221a..c4da7ddd7 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -537,6 +537,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
+         }
+         let inode = self.get_inode(request.node_id())?;
+         let target_inode = self.get_inode(target)?;
++        // Like Linux's linkat, refuse a new name for an object whose names are
++        // all gone: its stored path may now name another object, which the
++        // host would link instead.
++        if target_inode.aliases().is_empty() {
++            return Err(lx::Error::ENOENT);
++        }
+         // Like Linux's linkat, which reports a read-only destination before a
+         // link across filesystems, check where the link would go first.
+         self.check_writable(&inode)?;
+```
+
 ## Questions for Pedro (not bugs, yet)
 
 - **Device nodes from `mknod`** (answered by Pedro, 2026-11-10: "the

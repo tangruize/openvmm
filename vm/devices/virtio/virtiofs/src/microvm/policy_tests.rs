@@ -392,6 +392,27 @@ fn renaming_a_name_onto_itself_keeps_its_names() {
 }
 
 #[test]
+fn a_link_to_an_object_with_no_names_left_is_refused() {
+    // Once every name of an object is gone, its stored path may name another
+    // object, so a new link to it must not reach the host.
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let out = lookup(&fs, "out").unwrap();
+    let (old, fh) = create(&fs, out, "a").unwrap();
+    release(&fs, old, fh);
+    fs.unlink(&request(out), name("a")).unwrap();
+    let (new, fh) = create(&fs, out, "a").unwrap();
+    release(&fs, new, fh);
+    assert_ne!(old, new);
+    assert_eq!(
+        error(fs.link(&request(out), name("b"), old)),
+        lx::Error::ENOENT
+    );
+    assert!(!share.path("out/b").exists());
+    assert!(fs.get_inode(old).unwrap().aliases().is_empty());
+}
+
+#[test]
 fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
     // One file with two names, one writable (`out/twin`) and one not
     // (`marker`): `open` refuses to truncate it, and so must a `create` at

@@ -484,6 +484,7 @@ where
                     &&& s.uses_node(_target)
                     &&& s.same_share(n, _target)
                     &&& s.node_can_write(_target)
+                    &&& s.has_names(_target)
                     &&& entry.nodeid == _target
                     &&& final(g)@ == s.after_link(_target, s.child_path(n, _name@))
                 },
