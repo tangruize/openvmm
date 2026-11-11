@@ -775,14 +775,20 @@ where
             match r {
                 // Succeeds only on a node the guest holds, and, to open a directory for
                 // writing or to truncate it, only if the guest may change it;
-                // hands out a new handle on it.
+                // hands out a new handle on it. On a synthetic node: hands out its
+                // own handle, and changes nothing.
                 Ok(out) => {
                     let s = old(g)@;
                     let n = _request@.node_id;
-                    &&& s.holds_node(n)
-                    &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
-                    &&& !s.holds_file(out.fh)
-                    &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
+                    if s.is_synthetic(n) {
+                        &&& s.is_synthetic_handle(out.fh)
+                        &&& final(g)@ == s
+                    } else {
+                        &&& s.holds_node(n)
+                        &&& (G::V::opens_for_writing(_flags) || G::V::truncates(_flags)) ==> s.node_can_write(n)
+                        &&& !s.holds_file(out.fh)
+                        &&& final(g)@ == s.after_open(out.fh, n, G::V::opens_for_writing(_flags))
+                    }
                 },
                 Err(_) => final(g)@ == old(g)@,
             },

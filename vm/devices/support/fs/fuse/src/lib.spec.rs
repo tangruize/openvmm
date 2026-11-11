@@ -98,8 +98,9 @@ pub trait FuseState: Sized {
     /// `n` is a node the guest holds, and a directory.
     spec fn is_dir(&self, n: u64) -> bool;
 
-    /// `n` is a node the file system made up, not a host object, which the
-    /// guest may not change (virtio-fs: an aggregate's root).
+    /// `n` is a node the file system made up, not a host object: the guest
+    /// always holds it, and may not change it (virtio-fs: an aggregate's
+    /// root, whose entries are the shares).
     spec fn is_synthetic(&self, n: u64) -> bool;
 
     /// Nodes `a` and `b` are in the same share.
@@ -126,6 +127,11 @@ pub trait FuseState: Sized {
 
     /// `fh` is an open handle the guest holds.
     spec fn holds_file(&self, fh: u64) -> bool;
+
+    /// `fh` is a synthetic node's own handle, which `open_dir` hands out for
+    /// it every time, and the guest always holds (virtio-fs: an aggregate
+    /// root's).
+    spec fn is_synthetic_handle(&self, fh: u64) -> bool;
 
     /// The node of the file open as `fh`.
     spec fn file_node(&self, fh: u64) -> u64;
@@ -295,16 +301,22 @@ pub trait FuseState: Sized {
     /// the guest holds `n`, or it is a synthetic node (`statfs`, with
     /// `synthetic_ok`).
     open spec fn node_errors(&self, n: u64, synthetic_ok: bool) -> ISet<i32> {
-        ISet::new(|c: i32| !self.holds_node(n) && !(synthetic_ok && self.is_synthetic(n)) && c == lx::EINVAL)
+        ISet::new(|c: i32| {
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| !synthetic_ok && self.is_synthetic(n) && c == lx::EINVAL
+        })
     }
 
     /// The rules of a request about node `n` through handle `fh`: the guest
-    /// holds `fh` (`EBADF`) and `n` (`EINVAL`), and `fh` is `n`'s (`EBADF`).
+    /// holds `fh` (`EBADF`) and `n` (`EINVAL`), and `fh` is `n`'s (`EBADF`);
+    /// and neither is synthetic (no file is open behind them).
     open spec fn handle_errors(&self, n: u64, fh: u64) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| !self.holds_file(fh) && c == lx::EBADF
             ||| !self.holds_node(n) && c == lx::EINVAL
             ||| self.holds_file(fh) && self.holds_node(n) && self.file_node(fh) != n && c == lx::EBADF
+            ||| self.is_synthetic_handle(fh) && c == lx::EBADF
+            ||| self.is_synthetic(n) && c == lx::EINVAL
         })
     }
 
@@ -371,7 +383,7 @@ pub trait FuseState: Sized {
     open spec fn link_errors(&self, n: u64, name: Seq<u8>, target: u64) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
-            ||| !self.holds_node(target) && c == lx::EINVAL
+            ||| (!self.holds_node(target) || self.is_synthetic(target)) && c == lx::EINVAL
             ||| self.holds_node(n) && self.holds_node(target) && !self.same_share(n, target) && c == lx::EXDEV
             ||| self.holds_node(target) && !self.node_can_write(target) && c == lx::EXDEV
         })
@@ -431,19 +443,19 @@ pub trait FuseState: Sized {
     open spec fn open_errors(&self, n: u64, flags: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| Self::bad_open_flags(flags) && c == lx::EINVAL
-            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| (!self.holds_node(n) || self.is_synthetic(n)) && c == lx::EINVAL
             ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
         })
     }
 
     /// The rules of `open_dir`: `open`'s, but a synthetic node may be opened
-    /// though the guest does not hold it (virtio-fs: an aggregate's root).
+    /// (with its own handle, and only its flags checked).
     open spec fn open_dir_errors(&self, n: u64, flags: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| Self::bad_open_flags(flags) && c == lx::EINVAL
-            ||| !self.holds_node(n) && !self.is_synthetic(n) && c == lx::EINVAL
-            ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && !self.is_synthetic(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
         })
     }
@@ -520,6 +532,10 @@ impl FuseState for () {
     }
 
     open spec fn is_synthetic(&self, n: u64) -> bool {
+        false
+    }
+
+    open spec fn is_synthetic_handle(&self, fh: u64) -> bool {
         false
     }
 

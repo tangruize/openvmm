@@ -264,7 +264,7 @@ the whole map, and the rest sit where the code protects the data:
 
 | Ghost map | Key -> value | Mirrors | Kind | Pieces |
 |---|---|---|---|---|
-| `inodes` | node id -> the inode's view: its object, kind, and its volume's `readonly` flag and policy | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `VirtioFsGhost` |
+| `inodes` | node id -> the inode's view: its volume, kind, and its volume's `readonly` flag and policy | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `VirtioFsGhost` |
 | `paths` | node id -> main path | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 2 |
 | `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 3 |
 | `files` | handle -> the open file's view: its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `VirtioFsGhost` |
@@ -313,8 +313,9 @@ rules without naming virtiofs's types: "Where the contracts are", below.
 
 **What an `inodes` entry holds: the inode's view.** `VirtioFsInode`'s
 view is what the spec can read of it through `&self`, its plain fields:
-its object (`(volume id, inode_nr)`, as the inode table keys it,
-`DedupKey::Ino`, `inode.rs:567`), its kind (`file_type`, an `lx::mode_t`,
+its volume's id (its share; not its host inode number, which only a
+model of the host could use, and which `after_reach` cannot know: dropped
+2026-11-10), its kind (`file_type`, an `lx::mode_t`,
 the code's own type), and its volume's `readonly` flag and policy (the
 policy's view, `SubtreePolicyView`). All are set when the inode is made
 and never change. Its locked parts (`path`, `aliases`) and its count are
@@ -769,14 +770,28 @@ all of them.
    reply is an encoded buffer, not yet decoded by the spec; the
    traverse-only listing rule (only the entries that lead to allowed paths)
    is part of confidentiality.
-5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
-   sentinel handle, `get_attr` on it. Known wrong until then: the success
-   clauses of `open_dir`, `lookup`, `get_attr` and `statfs` say the guest
-   holds the node (`lookup`: a directory), but on an aggregate's root (not
-   in the inode table) each succeeds (`open_dir` with a sentinel handle,
-   `SYNTHETIC_ROOT_FH`, not in the file table either). Their error rules
-   already allow for it: they leave a synthetic node out (`is_synthetic`),
-   or, for `lookup` and `get_attr`, say nothing of it yet.
+5. **The aggregate's synthetic root** (done 2026-11-10). Node 1 of an
+   aggregate is not in the inode table, and its entries are the shares.
+   The FUSE contracts stay as they are, but one: virtio-fs's answers have
+   two cases, node 1 of an aggregate and every other node. Its view records
+   the shares (`shares`: name -> the share's volume, read-only flag, policy
+   and root path); node 1 is held (`holds_node`), a directory, and never
+   writable; `may_reach(1, p, _)`: `p` is a share's name; `after_reach(1,
+   ...)`: the node reached is that share's root, in that share, with the
+   root's path there (`""`, or a single-file share's file), not `[name]`
+   (this was wrong before). Node 1's own handle (`SYNTHETIC_ROOT_FH`, which
+   `open_dir` hands out every time, not in the file table) is held, and its
+   node is 1 (`holds_file`, `file_node`). The one FUSE change: `open_dir`'s
+   success clause on a synthetic node (new question
+   `is_synthetic_handle`): its own handle, nothing changes. Error rules
+   adjusted where a held node 1 changed them (`open`, `link` to node 1,
+   `read_link`, a handle request on node 1 or with its handle). The view's
+   `inv` says the shares' names are plain. Left (TODO, spec): tying `g`'s
+   shares to the aggregate's registry (`AggregateState`, behind a
+   `parking_lot` lock; fixed after creation in the microVM; a non-microVM
+   aggregate's `add_child`/`remove_child` change it outside any request, and
+   are not covered); `lookup` in node 1 of a name that is no share
+   (`ENOENT`) is not among the error rules.
 6. **Visibility at the time of an operation on a node.** Every operation on
    a node the guest holds first re-checks, at that moment, that none of the
    node's names is hidden and that none passes through a symbolic link

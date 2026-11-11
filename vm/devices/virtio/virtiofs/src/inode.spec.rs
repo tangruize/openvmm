@@ -101,7 +101,7 @@ impl View for VirtioFsInode {
 
     closed spec fn view(&self) -> VirtioFsInodeView {
         VirtioFsInodeView {
-            object: (self.volume.id, self.inode_nr),
+            volume: self.volume.id,
             kind: self.file_type,
             readonly: self.volume.readonly,
             policy: self.volume.policy@,

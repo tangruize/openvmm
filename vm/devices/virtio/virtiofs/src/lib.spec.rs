@@ -53,9 +53,9 @@ pub struct ExAnyhowError(anyhow::Error);
 /// path and names are behind locks, in `VirtioFsGhostView`'s `paths` and
 /// `aliases`).
 pub struct VirtioFsInodeView {
-    /// Its host object, as the inode table identifies it (`DedupKey::Ino`):
-    /// its volume's id and its inode number.
-    pub object: (u32, u64),
+    /// Its volume's id: its share. (Not its host inode number: which host
+    /// object an inode is waits for a model of the host.)
+    pub volume: u32,
     /// Its file type, the `S_IFMT` bits (`file_type`).
     pub kind: lx::mode_t,
     /// Its volume's read-only flag.
@@ -76,6 +76,16 @@ pub struct VirtioFsFileView {
     pub writable: bool,
 }
 
+/// A share of an aggregate, as its root inode will be: its volume's id,
+/// read-only flag and policy, and the root's path in it (`root_entry`: empty
+/// for a folder, the file's name for a single-file share).
+pub struct VirtioFsShareView {
+    pub volume: u32,
+    pub readonly: bool,
+    pub policy: SubtreePolicyView,
+    pub root: PathView,
+}
+
 /// virtio-fs's state, as the guest sees it.
 pub struct VirtioFsGhostView {
     /// Each node id in the inode table, and its inode's view.
@@ -93,6 +103,9 @@ pub struct VirtioFsGhostView {
     /// This file system is a microVM's (it has the microVM profile, which
     /// adds checks). Fixed at creation.
     pub microvm: bool,
+    /// An aggregate's shares, by name: the entries of its synthetic root.
+    /// Fixed at creation in the microVM.
+    pub shares: Map<Seq<u8>, VirtioFsShareView>,
 }
 
 /// The value of the inode table's ghost piece: the inodes' views, and the ids
@@ -125,6 +138,11 @@ pub tracked struct VirtioFsGhost {
     pub ghost next_key: int,
     /// The file system is a microVM's (`owns` ties it to the profile).
     pub ghost microvm: bool,
+    /// An aggregate's shares (TODO, spec: tie them to the aggregate's
+    /// registry, `AggregateState`; it is behind a `parking_lot` lock, which
+    /// Verus cannot read, and in the microVM it never changes after
+    /// creation).
+    pub ghost shares: Map<Seq<u8>, VirtioFsShareView>,
 }
 
 impl View for VirtioFsGhost {
@@ -143,6 +161,7 @@ impl View for VirtioFsGhost {
             files: self.files@,
             aggregate: t.aggregate,
             microvm: self.microvm,
+            shares: self.shares,
         }
     }
 }
@@ -180,7 +199,7 @@ impl VirtioFsGhostView {
 
     /// Node `m` is in the inode table, in volume `v`.
     closed spec fn in_volume(self, m: u64, v: u32) -> bool {
-        self.inodes.contains_key(m) && self.inodes[m].object.0 == v
+        self.inodes.contains_key(m) && self.inodes[m].volume == v
     }
 
     /// Path `x` after `p` is renamed to `q`: at or below `p`, the same place
@@ -325,6 +344,7 @@ impl FuseOwns<VirtioFsGhost> for crate::microvm::device::DormantMicrovmFs {
             files: Map::empty(),
             aggregate: false,
             microvm: true,
+            shares: Map::empty(),
         }
     }
 }
@@ -342,21 +362,27 @@ impl FuseState for VirtioFsGhostView {
     /// The structural facts that every operation keeps: every node in the
     /// inode table but the root has a main path and names, and its main path
     /// is among its names when it has any (a node whose names were all
-    /// removed keeps its last main path).
+    /// removed keeps its last main path); and an aggregate's shares have
+    /// plain names (the profile accepts only letters, digits, `.`, `_` and
+    /// `-`, and not `.` or `..`: `MicroVmAggregateChild::new`).
     closed spec fn inv(&self) -> bool {
-        forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
+        &&& forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
             &&& self.paths.contains_key(m)
             &&& self.aliases.contains_key(m)
             &&& !self.aliases[m].is_empty() ==> self.aliases[m].contains(self.paths[m])
         }
+        &&& forall|k: Seq<u8>| #[trigger] self.shares.contains_key(k) ==> Self::is_plain_name(k)
     }
 
+    /// A node of the inode table, or an aggregate's root (synthetic, not in
+    /// the table, and always there).
     closed spec fn holds_node(&self, n: u64) -> bool {
-        self.inodes.contains_key(n)
+        self.inodes.contains_key(n) || self.is_synthetic(n)
     }
 
     closed spec fn is_dir(&self, n: u64) -> bool {
-        self.inodes.contains_key(n) && self.inodes[n].kind == lx::S_IFDIR
+        ||| self.is_synthetic(n)
+        ||| self.inodes.contains_key(n) && self.inodes[n].kind == lx::S_IFDIR
     }
 
     closed spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView {
@@ -365,8 +391,9 @@ impl FuseState for VirtioFsGhostView {
 
     /// The inode's volume is not read-only, and its policy lets the guest
     /// change `p`.
+    /// (Never under an aggregate's root, which is read-only.)
     closed spec fn can_write(&self, n: u64, p: PathView) -> bool {
-        !self.inodes[n].readonly && self.inodes[n].policy.can_write(p)
+        !self.is_synthetic(n) && !self.inodes[n].readonly && self.inodes[n].policy.can_write(p)
     }
 
     /// Through its main path and every name of it (`readonly()`:
@@ -380,36 +407,55 @@ impl FuseState for VirtioFsGhostView {
     /// path is a directory. The volume's pinned identities are left out
     /// until the spec has a model of the host (decided 2026-11-10): that rule
     /// is about which object is at `p`, which only the host knows.
+    /// Under an aggregate's root: `p` is one share's name
+    /// (`lookup_synthetic_root`).
     closed spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
-        let policy = self.inodes[parent].policy;
-        &&& policy.visibility(p) != crate::microvm::policy::PathVisibility::Hidden
-        &&& policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> kind == lx::S_IFDIR
+        if self.is_synthetic(parent) {
+            p.len() == 1 && self.shares.contains_key(p[0])
+        } else {
+            let policy = self.inodes[parent].policy;
+            &&& policy.visibility(p) != crate::microvm::policy::PathVisibility::Hidden
+            &&& policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> kind == lx::S_IFDIR
+        }
     }
 
+    /// Under an aggregate's root, the node reached at `p` (a share's name)
+    /// is that share's root (`insert_child_root_entry`): in its share, with
+    /// its root's path there, not `p`.
     closed spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self {
+        let q = if self.is_synthetic(parent) { self.shares[p[0]].root } else { p };
         if self.inodes.contains_key(m) {
             VirtioFsGhostView {
-                paths: self.paths.insert(m, p),
-                aliases: self.aliases.insert(m, self.aliases[m].insert(p)),
+                paths: self.paths.insert(m, q),
+                aliases: self.aliases.insert(m, self.aliases[m].insert(q)),
                 ..*self
             }
         } else {
-            let parent_inode = self.inodes[parent];
+            // The new inode's view: in the parent's volume, or the share's
+            // for a share's root.
+            let inode = if self.is_synthetic(parent) {
+                let share = self.shares[p[0]];
+                VirtioFsInodeView {
+                    volume: share.volume,
+                    kind,
+                    readonly: share.readonly,
+                    policy: share.policy,
+                }
+            } else {
+                VirtioFsInodeView { kind, ..self.inodes[parent] }
+            };
             VirtioFsGhostView {
-                // The new inode is in the parent's volume; its object is
-                // what the host reported (left open in this draft).
-                inodes: self.inodes.insert(m, VirtioFsInodeView { kind, ..parent_inode }),
-                paths: self.paths.insert(m, p),
-                aliases: self.aliases.insert(m, set![p]),
+                inodes: self.inodes.insert(m, inode),
+                paths: self.paths.insert(m, q),
+                aliases: self.aliases.insert(m, set![q]),
                 ..*self
             }
         }
     }
 
-    /// The two inodes' volumes are the same (an inode's object is its
-    /// volume's id and its inode number).
+    /// The two inodes' volumes are the same.
     closed spec fn same_share(&self, a: u64, b: u64) -> bool {
-        self.inodes[a].object.0 == self.inodes[b].object.0
+        self.inodes[a].volume == self.inodes[b].volume
     }
 
     closed spec fn after_link(&self, m: u64, p: PathView) -> Self {
@@ -417,7 +463,7 @@ impl FuseState for VirtioFsGhostView {
     }
 
     closed spec fn unlinked(&self, n: u64, p: PathView, after: Self) -> bool {
-        let v = self.inodes[n].object.0;
+        let v = self.inodes[n].volume;
         &&& after.inodes == self.inodes
         &&& after.files == self.files
         &&& after.aliases.dom() == self.aliases.dom()
@@ -437,7 +483,7 @@ impl FuseState for VirtioFsGhostView {
     }
 
     closed spec fn renamed(&self, n: u64, p: PathView, q: PathView, exchange: bool, after: Self) -> bool {
-        let v = self.inodes[n].object.0;
+        let v = self.inodes[n].volume;
         if exchange {
             after == self.map_names(v, |x: PathView| Self::exchanged(x, p, q))
         } else {
@@ -445,13 +491,13 @@ impl FuseState for VirtioFsGhostView {
         }
     }
 
+    /// A handle of the file table, or an aggregate root's own handle
+    /// (`open_dir` hands it out, not in the file table, and it is always
+    /// there).
     closed spec fn holds_file(&self, fh: u64) -> bool {
-        self.files.contains_key(fh)
+        self.files.contains_key(fh) || self.is_synthetic_handle(fh)
     }
 
-    /// The node leaves the inode table. Its entries in `paths` and
-    /// `aliases` stay (an open file may still hold its inode), and so do its
-    /// open files.
     /// The node leaves the table, with its main path and names (an open
     /// file of it keeps its inode, but the guest can no longer use the
     /// handle: `get_file` needs the node).
@@ -476,6 +522,7 @@ impl FuseState for VirtioFsGhostView {
             files: Map::empty(),
             aggregate: self.aggregate,
             microvm: self.microvm,
+            shares: self.shares,
         }
     }
 
@@ -483,13 +530,15 @@ impl FuseState for VirtioFsGhostView {
         VirtioFsGhostView { files: self.files.remove(fh), ..*self }
     }
 
+    /// (An aggregate root's own handle: the root's.)
     closed spec fn file_node(&self, fh: u64) -> u64 {
-        self.files[fh].node
+        if self.is_synthetic_handle(fh) { fuse::protocol::FUSE_ROOT_ID } else { self.files[fh].node }
     }
 
-    /// The open file's flags were for writing (`open_flags`).
+    /// The open file's flags were for writing (`open_flags`; not an
+    /// aggregate root's own handle).
     closed spec fn opened_for_writing(&self, fh: u64) -> bool {
-        self.files[fh].writable
+        !self.is_synthetic_handle(fh) && self.files[fh].writable
     }
 
     /// The file's node's main path and every name of it are writable under
@@ -497,6 +546,7 @@ impl FuseState for VirtioFsGhostView {
     /// with `uses_handle`, so the node is in the table.
     closed spec fn file_can_write(&self, fh: u64) -> bool {
         let f = self.files[fh];
+        &&& !self.is_synthetic_handle(fh)
         &&& !f.inode.readonly && f.inode.policy.can_write(self.path_of(f.node))
         &&& forall|q: PathView| #[trigger] self.names_of(f.node).contains(q) ==> !f.inode.readonly && f.inode.policy.can_write(q)
     }
@@ -511,6 +561,12 @@ impl FuseState for VirtioFsGhostView {
     /// An aggregate's root (node 1, `VirtioFs::is_synthetic_root`).
     closed spec fn is_synthetic(&self, n: u64) -> bool {
         self.aggregate && n == fuse::protocol::FUSE_ROOT_ID
+    }
+
+    /// An aggregate root's own handle (`SYNTHETIC_ROOT_FH`, `u64::MAX`:
+    /// `VirtioFs::is_synthetic_root_handle`).
+    closed spec fn is_synthetic_handle(&self, fh: u64) -> bool {
+        self.aggregate && fh == u64::MAX
     }
 
     /// Any code: without a model of the host, the spec cannot say which
@@ -531,9 +587,9 @@ impl FuseState for VirtioFsGhostView {
     }
 
     /// By the share's policy (`ensure_path_allowed`, which `child_path`
-    /// applies).
+    /// applies; an aggregate's root has no policy).
     closed spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
-        self.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
+        !self.is_synthetic(n) && self.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
     }
 
     /// Over `MAX_GUEST_BUFFER_SIZE` (1 MiB: `guest_buffer`, `write`).
