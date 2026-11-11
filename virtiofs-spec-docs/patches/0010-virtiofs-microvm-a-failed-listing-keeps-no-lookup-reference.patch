@@ -1,0 +1,199 @@
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index b58ec56b8..dec409c9a 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -259,18 +259,7 @@ fn lookup(&self, request: &Request, name: &lx::LxStr) -> lx::Result<fuse_entry_o
+     }
+ 
+     fn forget(&self, node_id: u64, lookup_count: u64) {
+-        if node_id == FUSE_ROOT_ID {
+-            return;
+-        }
+-        // This must be done under lock so an inode can't be resurrected between the lookup count
+-        // reaching zero and removing it from the list.
+-        let mut inodes = self.inner.inodes.write();
+-        if let Some(inode) = inodes.get(node_id) {
+-            if inode.forget(node_id, lookup_count) == 0 {
+-                tracing::trace!(node_id, "Removing inode");
+-                inodes.remove(node_id);
+-            }
+-        }
++        self.forget_lookups(node_id, lookup_count);
+     }
+ 
+     fn open(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
+@@ -823,6 +812,23 @@ pub fn new_aggregate() -> Self {
+         }
+     }
+ 
++    /// Gives back `lookup_count` lookup references of node `node_id`
++    /// (`forget`), and removes the node when none is left.
++    pub(crate) fn forget_lookups(&self, node_id: u64, lookup_count: u64) {
++        if node_id == FUSE_ROOT_ID {
++            return;
++        }
++        // This must be done under lock so an inode can't be resurrected between the lookup count
++        // reaching zero and removing it from the list.
++        let mut inodes = self.inner.inodes.write();
++        if let Some(inode) = inodes.get(node_id) {
++            if inode.forget(node_id, lookup_count) == 0 {
++                tracing::trace!(node_id, "Removing inode");
++                inodes.remove(node_id);
++            }
++        }
++    }
++
+     fn lookup_helper(&self, inode: &VirtioFsInode, name: &lx::LxStr) -> lx::Result<fuse_entry_out> {
+         let (new_inode, attr) = inode.lookup_child(name)?;
+         self.preflight_inode_insert(&new_inode)?;
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/file.rs b/vm/devices/virtio/virtiofs/src/microvm/file.rs
+index bddfefa9a..e77920ebd 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/file.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/file.rs
+@@ -52,14 +52,26 @@ pub(crate) fn read_dir_microvm(
+ 
+         // Whether the reply stopped because the next entry did not fit.
+         let mut full = false;
++        // Each readdirplus entry hands the guest a lookup reference, which the
++        // guest can release only if it receives the entry. So after an error,
++        // return the entries written so far, and report the error only if
++        // there are none; the guest's next read starts at the failing entry.
++        let mut stopped = None;
+         for entry in &entries[start..] {
+             let name = lx::LxStr::from_bytes(&entry.name);
+             // The cache was filtered against the directory's path when it was
+             // built; the guest may have renamed the directory since, so each
+             // entry is judged again against its path now, and one that may
+             // no longer be listed is left out (its cookie is skipped).
+-            if entry.name != b"." && entry.name != b".." && !self.listable_now(name, entry.kind)? {
+-                continue;
++            if entry.name != b"." && entry.name != b".." {
++                match self.listable_now(name, entry.kind) {
++                    Ok(true) => {}
++                    Ok(false) => continue,
++                    Err(error) => {
++                        stopped = Some(error);
++                        break;
++                    }
++                }
+             }
+             if plus {
+                 if entry.name == b"." || entry.name == b".." {
+@@ -78,12 +90,22 @@ pub(crate) fn read_dir_microvm(
+                         full = true;
+                         break;
+                     }
+-                    let fuse_entry = fs.lookup_helper(&self.inode, name)?;
+-                    if fuse_entry.attr.ino != entry.guest_inode_id {
+-                        return Err(lx::Error::EIO);
+-                    }
+-                    if !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry) {
+-                        return Err(lx::Error::EIO);
++                    let fuse_entry = match fs.lookup_helper(&self.inode, name) {
++                        Ok(fuse_entry) => fuse_entry,
++                        Err(error) => {
++                            stopped = Some(error);
++                            break;
++                        }
++                    };
++                    // An entry the guest will not receive must not keep the
++                    // lookup reference just taken.
++                    let node_id = fuse_entry.nodeid;
++                    if fuse_entry.attr.ino != entry.guest_inode_id
++                        || !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry)
++                    {
++                        fs.forget_lookups(node_id, 1);
++                        stopped = Some(lx::Error::EIO);
++                        break;
+                     }
+                 }
+             } else if !buffer.dir_entry(name, entry.guest_inode_id, entry.next_cookie, entry.kind) {
+@@ -92,6 +114,12 @@ pub(crate) fn read_dir_microvm(
+             }
+         }
+ 
++        if let Some(error) = stopped {
++            if buffer.is_empty() {
++                return Err(error);
++            }
++            return Ok(buffer);
++        }
+         // Not even one entry fits in the guest's buffer. (A reply left empty
+         // because every remaining entry was left out ends the listing.)
+         if full && buffer.is_empty() {
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+index e21a59c90..53f283e3c 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+@@ -134,6 +134,14 @@ pub(super) fn read_node(fs: &VirtioFs, node_id: u64) -> Vec<u8> {
+ /// Returns the names that the guest lists in a directory, other than `.` and
+ /// `..`, sorted.
+ pub(super) fn list(fs: &VirtioFs, node_id: u64) -> Vec<String> {
++    let mut names = list_in_order(fs, node_id);
++    names.sort();
++    names
++}
++
++/// Lists a directory's entries but `.` and `..`, in the order of the listing
++/// (the host's), with a plain listing, which takes no lookup references.
++pub(super) fn list_in_order(fs: &VirtioFs, node_id: u64) -> Vec<String> {
+     let fh = fs
+         .open_dir(&request(node_id), lx::O_RDONLY as u32)
+         .unwrap()
+@@ -158,7 +166,6 @@ pub(super) fn list(fs: &VirtioFs, node_id: u64) -> Vec<String> {
+         offset += fuse::protocol::fuse_dirent_align(24 + length);
+     }
+     release(fs, node_id, fh);
+-    names.sort();
+     names
+ }
+ 
+@@ -501,6 +508,48 @@ fn a_write_needs_a_handle_opened_for_writing() {
+     assert_eq!(share.read("out/existing"), "guest");
+ }
+ 
++#[test]
++fn a_listing_that_fails_keeps_no_lookup_reference_it_does_not_hand_out() {
++    // Each readdirplus entry hands the guest a lookup reference. A reply that
++    // fails partway returns the entries written so far, so the guest receives
++    // (and can later forget) every reference taken.
++    use crate::test_helpers::decode_dir_entries;
++    let share = Share::new();
++    let fs = share.fs(&[], &[], &["out"]);
++    let out = lookup(&fs, "out").unwrap();
++    for file_name in ["a", "b", "c"] {
++        let (node, fh) = create(&fs, out, file_name).unwrap();
++        release(&fs, node, fh);
++    }
++    let order = list_in_order(&fs, out);
++    let nodes: Vec<u64> = order
++        .iter()
++        .map(|entry| lookup(&fs, &format!("out/{entry}")).unwrap())
++        .collect();
++    let count = |node: u64| fs.get_inode(node).unwrap().lookup_count();
++    let before: Vec<u64> = nodes.iter().map(|&node| count(node)).collect();
++
++    // The first reply has room for `.` and `..` only, and builds the cache.
++    let fh = fs.open_dir(&request(out), lx::O_RDONLY as u32).unwrap().fh;
++    let mut arg = fuse_read_in::new_zeroed();
++    arg.fh = fh;
++    arg.size = 330;
++    let first = decode_dir_entries(&fs.read_dir_plus(&request(out), &arg).unwrap());
++    assert_eq!(first.len(), 2);
++
++    // The guest removes the last entry; the next reply's lookup of it fails.
++    let last = order.len() - 1;
++    fs.unlink(&request(out), name(&order[last])).unwrap();
++    arg.offset = first.last().unwrap().offset;
++    arg.size = 4096;
++    let second = decode_dir_entries(&fs.read_dir_plus(&request(out), &arg).unwrap());
++    let listed: Vec<String> = second.iter().map(|entry| entry.name.clone()).collect();
++    assert_eq!(listed, order[..last]);
++    for (index, &node) in nodes[..last].iter().enumerate() {
++        assert_eq!(count(node), before[index] + 1);
++    }
++}
++
+ #[test]
+ fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
+     // One file with two names, one writable (`out/twin`) and one not

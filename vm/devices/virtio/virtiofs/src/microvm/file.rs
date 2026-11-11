@@ -52,14 +52,26 @@ impl VirtioFsFile {
 
         // Whether the reply stopped because the next entry did not fit.
         let mut full = false;
+        // Each readdirplus entry hands the guest a lookup reference, which the
+        // guest can release only if it receives the entry. So after an error,
+        // return the entries written so far, and report the error only if
+        // there are none; the guest's next read starts at the failing entry.
+        let mut stopped = None;
         for entry in &entries[start..] {
             let name = lx::LxStr::from_bytes(&entry.name);
             // The cache was filtered against the directory's path when it was
             // built; the guest may have renamed the directory since, so each
             // entry is judged again against its path now, and one that may
             // no longer be listed is left out (its cookie is skipped).
-            if entry.name != b"." && entry.name != b".." && !self.listable_now(name, entry.kind)? {
-                continue;
+            if entry.name != b"." && entry.name != b".." {
+                match self.listable_now(name, entry.kind) {
+                    Ok(true) => {}
+                    Ok(false) => continue,
+                    Err(error) => {
+                        stopped = Some(error);
+                        break;
+                    }
+                }
             }
             if plus {
                 if entry.name == b"." || entry.name == b".." {
@@ -78,12 +90,22 @@ impl VirtioFsFile {
                         full = true;
                         break;
                     }
-                    let fuse_entry = fs.lookup_helper(&self.inode, name)?;
-                    if fuse_entry.attr.ino != entry.guest_inode_id {
-                        return Err(lx::Error::EIO);
-                    }
-                    if !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry) {
-                        return Err(lx::Error::EIO);
+                    let fuse_entry = match fs.lookup_helper(&self.inode, name) {
+                        Ok(fuse_entry) => fuse_entry,
+                        Err(error) => {
+                            stopped = Some(error);
+                            break;
+                        }
+                    };
+                    // An entry the guest will not receive must not keep the
+                    // lookup reference just taken.
+                    let node_id = fuse_entry.nodeid;
+                    if fuse_entry.attr.ino != entry.guest_inode_id
+                        || !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry)
+                    {
+                        fs.forget_lookups(node_id, 1);
+                        stopped = Some(lx::Error::EIO);
+                        break;
                     }
                 }
             } else if !buffer.dir_entry(name, entry.guest_inode_id, entry.next_cookie, entry.kind) {
@@ -92,6 +114,12 @@ impl VirtioFsFile {
             }
         }
 
+        if let Some(error) = stopped {
+            if buffer.is_empty() {
+                return Err(error);
+            }
+            return Ok(buffer);
+        }
         // Not even one entry fits in the guest's buffer. (A reply left empty
         // because every remaining entry was left out ends the listing.)
         if full && buffer.is_empty() {

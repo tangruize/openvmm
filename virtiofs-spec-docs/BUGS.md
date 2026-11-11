@@ -5,7 +5,7 @@ Bugs in Pedro Henrique Penna's virtio-fs (`feature/microvm/dev` at
 guest triggers it, and the fix. Fixed on this branch; each fix is also a
 `CODE-CHANGES.md` entry, and a patch in `patches/`, for Pedro.
 
-The patches in `patches/` (0001-0009) are for Pedro's code itself: they
+The patches in `patches/` (0001-0010) are for Pedro's code itself: they
 apply in order to `feature/microvm/dev` at `db42fde04`, and after each
 one, `virtiofs` builds, its tests pass (each patch adds one), and
 `cargo fmt` and `clippy` are clean (checked 2026-11-11). They hold the
@@ -613,6 +613,166 @@ index ea1fab516..b58ec56b8 100644
      }
  
      /// Retrieves a value from the map.
+```
+
+## 8. A microVM listing that fails partway keeps lookup references
+
+*Found 2026-11-11, from an independent review of the code; confirmed by a
+test (guest requests only, one after another). Fixed:
+`patches/0010-virtiofs-microvm-a-failed-listing-keeps-no-lookup-reference.patch`
+(applies after 0009).*
+
+**What goes wrong.** Each entry of a `read_dir_plus` reply is looked up,
+and hands the guest a lookup reference, which the guest gives back with
+`forget`, but only for the entries it receives. In the microVM
+(`read_dir_microvm`, `microvm/file.rs`), an error partway through a reply
+returns the error and discards the reply, with the entries already looked
+up: their references are never given back, and their nodes stay in the
+table. The error can be the lookup itself (`ENOENT` when the guest removed
+the entry after the listing's cache was built), the inode number not
+matching the cache (`EIO`), or the check of an entry's path at that moment
+(`listable_now`, from code change 23). In the test: a directory with `a`,
+`b`, `c` and `existing`; a first reply of `.` and `..` builds the cache;
+the guest unlinks the last entry; the next reply fails with `ENOENT`, and
+`a`'s lookup count is one higher. Repeated, this fills the inode table
+(`MAX_INODES`), and the guest's own lookups fail with `ENOSPC`: a leak of
+the guest's own resources, not of anything it may not see or change. The
+listing outside the microVM (`file.rs`) already avoids it.
+
+**The fix.** As outside the microVM: after an error, the reply returns the
+entries written so far, and reports the error only if there are none; the
+guest's next read starts at the failing entry. An entry whose lookup
+succeeded but that the guest does not receive (its inode number no longer
+matches, or it does not fit) gives its reference back at once
+(`VirtioFs::forget_lookups`, the body of `forget`, now shared). Test:
+`microvm/policy_tests.rs`,
+`a_listing_that_fails_keeps_no_lookup_reference_it_does_not_hand_out`
+(fails without the fix).
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index b58ec56b8..dec409c9a 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -259,18 +259,7 @@ fn lookup(&self, request: &Request, name: &lx::LxStr) -> lx::Result<fuse_entry_o
+     }
+ 
+     fn forget(&self, node_id: u64, lookup_count: u64) {
+-        if node_id == FUSE_ROOT_ID {
+-            return;
+-        }
+-        // This must be done under lock so an inode can't be resurrected between the lookup count
+-        // reaching zero and removing it from the list.
+-        let mut inodes = self.inner.inodes.write();
+-        if let Some(inode) = inodes.get(node_id) {
+-            if inode.forget(node_id, lookup_count) == 0 {
+-                tracing::trace!(node_id, "Removing inode");
+-                inodes.remove(node_id);
+-            }
+-        }
++        self.forget_lookups(node_id, lookup_count);
+     }
+ 
+     fn open(&self, request: &Request, flags: u32) -> lx::Result<fuse_open_out> {
+@@ -823,6 +812,23 @@ pub fn new_aggregate() -> Self {
+         }
+     }
+ 
++    /// Gives back `lookup_count` lookup references of node `node_id`
++    /// (`forget`), and removes the node when none is left.
++    pub(crate) fn forget_lookups(&self, node_id: u64, lookup_count: u64) {
++        if node_id == FUSE_ROOT_ID {
++            return;
++        }
++        // This must be done under lock so an inode can't be resurrected between the lookup count
++        // reaching zero and removing it from the list.
++        let mut inodes = self.inner.inodes.write();
++        if let Some(inode) = inodes.get(node_id) {
++            if inode.forget(node_id, lookup_count) == 0 {
++                tracing::trace!(node_id, "Removing inode");
++                inodes.remove(node_id);
++            }
++        }
++    }
++
+     fn lookup_helper(&self, inode: &VirtioFsInode, name: &lx::LxStr) -> lx::Result<fuse_entry_out> {
+         let (new_inode, attr) = inode.lookup_child(name)?;
+         self.preflight_inode_insert(&new_inode)?;
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/file.rs b/vm/devices/virtio/virtiofs/src/microvm/file.rs
+index bddfefa9a..e77920ebd 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/file.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/file.rs
+@@ -52,14 +52,26 @@ pub(crate) fn read_dir_microvm(
+ 
+         // Whether the reply stopped because the next entry did not fit.
+         let mut full = false;
++        // Each readdirplus entry hands the guest a lookup reference, which the
++        // guest can release only if it receives the entry. So after an error,
++        // return the entries written so far, and report the error only if
++        // there are none; the guest's next read starts at the failing entry.
++        let mut stopped = None;
+         for entry in &entries[start..] {
+             let name = lx::LxStr::from_bytes(&entry.name);
+             // The cache was filtered against the directory's path when it was
+             // built; the guest may have renamed the directory since, so each
+             // entry is judged again against its path now, and one that may
+             // no longer be listed is left out (its cookie is skipped).
+-            if entry.name != b"." && entry.name != b".." && !self.listable_now(name, entry.kind)? {
+-                continue;
++            if entry.name != b"." && entry.name != b".." {
++                match self.listable_now(name, entry.kind) {
++                    Ok(true) => {}
++                    Ok(false) => continue,
++                    Err(error) => {
++                        stopped = Some(error);
++                        break;
++                    }
++                }
+             }
+             if plus {
+                 if entry.name == b"." || entry.name == b".." {
+@@ -78,12 +90,22 @@ pub(crate) fn read_dir_microvm(
+                         full = true;
+                         break;
+                     }
+-                    let fuse_entry = fs.lookup_helper(&self.inode, name)?;
+-                    if fuse_entry.attr.ino != entry.guest_inode_id {
+-                        return Err(lx::Error::EIO);
+-                    }
+-                    if !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry) {
+-                        return Err(lx::Error::EIO);
++                    let fuse_entry = match fs.lookup_helper(&self.inode, name) {
++                        Ok(fuse_entry) => fuse_entry,
++                        Err(error) => {
++                            stopped = Some(error);
++                            break;
++                        }
++                    };
++                    // An entry the guest will not receive must not keep the
++                    // lookup reference just taken.
++                    let node_id = fuse_entry.nodeid;
++                    if fuse_entry.attr.ino != entry.guest_inode_id
++                        || !buffer.dir_entry_plus(name, entry.next_cookie, fuse_entry)
++                    {
++                        fs.forget_lookups(node_id, 1);
++                        stopped = Some(lx::Error::EIO);
++                        break;
+                     }
+                 }
+             } else if !buffer.dir_entry(name, entry.guest_inode_id, entry.next_cookie, entry.kind) {
+@@ -92,6 +114,12 @@ pub(crate) fn read_dir_microvm(
+             }
+         }
+ 
++        if let Some(error) = stopped {
++            if buffer.is_empty() {
++                return Err(error);
++            }
++            return Ok(buffer);
++        }
+         // Not even one entry fits in the guest's buffer. (A reply left empty
+         // because every remaining entry was left out ends the listing.)
+         if full && buffer.is_empty() {
 ```
 
 ## Questions for Pedro (not bugs, yet)

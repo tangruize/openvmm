@@ -807,7 +807,11 @@ all of them.
    integrity and confidentiality do not need them; then each node's count
    is a ghost piece tied to the atomic (`atomic_with_ghost!`), every
    operation that hands out a node says "count + 1", and `forget` says that
-   the node is removed exactly when its count reaches 0.
+   the node is removed exactly when its count reaches 0. Then
+   `read_dir_plus` must also say that it takes a reference only for each
+   entry it hands out (bug 8, fixed 2026-11-11, was a case where it did
+   not: a reply that failed partway kept the references of the entries
+   already looked up).
 3. **The host model**, for the pinned identities ("No model of the host,
    for now", above). Also the root: a lookup whose object is the root's own
    (found by the inode table's dedup) gives the root's node, and changes the

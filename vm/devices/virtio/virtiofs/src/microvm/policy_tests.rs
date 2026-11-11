@@ -134,6 +134,14 @@ pub(super) fn read_node(fs: &VirtioFs, node_id: u64) -> Vec<u8> {
 /// Returns the names that the guest lists in a directory, other than `.` and
 /// `..`, sorted.
 pub(super) fn list(fs: &VirtioFs, node_id: u64) -> Vec<String> {
+    let mut names = list_in_order(fs, node_id);
+    names.sort();
+    names
+}
+
+/// Lists a directory's entries but `.` and `..`, in the order of the listing
+/// (the host's), with a plain listing, which takes no lookup references.
+pub(super) fn list_in_order(fs: &VirtioFs, node_id: u64) -> Vec<String> {
     let fh = fs
         .open_dir(&request(node_id), lx::O_RDONLY as u32)
         .unwrap()
@@ -158,7 +166,6 @@ pub(super) fn list(fs: &VirtioFs, node_id: u64) -> Vec<String> {
         offset += fuse::protocol::fuse_dirent_align(24 + length);
     }
     release(fs, node_id, fh);
-    names.sort();
     names
 }
 
@@ -499,6 +506,48 @@ fn a_write_needs_a_handle_opened_for_writing() {
     assert_eq!(write(&fs, existing, fh, b"guest").unwrap(), 5);
     release(&fs, existing, fh);
     assert_eq!(share.read("out/existing"), "guest");
+}
+
+#[test]
+fn a_listing_that_fails_keeps_no_lookup_reference_it_does_not_hand_out() {
+    // Each readdirplus entry hands the guest a lookup reference. A reply that
+    // fails partway returns the entries written so far, so the guest receives
+    // (and can later forget) every reference taken.
+    use crate::test_helpers::decode_dir_entries;
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let out = lookup(&fs, "out").unwrap();
+    for file_name in ["a", "b", "c"] {
+        let (node, fh) = create(&fs, out, file_name).unwrap();
+        release(&fs, node, fh);
+    }
+    let order = list_in_order(&fs, out);
+    let nodes: Vec<u64> = order
+        .iter()
+        .map(|entry| lookup(&fs, &format!("out/{entry}")).unwrap())
+        .collect();
+    let count = |node: u64| fs.get_inode(node).unwrap().lookup_count();
+    let before: Vec<u64> = nodes.iter().map(|&node| count(node)).collect();
+
+    // The first reply has room for `.` and `..` only, and builds the cache.
+    let fh = fs.open_dir(&request(out), lx::O_RDONLY as u32).unwrap().fh;
+    let mut arg = fuse_read_in::new_zeroed();
+    arg.fh = fh;
+    arg.size = 330;
+    let first = decode_dir_entries(&fs.read_dir_plus(&request(out), &arg).unwrap());
+    assert_eq!(first.len(), 2);
+
+    // The guest removes the last entry; the next reply's lookup of it fails.
+    let last = order.len() - 1;
+    fs.unlink(&request(out), name(&order[last])).unwrap();
+    arg.offset = first.last().unwrap().offset;
+    arg.size = 4096;
+    let second = decode_dir_entries(&fs.read_dir_plus(&request(out), &arg).unwrap());
+    let listed: Vec<String> = second.iter().map(|entry| entry.name.clone()).collect();
+    assert_eq!(listed, order[..last]);
+    for (index, &node) in nodes[..last].iter().enumerate() {
+        assert_eq!(count(node), before[index] + 1);
+    }
 }
 
 #[test]

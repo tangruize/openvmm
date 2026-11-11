@@ -291,6 +291,8 @@ Findings are ordered by severity.
 
 ## Other observations (code, not contract)
 
+*Status (2026-11-11), the first (`read_dir_plus`): confirmed by a test with guest requests only; fixed (`BUGS.md` bug 8, code change 30, patch 0010). The spec allows it and needs no change; the lookup counts, with the limits property, will capture it (`CODE-OVERVIEW.md` open item 2).*
+
 - `vfs/microvm/file.rs:81-87`: in a microVM `read_dir_plus`, a lookup error
   (with `?`, including `ENOENT` from a deletion after the cache was built),
   the `ino` mismatch `EIO`, and the `dir_entry_plus` `EIO` all discard a

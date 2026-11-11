@@ -372,19 +372,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn forget(&self, node_id: u64, lookup_count: u64) {
-        if node_id == FUSE_ROOT_ID {
-            return;
-        }
-        // This must be done under lock so an inode can't be resurrected between the lookup count
-        // reaching zero and removing it from the list.
-        let (mut inodes, handle) = self.inner.inodes.acquire_write();
-        if let Some(inode) = inodes.table.get(node_id) {
-            if inode.forget(node_id, lookup_count) == 0 {
-                tracing::trace!(node_id, "Removing inode");
-                inodes.table.remove(node_id);
-            }
-        }
-        handle.release_write(inodes);
+        self.forget_lookups(node_id, lookup_count);
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
@@ -1006,6 +994,24 @@ impl VirtioFs {
                 negotiation: RwLock::new(FuseNegotiation::default()),
             }),
         }
+    }
+
+    /// Gives back `lookup_count` lookup references of node `node_id`
+    /// (`forget`), and removes the node when none is left.
+    pub(crate) fn forget_lookups(&self, node_id: u64, lookup_count: u64) {
+        if node_id == FUSE_ROOT_ID {
+            return;
+        }
+        // This must be done under lock so an inode can't be resurrected between the lookup count
+        // reaching zero and removing it from the list.
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
+        if let Some(inode) = inodes.table.get(node_id) {
+            if inode.forget(node_id, lookup_count) == 0 {
+                tracing::trace!(node_id, "Removing inode");
+                inodes.table.remove(node_id);
+            }
+        }
+        handle.release_write(inodes);
     }
 
     fn lookup_helper(&self, inode: &VirtioFsInode, name: &lx::LxStr) -> lx::Result<fuse_entry_out> {
