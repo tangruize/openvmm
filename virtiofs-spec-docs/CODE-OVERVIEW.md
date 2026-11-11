@@ -765,31 +765,39 @@ all of them.
    (found by the inode table's dedup) gives the root's node, and changes the
    root's main path in the code (`VirtioFsInode::lookup`), while the spec
    keeps the root's path empty; only the host can make a name lead to the
-   root's object.
+   root's object. And a listed entry of unknown type (`DT_UNK`) in a
+   traverse-only directory, which the code lists only if the host says it
+   is a directory (item 4).
 4. **What a directory listing shows** (`read_dir`, `read_dir_plus`; done
-   2026-11-10). The traverse-only listing rule (only the entries that lead
-   to allowed paths) is part of confidentiality. The contracts now say
-   `lists_only_allowed(dir, buf, plus)`: the reply is the encoding
-   (`ListedEntry::records`, `fuse/src/lib.spec.rs`: for each entry, in a
-   `read_dir_plus` reply the lookup's 128-byte reply, then the 24-byte
-   `fuse_dirent` header, the name, and zeros to 8 bytes) of some entries,
-   each `.`, `..`, or one that the new question `may_list(dir, name, kind)`
-   allows (virtio-fs: `entry_listable` under the directory's path now; in
-   an aggregate's root, a share's name). Left: tying `read_dir_plus`'s
-   lookups (`looked_up_in`) to the names it lists. Decided: "every name listed
-   (but `.` and `..`) may be listed now" (`entry_listable`: visible, or
-   traverse-only and a directory, under the directory's path at that
-   moment). In the microVM the listing is cached at the handle's first
-   read (`directory_snapshot`); the code now judges the cached entries
-   again at each reply (code change 23), so the rule needs only the state
-   at that moment. (Keeping the original code would have needed each open
-   directory's path when its listing started as ghost state, a `&mut` ghost
-   argument for `read_dir`, and a rule for the cache's lock; `BUGS.md`, the
-   note on listings, says why the original is not a bug.) Needs a decoder
-   of the reply's records (`fuse_dirent`, and `fuse_entry_out` before each
-   for `read_dir_plus`). An entry whose type the host reports as unknown
-   (`DT_UNK`) is a directory if the host says so; that answer waits for
-   the host model.
+   2026-11-10, but for the two points left below). The traverse-only
+   listing rule (only the entries that lead to allowed paths) is part of
+   confidentiality. The contracts say `lists_only_allowed(dir, buf, plus)`:
+   the reply is the encoding (`ListedEntry::records`,
+   `fuse/src/lib.spec.rs`: for each entry, in a `read_dir_plus` reply the
+   lookup's 128-byte reply, then the 24-byte `fuse_dirent` header, the
+   name, and zeros to 8 bytes) of some entries, each `.`, `..`, or one that
+   the question `may_list(dir, name, kind)` allows: listable now
+   (virtio-fs: `entry_listable`, visible, or traverse-only and a directory,
+   under the directory's path at that moment; in an aggregate's root, a
+   share's name). In the microVM the listing is cached at the handle's
+   first read (`directory_snapshot`); the code now judges the cached
+   entries again at each reply (code change 23), so the rule needs only the
+   state at that moment. (Keeping the original code would have needed each
+   open directory's path when its listing started as ghost state, a `&mut`
+   ghost argument for `read_dir`, and a rule for the cache's lock;
+   `BUGS.md`, the note on listings, says why the original is not a bug.)
+   Left:
+   - *An entry whose type the host reports as unknown* (`DT_UNK`): in a
+     traverse-only directory, the code lists it only if the host says it is
+     a directory (`lstat`); the spec trusts the record's type. Waits for
+     the host model (item 3).
+   - *`read_dir_plus`'s lookups and the names it lists are not tied*: the
+     contract says that each node handed out comes from lookups `lookup`'s
+     rules allow (`looked_up_in`), and that each name listed may be listed,
+     but not that they are the same entries. Functional correctness only
+     (each half already holds for confidentiality and integrity); can be
+     done without a host model: each entry but `.` and `..` is one lookup
+     step, with its name and the node id of its `fuse_entry_out`.
 5. **The aggregate's synthetic root** (done 2026-11-10). Node 1 of an
    aggregate is not in the inode table, and its entries are the shares.
    The FUSE contracts stay as they are, but one: virtio-fs's answers have
