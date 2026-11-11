@@ -495,11 +495,12 @@ file's attributes.
    outside the share. On Windows, a confined volume creates WSL-style
    links, which Windows never follows.
 
-   Upstream later added a similar protection for every share, on by
-   default: `29f0adceb`, "lxutil: prevent host symlink traversal" (John
-   Starks, `#4764`), which uses `openat2` on Linux and keeps rename and
-   hard-link operations on one opened directory handle. Pedro's branch
-   has both: upstream's protection, and his `confine_paths` option on top
+   Upstream added a similar protection for every share, on by default:
+   `29f0adceb`, "lxutil: prevent host symlink traversal" (John Starks,
+   `#4764`, 2026-10-27, after Pedro's 2026-10-01 commit was written; his
+   branch was then moved onto it, so `29f0adceb` comes first in its
+   history), which uses `openat2` on Linux and keeps rename and hard-link
+   operations on one opened directory handle. Pedro's branch has both: upstream's protection, and his `confine_paths` option on top
    (`lxutil/src/lib.rs`, `LxVolumeOptions::confine_paths`). How the two
    overlap (checked 2026-11-10, when specifying confinement): the
    resolution beneath the root is on for every volume (Linux: `openat2`

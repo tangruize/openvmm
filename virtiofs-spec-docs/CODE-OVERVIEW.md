@@ -15,6 +15,41 @@ example, the host shares `/srv/data`, the guest mounts it at `/mnt`, and
 when a guest program opens `/mnt/a.txt`, it is really `/srv/data/a.txt` on
 the host.
 
+## What the spec guarantees, at the highest level (2026-11-10)
+
+The guest names host objects by **paths relative to the share** (names,
+such as `logs/gateway/passwd`). The spec's guarantees come in two parts,
+and only together do they say that the guest reaches only the host
+objects it is allowed to:
+
+1. **The policy is about names** (property 2, integrity and
+   confidentiality; verified once proved). An operation succeeds only
+   through names the policy allows: it reads or lists only visible names,
+   and changes only writable ones. This says nothing about which host
+   object a name reaches.
+2. **Confinement ties names to objects** (property 1). virtio-fs hands
+   `lxutil` only relative paths of plain names (a precondition of each
+   `lxutil` method; verified once proved), and `lxutil`, with the host's
+   kernel, resolves each beneath the share's root without following any
+   link on the way (trusted, in words: `openat2` on Linux,
+   `OBJ_DONT_REPARSE` on Windows; open item 9). So each allowed name means
+   an object inside the share.
+
+Why the first part alone is not enough: suppose the host had a symbolic
+link `logs/gateway` -> `/etc`, and the volume followed it. The policy part
+would still hold (`logs/gateway/passwd` is a visible name, and the
+operation was allowed on it), but the guest would read the host's
+`/etc/passwd`. Confinement is what rules that out.
+
+What neither part says yet, and a model of the host would: *which* object
+a name reaches. So the spec cannot yet say that a hidden object is not
+reached through another name (pinned identities), that a read-only file is
+not changed through a writable hard link, that the share's root is the
+intended directory, or that a path passes through no symbolic link
+(virtio-fs's own walk, which is defense in depth on top of the kernel's
+guard). And it rests on host assumptions: no other host process changes
+the share, and a share contains no mount point (on Linux).
+
 ## How a request travels
 
 A guest program reads `/mnt/a.txt`:
@@ -920,8 +955,25 @@ all of them.
      that `lxutil` always sets these flags, not a walk of its own. (And
      `lstat` on Windows reports NT symbolic links and junctions as links,
      `windows/fs.rs`, so virtio-fs's walk sees them.)
-   - *Decision still open:* (c) virtio-fs's own walk on Linux: redundant with
-     `openat2` there (defense in depth, not required by the spec?).
+   - *Decided (c), 2026-11-10: virtio-fs's own walk* (`lstat` of each
+     prefix of a node's paths, `ELOOP` on a symbolic link,
+     `validate_confined_paths`; and `reject_opened_symlink`) is defense in
+     depth on both systems, not required by the claim (the kernel's guard
+     already refuses a link on the way). It could not be required anyway
+     without a host model: whether a path passes through a symbolic link
+     is a fact about what is on the host.
+   - *What of Pedro's virtio-fs changes the spec depends on* (2026-11-10):
+     the re-check at each operation that no name of the node is hidden
+     (item 6), `child_path`'s refusal of a hidden child path and its own
+     name checks (the handler's contract does not assume the FUSE layer's
+     `check_name`), and the refusal of a traverse-only object that is not a
+     directory. Not depended on: the root's identity at attach, pinned
+     identities, the symbolic-link walk (all three need the host model);
+     names without `\` or `:` and bounded path lengths (error codes only:
+     `lxutil` already escapes `\` and `:` on Windows; can be added as error
+     rules any time); single-file shares (only the exposed file is
+     reachable): not yet in the spec, and can be without a host model (to
+     do: in virtio-fs's answer to `is_hidden`).
 
 ## The theme of the spec: protecting the host from the guest
 
