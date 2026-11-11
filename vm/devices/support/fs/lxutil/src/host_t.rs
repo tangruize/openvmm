@@ -87,6 +87,13 @@ impl HostDisk {
         }
     }
 
+    /// No object on the disk has inode number `ino`: what a newly made
+    /// object's number is (the host gives a new object a number no other
+    /// object has).
+    pub open spec fn is_new_ino(self, ino: u64) -> bool {
+        forall|x: PathView| #[trigger] self.objects.contains_key(x) ==> self.objects[x].ino != ino
+    }
+
     /// Nothing lies strictly below path `p` (an empty directory, or not a
     /// directory).
     pub open spec fn nothing_below(self, p: PathView) -> bool {

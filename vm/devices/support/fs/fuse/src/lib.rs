@@ -938,6 +938,11 @@ where
                     let n = _request@.node_id;
                     let m = out.entry.nodeid;
                     &&& s.may_add_name(n, _name@)
+                    // An existing node opened for writing or truncating: every
+                    // name of it is writable, as `open` requires (a node the
+                    // guest holds whose names are all gone is not one).
+                    &&& (G::V::opens_for_writing(_arg.flags) || _arg.flags & (lx::O_TRUNC as u32) != 0)
+                        && s.holds_node(m) && s.has_names(m) ==> s.node_can_write(m)
                     &&& !s.holds_file(out.open.fh)
                     &&& final(g)@ == s.after_reach(n, s.child_path(n, _name@), m, out.entry.attr.mode & lx::S_IFMT)
                             .after_open(out.open.fh, m, G::V::opens_for_writing(_arg.flags))

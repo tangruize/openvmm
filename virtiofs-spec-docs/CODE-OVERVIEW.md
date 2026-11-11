@@ -819,19 +819,10 @@ all of them.
    keeps the root's path empty; only the host can make a name lead to the
    root's object. And a listed entry of unknown type (`DT_UNK`) in a
    traverse-only directory, which the code lists only if the host says it
-   is a directory (item 4). And `create` of an existing file (bug 3's
-   rule, review finding 9, 2026-11-11): a `create` that opens an existing
-   file for writing or truncating, of a node the guest holds, needs every
-   name of that node writable. The code checks it (`check_create_existing`,
-   an `lstat` of the path before the open) and a test covers it, but the
-   contract does not say it yet: "the file was already there" needs the
-   host's state in the view (which object is at each path), and then each
-   operation's `after_` function must say how it changes the host. With
-   that, the rule is one line in `create`'s `Ok` clause:
-   `s.names_object(n, p) && s.holds_node(m) && (writes || truncates) ==>
-   s.node_can_write(m)`. The code is right as it is: requests run one at a
-   time, and no host process changes the share, so the open reaches the
-   file that the `lstat` saw.
+   is a directory (item 4). (Bug 3's rule for `create`, review finding 9:
+   done 2026-11-11 with the host model, below; `create`'s `Ok` clause says
+   that an existing node opened for writing or truncating, that the guest
+   holds and that has names, has every name writable.)
 4. **What a directory listing shows** (`read_dir`, `read_dir_plus`; done
    2026-11-10, but for the two points left below). The traverse-only
    listing rule (only the entries that lead to allowed paths) is part of

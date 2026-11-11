@@ -216,7 +216,7 @@ Findings are ordered by severity.
 
 ## 9. `create`'s contract does not carry bug fix 3 (truncating an existing node through one writable name)
 
-*Status (2026-11-11): confirmed, and recorded as an open item (`CODE-OVERVIEW.md` open item 3, the host model). The code is right: requests run one at a time and no host process changes the share, so the open reaches the file the `lstat` saw. Stating the rule needs the host's state in the view.*
+*Status (2026-11-11): confirmed; done with the host model (`lxutil/src/host_t.rs`): `create`'s `Ok` clause now says that an existing node opened for writing or truncating, held and with names, has every name writable. A new object's inode number is no existing object's (lxutil's creating calls), so a node with names is never a newly made file's.*
 
 - Spec: `fuse/lib.rs:932-940`. On success it requires only
   `may_add_name(n, name)`. Nothing requires that `node_can_write(m)` holds

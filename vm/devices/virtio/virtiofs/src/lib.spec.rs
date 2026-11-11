@@ -262,8 +262,9 @@ impl VirtioFsGhostView {
 /// holds, and ties them to the host model.
 /// TODO (proof agent): the rest (e.g. that the half is a half, that each
 /// table inode's locks' rules have the recorded key and the maps' ids, and
-/// the keys, `InodeTable.keys`, against those rules); it may add facts or
-/// fields, but must keep the core.
+/// the keys, `InodeTable.keys`, against those rules; and the dedup index,
+/// `inodes_by_key`, against `host_inos`: a key `Ino(v, ino)` finds the node of
+/// that host object); it may add facts or fields, but must keep the core.
 // Only Verus reads the rule's fields.
 #[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
 pub ghost struct InodeTableRule {

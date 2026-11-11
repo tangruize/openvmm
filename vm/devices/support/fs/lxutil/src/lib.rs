@@ -353,6 +353,7 @@ impl LxVolume {
             } else {
                 &&& flags & lx::O_CREAT != 0
                 &&& f.object().kind == lx::S_IFREG
+                &&& old(disk)@.is_new_ino(f.object().ino)
                 &&& final(disk)@.objects == old(disk)@.objects.insert(path.as_ref_spec()@, f.object())
             },
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -410,6 +411,7 @@ impl LxVolume {
             // A new directory at the path, the object the stat describes.
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFDIR }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -465,6 +467,7 @@ impl LxVolume {
             // A new symbolic link at the path, the object the stat describes.
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFLNK
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFLNK }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
@@ -563,6 +566,7 @@ impl LxVolume {
             final(disk).volume() == old(disk).volume(),
             // A new node at the path, the object the stat describes.
             r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && old(disk)@.is_new_ino(st.inode_nr)
                 && final(disk)@.objects == old(disk)@.objects.insert(
                     path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
