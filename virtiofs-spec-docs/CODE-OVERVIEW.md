@@ -892,7 +892,12 @@ all of them.
      paths touches only objects beneath the volume's root, following no
      symbolic link on the way (but a final one, for `lstat` and
      `read_link`). On Linux the kernel guarantees it (`openat2` with
-     `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`, `unix/util.rs`). Written in
+     `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`, `unix/util.rs`); on Windows,
+     the NT kernel (every path opened relative to the root's handle with
+     `OBJ_DONT_REPARSE`, which refuses any reparse point on the way: NT
+     symbolic links, junctions, mount points; `windows/util.rs`,
+     `open_relative_file`; `rename` and `link` name their target as one
+     component of a parent opened that way). Written in
      `lxutil/src/lib.spec.rs`, not as a contract: the spec has no notion of
      a host object to state it in.
    - *TODO, with a host model:* state formally that `lxutil` never goes
@@ -908,12 +913,14 @@ all of them.
      point, so that "beneath the root" is "inside the share". Pedro's code
      does not state that assumption: a question for him (`BUGS.md`; if he
      confirms, `RESOLVE_NO_XDEV` would let the kernel enforce it).
-   - *Decisions still open:* (b) Windows (no `openat2`: WSL-style links, which Windows does
-     not follow, and virtio-fs's walk of each path, `validate_confined_paths`,
-     which refuses a symbolic link on the way): trust it and mark it first
-     for a proof, or leave Windows out of the claim; and check that `lstat`
-     on Windows reports an NT symbolic link or junction as a link, which
-     the walk relies on; (c) virtio-fs's own walk on Linux: redundant with
+   - *Decided (b), 2026-11-10: Windows is in the claim*, trusted as Linux
+     is: Windows has its own kernel guard (`OBJ_DONT_REPARSE`, above; found
+     2026-11-10 by reading the code; it also refuses a mount point inside
+     the share, so assumption (a) is for Linux only). What is trusted is
+     that `lxutil` always sets these flags, not a walk of its own. (And
+     `lstat` on Windows reports NT symbolic links and junctions as links,
+     `windows/fs.rs`, so virtio-fs's walk sees them.)
+   - *Decision still open:* (c) virtio-fs's own walk on Linux: redundant with
      `openat2` there (defense in depth, not required by the spec?).
 
 ## The theme of the spec: protecting the host from the guest
@@ -1143,10 +1150,13 @@ returns at most the bytes asked for). File contents are left out (property
 5, deferred).
 
 On Linux, `lxutil` is a thin wrapper, one `*at` system call per method. Its
-two pieces of real logic are Pedro's additions (`CODE-OVERVIEW-DETAILS.md`,
-layer 4): the confinement walk (`confine_paths`), on which property 1
-rests, and the per-thread credential switching (`unix/credentials.rs`), on
-which property 3 rests. Their proofs are deferred (decided 2026-11-09),
+two pieces of real logic (`CODE-OVERVIEW-DETAILS.md`, layer 4): its path
+resolution beneath the share's root, on which property 1 rests (on every
+volume: `openat2` with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS` on Linux, an
+open relative to the root's handle with `OBJ_DONT_REPARSE` on Windows; the
+`confine_paths` option only makes new symbolic links WSL-style on Windows,
+and has no effect on Unix), and Pedro's per-thread credential switching
+(`unix/credentials.rs`), on which property 3 rests. Their proofs are deferred (decided 2026-11-09),
 until we work on properties 1 and 3; until then they are trusted like the
 rest of `lxutil`.
 

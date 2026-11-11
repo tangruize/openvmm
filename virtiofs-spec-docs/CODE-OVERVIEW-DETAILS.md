@@ -501,7 +501,13 @@ file's attributes.
    hard-link operations on one opened directory handle. Pedro's branch
    has both: upstream's protection, and his `confine_paths` option on top
    (`lxutil/src/lib.rs`, `LxVolumeOptions::confine_paths`). How the two
-   overlap is to check when we specify confinement.
+   overlap (checked 2026-11-10, when specifying confinement): the
+   resolution beneath the root is on for every volume (Linux: `openat2`
+   with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`, `unix/util.rs`; Windows:
+   opens relative to the root's handle with `OBJ_DONT_REPARSE`, which
+   refuses any reparse point on the way, `windows/util.rs`), and it is what
+   confinement rests on; `confine_paths` now only makes new symbolic links
+   WSL-style on Windows (its doc: on Unix it has no effect).
 2. **Per-thread credentials** (`df92e9fda`, `src/unix/credentials.rs`), for
    the caller's identity. Linux keeps credentials per thread, but the C
    library's `setgroups` and `set*id` change every thread of the process.
@@ -550,8 +556,10 @@ microVM virtio device shares:
 
 The virtio-fs properties map onto these additions:
 
-- **Confinement**: layer 4's `confine_paths`, and layer 3's checks that no
-  path has a link component and that the root is the right object.
+- **Confinement**: layer 4's resolution beneath the root (`openat2` on
+  Linux, `OBJ_DONT_REPARSE` on Windows), and, as defense in depth, layer
+  3's checks that no path has a link component and that the root is the
+  right object (`CODE-OVERVIEW.md`, open item 9).
 - **Policy**: layer 3's denied, allowed and writable paths, enforced by
   identity, with the traverse-only rules and the checks on every namespace
   and file change.
