@@ -5,9 +5,12 @@ built, in plain words; the other documents (section 6) have the details.
 
 The spec is written in Verus, for the microVM's virtio-fs: the device that
 lets a guest use a folder of the host as a file system. The code is Pedro
-Henrique Penna's (`feature/microvm/dev`); the spec is ours. It is a spec:
-the functions' bodies are not proved yet (`external_body`), and a proof
-agent will prove them.
+Henrique Penna's: his branch `feature/microvm/dev` at `db42fde04`, which
+builds on OpenVMM's existing virtio-fs. The spec is ours, on the branch
+`system-proof/virtiofs-spec-20261108`, which is his code plus the spec
+(and the code changes `CODE-CHANGES.md` lists). It is a spec: the
+functions' bodies are not proved yet (`external_body`), and a proof agent
+will prove them.
 
 ## 1. The goal
 
@@ -18,18 +21,24 @@ promises, whatever the guest sends:
 
 1. **Confinement.** The guest reaches only objects inside the share, never
    anything else on the host.
-2. **Policy.** Inside the share, a profile may hide paths (*denied*), show
-   some of them again (*allowed*), and make the rest read-only (only the
-   *writable* paths may change). The guest sees only what it may see, and
-   changes only what it may change, through any name.
+2. **Policy: integrity and confidentiality.** Inside the share, a profile
+   may hide paths (*denied*), show some of them again (*allowed*), and make
+   the rest read-only (only the *writable* paths may change). Integrity:
+   the guest changes only what it may change, through any name.
+   Confidentiality: it sees only what it may see.
 3. **Identity.** Each request runs on the host as the guest's caller
    (mapped, so never as host root), or as OpenVMM in the default mode.
 4. **Limits.** The device's tables stay within fixed caps (4096 nodes,
    4096 open handles, and so on), whatever the guest does.
 
-Two more are not specified: **5. what the operations mean** (`read`
-returns the file's bytes, and so on), and **6. snapshots**, the device's
-own save and restore (section 5).
+Two more are not specified. **5. File contents and attributes**, by
+decision, since they are not about security: what `read` returns and
+`write` changes in a file's bytes, the attributes `getattr` reports, the
+values of extended attributes, and a listing's full contents. (Much of
+what the operations mean is specified: when each succeeds or fails, and
+how it changes the guest's names, nodes and handles, section 3.) **6.
+Snapshots**, the device's own save and restore, stopped until this spec is
+verified (section 5).
 
 ## 2. The software
 
@@ -61,8 +70,13 @@ several shares under a synthetic root), the **access policy**, the
 restore.
 
 The device handles **one request at a time**: two queues, but both
-workers run on one thread, and a request runs to its end. The spec rests
-on this.
+workers run on one thread, and a request runs to its end. Yet the code
+guards its tables with locks (`RwLock`s), as if requests could run at
+once. We decided to follow the locks, not to rely on the order: each lock
+gets a rule that says what its data is (section 4.2; for this, vstd's
+locks replace `parking_lot`'s, a change for verification only). Only the
+keeper, which hands the ghost state to each request, relies on requests
+running one at a time (section 4.3).
 
 ## 3. What we prove
 
@@ -204,7 +218,8 @@ and listed in `SPEC-DESIGN.md`, section 8):
   spec (its own branch) needs `g` to leave the keeper while the VM is
   stopped, as a device's snapshot ghost does (`SPEC-DESIGN.md`, open
   items).
-- **What the operations mean** (property 5).
+- **File contents and attributes** (property 5), by decision: not about
+  security.
 - Smaller gaps, each in `SPEC-DESIGN.md`'s open items: the lookup counts,
   the listings' caches, a byte cap on `rename`.
 
