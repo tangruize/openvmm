@@ -971,9 +971,11 @@ all of them.
      identities, the symbolic-link walk (all three need the host model);
      names without `\` or `:` and bounded path lengths (error codes only:
      `lxutil` already escapes `\` and `:` on Windows; can be added as error
-     rules any time); single-file shares (only the exposed file is
-     reachable): not yet in the spec, and can be without a host model (to
-     do: in virtio-fs's answer to `is_hidden`).
+     rules any time). Single-file shares (only the exposed file is
+     reachable, and it is a regular file): in the spec since 2026-11-10
+     (the inode and share views record the exposed file, `exposed`;
+     virtio-fs's `is_hidden` hides every other path, and `may_reach`
+     requires a regular file).
 
 ## The theme of the spec: protecting the host from the guest
 

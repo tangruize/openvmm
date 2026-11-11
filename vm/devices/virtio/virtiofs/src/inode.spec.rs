@@ -110,6 +110,10 @@ impl VirtioFsVolume {
                 Some(file) => file@,
                 None => Seq::<Seq<u8>>::empty(),
             },
+            exposed: match self.exposed_file {
+                Some(file) => Some(file@),
+                None => None,
+            },
         }
     }
 }
@@ -125,6 +129,10 @@ impl View for VirtioFsInode {
             kind: self.file_type,
             readonly: self.volume.readonly,
             policy: self.volume.policy@,
+            exposed: match self.volume.exposed_file {
+                Some(file) => Some(file@),
+                None => None,
+            },
         }
     }
 }

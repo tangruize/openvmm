@@ -48,6 +48,9 @@ pub struct VirtioFsInodeView {
     pub readonly: bool,
     /// Its volume's access policy.
     pub policy: SubtreePolicyView,
+    /// Its volume's exposed file, for a single-file share (the only path the
+    /// guest may reach in it: `exposed_file`), else `None`.
+    pub exposed: Option<PathView>,
 }
 
 
@@ -70,6 +73,8 @@ pub struct VirtioFsShareView {
     pub readonly: bool,
     pub policy: SubtreePolicyView,
     pub root: PathView,
+    /// The exposed file, for a single-file share (then also its root).
+    pub exposed: Option<PathView>,
 }
 
 /// virtio-fs's state, as the guest sees it.
@@ -404,11 +409,17 @@ impl FuseState for VirtioFsGhostView {
     /// (`lookup_synthetic_root`).
     closed spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
         if self.is_synthetic(parent) {
-            p.len() == 1 && self.shares.contains_key(p[0])
+            &&& p.len() == 1
+            &&& self.shares.contains_key(p[0])
+            // A single-file share's root is a regular file.
+            &&& self.shares[p[0]].exposed is Some ==> kind == lx::S_IFREG
         } else {
-            let policy = self.inodes[parent].policy;
-            &&& policy.visibility(p) != crate::microvm::policy::PathVisibility::Hidden
-            &&& policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> kind == lx::S_IFDIR
+            let inode = self.inodes[parent];
+            &&& !self.is_hidden(parent, p)
+            &&& inode.policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> kind == lx::S_IFDIR
+            // A single-file share's one object is a regular file
+            // (`ensure_object_allowed`).
+            &&& inode.exposed is Some ==> kind == lx::S_IFREG
         }
     }
 
@@ -433,6 +444,7 @@ impl FuseState for VirtioFsGhostView {
                     kind,
                     readonly: share.readonly,
                     policy: share.policy,
+                    exposed: share.exposed,
                 }
             } else {
                 VirtioFsInodeView { kind, ..self.inodes[parent] }
@@ -579,10 +591,17 @@ impl FuseState for VirtioFsGhostView {
         flags & !supported != 0u32
     }
 
-    /// By the share's policy (`ensure_path_allowed`, which `child_path`
-    /// applies; an aggregate's root has no policy).
+    /// By the share's policy, or, in a single-file share, any path but its
+    /// file (`ensure_path_allowed`, which `child_path` and the re-check at
+    /// each operation apply; an aggregate's root has no policy).
     closed spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
-        !self.is_synthetic(n) && self.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
+        let inode = self.inodes[n];
+        &&& !self.is_synthetic(n)
+        &&& {
+            ||| inode.policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
+            // In a single-file share, every path but the exposed file.
+            ||| inode.exposed matches Some(file) && p != file
+        }
     }
 
     /// Over `MAX_GUEST_BUFFER_SIZE` (1 MiB: `guest_buffer`, `write`).
