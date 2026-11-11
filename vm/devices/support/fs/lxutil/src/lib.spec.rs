@@ -1,10 +1,22 @@
 // Spec of `LxVolume`'s paths, for human review: what virtio-fs must hand
 // to the volume (each method's precondition, in `lib.rs`).
 //
-// TRUSTED, in words only (no contract states it, since the spec has no model
-// of the host): a call whose paths meet `is_share_path` touches only objects
-// beneath the volume's root, and follows no symbolic link on the way (but a
-// final one, for the methods about links: `lstat`, `read_link`). On Linux
+// CONFINEMENT, in the contracts (with the host model, `host_t.rs`, since
+// 2026-11-11): every object a call reads, opens or changes is one on the
+// share's disk (`lstat` reports the object at the share path, `open` opens
+// it, and each change is stated exactly on the disk).
+// TRUSTED, in words only: a call changes nothing outside the share, and
+// follows no symbolic link on the way (but a final one, for the methods
+// about links: `lstat`, `read_link`). The host model covers only the share,
+// so no contract can mention what is outside it. It could be turned into
+// a contract: a trusted, declared-only value `HostOutside` (the host outside
+// every share) that every `lxutil` method takes by shared reference, which
+// Verus then holds unchanged across each call. Not done (decided
+// 2026-11-11): the trust would be the same (`lxutil`'s bodies are not
+// verified, so its contracts are believed either way), and no rule reads
+// the outside's state; it becomes worth doing if `lxutil` is verified
+// against specs of the kernel's calls, when that contract becomes a proof
+// obligation. On Linux
 // the kernel guarantees it: every path is resolved relative to the root's
 // descriptor by `openat2` with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`
 // (`unix/util.rs`), whatever is on disk. On Windows (decided 2026-11-10 to be

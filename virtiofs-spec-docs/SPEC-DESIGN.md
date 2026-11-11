@@ -558,7 +558,10 @@ Spots that look hard:
 Each is in `CODE-OVERVIEW.md`'s open items or status table.
 
 - **The rest of the host model** (items 3, 8, 9): the symbolic-link walk,
-  `DT_UNK` entries, and the confinement fact as a contract. (Done: the host
+  and `DT_UNK` entries. (Confinement's last part, that a call changes
+  nothing outside the share, stays in words; it could be a contract, a
+  declared `HostOutside` taken by shared reference: `lxutil/src/lib.spec.rs`
+  says why it is not, for now.) (Done: the host
   model itself, `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of
   each node's names to its object, bug 3's rule in `create`'s contract,
   the pinned identities, host hard links, one path per directory, and the
