@@ -19,12 +19,18 @@ use fuse::DirEntryWriter;
 use fuse::check_name;
 use fuse::protocol::*;
 use lxutil::LxVolumeOptions;
-use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
+use vstd::prelude::Ghost;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 use zerocopy::FromZeros;
+
+/// Spec of the aggregate's registry: its lock's rule (Verus reads it), in
+/// every build, since the rule is a type parameter of the registry's lock.
+pub(crate) mod spec {
+    include!("aggregate.spec.rs");
+}
 
 /// Reserved file handle `open_dir` returns for the synthetic aggregate root;
 /// `read_dir`/`read_dir_plus`/`release_dir` recognize it and serve the root
@@ -33,6 +39,7 @@ use zerocopy::FromZeros;
 pub(crate) const SYNTHETIC_ROOT_FH: u64 = u64::MAX;
 
 /// A single host folder exposed as a named child of the synthetic aggregate root.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct ChildEntry {
     /// Name of this child's directory under the synthetic root. Chosen by the
     /// caller; the guest bind-mounts `<aggregate-mount>/<name>` onto the user's
@@ -42,6 +49,7 @@ struct ChildEntry {
 }
 
 /// Registry of aggregated children for an aggregate-mode [`VirtioFs`].
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct AggregateRegistry {
     entries: Vec<ChildEntry>,
     next_volume_id: u32,
@@ -71,16 +79,20 @@ impl AggregateRegistry {
 ///
 /// When present, node 1 is a synthetic directory whose children are the entries
 /// in `registry`.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub(crate) struct AggregateState {
-    /// Aggregated children and their lifecycle state.
-    registry: RwLock<AggregateRegistry>,
+    /// Aggregated children and their lifecycle state, with the lock's rule
+    /// (`spec::RegistryRule`, `aggregate.spec.rs`: a microVM aggregate's
+    /// children never change).
+    registry: vstd::rwlock::RwLock<AggregateRegistry, spec::RegistryRule>,
 }
 
 impl AggregateState {
     pub(crate) fn new() -> Self {
         Self {
-            registry: RwLock::new(AggregateRegistry::new()),
+            // PLACEHOLDER (Verus only; nothing at runtime): the lock's rule
+            // (children that may change). Its proof gives it.
+            registry: vstd::rwlock::RwLock::new(AggregateRegistry::new(), Ghost::assume_new()),
         }
     }
 
@@ -99,18 +111,32 @@ impl AggregateState {
             registry.entries.push(ChildEntry { name, volume });
         }
         Self {
-            registry: RwLock::new(registry),
+            // PLACEHOLDER (Verus only; nothing at runtime): the lock's rule
+            // (these children, which never change). Its proof gives it.
+            registry: vstd::rwlock::RwLock::new(registry, Ghost::assume_new()),
         }
+    }
+
+    /// Test access to the registry, under its lock.
+    #[cfg(test)]
+    fn with_registry<R>(&self, f: impl FnOnce(&AggregateRegistry) -> R) -> R {
+        let handle = self.registry.acquire_read();
+        let result = f(handle.borrow());
+        handle.release_read();
+        result
     }
 
     /// Returns the volumes of the children, in child order.
     pub(crate) fn child_volumes(&self) -> Vec<Arc<VirtioFsVolume>> {
-        self.registry
-            .read()
+        let handle = self.registry.acquire_read();
+        let volumes = handle
+            .borrow()
             .entries
             .iter()
             .map(|entry| Arc::clone(&entry.volume))
-            .collect()
+            .collect();
+        handle.release_read();
+        volumes
     }
 }
 
@@ -151,30 +177,38 @@ impl VirtioFs {
         // already tearing down. Re-checked under the lock below to close the
         // race with a concurrent `begin_teardown`.
         {
-            aggregate.registry.read().check_can_add()?;
+            let handle = aggregate.registry.acquire_read();
+            let result = handle.borrow().check_can_add();
+            handle.release_read();
+            result?;
         }
 
         let (volume, readonly) = build_volume(root_path, mount_options)?;
 
-        let mut registry = aggregate.registry.write();
-        registry.check_can_add()?;
-        if registry.entries.iter().any(|e| e.name == name) {
-            return Err(lx::Error::EEXIST.into());
-        }
+        // The checks below may return early: release the lock first.
+        let (mut registry, handle) = aggregate.registry.acquire_write();
+        let result = (|| -> Result<(), crate::CreateError> {
+            registry.check_can_add()?;
+            if registry.entries.iter().any(|e| e.name == name) {
+                return Err(lx::Error::EEXIST.into());
+            }
 
-        let volume_id = registry.next_volume_id;
-        registry.next_volume_id = volume_id.checked_add(1).ok_or(lx::Error::ENOSPC)?;
-        registry.entries.push(ChildEntry {
-            name: name.to_string(),
-            volume: Arc::new(VirtioFsVolume::new(volume, volume_id, readonly)),
-        });
-        tracing::info!(
-            name,
-            volume_id,
-            child_count = registry.entries.len(),
-            "added aggregate virtio-fs child"
-        );
-        Ok(())
+            let volume_id = registry.next_volume_id;
+            registry.next_volume_id = volume_id.checked_add(1).ok_or(lx::Error::ENOSPC)?;
+            registry.entries.push(ChildEntry {
+                name: name.to_string(),
+                volume: Arc::new(VirtioFsVolume::new(volume, volume_id, readonly)),
+            });
+            tracing::info!(
+                name,
+                volume_id,
+                child_count = registry.entries.len(),
+                "added aggregate virtio-fs child"
+            );
+            Ok(())
+        })();
+        handle.release_write(registry);
+        result
     }
 
     /// Signal that the aggregate device has begun tearing down, so
@@ -183,7 +217,9 @@ impl VirtioFs {
     /// mode.
     pub fn begin_teardown(&self) {
         if let Some(aggregate) = self.inner.aggregate() {
-            aggregate.registry.write().tearing_down = true;
+            let (mut registry, handle) = aggregate.registry.acquire_write();
+            registry.tearing_down = true;
+            handle.release_write(registry);
         }
     }
 
@@ -201,13 +237,15 @@ impl VirtioFs {
             return Err(lx::Error::EINVAL);
         }
 
-        let mut children = aggregate.registry.write();
+        let (mut children, handle) = aggregate.registry.acquire_write();
         let before = children.entries.len();
         children.entries.retain(|e| e.name != name);
-        if children.entries.len() == before {
-            Err(lx::Error::ENOENT)
-        } else {
+        let removed = children.entries.len() != before;
+        handle.release_write(children);
+        if removed {
             Ok(())
+        } else {
+            Err(lx::Error::ENOENT)
         }
     }
 
@@ -257,10 +295,12 @@ impl VirtioFs {
     }
 
     fn synthetic_root_nlink(&self) -> u32 {
-        let child_count = self
-            .inner
-            .aggregate()
-            .map_or(0, |aggregate| aggregate.registry.read().entries.len());
+        let child_count = self.inner.aggregate().map_or(0, |aggregate| {
+            let handle = aggregate.registry.acquire_read();
+            let count = handle.borrow().entries.len();
+            handle.release_read();
+            count
+        });
         u32::try_from(child_count)
             .unwrap_or(u32::MAX)
             .saturating_add(2)
@@ -274,13 +314,15 @@ impl VirtioFs {
         };
         let name_bytes = name.as_bytes();
         let volume = {
-            let children = aggregate.registry.read();
-            let entry = children
+            let handle = aggregate.registry.acquire_read();
+            let volume = handle
+                .borrow()
                 .entries
                 .iter()
                 .find(|e| e.name.as_bytes() == name_bytes)
-                .ok_or(lx::Error::ENOENT)?;
-            Arc::clone(&entry.volume)
+                .map(|entry| Arc::clone(&entry.volume));
+            handle.release_read();
+            volume.ok_or(lx::Error::ENOENT)?
         };
 
         self.insert_child_root_entry(volume)
@@ -334,11 +376,14 @@ impl VirtioFs {
                 1 => self.write_synthetic_dot(&mut buffer, "..", next, plus),
                 n => {
                     let child = {
-                        let children = aggregate.registry.read();
-                        children
+                        let handle = aggregate.registry.acquire_read();
+                        let child = handle
+                            .borrow()
                             .entries
                             .get((n - 2) as usize)
-                            .map(|e| (e.name.clone(), Arc::clone(&e.volume)))
+                            .map(|e| (e.name.clone(), Arc::clone(&e.volume)));
+                        handle.release_read();
+                        child
                     };
                     let Some((name, volume)) = child else {
                         break;

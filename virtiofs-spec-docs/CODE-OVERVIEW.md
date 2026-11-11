@@ -786,12 +786,16 @@ all of them.
    `is_synthetic_handle`): its own handle, nothing changes. Error rules
    adjusted where a held node 1 changed them (`open`, `link` to node 1,
    `read_link`, a handle request on node 1 or with its handle). The view's
-   `inv` says the shares' names are plain. Left (TODO, spec): tying `g`'s
-   shares to the aggregate's registry (`AggregateState`, behind a
-   `parking_lot` lock; fixed after creation in the microVM; a non-microVM
-   aggregate's `add_child`/`remove_child` change it outside any request, and
-   are not covered); `lookup` in node 1 of a name that is no share
-   (`ENOENT`) is not among the error rules.
+   `inv` says the shares' names are plain. `g`'s shares are the code's:
+   the aggregate's registry lock (`AggregateState::registry`) is vstd's
+   `RwLock`, whose rule (`RegistryRule`, `aggregate.spec.rs`) records the
+   children, by name, when they never change (`fixed`: a microVM
+   aggregate), and `owns` ties `g`'s shares to that rule (code change 22).
+   `lookup` in node 1 of a name that is no share fails with `ENOENT`
+   (`lookup_errors`). Not covered: a non-microVM aggregate, whose host adds
+   and removes children (`add_child`, `remove_child`) outside any request;
+   its rule says nothing of them, so the contracts about its root cannot be
+   proved.
 6. **Visibility at the time of an operation on a node.** Every operation on
    a node the guest holds first re-checks, at that moment, that none of the
    node's names is hidden and that none passes through a symbolic link

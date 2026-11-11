@@ -68,15 +68,16 @@ fn aggregate_child_registry() {
     // direct mode).
     {
         let aggregate = fs.inner.aggregate().unwrap();
-        let children = aggregate.registry.read();
-        assert_eq!(children.entries.len(), 2);
-        assert_ne!(children.entries[0].volume.id(), 0);
-        assert_ne!(
-            children.entries[0].volume.id(),
-            children.entries[1].volume.id()
-        );
-        assert!(children.entries[0].volume.readonly());
-        assert!(!children.entries[1].volume.readonly());
+        aggregate.with_registry(|children| {
+            assert_eq!(children.entries.len(), 2);
+            assert_ne!(children.entries[0].volume.id(), 0);
+            assert_ne!(
+                children.entries[0].volume.id(),
+                children.entries[1].volume.id()
+            );
+            assert!(children.entries[0].volume.readonly());
+            assert!(!children.entries[1].volume.readonly());
+        });
     }
     assert_eq!(fs.synthetic_root_attr().nlink, 4);
     assert_eq!(fs.synthetic_root_statx(lx::StatExMask::new()).nlink, 4);
@@ -85,7 +86,10 @@ fn aggregate_child_registry() {
     fs.remove_child("share_a").unwrap();
     assert_eq!(fs.remove_child("share_a").unwrap_err(), lx::Error::ENOENT);
     assert_eq!(
-        fs.inner.aggregate().unwrap().registry.read().entries.len(),
+        fs.inner
+            .aggregate()
+            .unwrap()
+            .with_registry(|children| children.entries.len()),
         1
     );
     assert_eq!(fs.synthetic_root_attr().nlink, 3);
@@ -150,8 +154,10 @@ fn aggregate_children_namespace_inodes() {
     let fs = VirtioFs::new_aggregate();
     fs.add_child("child", root.path(), None).unwrap();
     let volume = {
-        let children = fs.inner.aggregate().unwrap().registry.read();
-        Arc::clone(&children.entries[0].volume)
+        fs.inner
+            .aggregate()
+            .unwrap()
+            .with_registry(|children| Arc::clone(&children.entries[0].volume))
     };
     assert_ne!(volume.map_inode(u64::MAX), u64::MAX);
 }
@@ -227,7 +233,10 @@ fn add_child_rejected_after_teardown() {
         lx::Error::EAGAIN,
     );
     assert_eq!(
-        fs.inner.aggregate().unwrap().registry.read().entries.len(),
+        fs.inner
+            .aggregate()
+            .unwrap()
+            .with_registry(|children| children.entries.len()),
         1
     );
 }
@@ -239,9 +248,11 @@ fn failed_synthetic_root_readdirplus_returns_entries_holding_references() {
     let fs = VirtioFs::new_aggregate();
     fs.add_child("first", first.path(), None).unwrap();
     fs.add_child("second", second.path(), None).unwrap();
-    let second_volume_id = fs.inner.aggregate().unwrap().registry.read().entries[1]
-        .volume
-        .id();
+    let second_volume_id = fs
+        .inner
+        .aggregate()
+        .unwrap()
+        .with_registry(|children| children.entries[1].volume.id());
 
     // Look up the first child's root, and fail the second's with a host error.
     let mut lookup = |volume: Arc<VirtioFsVolume>| {

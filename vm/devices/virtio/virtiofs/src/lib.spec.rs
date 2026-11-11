@@ -138,10 +138,7 @@ pub tracked struct VirtioFsGhost {
     pub ghost next_key: int,
     /// The file system is a microVM's (`owns` ties it to the profile).
     pub ghost microvm: bool,
-    /// An aggregate's shares (TODO, spec: tie them to the aggregate's
-    /// registry, `AggregateState`; it is behind a `parking_lot` lock, which
-    /// Verus cannot read, and in the microVM it never changes after
-    /// creation).
+    /// An aggregate's shares (`owns` ties them to its registry's lock).
     pub ghost shares: Map<Seq<u8>, VirtioFsShareView>,
 }
 
@@ -330,6 +327,16 @@ impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
         &&& self.inner.inodes.pred().id == g.inodes.id()
         &&& self.inner.files.pred().id == g.files.id()
         &&& g.microvm == (self.inner.microvm_profile is Some)
+        // An aggregate's shares are its registry's: fixed (and recorded in
+        // the registry lock's rule) in the microVM.
+        &&& g@.aggregate == (self.inner.mode is Aggregate)
+        &&& match self.inner.mode {
+            crate::VirtioFsMode::Aggregate(state) => {
+                &&& state.fixed() == g.microvm
+                &&& g.microvm ==> state.shares() == g.shares
+            },
+            crate::VirtioFsMode::Direct => g.shares == Map::<Seq<u8>, VirtioFsShareView>::empty(),
+        }
     }
 }
 

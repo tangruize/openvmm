@@ -167,7 +167,7 @@ struct VirtioFsInner {
 ///
 /// The read-only setting lives on each volume's inodes, not here, so aggregate
 /// children can differ (see [`AggregateState`]).
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 enum VirtioFsMode {
     /// Single share: node 1 is a real inode at the volume root.
     Direct,

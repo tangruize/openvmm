@@ -3,7 +3,10 @@
 use super::InodeAliases;
 use super::InodePath;
 use super::VirtioFsInode;
+use super::VirtioFsVolume;
 use crate::spec::VirtioFsInodeView;
+#[cfg(verus_keep_ghost)]
+use crate::spec::VirtioFsShareView;
 use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::rwlock::RwLockPredicate;
@@ -90,6 +93,23 @@ impl RwLockPredicate<InodeAliases> for AliasesRule {
                 },
                 None => false,
             }
+        }
+    }
+}
+
+impl VirtioFsVolume {
+    /// The volume as an aggregate's share: its id, read-only flag and
+    /// policy, and its root's path (`root_entry`: the exposed file's name, or
+    /// the empty path).
+    pub(crate) closed spec fn share_view(&self) -> VirtioFsShareView {
+        VirtioFsShareView {
+            volume: self.id,
+            readonly: self.readonly,
+            policy: self.policy@,
+            root: match self.exposed_file {
+                Some(file) => file@,
+                None => Seq::<Seq<u8>>::empty(),
+            },
         }
     }
 }

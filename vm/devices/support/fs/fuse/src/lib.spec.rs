@@ -343,16 +343,23 @@ pub trait FuseState: Sized {
     // `entry_errors`; `read_link`, `statfs`: `node_errors`; `fsync`,
     // `fsync_dir`: `handle_errors`; `get_statx`: `get_attr_errors`.)
 
-    /// The rules of `lookup` of `name` in directory `n` (not in a synthetic
-    /// node: open item 5): the guest holds `n`, a directory; `name` is one
-    /// plain name; and its path is not hidden.
+    /// The rules of `lookup` of `name` in directory `n`: the guest holds
+    /// `n`, a directory; `name` is one plain name; and its path is not
+    /// hidden. In a synthetic node, whose entries are fixed: a name at whose
+    /// path nothing may be reached (virtio-fs: no share of that name) fails
+    /// with `ENOENT`.
     open spec fn lookup_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
-        ISet::new(|c: i32| !self.is_synthetic(n) && {
-            ||| !self.holds_node(n) && c == lx::EINVAL
-            ||| self.holds_node(n) && {
-                ||| !self.is_dir(n) && c == lx::ENOTDIR
-                ||| !Self::is_plain_name(name) && c == lx::EINVAL
-                ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
+        ISet::new(|c: i32| {
+            ||| self.is_synthetic(n)
+                && (forall|kind: lx::mode_t| !#[trigger] self.may_reach(n, self.child_path(n, name), kind))
+                && c == lx::ENOENT
+            ||| !self.is_synthetic(n) && {
+                ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.holds_node(n) && {
+                    ||| !self.is_dir(n) && c == lx::ENOTDIR
+                    ||| !Self::is_plain_name(name) && c == lx::EINVAL
+                    ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
+                }
             }
         })
     }
