@@ -490,6 +490,49 @@ index 4842577b2..c8b9a4988 100644
      #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 ```
 
+## 6. On Windows, a write through a read-only handle can succeed
+
+*Found 2026-11-11, from an independent review of the contracts against the
+code (by reading the code; not tested, since it needs a Windows host).
+Fixed: `patches/0008-virtiofs-write-needs-a-handle-opened-for-writing.patch`
+(applies after 0007).*
+
+**What goes wrong.** `write` checks the handle and the access policy, but
+not how the handle was opened: it leaves that to the host, where `pwrite`
+on a file opened read-only fails. On Linux it does (`EBADF`). On Windows,
+lxutil gives a handle opened `O_RDONLY | O_TRUNC` write access, since
+Windows needs it to truncate (`open_flags_to_access_mask`,
+`lxutil/src/windows/util.rs`), so a later `write` through that read-only
+handle succeeds. Not a hole in the access policy: `open` with `O_TRUNC`
+already needs the file to be writable by the policy, and `write` checks
+the policy again. But a write through a read-only handle must fail.
+
+**The fix.** As Linux's `write(2)` does, `write` refuses a handle whose
+access mode is not `O_WRONLY` or `O_RDWR`, with `EBADF`, before the host
+is asked. Test: `microvm/policy_tests.rs`,
+`a_write_needs_a_handle_opened_for_writing` (on Linux it passes without
+the fix too, since the host refuses with the same code).
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 9bc8c4365..b04609d5e 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -599,6 +599,12 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
+             return Err(lx::Error::E2BIG);
+         }
+         let file = self.get_file(request.node_id(), arg.fh)?;
++        // Like Linux's write(2), refuse a handle not opened for writing,
++        // rather than leave it to the host: on Windows, a handle opened with
++        // `O_RDONLY | O_TRUNC` has write access (truncating needs it there).
++        if !matches!(file.open_flags() as i32 & lx::O_ACCESS_MASK, lx::O_WRONLY | lx::O_RDWR) {
++            return Err(lx::Error::EBADF);
++        }
+         self.check_writable(file.inode())?;
+         file.write(data, arg.offset, request.uid())
+     }
+```
+
 ## Questions for Pedro (not bugs, yet)
 
 - **Device nodes from `mknod`** (answered by Pedro, 2026-11-10: "the

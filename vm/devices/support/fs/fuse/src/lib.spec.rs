@@ -618,11 +618,13 @@ pub trait FuseState: Sized {
     }
 
     /// The rules of `write` of `size` bytes to node `n` through handle `fh`:
-    /// `handle_errors`, the size, and the guest may change `n`.
+    /// `handle_errors`, the size, the handle was opened for writing (else
+    /// `EBADF`, as Linux's `write(2)`), and the guest may change `n`.
     open spec fn write_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.handle_errors(n, fh).contains(c)
             ||| Self::buffer_too_large(size) && c == lx::E2BIG
+            ||| self.uses_handle(n, fh) && !self.opened_for_writing(fh) && c == lx::EBADF
             ||| self.uses_handle(n, fh) && !self.node_can_write(n) && c == lx::EROFS
         })
     }

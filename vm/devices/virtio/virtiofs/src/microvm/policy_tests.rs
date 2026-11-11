@@ -465,6 +465,27 @@ fn a_rename_moves_no_hidden_path() {
 }
 
 #[test]
+fn a_write_needs_a_handle_opened_for_writing() {
+    // Refused by virtio-fs itself, not left to the host: on Windows, a
+    // handle opened `O_RDONLY | O_TRUNC` has write access. (On Linux the
+    // host refuses with the same code, so this test passes without the
+    // check there.)
+    let share = Share::new();
+    let fs = share.fs(&[], &[], &["out"]);
+    let existing = lookup(&fs, "out/existing").unwrap();
+    for flags in [lx::O_RDONLY, lx::O_RDONLY | lx::O_TRUNC] {
+        let fh = open(&fs, existing, flags).unwrap();
+        assert_eq!(error(write(&fs, existing, fh, b"guest")), lx::Error::EBADF);
+        release(&fs, existing, fh);
+    }
+    assert_eq!(share.read("out/existing"), "");
+    let fh = open(&fs, existing, lx::O_WRONLY).unwrap();
+    assert_eq!(write(&fs, existing, fh, b"guest").unwrap(), 5);
+    release(&fs, existing, fh);
+    assert_eq!(share.read("out/existing"), "guest");
+}
+
+#[test]
 fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
     // One file with two names, one writable (`out/twin`) and one not
     // (`marker`): `open` refuses to truncate it, and so must a `create` at

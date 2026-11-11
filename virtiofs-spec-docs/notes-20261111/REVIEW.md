@@ -158,6 +158,8 @@ Findings are ordered by severity.
 
 ## 6. `write` (and `fallocate`/`copy_file_range`/`setup_mapping`, defaults): `opened_for_writing(fh)` is never checked by the code
 
+*Status (2026-11-11): confirmed. Not a bug on Linux (the host refuses), but on Windows a handle opened `O_RDONLY | O_TRUNC` has write access (`BUGS.md` bug 6). Fixed in the code (code change 28: `write` refuses with `EBADF`) and the spec (`write`'s rules: `EBADF`). The other operations listed are not implemented by virtio-fs (`ENOSYS`; `SectionFs` is outside the microVM).*
+
 - Spec: `fuse/lib.rs:565` (`r is Ok ==> uses_handle && opened_for_writing(fh) && file_can_write(fh)`).
 - Code: `vfs/lib.rs:591-598`. The code checks the size, `get_file` and
   `check_writable(file.inode())`, then calls `file.write` → `pwrite`.
