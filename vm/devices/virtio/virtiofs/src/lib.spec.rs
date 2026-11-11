@@ -374,16 +374,27 @@ impl FuseState for VirtioFsGhostView {
     /// The structural facts that every operation keeps: every node in the
     /// inode table but the root has a main path and names, and its main path
     /// is among its names when it has any (a node whose names were all
-    /// removed keeps its last main path); and an aggregate's shares have
-    /// plain names (the profile accepts only letters, digits, `.`, `_` and
-    /// `-`, and not `.` or `..`: `MicroVmAggregateChild::new`).
+    /// removed keeps its last main path); every main path and name of a
+    /// node, and every share's root path, is a share path, as each `lxutil`
+    /// method that virtio-fs calls requires (`LxVolume::is_share_path`:
+    /// relative, of plain names; `child_path` refuses other names, a rename
+    /// builds its new paths from these, and restore checks saved paths with
+    /// `validate_relative_path`); and an aggregate's shares have plain names
+    /// (the profile accepts only letters, digits, `.`, `_` and `-`, and not
+    /// `.` or `..`: `MicroVmAggregateChild::new`).
     closed spec fn inv(&self) -> bool {
         &&& forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
             &&& self.paths.contains_key(m)
             &&& self.aliases.contains_key(m)
             &&& !self.aliases[m].is_empty() ==> self.aliases[m].contains(self.paths[m])
         }
-        &&& forall|k: Seq<u8>| #[trigger] self.shares.contains_key(k) ==> Self::is_plain_name(k)
+        &&& forall|m: u64| #[trigger] self.paths.contains_key(m) ==> lxutil::LxVolume::is_share_path(self.paths[m])
+        &&& forall|m: u64, q: PathView| #[trigger] self.aliases.contains_key(m) && #[trigger] self.aliases[m].contains(q)
+            ==> lxutil::LxVolume::is_share_path(q)
+        &&& forall|k: Seq<u8>| #[trigger] self.shares.contains_key(k) ==> {
+            &&& Self::is_plain_name(k)
+            &&& lxutil::LxVolume::is_share_path(self.shares[k].root)
+        }
     }
 
     /// A node of the inode table, or an aggregate's root (synthetic, not in

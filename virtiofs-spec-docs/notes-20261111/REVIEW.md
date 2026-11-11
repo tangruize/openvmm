@@ -258,6 +258,8 @@ Findings are ordered by severity.
 
 ## 11. lxutil's preconditions need "every stored path is a share path", which no core or `inv` states
 
+*Status (2026-11-11): confirmed (lxutil's precondition exists; virtio-fs's side lacked the fact). Fixed in the spec: virtio-fs's `inv` now says every main path, every name and every share's root path is a share path (`LxVolume::is_share_path`). No code change.*
+
 - Spec: `lxutil/lib.rs:141` and the other `requires LxVolume::is_share_path(...)`.
   `vfs/inode.spec.rs` (the `PathRule`/`AliasesRule` cores fix only the id,
   key and value). `vfs/lib.spec.rs:381-387` (`inv`).

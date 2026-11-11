@@ -277,8 +277,11 @@ maps were keyed by node id.
 ### `wf`, `inv`, `owns`
 
 - `inv` (`:380`, on the view): every table node but the root has a main
-  path and names, its main path among its names when it has any; an
-  aggregate's shares have plain names.
+  path and names, its main path among its names when it has any; every
+  main path and name, and every share's root path, is a share path
+  (`LxVolume::is_share_path`, which each `lxutil` method requires: so the
+  paths virtio-fs hands to `lxutil` meet its precondition); an aggregate's
+  shares have plain names.
 - `wf` (`:305`, on `VirtioFsGhost`): `inv`; the recorded map ids are the
   maps'; every table node but the root has a key with entries in both
   maps; no two such nodes share a key; every key in use is below
