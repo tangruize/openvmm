@@ -745,7 +745,7 @@ all of them.
 
 | Property | Status |
 |---|---|
-| 1. Confinement | started (2026-11-10; open item 9): the precondition half is done (every path virtio-fs hands to `lxutil` is relative, of plain names); the half that `lxutil` then stays beneath the share's root is trusted, in words, until the host model |
+| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); that `lxutil` then stays beneath the share's root (the kernel's guard, on Linux and Windows) is trusted, in words. Assumed: no mount point inside a share (on Linux; a question for Pedro). Waits for the host model: the root's identity, pinned identities, the symbolic-link walk, and the trusted half as a contract |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |
@@ -908,7 +908,8 @@ all of them.
    `refuses_mknod`: in `mknod`'s success clause, and `mknod_errors`,
    `EPERM`). Still open: host hard links between a writable and a
    read-only path (needs the host model, with item 3).
-9. **Confinement** (property 1; started 2026-11-10). Two halves:
+9. **Confinement** (property 1; done 2026-11-10, as far as it goes
+   without a host model: what is left waits for one, below). Two halves:
    - *What virtio-fs hands to `lxutil` (done, checked once proved):* each
      of the 16 `LxVolume` methods that virtio-fs calls (`lstat`, `statx`,
      `set_attr_stat`, `open`, `mkdir_stat`, `mknod_stat`, `symlink_stat`,
