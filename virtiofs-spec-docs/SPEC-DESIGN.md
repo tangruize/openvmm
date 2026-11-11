@@ -46,10 +46,10 @@ would meet every contract and still read the host's `/etc/passwd`.
 **What the host model adds** (`lxutil/src/host_t.rs`, started 2026-11-11):
 which object a name reaches. With it, the spec says that every name of a
 node names the node's object on the disk, and that a hidden object is not
-reached through another name (pinned identities). It does not yet say
-that a read-only file is not changed through a writable hard link, that
-the share's root is the intended directory, or that no path passes
-through a link.
+reached through another name (pinned identities), that no object has both a writable path and a visible
+read-only one (host hard links), that the share's root is the intended
+directory (its identity, in `owns`), and that no other name leads to the
+root's object. It does not yet say that no path passes through a link.
 
 **Host assumptions.** The spec holds only if:
 
@@ -557,13 +557,12 @@ Spots that look hard:
 
 Each is in `CODE-OVERVIEW.md`'s open items or status table.
 
-- **The rest of the host model** (items 3, 8, 9): host hard links between
-  a read-only and a writable path, the share's root's identity, a name
-  that leads to the root's own object, the symbolic-link walk, `DT_UNK`
-  entries, and the confinement fact as a contract. (Done with its first
-  part: `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of each
-  node's names to its object, bug 3's rule in `create`'s contract, and the
-  pinned identities in `wf`.)
+- **The rest of the host model** (items 3, 8, 9): the symbolic-link walk,
+  `DT_UNK` entries, and the confinement fact as a contract. (Done: the host
+  model itself, `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of
+  each node's names to its object, bug 3's rule in `create`'s contract,
+  the pinned identities, host hard links, one path per directory, and the
+  root's identity in `owns`, from `microvm/profile.spec.rs`.)
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on

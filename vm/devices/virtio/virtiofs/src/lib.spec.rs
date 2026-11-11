@@ -411,6 +411,23 @@ impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
             },
             crate::VirtioFsMode::Direct => g.shares == Map::<Seq<u8>, VirtioFsShareView>::empty(),
         }
+        // The share's root is the intended one: on each volume's disk, the
+        // object at the root's path is the one the profile's root identity
+        // names (`validate_opened_root`, at attach and at restore): volume 0's
+        // for a single share, volume `i + 1`'s for an aggregate's `i`-th child.
+        &&& self.inner.microvm_profile matches Some(profile) ==> match self.inner.mode {
+            crate::VirtioFsMode::Aggregate(_) => forall|k: Seq<u8>| #[trigger] g.shares.contains_key(k) ==> {
+                let share = g.shares[k];
+                &&& g.disks.contains_key(share.volume)
+                &&& g.disks[share.volume]@.objects.contains_key(share.root)
+                &&& profile.child_identifies_root(share.volume as int - 1, g.disks[share.volume]@.objects[share.root])
+            },
+            crate::VirtioFsMode::Direct => {
+                &&& g.disks.contains_key(0)
+                &&& g.disks[0]@.objects.contains_key(seq![])
+                &&& profile.identifies_root(g.disks[0]@.objects[seq![]])
+            },
+        }
     }
 }
 

@@ -12,6 +12,13 @@ use std::time::Duration;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
+/// Verus specification of the profile: which host object its root identity
+/// names. Inside the profile's module, so it can read the identity.
+#[cfg(verus_keep_ghost)]
+pub(crate) mod spec {
+    include!("profile.spec.rs");
+}
+
 /// Stable device-private attachment identifier of the microVM share.
 pub const MICROVM_ATTACHMENT_ID: &str = "fs:microvm0";
 
@@ -82,6 +89,8 @@ impl MicroVmFuseNegotiationPolicy {
 }
 
 /// Access policy enforced by the host filesystem implementation.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MicroVmAccessMode {
     /// Reject mutations before they reach the host filesystem.
@@ -91,6 +100,8 @@ pub enum MicroVmAccessMode {
 }
 
 /// Host identity that performs the guest's filesystem operations.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MicroVmOwnerMode {
     /// Run every operation as the VMM process, which then owns the files that
@@ -142,6 +153,8 @@ pub enum MicroVmProfileError {
 /// named child of its synthetic root, with its own access policy.
 ///
 /// Like [`MicroVmVirtioFsProfile`], it contains no host path.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MicroVmAggregateChild {
     name: String,
@@ -432,7 +445,7 @@ fn validate_opened_object(
 /// A profile describes either a single share or an aggregate, whose synthetic
 /// read-only root lists one named child per host directory. Each child carries
 /// its own root identity and access policy, so an aggregate has neither.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MicroVmVirtioFsProfile {
