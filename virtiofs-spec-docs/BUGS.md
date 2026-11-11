@@ -355,9 +355,11 @@ link, which is simpler to set up than the link and rename above).
   allowed by POSIX (a listing may reflect the directory as of when it
   started), and the cache keeps the listing's offsets stable across reads
   and save/restore. The one surprise: two handles on the same directory
-  can list different entries (an older one still shows `secret`). If you
-  prefer every reply to judge its entries against the directory's path at
-  that moment, it is one `entry_listable` call per entry handed out, the
-  cache and its offsets unchanged. The spec follows the code: every name
-  listed was listable when the handle's listing was built
-  (`CODE-OVERVIEW.md`, open item 4).
+  can list different entries (an older one still shows `secret`). We made
+  every reply judge its entries against the directory's path at that
+  moment (one `entry_listable` call per entry handed out, the cache and its
+  offsets unchanged), because it makes the spec much simpler and the
+  guarantee stronger; it is code change 23 (`CODE-CHANGES.md`), with a
+  test, and the patch is
+  `patches/0004-virtiofs-a-listing-judges-its-entries-at-each-reply.patch`.
+  Tell us if you would rather keep the original behavior.

@@ -788,3 +788,54 @@ fn saved_state_records_the_access_policy() {
     dormant.allowed_paths = owned(&["logs/payloads"]);
     assert!(validate_dormant_microvm_state(&dormant, MICROVM_ATTACHMENT_ID).is_err());
 }
+
+#[test]
+fn a_listing_leaves_out_an_entry_hidden_by_a_later_rename() {
+    // A directory's listing is cached at the handle's first read, filtered
+    // against the directory's path then; each later reply judges the cached
+    // entries again against the directory's path now. Here the guest renames
+    // the directory between two reads, so that one entry lands on a hidden
+    // path: the second reply leaves it out.
+    let share = Share::new();
+    for path in ["out/d", "out/w"] {
+        std::fs::create_dir_all(share.path(path)).unwrap();
+    }
+    for path in ["out/d/a", "out/d/secret", "out/w/secret"] {
+        std::fs::write(share.path(path), "data").unwrap();
+    }
+    let fs = share.fs(&["out/w/secret"], &[], &["out"]);
+    // A denied path must exist when the share is attached; take it away, so
+    // that the rename below can put the directory there.
+    std::fs::remove_dir_all(share.path("out/w")).unwrap();
+    let out = lookup(&fs, "out").unwrap();
+    let d = lookup(&fs, "out/d").unwrap();
+
+    // The first read fits only `.`, and builds the cache, with `secret`.
+    let fh = fs.open_dir(&request(d), lx::O_RDONLY as u32).unwrap().fh;
+    let mut arg = fuse_read_in::new_zeroed();
+    arg.fh = fh;
+    arg.size = 32;
+    let first = fs.read_dir(&request(d), &arg).unwrap();
+    let next = u64::from_le_bytes(first[8..16].try_into().unwrap());
+
+    // The directory moves to `out/w`, where `secret` is hidden.
+    fs.rename(&request(out), name("d"), out, name("w"), 0)
+        .unwrap();
+
+    let mut arg = fuse_read_in::new_zeroed();
+    arg.fh = fh;
+    arg.offset = next;
+    arg.size = 4096;
+    let rest = fs.read_dir(&request(d), &arg).unwrap();
+    let mut names = Vec::new();
+    let mut offset = 0;
+    while offset < rest.len() {
+        let length =
+            u32::from_le_bytes(rest[offset + 16..offset + 20].try_into().unwrap()) as usize;
+        names.push(String::from_utf8(rest[offset + 24..offset + 24 + length].to_vec()).unwrap());
+        offset += fuse::protocol::fuse_dirent_align(24 + length);
+    }
+    names.sort();
+    assert_eq!(names, ["..", "a"]);
+    release(&fs, d, fh);
+}

@@ -50,8 +50,17 @@ impl VirtioFsFile {
             .try_reserve_exact(size as usize)
             .map_err(|_| lx::Error::ENOMEM)?;
 
+        // Whether the reply stopped because the next entry did not fit.
+        let mut full = false;
         for entry in &entries[start..] {
             let name = lx::LxStr::from_bytes(&entry.name);
+            // The cache was filtered against the directory's path when it was
+            // built; the guest may have renamed the directory since, so each
+            // entry is judged again against its path now, and one that may
+            // no longer be listed is left out (its cookie is skipped).
+            if entry.name != b"." && entry.name != b".." && !self.listable_now(name, entry.kind)? {
+                continue;
+            }
             if plus {
                 if entry.name == b"." || entry.name == b".." {
                     if !buffer.dir_entry_plus(
@@ -59,12 +68,14 @@ impl VirtioFsFile {
                         entry.next_cookie,
                         fuse_entry_out::new_dot(entry.guest_inode_id, entry.kind << 12),
                     ) {
+                        full = true;
                         break;
                     }
                 } else {
                     // This check must happen before lookup_helper, because a
                     // readdirplus lookup creates a guest lookup reference.
                     if !buffer.check_dir_entry_plus(name) {
+                        full = true;
                         break;
                     }
                     let fuse_entry = fs.lookup_helper(&self.inode, name)?;
@@ -76,14 +87,28 @@ impl VirtioFsFile {
                     }
                 }
             } else if !buffer.dir_entry(name, entry.guest_inode_id, entry.next_cookie, entry.kind) {
+                full = true;
                 break;
             }
         }
 
-        if !entries[start..].is_empty() && buffer.is_empty() {
+        // Not even one entry fits in the guest's buffer. (A reply left empty
+        // because every remaining entry was left out ends the listing.)
+        if full && buffer.is_empty() {
             return Err(lx::Error::EINVAL);
         }
         Ok(buffer)
+    }
+
+    /// Whether the guest may list the entry `name`, of type `kind`, of this
+    /// directory under the directory's path now, by the rule that built the
+    /// cache (`entry_listable`, and a hidden path refused by `child_path`).
+    fn listable_now(&self, name: &lx::LxStr, kind: u32) -> lx::Result<bool> {
+        match self.inode.child_path(name) {
+            Ok(path) => Ok(self.inode.volume.entry_listable(&path, kind as u8)),
+            Err(error) if error == lx::Error::EACCES => Ok(false),
+            Err(error) => Err(error),
+        }
     }
 
     fn build_microvm_directory_snapshot(&self) -> lx::Result<Vec<SavedDirectoryEntry>> {
