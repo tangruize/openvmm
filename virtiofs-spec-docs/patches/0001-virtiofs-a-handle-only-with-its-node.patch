@@ -1,8 +1,8 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index cf163f1d7..20ce80e5b 100644
+index 71780f585..b6525a8a0 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -197,7 +197,7 @@ fn get_attr(&self, request: &Request, flags: u32, fh: u64) -> lx::Result<fuse_at
+@@ -182,7 +182,7 @@ fn get_attr(&self, request: &Request, flags: u32, fh: u64) -> lx::Result<fuse_at
          // Windows and works if the file was deleted. The synthetic root's directory handle has no
          // backing file, so fall through to the node-based branch for it.
          let attr = if flags & FUSE_GETATTR_FH != 0 && !self.is_synthetic_root_handle(node_id, fh) {
@@ -11,7 +11,7 @@ index cf163f1d7..20ce80e5b 100644
              file.get_attr()?
          } else if self.is_synthetic_root(node_id) {
              self.synthetic_root_attr()
-@@ -226,7 +226,7 @@ fn get_statx(
+@@ -209,7 +209,7 @@ fn get_statx(
          let statx = if getattr_flags & FUSE_GETATTR_FH != 0
              && !self.is_synthetic_root_handle(node_id, fh)
          {
@@ -20,7 +20,7 @@ index cf163f1d7..20ce80e5b 100644
              file.get_statx()?
          } else if self.is_synthetic_root(node_id) {
              self.synthetic_root_statx(mask)
-@@ -250,7 +250,7 @@ fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_
+@@ -231,7 +231,7 @@ fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_
          // If a file handle is specified, set the attributes on the open file. This is faster on
          // Windows and works if the file was deleted.
          let attr = if arg.valid & FATTR_FH != 0 {
@@ -29,10 +29,10 @@ index cf163f1d7..20ce80e5b 100644
              // Block truncation and other modifications on readonly filesystems
              if arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 {
                  self.check_writable(file.inode())?;
-@@ -485,8 +485,8 @@ fn read_link(&self, request: &Request) -> lx::Result<lx::LxString> {
+@@ -446,8 +446,8 @@ fn read_link(&self, request: &Request) -> lx::Result<lx::LxString> {
+         inode.read_link()
+     }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn read(&self, _request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
 -        let file = self.get_file(arg.fh)?;
 +    fn read(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
@@ -40,7 +40,7 @@ index cf163f1d7..20ce80e5b 100644
          let mut buffer = guest_buffer(arg.size)?;
          let size = file.read(&mut buffer, arg.offset)?;
          buffer.truncate(size);
-@@ -499,7 +499,7 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
+@@ -458,7 +458,7 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
          if data.len() > MAX_GUEST_BUFFER_SIZE {
              return Err(lx::Error::E2BIG);
          }
@@ -49,7 +49,7 @@ index cf163f1d7..20ce80e5b 100644
          self.check_writable(file.inode())?;
          file.write(data, arg.offset, request.uid())
      }
-@@ -530,7 +530,7 @@ fn read_dir(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>>
+@@ -483,7 +483,7 @@ fn read_dir(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>>
          if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
              return self.read_synthetic_root_dir(arg.offset, arg.size, false);
          }
@@ -58,7 +58,7 @@ index cf163f1d7..20ce80e5b 100644
          file.read_dir(self, arg.offset, arg.size, false)
      }
  
-@@ -540,7 +540,7 @@ fn read_dir_plus(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec
+@@ -491,7 +491,7 @@ fn read_dir_plus(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec
          if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
              return self.read_synthetic_root_dir(arg.offset, arg.size, true);
          }
@@ -67,10 +67,10 @@ index cf163f1d7..20ce80e5b 100644
          file.read_dir(self, arg.offset, arg.size, true)
      }
  
-@@ -615,16 +615,16 @@ fn statfs(&self, request: &Request) -> lx::Result<fuse_kstatfs> {
+@@ -554,14 +554,14 @@ fn statfs(&self, request: &Request) -> lx::Result<fuse_kstatfs> {
+         inode.stat_fs()
+     }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn fsync(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
 -        let file = self.get_file(fh)?;
 +    fn fsync(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
@@ -79,8 +79,6 @@ index cf163f1d7..20ce80e5b 100644
          file.fsync(data_only)
      }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn fsync_dir(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
 -        let file = self.get_file(fh)?;
 +    fn fsync_dir(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
@@ -88,7 +86,7 @@ index cf163f1d7..20ce80e5b 100644
          let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
          file.fsync_dir(data_only)
      }
-@@ -897,14 +897,30 @@ fn reserve_inode(&self) -> lx::Result<InodeReservation<'_>> {
+@@ -820,14 +820,30 @@ fn reserve_inode(&self) -> lx::Result<InodeReservation<'_>> {
      }
  
      /// Retrieve the file object with the specified file handle.

@@ -257,6 +257,9 @@ pub trait FuseState: Sized {
     /// the `S_IFMT` bits) with `mknod`.
     spec fn refuses_mknod(&self, mode: u32) -> bool;
 
+    /// The file system refuses `rename`'s flags `flags`.
+    spec fn refuses_rename(&self, flags: u32) -> bool;
+
     /// `open`'s (and `open_dir`'s) flags `flags` hold one that the file
     /// system does not accept.
     spec fn bad_open_flags(flags: u32) -> bool;
@@ -527,9 +530,11 @@ pub trait FuseState: Sized {
     /// The rules of `rename` of `name` in directory `n` to `new_name` in
     /// directory `m`, with `flags`. A rename moves every path below the one
     /// renamed (with `RENAME_EXCHANGE`, below both), so none of them may be
-    /// hidden (`hides_below`, `EROFS`).
+    /// hidden (`hides_below`, `EROFS`); and flags the file system refuses
+    /// (`EINVAL`).
     open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>, flags: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
+            ||| self.refuses_rename(flags) && c == lx::EINVAL
             ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
             ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
             ||| self.hidden_names(n, c) || self.hidden_names(m, c)
@@ -784,6 +789,10 @@ impl FuseState for () {
     }
 
     open spec fn refuses_mknod(&self, mode: u32) -> bool {
+        false
+    }
+
+    open spec fn refuses_rename(&self, flags: u32) -> bool {
         false
     }
 

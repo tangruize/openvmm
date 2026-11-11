@@ -117,6 +117,23 @@ pub(crate) fn validate_mknod_mode(fs: &VirtioFs, mode: u32) -> lx::Result<()> {
     Ok(())
 }
 
+/// Linux's `RENAME_NOREPLACE` and `RENAME_EXCHANGE`, the only `renameat2`
+/// flags that the microVM accepts.
+const MICROVM_RENAME_FLAGS: u32 = 1 | 2;
+
+/// Validates the flags of a guest `rename`: the microVM accepts only
+/// `RENAME_NOREPLACE` and `RENAME_EXCHANGE`. `RENAME_WHITEOUT` leaves a
+/// character device 0:0 (an overlayfs whiteout) at the old name, which Linux
+/// lets any user make, so it would give the guest the device node that
+/// [`validate_mknod_mode`] refuses. The error is `EINVAL`, as Linux reports
+/// a flag it does not accept.
+pub(crate) fn validate_rename_flags(fs: &VirtioFs, flags: u32) -> lx::Result<()> {
+    if fs.is_microvm() && flags & !MICROVM_RENAME_FLAGS != 0 {
+        return Err(lx::Error::EINVAL);
+    }
+    Ok(())
+}
+
 /// The longest symbolic link target, in bytes, that Linux accepts.
 const MAX_SYMLINK_TARGET_BYTES: usize = 4095;
 

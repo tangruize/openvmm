@@ -443,6 +443,7 @@ where
                     &&& s.node_can_write(_new_dir)
                     &&& s.can_write(n, p)
                     &&& s.can_write(_new_dir, q)
+                    &&& !s.refuses_rename(_flags)
                     &&& !s.hides_below(n, p)
                     &&& G::V::is_exchange(_flags) ==> !s.hides_below(_new_dir, q)
                     &&& s.renamed(n, p, q, G::V::is_exchange(_flags), final(g)@)

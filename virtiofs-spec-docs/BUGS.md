@@ -5,6 +5,12 @@ Bugs in Pedro Henrique Penna's virtio-fs (`feature/microvm/dev` at
 guest triggers it, and the fix. Fixed on this branch; each fix is also a
 `CODE-CHANGES.md` entry, and a patch in `patches/`, for Pedro.
 
+The patches in `patches/` (0001-0008) are for Pedro's code itself: they
+apply in order to `feature/microvm/dev` at `db42fde04`, and after each
+one, `virtiofs` builds, its tests pass (each patch adds one), and
+`cargo fmt` and `clippy` are clean (checked 2026-11-11). They hold the
+code and its tests only, none of the spec's Verus annotations.
+
 ## 1. A handle keeps working after the guest gives its node back
 
 *Found 2026-11-10, while writing the contract of `read_dir_plus`. Fixed:
@@ -61,10 +67,10 @@ All `virtiofs` tests passed (162, one ignored).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index cf163f1d7..20ce80e5b 100644
+index 71780f585..b6525a8a0 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -197,7 +197,7 @@ fn get_attr(&self, request: &Request, flags: u32, fh: u64) -> lx::Result<fuse_at
+@@ -182,7 +182,7 @@ fn get_attr(&self, request: &Request, flags: u32, fh: u64) -> lx::Result<fuse_at
          // Windows and works if the file was deleted. The synthetic root's directory handle has no
          // backing file, so fall through to the node-based branch for it.
          let attr = if flags & FUSE_GETATTR_FH != 0 && !self.is_synthetic_root_handle(node_id, fh) {
@@ -73,7 +79,7 @@ index cf163f1d7..20ce80e5b 100644
              file.get_attr()?
          } else if self.is_synthetic_root(node_id) {
              self.synthetic_root_attr()
-@@ -226,7 +226,7 @@ fn get_statx(
+@@ -209,7 +209,7 @@ fn get_statx(
          let statx = if getattr_flags & FUSE_GETATTR_FH != 0
              && !self.is_synthetic_root_handle(node_id, fh)
          {
@@ -82,7 +88,7 @@ index cf163f1d7..20ce80e5b 100644
              file.get_statx()?
          } else if self.is_synthetic_root(node_id) {
              self.synthetic_root_statx(mask)
-@@ -250,7 +250,7 @@ fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_
+@@ -231,7 +231,7 @@ fn set_attr(&self, request: &Request, arg: &fuse_setattr_in) -> lx::Result<fuse_
          // If a file handle is specified, set the attributes on the open file. This is faster on
          // Windows and works if the file was deleted.
          let attr = if arg.valid & FATTR_FH != 0 {
@@ -91,10 +97,10 @@ index cf163f1d7..20ce80e5b 100644
              // Block truncation and other modifications on readonly filesystems
              if arg.valid & !(FATTR_FH | FATTR_LOCKOWNER) != 0 {
                  self.check_writable(file.inode())?;
-@@ -485,8 +485,8 @@ fn read_link(&self, request: &Request) -> lx::Result<lx::LxString> {
+@@ -446,8 +446,8 @@ fn read_link(&self, request: &Request) -> lx::Result<lx::LxString> {
+         inode.read_link()
+     }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn read(&self, _request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
 -        let file = self.get_file(arg.fh)?;
 +    fn read(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
@@ -102,7 +108,7 @@ index cf163f1d7..20ce80e5b 100644
          let mut buffer = guest_buffer(arg.size)?;
          let size = file.read(&mut buffer, arg.offset)?;
          buffer.truncate(size);
-@@ -499,7 +499,7 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
+@@ -458,7 +458,7 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
          if data.len() > MAX_GUEST_BUFFER_SIZE {
              return Err(lx::Error::E2BIG);
          }
@@ -111,7 +117,7 @@ index cf163f1d7..20ce80e5b 100644
          self.check_writable(file.inode())?;
          file.write(data, arg.offset, request.uid())
      }
-@@ -530,7 +530,7 @@ fn read_dir(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>>
+@@ -483,7 +483,7 @@ fn read_dir(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec<u8>>
          if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
              return self.read_synthetic_root_dir(arg.offset, arg.size, false);
          }
@@ -120,7 +126,7 @@ index cf163f1d7..20ce80e5b 100644
          file.read_dir(self, arg.offset, arg.size, false)
      }
  
-@@ -540,7 +540,7 @@ fn read_dir_plus(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec
+@@ -491,7 +491,7 @@ fn read_dir_plus(&self, request: &Request, arg: &fuse_read_in) -> lx::Result<Vec
          if self.is_synthetic_root_handle(request.node_id(), arg.fh) {
              return self.read_synthetic_root_dir(arg.offset, arg.size, true);
          }
@@ -129,10 +135,10 @@ index cf163f1d7..20ce80e5b 100644
          file.read_dir(self, arg.offset, arg.size, true)
      }
  
-@@ -615,16 +615,16 @@ fn statfs(&self, request: &Request) -> lx::Result<fuse_kstatfs> {
+@@ -554,14 +554,14 @@ fn statfs(&self, request: &Request) -> lx::Result<fuse_kstatfs> {
+         inode.stat_fs()
+     }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn fsync(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
 -        let file = self.get_file(fh)?;
 +    fn fsync(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
@@ -141,8 +147,6 @@ index cf163f1d7..20ce80e5b 100644
          file.fsync(data_only)
      }
  
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
 -    fn fsync_dir(&self, _request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
 -        let file = self.get_file(fh)?;
 +    fn fsync_dir(&self, request: &Request, fh: u64, flags: u32) -> lx::Result<()> {
@@ -150,7 +154,7 @@ index cf163f1d7..20ce80e5b 100644
          let data_only = flags & FUSE_FSYNC_FDATASYNC != 0;
          file.fsync_dir(data_only)
      }
-@@ -897,14 +897,30 @@ fn reserve_inode(&self) -> lx::Result<InodeReservation<'_>> {
+@@ -820,14 +820,30 @@ fn reserve_inode(&self) -> lx::Result<InodeReservation<'_>> {
      }
  
      /// Retrieve the file object with the specified file handle.
@@ -215,9 +219,11 @@ do is still refused), a rename of a name onto itself returns at once. Test:
 (fails without the fix).
 
 ```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index b6525a8a0..12b8c6f8f 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -590,6 +590,12 @@
+@@ -533,6 +533,12 @@ fn rename(
          let new_path = new_inode.child_path(new_name)?;
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
@@ -263,9 +269,11 @@ run one at a time. Test: `microvm/policy_tests.rs`,
 link, which is simpler to set up than the link and rename above).
 
 ```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index 12b8c6f8f..169cfa414 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -327,6 +327,7 @@
+@@ -300,6 +300,7 @@ fn create(
          self.check_writable(&inode)?;
          let path = inode.child_path(name)?;
          self.check_writable_entry(&inode, &path)?;
@@ -273,7 +281,7 @@ link, which is simpler to set up than the link and rename above).
          self.preflight_create_inode(&inode, name, &path)?;
          self.preflight_file_insert()?;
          let inode_reservation = self.reserve_inode()?;
-@@ -748,6 +749,39 @@
+@@ -671,6 +672,39 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -313,13 +321,15 @@ link, which is simpler to set up than the link and rename above).
      /// Check whether the open flags are permitted on a read-only filesystem.
      fn check_open_readonly(&self, inode: &VirtioFsInode, options: i32) -> lx::Result<()> {
          if !inode.readonly() {
-@@ -1189,6 +1223,11 @@
+@@ -1112,6 +1146,13 @@ pub fn release_reservation(&mut self, reservation: &HandleReservation) {
          self.inodes_by_node_id.release_reservation(reservation);
      }
  
 +    /// The inode that the table holds for `key`, if any.
 +    pub fn find(&self, key: &DedupKey) -> Option<Arc<VirtioFsInode>> {
-+        self.inodes_by_key.get(key).map(|(inode, _)| Arc::clone(inode))
++        self.inodes_by_key
++            .get(key)
++            .map(|(inode, _)| Arc::clone(inode))
 +    }
 +
      /// Insert an inode into the map, returning its node ID.
@@ -354,10 +364,10 @@ fix: the host links the new file as `b`).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 151c3221a..c4da7ddd7 100644
+index 2d0ccdd5d..a1b1e24f7 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -537,6 +537,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
+@@ -411,6 +411,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
          }
          let inode = self.get_inode(request.node_id())?;
          let target_inode = self.get_inode(target)?;
@@ -409,10 +419,10 @@ guest's own. Test: `microvm/policy_tests.rs`, `a_rename_moves_no_hidden_path`
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index c4da7ddd7..9bc8c4365 100644
+index a1b1e24f7..92b2b9bc6 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -689,13 +689,19 @@ fn rename(
+@@ -542,13 +542,19 @@ fn rename(
          let new_path = new_inode.child_path(new_name)?;
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
@@ -432,8 +442,8 @@ index c4da7ddd7..9bc8c4365 100644
 -        let exchange = flags & RENAME_EXCHANGE != 0;
          self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
          inode.rename(name, &new_inode, new_name, flags)?;
-         let (mut inodes, handle) = self.inner.inodes.acquire_write();
-@@ -858,6 +864,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+         let mut inodes = self.inner.inodes.write();
+@@ -680,6 +686,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -453,7 +463,7 @@ index c4da7ddd7..9bc8c4365 100644
      /// writing, or truncate it, follows `open`'s rule for that file: if the
      /// guest holds the file's node, every name of it must be writable (as
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/inode.rs b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
-index c5f0c3da2..053b7c812 100644
+index b7a4c216e..4971b2010 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/inode.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
 @@ -90,6 +90,12 @@ pub(crate) fn path_writable(&self, path: &Path) -> bool {
@@ -470,10 +480,10 @@ index c5f0c3da2..053b7c812 100644
      pub(crate) fn restricts_writes(&self) -> bool {
          self.policy.restricts_writes()
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy.rs b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
-index 4842577b2..c8b9a4988 100644
+index c4233358a..ad9b0e58c 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
-@@ -255,6 +255,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
+@@ -163,6 +163,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
                      .any(|writable| path.starts_with(writable)))
      }
  
@@ -487,7 +497,7 @@ index 4842577b2..c8b9a4988 100644
 +
      /// Returns whether some path that the guest can reach is not writable in a
      /// read-write share, so that each modification must check its paths.
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+     pub(crate) fn restricts_writes(&self) -> bool {
 ```
 
 ## 6. On Windows, a write through a read-only handle can succeed
@@ -515,17 +525,20 @@ the fix too, since the host refuses with the same code).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 9bc8c4365..b04609d5e 100644
+index 92b2b9bc6..26afe0915 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -599,6 +599,12 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
+@@ -467,6 +467,15 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
              return Err(lx::Error::E2BIG);
          }
          let file = self.get_file(request.node_id(), arg.fh)?;
 +        // Like Linux's write(2), refuse a handle not opened for writing,
 +        // rather than leave it to the host: on Windows, a handle opened with
 +        // `O_RDONLY | O_TRUNC` has write access (truncating needs it there).
-+        if !matches!(file.open_flags() as i32 & lx::O_ACCESS_MASK, lx::O_WRONLY | lx::O_RDWR) {
++        if !matches!(
++            file.open_flags() as i32 & lx::O_ACCESS_MASK,
++            lx::O_WRONLY | lx::O_RDWR
++        ) {
 +            return Err(lx::Error::EBADF);
 +        }
          self.check_writable(file.inode())?;
@@ -535,22 +548,28 @@ index 9bc8c4365..b04609d5e 100644
 
 ## Questions for Pedro (not bugs, yet)
 
-- **Device nodes from `mknod`** (answered by Pedro, 2026-11-10: "the
-  profile [should] accept only regular files, FIFOs and sockets in mknod,
-  as defense in depth"; done, code change 24). `mknod` accepted any file
-  type the guest asked for, character and block devices included; with
-  `CAP_MKNOD`, and a share not on a `nodev` filesystem, a guest with one
-  writable path could make a node for a host disk. The microVM now refuses
-  every type but a regular file (or 0, which is one), a FIFO or a socket,
-  with `EPERM` (what Linux reports for a device node made without
-  `CAP_MKNOD`), before asking the host. Found while testing it: Linux lets
-  any user make a character device numbered 0:0 without `CAP_MKNOD` (a
-  "whiteout", which overlayfs uses to mark a file deleted), so the guest
-  could already make those; on a share that is an overlayfs upper layer,
-  that would hide a lower file from the merged view. The check closes it.
-  Test `mknod_makes_no_device_node` (fails without the check: the
+- **Device nodes from the guest** (answered by Pedro, 2026-11-10, about
+  `mknod`: "the profile [should] accept only regular files, FIFOs and
+  sockets in mknod, as defense in depth"; done, code change 24).
+  `mknod` accepted any file type the guest asked for, character and block
+  devices included; with `CAP_MKNOD`, and a share not on a `nodev`
+  filesystem, a guest with one writable path could make a node for a host
+  disk. Linux also lets any user make a character device numbered 0:0
+  without `CAP_MKNOD` (a "whiteout", which overlayfs uses to mark a file
+  deleted; on a share that is an overlayfs upper layer, it would hide a
+  lower file from the merged view), in two ways: `mknod` of a character
+  device 0:0, and `rename` with `RENAME_WHITEOUT` (Linux 5.8 and later),
+  which leaves one at the old name. The microVM now refuses both, before
+  asking the host: `mknod` of every type but a regular file (or 0, which
+  is one), a FIFO or a socket, with `EPERM` (what Linux reports for a
+  device node made without `CAP_MKNOD`); and `rename` with any flag but
+  `RENAME_NOREPLACE` and `RENAME_EXCHANGE`, with `EINVAL` (what Linux
+  reports for a flag it does not accept). (Corrected 2026-11-11: this item
+  first said the `mknod` check closed the whiteout case; an independent
+  review found the `rename` flag, and a test confirmed it.) Test
+  `the_guest_makes_no_device_node` (fails without either check: the
   character device 0:0 is made); patch
-  `patches/0005-virtiofs-microvm-mknod-makes-no-device-node.patch`.
+  `patches/0005-virtiofs-microvm-makes-no-device-node.patch`.
 - **Host hard links between a writable and a read-only path**, which the
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
   file itself, and its other names").

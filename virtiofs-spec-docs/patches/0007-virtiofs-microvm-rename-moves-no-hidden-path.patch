@@ -1,8 +1,8 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index c4da7ddd7..9bc8c4365 100644
+index a1b1e24f7..92b2b9bc6 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -689,13 +689,19 @@ fn rename(
+@@ -542,13 +542,19 @@ fn rename(
          let new_path = new_inode.child_path(new_name)?;
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
@@ -22,8 +22,8 @@ index c4da7ddd7..9bc8c4365 100644
 -        let exchange = flags & RENAME_EXCHANGE != 0;
          self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
          inode.rename(name, &new_inode, new_name, flags)?;
-         let (mut inodes, handle) = self.inner.inodes.acquire_write();
-@@ -858,6 +864,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+         let mut inodes = self.inner.inodes.write();
+@@ -680,6 +686,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -43,7 +43,7 @@ index c4da7ddd7..9bc8c4365 100644
      /// writing, or truncate it, follows `open`'s rule for that file: if the
      /// guest holds the file's node, every name of it must be writable (as
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/inode.rs b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
-index c5f0c3da2..053b7c812 100644
+index b7a4c216e..4971b2010 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/inode.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
 @@ -90,6 +90,12 @@ pub(crate) fn path_writable(&self, path: &Path) -> bool {
@@ -60,10 +60,10 @@ index c5f0c3da2..053b7c812 100644
      pub(crate) fn restricts_writes(&self) -> bool {
          self.policy.restricts_writes()
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy.rs b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
-index 4842577b2..c8b9a4988 100644
+index c4233358a..ad9b0e58c 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
-@@ -255,6 +255,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
+@@ -163,6 +163,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
                      .any(|writable| path.starts_with(writable)))
      }
  
@@ -77,9 +77,9 @@ index 4842577b2..c8b9a4988 100644
 +
      /// Returns whether some path that the guest can reach is not writable in a
      /// read-write share, so that each modification must check its paths.
-     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+     pub(crate) fn restricts_writes(&self) -> bool {
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index df0e0407b..55854dc24 100644
+index 18ccb0d78..dc61783d4 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 @@ -412,6 +412,58 @@ fn a_link_to_an_object_with_no_names_left_is_refused() {

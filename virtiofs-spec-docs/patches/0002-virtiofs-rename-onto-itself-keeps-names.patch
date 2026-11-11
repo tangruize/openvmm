@@ -1,6 +1,8 @@
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index b6525a8a0..12b8c6f8f 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -590,6 +590,12 @@
+@@ -533,6 +533,12 @@ fn rename(
          let new_path = new_inode.child_path(new_name)?;
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
@@ -13,12 +15,15 @@
          let exchange = flags & RENAME_EXCHANGE != 0;
          self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
          inode.rename(name, &new_inode, new_name, flags)?;
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+index 21edd8f64..3b8867fdf 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -377,6 +377,21 @@
+@@ -376,6 +376,21 @@ fn a_handle_is_used_only_with_its_node_while_the_guest_holds_it() {
+     release(&fs, existing, fh);
  }
  
- #[test]
++#[test]
 +fn renaming_a_name_onto_itself_keeps_its_names() {
 +    // A rename onto the same name changes nothing on the host, and must not
 +    // drop the names at or below it from the nodes.
@@ -33,7 +38,6 @@
 +    assert_eq!(share.read("out/existing"), "existing");
 +}
 +
-+#[test]
+ #[test]
  fn allowed_paths_stay_readable_inside_a_hidden_subtree() {
      let share = Share::new();
-     let fs = share.fs(&["logs", "logs/payloads/private"], &["logs/payloads"], &[]);

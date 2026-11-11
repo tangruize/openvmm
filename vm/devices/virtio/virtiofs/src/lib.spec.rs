@@ -702,6 +702,13 @@ impl FuseState for VirtioFsGhostView {
         &&& !(kind == 0 || kind == lx::S_IFREG || kind == lx::S_IFIFO || kind == lx::S_IFSOCK)
     }
 
+    /// In the microVM (`microvm::fs::validate_rename_flags`): any flag but
+    /// `RENAME_NOREPLACE` (1) and `RENAME_EXCHANGE` (2). (`RENAME_WHITEOUT`
+    /// would leave a device node, which `refuses_mknod` refuses.)
+    closed spec fn refuses_rename(&self, flags: u32) -> bool {
+        self.microvm && flags & !3u32 != 0u32
+    }
+
     /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
     /// a flag `create` does not support either.
     closed spec fn bad_open_flags(flags: u32) -> bool {

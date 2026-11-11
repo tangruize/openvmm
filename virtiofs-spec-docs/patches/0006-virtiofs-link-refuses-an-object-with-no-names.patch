@@ -1,8 +1,8 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 151c3221a..c4da7ddd7 100644
+index 2d0ccdd5d..a1b1e24f7 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -537,6 +537,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
+@@ -411,6 +411,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
          }
          let inode = self.get_inode(request.node_id())?;
          let target_inode = self.get_inode(target)?;
@@ -16,7 +16,7 @@ index 151c3221a..c4da7ddd7 100644
          // link across filesystems, check where the link would go first.
          self.check_writable(&inode)?;
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index 9724c2f5e..df0e0407b 100644
+index 75b3ef76a..18ccb0d78 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 @@ -391,6 +391,27 @@ fn renaming_a_name_onto_itself_keeps_its_names() {

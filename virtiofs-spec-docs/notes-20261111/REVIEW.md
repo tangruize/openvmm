@@ -194,6 +194,8 @@ Findings are ordered by severity.
 
 ## 8. `rename` with `RENAME_WHITEOUT` still makes a 0:0 character device in the microVM
 
+*Status (2026-11-11): confirmed by a test against the code (as an ordinary user, the whiteout 0:0 is made). Fixed in code change 24 itself (`validate_rename_flags`: in the microVM, only `RENAME_NOREPLACE` and `RENAME_EXCHANGE`, else `EINVAL`), its `BUGS.md` item and patch 0005 corrected; spec: question `refuses_rename`, in `rename`'s rules and its success. The patch series was redone at the same time so that it applies to Pedro's `db42fde04`.*
+
 - Spec/doc: `virtiofs-spec-docs/BUGS.md:332-346` and `CODE-CHANGES.md` row
   24 ("The check closes it": a whiteout that would hide a lower overlayfs
   file). The rename contract (`fuse/lib.rs:434-447`) says nothing about

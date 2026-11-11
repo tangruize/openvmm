@@ -602,7 +602,10 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         // Like Linux's write(2), refuse a handle not opened for writing,
         // rather than leave it to the host: on Windows, a handle opened with
         // `O_RDONLY | O_TRUNC` has write access (truncating needs it there).
-        if !matches!(file.open_flags() as i32 & lx::O_ACCESS_MASK, lx::O_WRONLY | lx::O_RDWR) {
+        if !matches!(
+            file.open_flags() as i32 & lx::O_ACCESS_MASK,
+            lx::O_WRONLY | lx::O_RDWR
+        ) {
             return Err(lx::Error::EBADF);
         }
         self.check_writable(file.inode())?;
@@ -691,6 +694,7 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         }
         self.check_writable(&inode)?;
         self.check_writable(&new_inode)?;
+        microvm::fs::validate_rename_flags(self, flags)?;
         let old_path = inode.child_path(name)?;
         let new_path = new_inode.child_path(new_name)?;
         self.check_writable_entry(&inode, &old_path)?;

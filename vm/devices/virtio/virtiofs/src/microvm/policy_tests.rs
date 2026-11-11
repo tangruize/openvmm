@@ -946,10 +946,11 @@ fn mknod(fs: &VirtioFs, parent: u64, node_name: &str, mode: u32) -> lx::Result<u
 }
 
 #[test]
-fn mknod_makes_no_device_node() {
+fn the_guest_makes_no_device_node() {
     // The microVM makes only regular files, FIFOs and sockets with mknod, and
     // refuses a device node before asking the host (defense in depth: the
-    // host would refuse it too, unless the device had CAP_MKNOD).
+    // host would refuse it too, unless the device had CAP_MKNOD). It also
+    // refuses the rename flag that would make one.
     let share = Share::new();
     let fs = share.fs(&[], &[], &["out"]);
     let out = lookup(&fs, "out").unwrap();
@@ -966,6 +967,22 @@ fn mknod_makes_no_device_node() {
         );
     }
     assert!(!share.path("out/device").exists());
+
+    // Nor does a rename that would leave a whiteout (a character device 0:0)
+    // at the old name.
+    const RENAME_WHITEOUT: u32 = 4;
+    assert_eq!(
+        error(fs.rename(
+            &request(out),
+            name("existing"),
+            out,
+            name("moved"),
+            RENAME_WHITEOUT
+        )),
+        lx::Error::EINVAL
+    );
+    assert_eq!(share.read("out/existing"), "existing");
+    assert!(!share.path("out/moved").exists());
 
     mknod(&fs, out, "fifo", lx::S_IFIFO | 0o600).unwrap();
     mknod(&fs, out, "file", lx::S_IFREG | 0o600).unwrap();

@@ -1,8 +1,8 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 81ad8357f..151c3221a 100644
+index 169cfa414..2d0ccdd5d 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -483,6 +483,7 @@ fn mknod(
+@@ -361,6 +361,7 @@ fn mknod(
          }
          let inode = self.get_inode(request.node_id())?;
          self.check_writable(&inode)?;
@@ -10,11 +10,19 @@ index 81ad8357f..151c3221a 100644
          let path = inode.child_path(name)?;
          self.check_writable_entry(&inode, &path)?;
          self.preflight_new_inode_path(&path)?;
+@@ -530,6 +531,7 @@ fn rename(
+         }
+         self.check_writable(&inode)?;
+         self.check_writable(&new_inode)?;
++        microvm::fs::validate_rename_flags(self, flags)?;
+         let old_path = inode.child_path(name)?;
+         let new_path = new_inode.child_path(new_name)?;
+         self.check_writable_entry(&inode, &old_path)?;
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/fs.rs b/vm/devices/virtio/virtiofs/src/microvm/fs.rs
-index 1405a331c..46d693448 100644
+index 067e1ae40..bd28f045b 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/fs.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/fs.rs
-@@ -99,6 +99,24 @@ pub(crate) fn configure_session(fs: &VirtioFs, info: &mut SessionInfo) {
+@@ -91,6 +91,41 @@ pub(crate) fn configure_session(fs: &VirtioFs, info: &mut SessionInfo) {
      }
  }
  
@@ -36,14 +44,31 @@ index 1405a331c..46d693448 100644
 +    Ok(())
 +}
 +
++/// Linux's `RENAME_NOREPLACE` and `RENAME_EXCHANGE`, the only `renameat2`
++/// flags that the microVM accepts.
++const MICROVM_RENAME_FLAGS: u32 = 1 | 2;
++
++/// Validates the flags of a guest `rename`: the microVM accepts only
++/// `RENAME_NOREPLACE` and `RENAME_EXCHANGE`. `RENAME_WHITEOUT` leaves a
++/// character device 0:0 (an overlayfs whiteout) at the old name, which Linux
++/// lets any user make, so it would give the guest the device node that
++/// [`validate_mknod_mode`] refuses. The error is `EINVAL`, as Linux reports
++/// a flag it does not accept.
++pub(crate) fn validate_rename_flags(fs: &VirtioFs, flags: u32) -> lx::Result<()> {
++    if fs.is_microvm() && flags & !MICROVM_RENAME_FLAGS != 0 {
++        return Err(lx::Error::EINVAL);
++    }
++    Ok(())
++}
++
  /// The longest symbolic link target, in bytes, that Linux accepts.
  const MAX_SYMLINK_TARGET_BYTES: usize = 4095;
  
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index ac99c8212..9724c2f5e 100644
+index ac99c8212..75b3ef76a 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -839,3 +839,52 @@ fn a_listing_leaves_out_an_entry_hidden_by_a_later_rename() {
+@@ -839,3 +839,69 @@ fn a_listing_leaves_out_an_entry_hidden_by_a_later_rename() {
      assert_eq!(names, ["..", "a"]);
      release(&fs, d, fh);
  }
@@ -60,10 +85,11 @@ index ac99c8212..9724c2f5e 100644
 +}
 +
 +#[test]
-+fn mknod_makes_no_device_node() {
++fn the_guest_makes_no_device_node() {
 +    // The microVM makes only regular files, FIFOs and sockets with mknod, and
 +    // refuses a device node before asking the host (defense in depth: the
-+    // host would refuse it too, unless the device had CAP_MKNOD).
++    // host would refuse it too, unless the device had CAP_MKNOD). It also
++    // refuses the rename flag that would make one.
 +    let share = Share::new();
 +    let fs = share.fs(&[], &[], &["out"]);
 +    let out = lookup(&fs, "out").unwrap();
@@ -80,6 +106,22 @@ index ac99c8212..9724c2f5e 100644
 +        );
 +    }
 +    assert!(!share.path("out/device").exists());
++
++    // Nor does a rename that would leave a whiteout (a character device 0:0)
++    // at the old name.
++    const RENAME_WHITEOUT: u32 = 4;
++    assert_eq!(
++        error(fs.rename(
++            &request(out),
++            name("existing"),
++            out,
++            name("moved"),
++            RENAME_WHITEOUT
++        )),
++        lx::Error::EINVAL
++    );
++    assert_eq!(share.read("out/existing"), "existing");
++    assert!(!share.path("out/moved").exists());
 +
 +    mknod(&fs, out, "fifo", lx::S_IFIFO | 0o600).unwrap();
 +    mknod(&fs, out, "file", lx::S_IFREG | 0o600).unwrap();
