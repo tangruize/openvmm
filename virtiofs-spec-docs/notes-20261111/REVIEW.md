@@ -110,6 +110,8 @@ Findings are ordered by severity.
 
 ## 4. Windows: `child_path` ignores lxutil's escaping, so every path equality is false for names with escaped characters
 
+*Status (2026-11-11): confirmed; fixed in the spec only: `child_path` pushes `lxutil::LxVolume::host_name(name)` (`lxutil/src/lib.spec.rs`: the name itself on Linux; on Windows, lxutil's escaping, byte by byte). The Windows version was checked by Verus on Linux with the `cfg`s swapped for one run.*
+
 - Spec: `vfs/lib.spec.rs:400-402` (`child_path = path_of(parent).push(name)`).
   Every `after_reach`, `may_reach`, `can_write`, `unlinked` and `renamed`
   uses it. `lxutil/lib.spec.rs` says Windows is "in the claim".

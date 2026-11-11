@@ -44,6 +44,57 @@ impl LxVolume {
         &&& c != seq!['.' as u8]
         &&& c != seq!['.' as u8, '.' as u8]
     }
+
+    /// The host's form of a guest's name, as a component of a path that
+    /// `PathBufExt::push_lx` builds (`path.rs`). On Linux, the name itself.
+    #[cfg(unix)]
+    pub open spec fn host_name(name: Seq<u8>) -> Seq<u8> {
+        name
+    }
+
+    /// The host's form of a guest's name, as a component of a path that
+    /// `PathBufExt::push_lx` builds (`path.rs`, `windows/path.rs`,
+    /// `path_from_lx`). On Windows, each byte (`host_bytes`) in turn.
+    #[cfg(windows)]
+    pub open spec fn host_name(name: Seq<u8>) -> Seq<u8>
+        decreases name.len(),
+    {
+        if name.len() == 0 {
+            seq![]
+        } else {
+            Self::host_name(name.drop_last()) + Self::host_bytes(name.last())
+        }
+    }
+
+    /// One byte of a name in the host's form, on Windows: a byte that NTFS
+    /// does not allow in a name (`needs_escape`) becomes the UTF-8 encoding
+    /// of the private-use character U+F000 plus the byte; any other byte
+    /// stays.
+    #[cfg(windows)]
+    pub open spec fn host_bytes(c: u8) -> Seq<u8> {
+        if Self::needs_escape(c) {
+            seq![0xefu8, (0x80 + c / 64) as u8, (0x80 + c % 64) as u8]
+        } else {
+            seq![c]
+        }
+    }
+
+    /// A byte that NTFS does not allow in a name, by lxutil's table
+    /// (`NTFS_LEGAL_ANSI_CHARACTERS`): a control character, `"`, `*`, `:`
+    /// (which names an alternate data stream), `<`, `>`, `?`, `\` or `|`.
+    /// (`/` is not escaped: it separates components.)
+    #[cfg(windows)]
+    pub open spec fn needs_escape(c: u8) -> bool {
+        ||| c < 0x20
+        ||| c == '"' as u8
+        ||| c == '*' as u8
+        ||| c == ':' as u8
+        ||| c == '<' as u8
+        ||| c == '>' as u8
+        ||| c == '?' as u8
+        ||| c == '\\' as u8
+        ||| c == '|' as u8
+    }
 }
 
 } // verus!

@@ -397,8 +397,10 @@ impl FuseState for VirtioFsGhostView {
         ||| self.inodes.contains_key(n) && self.inodes[n].kind == lx::S_IFDIR
     }
 
+    /// The parent's path with the name in the host's form (`push_lx`: on
+    /// Windows, lxutil escapes the bytes that NTFS does not allow in a name).
     closed spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView {
-        self.path_of(parent).push(name)
+        self.path_of(parent).push(lxutil::LxVolume::host_name(name))
     }
 
     /// The inode's volume is not read-only, and its policy lets the guest
