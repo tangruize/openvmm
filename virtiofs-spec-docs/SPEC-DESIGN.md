@@ -586,8 +586,9 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
   host call of a request is made inside `Session::dispatch`.
 - **The lookup counts** (item 2): not needed by the limits; they wait for
   `forget`'s correctness, liveness and snapshots.
-- **virtio-fs's save and restore** (property 6), including a new `g` on
-  restore.
+- **virtio-fs's save and restore** (property 6): not specified, by
+  decision (2026-11-11), until the current spec is verified; what the
+  rework needs is below ("Property 6 and the snapshot spec").
 - **`read_dir_plus`**: its lookups and the names it lists are not tied
   together (functional only).
 - **Error rules left out**: the limits (`ENOSPC`, `E2BIG`), a listing's
@@ -595,3 +596,43 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
   file, `ENOMEM`. Not stated: when an operation must succeed.
 - **Questions for Pedro** (`BUGS.md`): host hard links; mount points inside
   a microVM share; the listing note.
+
+
+**Property 6 and the snapshot spec: what the later rework needs (recorded
+2026-11-11; stopped here by decision, until the current spec is
+verified).** virtio-fs's own save and restore are not specified. Combining
+them with the snapshot spec (on `system-proof/snapshot-spec-review-20261023`:
+`snapshot-spec-docs/`, `virtio/src/transport/mmio.spec.rs`) needs:
+
+- **`g` guarded as a device's snapshot ghost is.** The snapshot spec
+  guards every change to a device's state with the device's `FracGhost`,
+  half of which goes up to `StateUnits` at `Stop`, so nothing changes while
+  stopped. virtio-fs's state is guarded by `g` instead (every table and name
+  change needs it), but `g` stays in the keeper while the device is
+  stopped, so nothing stops a request then. The plan: at stop, `g` leaves
+  the keeper and goes up with the transport's stop reply (with the
+  transport's half); while stopped the keeper is empty; at start, or after
+  a restore that rebuilds `g` from the blob, it goes back. This changes the
+  keeper's axioms (`fs_ghost_t.rs`, A2) and the transport's stop and start
+  path. `g` is compatible: it already guards every table and name change,
+  so it moves rather than changes.
+- **The saved state that `g` does not cover yet:** the nodes' lookup
+  counts (open item 2), each directory handle's cached listing, the next
+  node and handle ids, and the FUSE negotiation (`parking_lot`). For "state
+  equals ghost" while stopped, they join `g`'s view or are shown unchanged
+  otherwise.
+- **The transport code.** The snapshot spec relies on two transport
+  changes (`verus-patches/openvmm-0001`, `0002`: save keeps the captured
+  device state; restore sets it). Pedro's code restructured that part
+  (`TransportRestore`) without them: here a second save fails, and a save
+  right after a restore fails ("device state was not captured"). They need
+  porting to `TransportRestore`.
+- **The restore contract** the snapshot spec needs: after a successful
+  restore, the device's state is the one the blob describes (the full
+  form, `DESIGN-snapshot.md`'s D1(a)), on top of the policy core that holds
+  for any blob (its D1(c), D2(a)).
+
+Last night's analysis, with the code walk, the trust question (the blob is
+untrusted: policy facts hold for any blob, "same host objects" only for an
+authentic one), the decisions and the sizes:
+`notes-20261111/DESIGN-snapshot.md`.

@@ -5,8 +5,8 @@ This directory holds two kinds of patch:
 | Patch | Applies to | What |
 |---|---|---|
 | `0001`–`0005` (`*.patch` without a prefix) | **Verus**, commit `426d8b0` | local fixes to Verus needed by the snapshot specification work |
-| `openvmm-0001-virtio-save-keeps-captured-device-state.patch` | **OpenVMM `origin/main`** (`7a2b21747`) | a change to OpenVMM's own Rust code, for OpenVMM developers to review; this branch already contains it (see "OpenVMM patches" below) |
-| `openvmm-0002-virtio-restore-sets-captured-device-state.patch` | **OpenVMM `origin/main` with `openvmm-0001` applied** | a second change to the same code; this branch already contains it |
+| `openvmm-0001-virtio-save-keeps-captured-device-state.patch` | **OpenVMM `origin/main`** (`7a2b21747`) | a change to OpenVMM's own Rust code, for OpenVMM developers to review; the snapshot branch (`system-proof/snapshot-spec-review-20261023`) contains it, **this branch does not**: Pedro's code restructured that part (`TransportRestore`, `transport/core/restore.rs`), so the patch does not apply here (see "OpenVMM patches" below) |
+| `openvmm-0002-virtio-restore-sets-captured-device-state.patch` | **OpenVMM `origin/main` with `openvmm-0001` applied** | a second change to the same code; the snapshot branch contains it, **this branch does not** (as `openvmm-0001`) |
 | `vstd-0001-arc-unsized-view.patch` | **`vstd` `=0.0.0-2026-10-04-0306`** (`source/vstd/view.rs` in the Verus tree) | `Arc<T>`'s `View` and `DeepView` for unsized `T` (e.g. `Arc<str>`); this branch uses the patched copy in `verus-patches/vstd` (see "vstd patches" below) |
 | `vstd-0002-allow-warnings.patch` | the same (`source/vstd/vstd.rs`) | `#![allow(warnings)]`: silences vstd's lint warnings, which show now that it is a path dependency |
 | `vstd-0003-path-view.patch` | the same (`source/vstd/std_specs/path.rs`, new, and `std_specs/mod.rs`) | `std::path::Path` and `PathBuf` declared to Verus, with their view: the path's components, each the bytes of its name (for the virtio-fs spec) |
