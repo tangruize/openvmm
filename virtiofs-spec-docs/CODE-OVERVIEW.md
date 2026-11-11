@@ -169,15 +169,16 @@ In `virtiofs/src/microvm/` and `aggregate.rs`, about 6,000 lines:
 The guest's state is behind locks, and Verus knows what a lock holds only
 through its rule (its invariant), so each lock gets one:
 
-- **The inode table (`inodes`), each inode's `path` and `aliases`, and the
-  file table (`files`)**: each holds a piece of the ghost state, and its
-  rule says that its data matches that piece ("The guest's state in the
-  spec", below).
-- **Each open file's `file: RwLock<LxFile>`**: no rule for integrity (the
-  handle's entry in `files` says whether it was opened for writing);
-  what confinement needs of it is to decide when we work on confinement.
-- **The session's locks and `negotiation`**: what was agreed with the guest
-  (the FUSE version and limits) stays fixed after the start.
+- **The inode table (`inodes`), each inode's `path` and `aliases`, the
+  file table (`files`), and an aggregate's registry**: each holds a piece
+  of the ghost state, and its rule says that its data matches that piece
+  ("The guest's state in the spec", below). These five are vstd's locks.
+- **Each open file's `file: RwLock<LxFile>`**: no rule (the handle's entry
+  in `files` says whether it was opened for writing, and confinement was
+  done without one). Still `parking_lot`.
+- **The session's locks and `negotiation`**: no rule yet, and still
+  `parking_lot`. What one would say: what was agreed with the guest (the
+  FUSE version and limits) stays fixed after the start.
 
 What makes this simpler than the snapshot spec: a share's policy never
 changes once its volume is created (when the device is built, or by the
@@ -195,8 +196,8 @@ ghost ids, and nothing about the lock is trusted. The cost, in Pedro's
 code: vstd's lock spins instead of sleeping (in the microVM it never
 waits, since requests run one at a time), its handles are released by
 an explicit `release_write` / `release_read`, not when dropped, and Verus
-does not check that they are, and the call sites of `get_path()` (about
-20) change to that form. A panic while one of these locks is held leaves it held (a
+does not check that they are (`get_path()` reads the path under the lock
+and returns a copy, so its call sites did not change). A panic while one of these locks is held leaves it held (a
 `parking_lot` guard was released as the panic unwound), so any later
 request that takes the lock spins forever; accepted (2026-11-10), since a
 panic in a request is already a device failure. Each is an entry in `CODE-CHANGES.md`.
@@ -303,8 +304,8 @@ the whole map, and the rest sit where the code protects the data:
 | Ghost map | Key -> value | Mirrors | Kind | Pieces |
 |---|---|---|---|---|
 | `inodes` | node id -> the inode's view: its volume, kind, and its volume's `readonly` flag and policy | which inodes are in the table (lock 1), and their plain fields | `FracGhost` | two halves: one in lock 1, one in `VirtioFsGhost` |
-| `paths` | node id -> main path | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 2 |
-| `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 3 |
+| `paths` | node id -> main path (inside: the inode's hidden ghost key -> main path) | each inode's `path` (lock 2) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; each inode's `PointsTo`, at its key, in its lock 2 |
+| `aliases` | node id -> every name the code knows (inside: by the inode's key) | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; each inode's `PointsTo`, at its key, in its lock 3 |
 | `files` | handle -> the open file's view: its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `VirtioFsGhost` |
 
 **Inside `VirtioFsGhost`, `paths` and `aliases` are keyed by a ghost key;
@@ -369,8 +370,9 @@ node ids", below); the spec's path of a node is the empty path for the root
 and `paths[n]` for any other node, and likewise for its names.
 
 **How the ghost state keeps matching.** Each lock's rule says that the
-real data in it matches the ghost piece in it (the path in inode n's lock 2
-is `paths[n]`, the table in lock 1 is `inodes`, ...). When the code changes
+real data in it matches the ghost piece in it (the path in an inode's lock
+2 is the value at its key in `paths`, the table in lock 1 is `inodes`,
+...). When the code changes
 data under a lock, the proof changes the ghost value at the same moment:
 it takes the lock's piece out, updates the value with both pieces (the
 lock's and the one in `VirtioFsGhost`), and puts the piece back before the
@@ -914,8 +916,10 @@ all of them.
    records the ids of the `paths` and `aliases` maps (`wf`), and each
    inode's locks hold its entries of them. Left to the proof (TODO): the
    locks' creation (`InodeTableLocked::new_lock`, `FileTableLocked::new_lock`,
-   `VirtioFsInode::with_attr`) still uses `assume_new()` placeholders, which
-   the proof of `new_microvm` and of the inode builders replaces.
+   `VirtioFsInode::with_attr`, and the registry's rule in
+   `AggregateState::new` and `with_children`) still uses `assume_new()`
+   placeholders, which the proof of `new_microvm` and of the inode and
+   registry builders replaces.
 8. **Pedro's questions** (`BUGS.md`). Device nodes from `mknod`: answered
    and done (2026-11-10): the microVM makes only regular files, FIFOs and
    sockets (code change 24), and the spec says so (new question
@@ -1035,8 +1039,9 @@ input, and each property must hold whatever the guest sends.
 
 ## Properties a spec could promise
 
-Properties 1-4 are the security properties and 6 is snapshots, which the
-spec covers. 5 is deferred. Pedro summarizes his additions to virtio-fs in
+Properties 1-4 are the security properties and 6 is snapshots. The spec
+covers 1-4 (the status table, above, says how far); 6 (virtio-fs's own
+save and restore) is not started, and 5 is deferred. Pedro summarizes his additions to virtio-fs in
 three parts (2026-11-09): snapshot and restore (property 6), the access
 policy (property 2), and the Windows wrapper in `lxutil` ("Layer 4 in the
 spec", below).

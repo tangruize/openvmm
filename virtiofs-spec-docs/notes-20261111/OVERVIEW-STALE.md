@@ -1,6 +1,6 @@
 # CODE-OVERVIEW.md: places found out of date while writing SPEC-DESIGN.md
 
-(Found 2026-11-10 by the agent that drafted `SPEC-DESIGN.md`; not fixed.)
+(Found 2026-11-10 by the agent that drafted `SPEC-DESIGN.md`. All four fixed 2026-11-11.)
 
 - "Lock invariants the spec needs": says the session's locks and
   `negotiation` get rules (they are still `parking_lot`, no rule); says each
