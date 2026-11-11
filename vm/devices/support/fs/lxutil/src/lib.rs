@@ -346,6 +346,7 @@ impl LxVolume {
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // An object at the path is the one opened; else `O_CREAT` makes
             // a regular file there.
             r matches Ok(f) ==> if old(disk)@.objects.contains_key(path.as_ref_spec()@) {
@@ -409,6 +410,7 @@ impl LxVolume {
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // A new directory at the path, the object the stat describes.
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
@@ -465,6 +467,7 @@ impl LxVolume {
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // A new symbolic link at the path, the object the stat describes.
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFLNK
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
@@ -518,6 +521,7 @@ impl LxVolume {
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // The path is gone (with `AT_REMOVEDIR`, an empty directory).
             r is Ok ==> old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.nothing_below(path.as_ref_spec()@)
@@ -565,6 +569,7 @@ impl LxVolume {
             LxVolume::is_share_path(path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // A new node at the path, the object the stat describes.
             r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && old(disk)@.is_new_ino(st.inode_nr)
@@ -598,6 +603,7 @@ impl LxVolume {
             LxVolume::is_share_path(new_path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // `RENAME_EXCHANGE` (2) swaps the two paths' subtrees; else the
             // old path's subtree moves to the new path (`RENAME_NOREPLACE`,
             // 1: only where nothing is), and `RENAME_WHITEOUT` (4) leaves a
@@ -658,6 +664,7 @@ impl LxVolume {
             LxVolume::is_share_path(new_path.as_ref_spec()@),
         ensures
             final(disk).volume() == old(disk).volume(),
+            !final(disk).untouched(),
             // A new path for the object at the old path.
             r matches Ok(st) ==> old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
@@ -1264,7 +1271,7 @@ impl LxVolumeOptions {
         with -> disk: Tracked<host::VolumeDisk>
         ensures
             // TRUSTED (`host_t.rs`): the new volume's disk, the only one.
-            r matches Ok(v) ==> disk@.volume() == v.id(),
+            r matches Ok(v) ==> disk@.volume() == v.id() && disk@.untouched(),
     ))]
     pub fn new_volume(&self, root_path: impl AsRef<Path>) -> Result<LxVolume, VolumeError> {
         // The new volume's disk (TRUSTED, `host_t.rs`): a ghost value, made

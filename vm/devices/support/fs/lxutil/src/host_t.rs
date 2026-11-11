@@ -102,6 +102,16 @@ impl HostDisk {
         forall|x: PathView| #[trigger] self.objects.contains_key(x) && p.is_prefix_of(x) ==> x == p
     }
 
+    /// No object has both a path where `writable` holds and a path where
+    /// `visible` holds but `writable` does not: a host hard link never joins
+    /// a writable path and a visible read-only one.
+    pub open spec fn no_mixed_links(self, writable: spec_fn(PathView) -> bool, visible: spec_fn(PathView) -> bool) -> bool {
+        forall|x: PathView, y: PathView|
+            #[trigger] self.objects.contains_key(x) && #[trigger] self.objects.contains_key(y)
+            && self.objects[x].dev == self.objects[y].dev && self.objects[x].ino == self.objects[y].ino
+            && writable(x) && visible(y) ==> writable(y)
+    }
+
     /// `after` is this disk, or this disk with one new object at path `p`,
     /// where there was none: what a call that may have made `p` before it
     /// failed leaves.
@@ -122,7 +132,43 @@ pub struct VolumeDisk {
 impl VolumeDisk {
     /// The volume whose disk this is (`LxVolume::id`).
     pub uninterp spec fn volume(&self) -> int;
+
+    /// No call has changed this disk yet: it is the share as it was
+    /// attached. `new_volume` hands its disk out untouched; every call that
+    /// may change the disk leaves it touched.
+    pub uninterp spec fn untouched(&self) -> bool;
 }
+
+/// HOST ASSUMPTION, as an axiom: as the share was attached, no host hard
+/// link joined a path the guest may write and a visible path it may not.
+/// Pedro's guide states the rule for setting up a share ("A host hard link
+/// ... that makes a read-only object reachable inside a writable path also
+/// makes that object writable ... Do not place such aliases inside an
+/// export").
+///
+/// WHY AN AXIOM. The other host assumptions (`lib.spec.rs`) are about how
+/// the host behaves, and are already built into the trusted contracts of
+/// `lxutil`'s methods (`lstat` reports the object the disk has only because
+/// no other process changed it). This one is about what the disk held when
+/// the share was attached, before any call: no contract says what is on the
+/// disk then, and no code checks it (it would mean walking the whole share).
+/// So it can only be stated, and is trusted. `untouched` keeps it to the
+/// disk as attached: after a call, the disk is what the calls made it, and
+/// the code's checks (`link`, `rename`) are what keep the rule, which the
+/// proof shows (`VirtioFsGhost::wf`).
+///
+/// USED once per volume, by the proof that a new file system's ghost state
+/// is well formed (`VirtioFs::new_microvm`), with the share's policy.
+pub axiom fn attached_disk_mixes_no_links(
+    disk: &VolumeDisk,
+    writable: spec_fn(PathView) -> bool,
+    visible: spec_fn(PathView) -> bool,
+)
+    requires
+        disk.untouched(),
+    ensures
+        disk@.no_mixed_links(writable, visible),
+;
 
 impl View for VolumeDisk {
     type V = HostDisk;

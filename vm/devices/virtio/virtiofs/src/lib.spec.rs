@@ -361,6 +361,19 @@ impl FuseGhost for VirtioFsGhost {
             // (`ensure_object_allowed`).
             &&& t.inodes[n].pinned.contains_key((o.dev, o.ino)) ==> t.inodes[n].pinned[(o.dev, o.ino)] == Some(q)
         }
+        // Host hard links: no object has both a path the guest may write and a
+        // visible path it may not, so a write through one name never changes
+        // a file the guest sees as read-only under another. True as the share
+        // was attached (the host assumption `attached_disk_mixes_no_links`,
+        // `lxutil/src/host_t.rs`), and kept by the code: `link` refuses a
+        // read-only target (`EXDEV`) and a read-only new name (`EROFS`), and
+        // `rename` needs both paths writable, so what it moves lands only at
+        // writable paths or hidden ones.
+        &&& forall|n: u64| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
+            ==> self.disks[t.inodes[n].volume]@.no_mixed_links(
+                |x: PathView| self@.can_write(n, x),
+                |x: PathView| !self@.is_hidden(n, x),
+            )
         // The pinned objects stay on their volume's disk (the guest may not
         // remove or move a hidden path, nor one above it: `hides_below`).
         &&& forall|n: u64, k: (u64, u64)| #[trigger] t.inodes.contains_key(n) && #[trigger] t.inodes[n].pinned.contains_key(k)

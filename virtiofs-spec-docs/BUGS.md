@@ -801,7 +801,11 @@ index bddfefa9a..e77920ebd 100644
   `patches/0005-virtiofs-microvm-makes-no-device-node.patch`.
 - **Host hard links between a writable and a read-only path**, which the
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
-  file itself, and its other names").
+  file itself, and its other names"). Pedro's guide states the rule ("Do
+  not place such aliases inside an export"); the spec takes it as a host
+  assumption (2026-11-11: the axiom `attached_disk_mixes_no_links`,
+  `lxutil/src/host_t.rs`), so the question is only whether he wants the
+  code to check it when a share is attached.
 - **Mount points inside a microVM share.** `openat2` with
   `RESOLVE_BENEATH` keeps every path beneath the share's root, but does not
   stop it from crossing a mount point inside the share (`LxVolume`'s doc:
