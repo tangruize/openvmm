@@ -705,6 +705,18 @@ all of them.
   denied paths by identity, so that no hard link shows them), but not for
   read-only ones: to ask him whether that is intended.
 
+**Where each property stands** (2026-11-10; the properties are listed in
+"Properties a spec could promise", below):
+
+| Property | Status |
+|---|---|
+| 1. Confinement | not started (deferred, 2026-11-09). Does not need the host model: the paths virtio-fs hands to `lxutil` are relative, of plain names (nearly in the spec already), and `lxutil` resolves each beneath the share's root without following symbolic links (on Linux, `openat2` with `RESOLVE_BENEATH \| RESOLVE_NO_SYMLINKS`, which the kernel guarantees whatever is on disk), a trusted contract of `lxutil`. On Windows, Pedro's wrapper does that walk itself (`confine_paths`): the part that a proof would most help |
+| 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
+| 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
+| 4. Limits | not started; needs the lookup counts (open item 2) |
+| 5. The operations' meaning (the bytes read and written) | deferred |
+| 6. Snapshots | specified earlier, on the snapshot spec's branch |
+
 **Open items of the FUSE-level spec** (2026-11-10), to come back to:
 1. **When an operation fails** (started 2026-11-10; Jay's style). Each
    operation gets a set of rules, each a condition and its code, at the
