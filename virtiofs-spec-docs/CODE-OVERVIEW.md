@@ -818,9 +818,10 @@ all of them.
    (found by the inode table's dedup) gives the root's node, and changes the
    root's main path in the code (`VirtioFsInode::lookup`), while the spec
    keeps the root's path empty; only the host can make a name lead to the
-   root's object. And a listed entry of unknown type (`DT_UNK`) in a
-   traverse-only directory, which the code lists only if the host says it
-   is a directory (item 4). (Bug 3's rule for `create`, review finding 9:
+   root's object (done 2026-11-11: a directory has one path). And a listed
+   entry of unknown type (`DT_UNK`) in a traverse-only directory, which the
+   code lists only if the host says it is a directory (item 4; done
+   2026-11-11: the disk holds a directory at each traverse-only path). (Bug 3's rule for `create`, review finding 9:
    done 2026-11-11 with the host model, below; `create`'s `Ok` clause says
    that an existing node opened for writing or truncating, that the guest
    holds and that has names, has every name writable.)
@@ -845,8 +846,10 @@ all of them.
    Left:
    - *An entry whose type the host reports as unknown* (`DT_UNK`): in a
      traverse-only directory, the code lists it only if the host says it is
-     a directory (`lstat`); the spec trusts the record's type. Waits for
-     the host model (item 3).
+     a directory (`lstat`). Done 2026-11-11 with the host model: `wf` says
+     the disk holds a directory at each traverse-only path (pinned and
+     checked at attach, and not changeable by the guest), so the host
+     always says so, and `may_list` counts `DT_UNK` as a directory there.
    - *`read_dir_plus`'s lookups and the names it lists are not tied*: the
      contract says that each node handed out comes from lookups `lookup`'s
      rules allow (`looked_up_in`), and that each name listed may be listed,

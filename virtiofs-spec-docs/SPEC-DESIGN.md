@@ -514,9 +514,9 @@ single-file shares (`may_reach`, `is_hidden`).
   `Stat`, `StatEx`, `StatFs` (`Stat` and `Timespec` are now visible to Verus,
   for the postconditions above), `lxutil`'s `LxVolume`, `LxFile`,
   `LxCreateOptions`, `SetAttributes`, and others).
-- The answers that stand for missing knowledge: `host_error` is "any code";
-  a listed entry of unknown type (`DT_UNK`) in a traverse-only directory
-  is a directory if its record says so (the code asks the host).
+- The answer that stands for missing knowledge: `host_error` is "any code".
+  (A listed entry of unknown type, `DT_UNK`, in a traverse-only directory
+  is no longer one: `wf` says the disk holds a directory there.)
 
 ## 9. Rules for the proof
 
@@ -558,15 +558,17 @@ Spots that look hard:
 
 Each is in `CODE-OVERVIEW.md`'s open items or status table.
 
-- **The rest of the host model** (items 3, 8, 9): `DT_UNK` entries. (Confinement's last part, that a call changes
-  nothing outside the share, stays in words; it could be a contract, a
-  declared `HostOutside` taken by shared reference: `lxutil/src/lib.spec.rs`
-  says why it is not, for now.) (Done: the host
-  model itself, `lxutil/src/host_t.rs`, the disks in `g`, `wf`'s tie of
-  each node's names to its object, bug 3's rule in `create`'s contract,
-  the pinned identities, host hard links, one path per directory, and the
-  root's identity in `owns`, from `microvm/profile.spec.rs`, and the
-  symbolic-link walk: each disk is a tree, in `wf`.)
+- **The host model** (items 3, 8, 9): done 2026-11-11, but for one choice
+  left open: confinement's last part, that a call changes nothing outside
+  the share, stays in words (it could be a contract, a declared
+  `HostOutside` taken by shared reference: `lxutil/src/lib.spec.rs` says
+  why it is not, for now). Done: the host model itself
+  (`lxutil/src/host_t.rs`), the disks in `g`, `wf`'s tie of each node's
+  names to its object, bug 3's rule in `create`'s contract, the pinned
+  identities, host hard links, one path per directory, the root's identity
+  in `owns` (`microvm/profile.spec.rs`), the symbolic-link walk (each disk
+  is a tree), and `DT_UNK` entries (a directory at each traverse-only
+  path).
 - **Limits** (property 4), with the lookup counts (item 2).
 - **Identity** (property 3): each request runs as its caller.
 - **virtio-fs's save and restore** (property 6), including a new `g` on

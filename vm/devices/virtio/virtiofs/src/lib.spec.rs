@@ -382,6 +382,17 @@ impl FuseGhost for VirtioFsGhost {
         // directory, and a directory is removed only when empty.
         &&& forall|n: u64| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
             ==> self.disks[t.inodes[n].volume]@.is_tree()
+        // At each traverse-only path of a volume's policy, the disk holds a
+        // directory: each was pinned, and checked to be a directory, when the
+        // share was attached (`open_microvm_volume`: `pinned_paths`), and the
+        // guest may change neither it nor a path above it (`hides_below`).
+        // So a listed entry of unknown type there is a directory.
+        &&& forall|n: u64, p: PathView| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
+            && #[trigger] t.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::TraverseOnly ==> {
+            let disk = self.disks[t.inodes[n].volume]@;
+            &&& disk.objects.contains_key(p)
+            &&& disk.objects[p].kind == lx::S_IFDIR
+        }
         // A directory has one path on the disk, so no name but the root's own
         // leads to the root's object. True as the share was attached
         // (`attached_disk`), and kept: `link` never links a directory, and
@@ -767,10 +778,12 @@ impl FuseState for VirtioFsGhostView {
     }
 
     /// The listing rule (`entry_listable`): the entry's path under `dir`'s
-    /// path now is visible, or traverse-only and a directory (an entry whose
-    /// type the host reported as unknown, `DT_UNK`, is listed only if the
-    /// host says it is a directory: left to the host model). In an
-    /// aggregate's root: a share's name.
+    /// path now is visible, or traverse-only and a directory. An entry whose
+    /// type the host reported as unknown (`DT_UNK`) is listed only if the
+    /// host says it is a directory; at a traverse-only path the host always
+    /// does, since the disk holds a directory there (`wf`, the host model),
+    /// so `DT_UNK` counts as a directory here. In an aggregate's root: a
+    /// share's name.
     closed spec fn may_list(&self, dir: u64, name: Seq<u8>, kind: u32) -> bool {
         if self.is_synthetic(dir) {
             self.shares.contains_key(name)
