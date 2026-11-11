@@ -255,6 +255,21 @@ impl SubtreePolicy {
                     .any(|writable| path.starts_with(writable)))
     }
 
+    /// Returns whether a denied path lies strictly below `path`, so that a
+    /// rename of `path` would move a hidden path with it.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(result =>
+        requires
+            self.wf(),
+        ensures
+            result == self@.hides_below(path@),
+    ))]
+    pub(crate) fn hides_below(&self, path: &Path) -> bool {
+        self.denied
+            .iter()
+            .any(|denied| denied.as_path() != path && denied.starts_with(path))
+    }
+
     /// Returns whether some path that the guest can reach is not writable in a
     /// read-write share, so that each modification must check its paths.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]

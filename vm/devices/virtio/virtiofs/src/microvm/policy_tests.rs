@@ -413,6 +413,58 @@ fn a_link_to_an_object_with_no_names_left_is_refused() {
 }
 
 #[test]
+fn a_rename_moves_no_hidden_path() {
+    // A rename of a directory moves everything below it, so a hidden path
+    // below it would reach a visible path, where the guest could list and
+    // remove it.
+    let share = Share::new();
+    let fs = share.fs(&["logs/secret"], &[], &[]);
+    assert_eq!(
+        error(fs.rename(
+            &request(FUSE_ROOT_ID),
+            name("logs"),
+            FUSE_ROOT_ID,
+            name("moved"),
+            0
+        )),
+        lx::Error::EROFS
+    );
+    // An exchange moves both sides.
+    assert_eq!(
+        error(fs.rename(
+            &request(FUSE_ROOT_ID),
+            name("out"),
+            FUSE_ROOT_ID,
+            name("logs"),
+            RENAME_EXCHANGE
+        )),
+        lx::Error::EROFS
+    );
+    share.assert_protected_paths_unchanged();
+    assert_eq!(share.read("out/existing"), "existing");
+
+    // A rename of a directory with no hidden path below it still works.
+    fs.rename(
+        &request(FUSE_ROOT_ID),
+        name("out"),
+        FUSE_ROOT_ID,
+        name("dest"),
+        0,
+    )
+    .unwrap();
+    assert_eq!(share.read("dest/existing"), "existing");
+    fs.rename(
+        &request(FUSE_ROOT_ID),
+        name("dest"),
+        FUSE_ROOT_ID,
+        name("out"),
+        0,
+    )
+    .unwrap();
+    assert_eq!(share.read("out/existing"), "existing");
+}
+
+#[test]
 fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
     // One file with two names, one writable (`out/twin`) and one not
     // (`marker`): `open` refuses to truncate it, and so must a `create` at

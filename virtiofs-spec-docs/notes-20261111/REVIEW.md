@@ -73,6 +73,8 @@ Findings are ordered by severity.
 
 ## 3. A rename of a directory moves (and lets the guest then delete) a hidden path below it: the spec allows it and so does the code
 
+*Status (2026-11-11): confirmed by a test against the code; fixed in the code (code change 27, `BUGS.md` bug 5: `rename` refuses a path with a denied path below it, `EROFS`) and the spec (question `hides_below`, in `rename`'s rules, which now take the flags, and its success).*
+
 - Spec: `fuse/lib.rs:434-447`. The rename succeeds when `can_write(n, p)`
   and `can_write(new_dir, q)` hold, and nothing constrains the paths
   *below* `p`. `microvm/policy.spec.rs` (`can_write`'s doc: "a denied path

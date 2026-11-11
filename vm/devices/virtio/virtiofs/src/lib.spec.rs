@@ -621,6 +621,13 @@ impl FuseState for VirtioFsGhostView {
         }
     }
 
+    /// A denied path of the share's policy lies strictly below `p`
+    /// (`check_moves_nothing_hidden`, in `rename`; an aggregate's root has
+    /// no policy).
+    closed spec fn hides_below(&self, n: u64, p: PathView) -> bool {
+        !self.is_synthetic(n) && self.inodes[n].policy.hides_below(p)
+    }
+
     /// In the microVM (strict paths: `child_name_disallowed`, which
     /// `child_path` applies to the guest's name before anything else): a
     /// name with `\` or `:` (refused, so that saved names are valid on any

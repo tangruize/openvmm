@@ -1,0 +1,143 @@
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index c4da7ddd7..9bc8c4365 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -689,13 +689,19 @@ fn rename(
+         let new_path = new_inode.child_path(new_name)?;
+         self.check_writable_entry(&inode, &old_path)?;
+         self.check_writable_entry(&new_inode, &new_path)?;
++        // A rename moves every path below the renamed one too (both ways for
++        // an exchange), and the guest may not change a hidden path.
++        let exchange = flags & RENAME_EXCHANGE != 0;
++        self.check_moves_nothing_hidden(&inode, &old_path)?;
++        if exchange {
++            self.check_moves_nothing_hidden(&new_inode, &new_path)?;
++        }
+         // Renaming a name onto itself changes nothing on the host; the name
+         // updates below would otherwise drop every name at or below it from
+         // every node (`remove_alias_prefix` of the new path).
+         if old_path == new_path {
+             return Ok(());
+         }
+-        let exchange = flags & RENAME_EXCHANGE != 0;
+         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
+         inode.rename(name, &new_inode, new_name, flags)?;
+         let (mut inodes, handle) = self.inner.inodes.acquire_write();
+@@ -858,6 +864,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+         }
+     }
+ 
++    /// Check that a rename of the entry at `path` in the directory `parent`
++    /// moves no path that the volume's access policy hides (one strictly
++    /// below `path`), and return EROFS if it would: the guest may not change
++    /// what it cannot see.
++    fn check_moves_nothing_hidden(&self, parent: &VirtioFsInode, path: &Path) -> lx::Result<()> {
++        if parent.volume.hides_below(path) {
++            Err(lx::Error::EROFS)
++        } else {
++            Ok(())
++        }
++    }
++
+     /// Check that a `create` that may open an existing file at `path` for
+     /// writing, or truncate it, follows `open`'s rule for that file: if the
+     /// guest holds the file's node, every name of it must be writable (as
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/inode.rs b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
+index c5f0c3da2..053b7c812 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/inode.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
+@@ -90,6 +90,12 @@ pub(crate) fn path_writable(&self, path: &Path) -> bool {
+         !self.readonly && self.policy.is_writable(path)
+     }
+ 
++    /// Returns whether the access policy hides a path strictly below `path`,
++    /// which a rename of `path` would move.
++    pub(crate) fn hides_below(&self, path: &Path) -> bool {
++        self.policy.hides_below(path)
++    }
++
+     /// Returns whether the access policy makes some visible path read-only.
+     pub(crate) fn restricts_writes(&self) -> bool {
+         self.policy.restricts_writes()
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy.rs b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
+index 4842577b2..c8b9a4988 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/policy.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
+@@ -255,6 +255,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
+                     .any(|writable| path.starts_with(writable)))
+     }
+ 
++    /// Returns whether a denied path lies strictly below `path`, so that a
++    /// rename of `path` would move a hidden path with it.
++    pub(crate) fn hides_below(&self, path: &Path) -> bool {
++        self.denied
++            .iter()
++            .any(|denied| denied.as_path() != path && denied.starts_with(path))
++    }
++
+     /// Returns whether some path that the guest can reach is not writable in a
+     /// read-write share, so that each modification must check its paths.
+     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+index df0e0407b..55854dc24 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
+@@ -412,6 +412,58 @@ fn a_link_to_an_object_with_no_names_left_is_refused() {
+     assert!(fs.get_inode(old).unwrap().aliases().is_empty());
+ }
+ 
++#[test]
++fn a_rename_moves_no_hidden_path() {
++    // A rename of a directory moves everything below it, so a hidden path
++    // below it would reach a visible path, where the guest could list and
++    // remove it.
++    let share = Share::new();
++    let fs = share.fs(&["logs/secret"], &[], &[]);
++    assert_eq!(
++        error(fs.rename(
++            &request(FUSE_ROOT_ID),
++            name("logs"),
++            FUSE_ROOT_ID,
++            name("moved"),
++            0
++        )),
++        lx::Error::EROFS
++    );
++    // An exchange moves both sides.
++    assert_eq!(
++        error(fs.rename(
++            &request(FUSE_ROOT_ID),
++            name("out"),
++            FUSE_ROOT_ID,
++            name("logs"),
++            RENAME_EXCHANGE
++        )),
++        lx::Error::EROFS
++    );
++    share.assert_protected_paths_unchanged();
++    assert_eq!(share.read("out/existing"), "existing");
++
++    // A rename of a directory with no hidden path below it still works.
++    fs.rename(
++        &request(FUSE_ROOT_ID),
++        name("out"),
++        FUSE_ROOT_ID,
++        name("dest"),
++        0,
++    )
++    .unwrap();
++    assert_eq!(share.read("dest/existing"), "existing");
++    fs.rename(
++        &request(FUSE_ROOT_ID),
++        name("dest"),
++        FUSE_ROOT_ID,
++        name("out"),
++        0,
++    )
++    .unwrap();
++    assert_eq!(share.read("out/existing"), "existing");
++}
++
+ #[test]
+ fn a_create_that_truncates_an_existing_file_needs_all_its_names_writable() {
+     // One file with two names, one writable (`out/twin`) and one not

@@ -689,13 +689,19 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         let new_path = new_inode.child_path(new_name)?;
         self.check_writable_entry(&inode, &old_path)?;
         self.check_writable_entry(&new_inode, &new_path)?;
+        // A rename moves every path below the renamed one too (both ways for
+        // an exchange), and the guest may not change a hidden path.
+        let exchange = flags & RENAME_EXCHANGE != 0;
+        self.check_moves_nothing_hidden(&inode, &old_path)?;
+        if exchange {
+            self.check_moves_nothing_hidden(&new_inode, &new_path)?;
+        }
         // Renaming a name onto itself changes nothing on the host; the name
         // updates below would otherwise drop every name at or below it from
         // every node (`remove_alias_prefix` of the new path).
         if old_path == new_path {
             return Ok(());
         }
-        let exchange = flags & RENAME_EXCHANGE != 0;
         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
         inode.rename(name, &new_inode, new_name, flags)?;
         let (mut inodes, handle) = self.inner.inodes.acquire_write();
@@ -855,6 +861,18 @@ impl VirtioFs {
             Ok(())
         } else {
             Err(lx::Error::EROFS)
+        }
+    }
+
+    /// Check that a rename of the entry at `path` in the directory `parent`
+    /// moves no path that the volume's access policy hides (one strictly
+    /// below `path`), and return EROFS if it would: the guest may not change
+    /// what it cannot see.
+    fn check_moves_nothing_hidden(&self, parent: &VirtioFsInode, path: &Path) -> lx::Result<()> {
+        if parent.volume.hides_below(path) {
+            Err(lx::Error::EROFS)
+        } else {
+            Ok(())
         }
     }
 

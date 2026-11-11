@@ -90,6 +90,12 @@ impl VirtioFsVolume {
         !self.readonly && self.policy.is_writable(path)
     }
 
+    /// Returns whether the access policy hides a path strictly below `path`,
+    /// which a rename of `path` would move.
+    pub(crate) fn hides_below(&self, path: &Path) -> bool {
+        self.policy.hides_below(path)
+    }
+
     /// Returns whether the access policy makes some visible path read-only.
     pub(crate) fn restricts_writes(&self) -> bool {
         self.policy.restricts_writes()

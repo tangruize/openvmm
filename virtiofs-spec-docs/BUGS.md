@@ -372,6 +372,124 @@ index 151c3221a..c4da7ddd7 100644
          self.check_writable(&inode)?;
 ```
 
+## 5. A rename of a directory moves a hidden path below it into view
+
+*Found 2026-11-11, in an independent review of the contracts against the
+code. Fixed: `patches/0007-virtiofs-microvm-rename-moves-no-hidden-path.patch`
+(applies after 0006).*
+
+**What goes wrong.** In a read-write microVM share whose policy denies
+`logs/secret`, the directory `logs` is visible and writable. `rename` checks
+only the two names it is given, so the guest may rename `logs` to `moved`.
+The host moves `secret` with it, to `moved/secret`, which no rule hides.
+Then:
+
+- a listing of `moved` shows `secret` (listings judge names by the policy,
+  and do not check the pinned identities);
+- `lookup("moved/secret")` is still refused (the pinned identity of the
+  denied object, checked when a node is made);
+- `unlink(moved, "secret")` succeeds, and the host deletes the hidden file
+  (`unlink` checks only that `moved/secret` is writable).
+
+So the guest cannot read the hidden file, but it can learn its name and
+remove it. `RENAME_EXCHANGE` of `logs` with a writable directory does the
+same. The guide says the guest's modifications of hidden parts fail, and
+that "every mutation checks the names that it changes": a rename of `logs`
+changes the name of `logs/secret` as well. Found by reading the code;
+confirmed by a test against the original code.
+
+**The fix.** `rename` refuses, with `EROFS`, a rename of a path with a
+denied path strictly below it (with `RENAME_EXCHANGE`, of either path),
+before the host is asked. This needs only the policy. Moving something
+onto a path with a denied path below it is left alone: the target can be
+replaced only if it is empty, and anything that then lands below it is the
+guest's own. Test: `microvm/policy_tests.rs`, `a_rename_moves_no_hidden_path`
+(fails without the fix). The guide's list of modifications that fail with
+`EROFS` could add "renaming a directory that contains a denied path".
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
+index c4da7ddd7..9bc8c4365 100644
+--- a/vm/devices/virtio/virtiofs/src/lib.rs
++++ b/vm/devices/virtio/virtiofs/src/lib.rs
+@@ -689,13 +689,19 @@ fn rename(
+         let new_path = new_inode.child_path(new_name)?;
+         self.check_writable_entry(&inode, &old_path)?;
+         self.check_writable_entry(&new_inode, &new_path)?;
++        // A rename moves every path below the renamed one too (both ways for
++        // an exchange), and the guest may not change a hidden path.
++        let exchange = flags & RENAME_EXCHANGE != 0;
++        self.check_moves_nothing_hidden(&inode, &old_path)?;
++        if exchange {
++            self.check_moves_nothing_hidden(&new_inode, &new_path)?;
++        }
+         // Renaming a name onto itself changes nothing on the host; the name
+         // updates below would otherwise drop every name at or below it from
+         // every node (`remove_alias_prefix` of the new path).
+         if old_path == new_path {
+             return Ok(());
+         }
+-        let exchange = flags & RENAME_EXCHANGE != 0;
+         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
+         inode.rename(name, &new_inode, new_name, flags)?;
+         let (mut inodes, handle) = self.inner.inodes.acquire_write();
+@@ -858,6 +864,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+         }
+     }
+ 
++    /// Check that a rename of the entry at `path` in the directory `parent`
++    /// moves no path that the volume's access policy hides (one strictly
++    /// below `path`), and return EROFS if it would: the guest may not change
++    /// what it cannot see.
++    fn check_moves_nothing_hidden(&self, parent: &VirtioFsInode, path: &Path) -> lx::Result<()> {
++        if parent.volume.hides_below(path) {
++            Err(lx::Error::EROFS)
++        } else {
++            Ok(())
++        }
++    }
++
+     /// Check that a `create` that may open an existing file at `path` for
+     /// writing, or truncate it, follows `open`'s rule for that file: if the
+     /// guest holds the file's node, every name of it must be writable (as
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/inode.rs b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
+index c5f0c3da2..053b7c812 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/inode.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/inode.rs
+@@ -90,6 +90,12 @@ pub(crate) fn path_writable(&self, path: &Path) -> bool {
+         !self.readonly && self.policy.is_writable(path)
+     }
+ 
++    /// Returns whether the access policy hides a path strictly below `path`,
++    /// which a rename of `path` would move.
++    pub(crate) fn hides_below(&self, path: &Path) -> bool {
++        self.policy.hides_below(path)
++    }
++
+     /// Returns whether the access policy makes some visible path read-only.
+     pub(crate) fn restricts_writes(&self) -> bool {
+         self.policy.restricts_writes()
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy.rs b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
+index 4842577b2..c8b9a4988 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/policy.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/policy.rs
+@@ -255,6 +255,14 @@ pub(crate) fn is_writable(&self, path: &Path) -> bool {
+                     .any(|writable| path.starts_with(writable)))
+     }
+ 
++    /// Returns whether a denied path lies strictly below `path`, so that a
++    /// rename of `path` would move a hidden path with it.
++    pub(crate) fn hides_below(&self, path: &Path) -> bool {
++        self.denied
++            .iter()
++            .any(|denied| denied.as_path() != path && denied.starts_with(path))
++    }
++
+     /// Returns whether some path that the guest can reach is not writable in a
+     /// read-write share, so that each modification must check its paths.
+     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+```
+
 ## Questions for Pedro (not bugs, yet)
 
 - **Device nodes from `mknod`** (answered by Pedro, 2026-11-10: "the

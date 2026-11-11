@@ -158,6 +158,11 @@ pub trait FuseState: Sized {
     /// Path `p` of node `n`'s share is hidden: the guest may not see it.
     spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
 
+    /// A hidden path lies strictly below path `p` of node `n`'s share, by a
+    /// rule of its own: a rename of `p` would move it, and the guest may not
+    /// change what it cannot see.
+    spec fn hides_below(&self, n: u64, p: PathView) -> bool;
+
     /// An entry named `name`, of type `kind` (a `DT_*` value), of directory
     /// `dir` may be listed now (`.` and `..` always may).
     spec fn may_list(&self, dir: u64, name: Seq<u8>, kind: u32) -> bool;
@@ -520,8 +525,10 @@ pub trait FuseState: Sized {
     }
 
     /// The rules of `rename` of `name` in directory `n` to `new_name` in
-    /// directory `m`.
-    open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>) -> ISet<i32> {
+    /// directory `m`, with `flags`. A rename moves every path below the one
+    /// renamed (with `RENAME_EXCHANGE`, below both), so none of them may be
+    /// hidden (`hides_below`, `EROFS`).
+    open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>, flags: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
             ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
@@ -538,6 +545,9 @@ pub trait FuseState: Sized {
                     || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
                 ||| (self.is_hidden(n, self.child_path(n, name))
                     || self.is_hidden(m, self.child_path(m, new_name))) && c == lx::EACCES
+                ||| (self.hides_below(n, self.child_path(n, name))
+                    || Self::is_exchange(flags) && self.hides_below(m, self.child_path(m, new_name)))
+                    && c == lx::EROFS
             }
         })
     }
@@ -688,6 +698,10 @@ impl FuseState for () {
     }
 
     open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
+        false
+    }
+
+    open spec fn hides_below(&self, n: u64, p: PathView) -> bool {
         false
     }
 

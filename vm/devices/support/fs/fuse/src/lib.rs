@@ -443,12 +443,14 @@ where
                     &&& s.node_can_write(_new_dir)
                     &&& s.can_write(n, p)
                     &&& s.can_write(_new_dir, q)
+                    &&& !s.hides_below(n, p)
+                    &&& G::V::is_exchange(_flags) ==> !s.hides_below(_new_dir, q)
                     &&& s.renamed(n, p, q, G::V::is_exchange(_flags), final(g)@)
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
             // Fails where one of its rules applies.
-            G::V::fails_with(r, old(g)@.rename_errors(_request@.node_id, _name@, _new_dir, _new_name@)),
+            G::V::fails_with(r, old(g)@.rename_errors(_request@.node_id, _name@, _new_dir, _new_name@, _flags)),
     ))]
     fn rename(
         &self,

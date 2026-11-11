@@ -95,6 +95,13 @@ impl SubtreePolicyView {
         &&& (self.writable.is_empty() || self.within_writable(p))
     }
 
+    /// A denied path lies strictly below `p`: a rename of `p` would move
+    /// it, with everything it hides, and the guest must not change what it
+    /// cannot see.
+    pub closed spec fn hides_below(self, p: PathView) -> bool {
+        exists|d: PathView| #[trigger] self.denied.contains(d) && p.is_prefix_of(d) && d != p
+    }
+
     /// A denied path `d` is not redundant.
     closed spec fn denied_ok(self, d: PathView) -> bool {
         if d.len() == 0 {
