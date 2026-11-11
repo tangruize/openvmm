@@ -22,8 +22,14 @@ use fuse::spec::FuseGhost;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
+/// Verus specification of property 3, identity: as whom each request runs.
+#[cfg(verus_keep_ghost)]
+pub(crate) mod spec {
+    include!("owner.spec.rs");
+}
+
 /// Maps guest callers to the host identities that perform their requests.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CallerIdentity {
@@ -33,8 +39,17 @@ pub(crate) struct CallerIdentity {
     squash_gid: lx::gid_t,
 }
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl CallerIdentity {
     /// Builds the mapping for an export root owned by `uid` and `gid`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        ensures
+            // A root owned by root is refused; else guest root becomes the
+            // root's owner.
+            uid == 0 || gid == 0 ==> r is Err,
+            r matches Ok(ci) ==> ci.wf() && ci.squash() == (uid, gid),
+    ))]
     pub(crate) fn for_export_root_owner(uid: lx::uid_t, gid: lx::gid_t) -> anyhow::Result<Self> {
         anyhow::ensure!(
             uid != 0 && gid != 0,
@@ -48,6 +63,11 @@ impl CallerIdentity {
 
     /// Returns the host UID and GID that perform a request from guest `uid`
     /// and `gid`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        ensures
+            r == self.maps(uid, gid),
+    ))]
     pub(crate) fn host_identity(&self, uid: lx::uid_t, gid: lx::gid_t) -> (lx::uid_t, lx::gid_t) {
         (
             if uid == 0 { self.squash_uid } else { uid },
@@ -63,6 +83,11 @@ impl CallerIdentity {
 /// permissions, so these requests run as the VMM. The guest can therefore
 /// always mount, unmount, and release what it opened, even when its other
 /// requests fail closed.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_spec(r =>
+    ensures
+        r == CallerIdentity::touches_host_files(opcode),
+))]
 fn accesses_host_files(opcode: u32) -> bool {
     !matches!(
         opcode,

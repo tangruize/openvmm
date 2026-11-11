@@ -328,6 +328,7 @@ pub const FUSE_POLL_SCHEDULE_NOTIFY: u32 = (1 << 0);
 pub const FUSE_FSYNC_FDATASYNC: u32 = (1 << 0);
 
 pub const FUSE_LOOKUP: u32 = 1;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_FORGET: u32 = 2; /* no reply */
 pub const FUSE_GETATTR: u32 = 3;
 pub const FUSE_SETATTR: u32 = 4;
@@ -343,6 +344,7 @@ pub const FUSE_OPEN: u32 = 14;
 pub const FUSE_READ: u32 = 15;
 pub const FUSE_WRITE: u32 = 16;
 pub const FUSE_STATFS: u32 = 17;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_RELEASE: u32 = 18;
 pub const FUSE_FSYNC: u32 = 20;
 pub const FUSE_SETXATTR: u32 = 21;
@@ -350,9 +352,11 @@ pub const FUSE_GETXATTR: u32 = 22;
 pub const FUSE_LISTXATTR: u32 = 23;
 pub const FUSE_REMOVEXATTR: u32 = 24;
 pub const FUSE_FLUSH: u32 = 25;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_INIT: u32 = 26;
 pub const FUSE_OPENDIR: u32 = 27;
 pub const FUSE_READDIR: u32 = 28;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_RELEASEDIR: u32 = 29;
 pub const FUSE_FSYNCDIR: u32 = 30;
 pub const FUSE_GETLK: u32 = 31;
@@ -360,12 +364,15 @@ pub const FUSE_SETLK: u32 = 32;
 pub const FUSE_SETLKW: u32 = 33;
 pub const FUSE_ACCESS: u32 = 34;
 pub const FUSE_CREATE: u32 = 35;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_INTERRUPT: u32 = 36;
 pub const FUSE_BMAP: u32 = 37;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_DESTROY: u32 = 38;
 pub const FUSE_IOCTL: u32 = 39;
 pub const FUSE_POLL: u32 = 40;
 pub const FUSE_NOTIFY_REPLY: u32 = 41;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const FUSE_BATCH_FORGET: u32 = 42;
 pub const FUSE_FALLOCATE: u32 = 43;
 pub const FUSE_READDIRPLUS: u32 = 44;
