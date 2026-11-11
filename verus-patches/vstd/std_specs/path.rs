@@ -2,12 +2,16 @@
 //! `std::path::PathBuf` (OpenVMM's patch vstd-0003): their declarations, and
 //! their view, `PathView`.
 //!
-//! A path's view is the sequence of its components, each as the bytes of its
-//! name. That is meaningful for relative paths of normal components only (no
-//! root, no `.`, no `..`), which are the paths OpenVMM's virtio-fs spec talks
-//! about: its microVM profile checks that its paths have that form when it
-//! parses them. The view is uninterpreted: `std` is external, so what it
-//! returns is a trusted fact about `std`.
+//! A path's view is the sequence of its components, as `Path::components`
+//! yields them, each as bytes: a normal component as its name's bytes, the
+//! root as `/`, `.` (which `components` yields only at the start) as `.`,
+//! and `..` as `..` (on Windows, a prefix as its text). So a path is
+//! relative and of normal components only exactly when every component of
+//! its view is a plain name (not empty, no `/` and no NUL, not `.` or `..`):
+//! the form that OpenVMM's microVM profile checks its paths have, and that
+//! `lxutil` requires of the paths it is given (`LxVolume::is_share_path`).
+//! The view is uninterpreted: `std` is external, so what it returns is a
+//! trusted fact about `std`.
 
 use super::super::prelude::*;
 use super::convert::AsRefSpecImpl;
@@ -15,8 +19,8 @@ use std::path::{Path, PathBuf};
 
 verus! {
 
-/// The view of a `Path` or a `PathBuf`: its components, each the bytes of
-/// its name. The empty sequence is the empty path.
+/// The view of a `Path` or a `PathBuf`: its components, each as bytes (see
+/// above). The empty sequence is the empty path.
 pub type PathView = Seq<Seq<u8>>;
 
 #[verifier::external_type_specification]

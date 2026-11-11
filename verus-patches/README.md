@@ -514,11 +514,12 @@ types anywhere but in `vstd` (or `std`).
 
 **Change.** A new `std_specs/path.rs` (behind the `std` feature) declares
 `Path` and `PathBuf` by name only (fields hidden) and gives each a view,
-`PathView` (`Seq<Seq<u8>>`): the path's components, each the bytes of its
-name. The view
-is uninterpreted, a trusted fact about `std`, meaningful for relative paths
-of normal components (no root, no `.`, no `..`), the form that the microVM
-profile checks its paths have.
+`PathView` (`Seq<Seq<u8>>`): the path's components as `Path::components`
+yields them, each as bytes (a name as its bytes, the root as `/`, `.` and
+`..` as themselves), so that a path is relative and of normal components
+exactly when every component of its view is a plain name (what `lxutil`
+requires of its paths, 2026-11-10). The view is uninterpreted, a trusted
+fact about `std`.
 
 **Check.** `virtiofs` spec-checks with `path@` in its policy's contracts
 (`microvm/policy.rs`).

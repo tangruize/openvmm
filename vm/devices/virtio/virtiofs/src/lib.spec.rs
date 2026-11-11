@@ -29,20 +29,6 @@ use vstd::std_specs::path::PathView;
 
 verus! {
 
-/// Types that the inode and the volume hold, declared to Verus by name only,
-/// so that their views can read their other fields (`parking_lot`'s lock
-/// types are declared in the `fuse` crate, which also needs them).
-#[cfg(verus_keep_ghost)]
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExLxVolume(lxutil::LxVolume);
-
-/// The host file of an open file, declared to Verus by name only.
-#[cfg(verus_keep_ghost)]
-#[verifier::external_type_specification]
-#[verifier::external_body]
-pub struct ExLxFile(lxutil::LxFile);
-
 /// `anyhow::Error` (the error of `VirtioFs::new_microvm`), by name only.
 #[cfg(verus_keep_ghost)]
 #[verifier::external_type_specification]

@@ -28,6 +28,16 @@ use windows as sys;
 
 pub use path::PathBufExt;
 pub use path::PathExt;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
+#[cfg(verus_keep_ghost)]
+use vstd::std_specs::convert::AsRefSpec;
+
+/// Verus specification of `LxVolume`'s paths.
+#[cfg(verus_keep_ghost)]
+pub mod spec {
+    include!("lib.spec.rs");
+}
 #[cfg(unix)]
 pub use unix::credentials::FsIdentity;
 #[cfg(unix)]
@@ -81,16 +91,19 @@ pub enum VolumeError {
 /// Linux 5.6 or later is required for `openat2`. Attributes like mode are always
 /// enabled if the file system supports them. `LxVolumeOptions` is entirely ignored, as are the
 /// `uid` and `gid` fields of `LxCreateOptions`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub struct LxVolume {
     inner: sys::LxVolume,
 }
 
 // This top-level implementation exists to ensure the Windows and Unix implementation have the same
 // interface.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 impl LxVolume {
     /// Creates a new instance of `LxVolume` using the specified root path.
     ///
     /// Setup failures retain host capability diagnostics and their underlying OS error.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn new(root_path: impl AsRef<Path>) -> Result<Self, VolumeError> {
         Self::new_with_options(root_path, &LxVolumeOptions::new())
     }
@@ -110,6 +123,7 @@ impl LxVolume {
     ///
     /// This is a requirement for file systems in Linux, so this is always `true`. Note that IDs
     /// may still conflict if a path traverses a mount point.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn supports_stable_file_id(&self) -> bool {
         self.inner.supports_stable_file_id()
     }
@@ -117,16 +131,21 @@ impl LxVolume {
     /// Returns whether Windows sandbox restrictions are enabled.
     ///
     /// Always returns false on Unix, where volume options are ignored.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn is_sandbox(&self) -> bool {
         self.inner.is_sandbox()
     }
 
     /// Retrieves the attributes of a file. Symlinks are not followed.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn lstat(&self, path: impl AsRef<Path>) -> lx::Result<lx::Stat> {
         self.inner.lstat(path.as_ref()).map(|x| x.into())
     }
 
     /// Retrieves the statx details of a file. Symlinks are not followed.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn statx(&self, path: impl AsRef<Path>) -> lx::Result<lx::StatEx> {
         self.inner.lstat(path.as_ref())
     }
@@ -157,6 +176,7 @@ impl LxVolume {
     ///
     /// If `SetAttributes::ctime` is set, the ctime is set to the current time rather than the
     /// specified value.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn set_attr(&self, path: impl AsRef<Path>, attr: SetAttributes) -> lx::Result<()> {
         self.inner.set_attr(path.as_ref(), attr)
     }
@@ -174,6 +194,8 @@ impl LxVolume {
     ///
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn set_attr_stat(
         &self,
         path: impl AsRef<Path>,
@@ -193,6 +215,7 @@ impl LxVolume {
     ///
     /// Unlike the normal `truncate` syscall on Linux, this function does not follow symlinks.
     /// The `thread_uid` argument is ignored, and the thread's actual capabilities are used.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn truncate(
         &self,
         path: impl AsRef<Path>,
@@ -216,6 +239,7 @@ impl LxVolume {
     /// # Unix
     ///
     /// Symlinks are not followed. Changing a symlink's mode may return `ENOTSUP`.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn chmod(&self, path: impl AsRef<Path>, mode: lx::mode_t) -> lx::Result<()> {
         let mut attr = SetAttributes::default();
         attr.mode = Some(mode);
@@ -228,6 +252,7 @@ impl LxVolume {
     ///
     /// Chown is only fully supported if metadata is enabled and the file system supports it.
     /// Without metadata, chown silently succeeds without taking any action.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn chown(
         &self,
         path: impl AsRef<Path>,
@@ -243,6 +268,7 @@ impl LxVolume {
     /// Changes a file's time stamps.
     ///
     /// The change time of the file is always set to the current time if this function is called.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn set_times(
         &self,
         path: impl AsRef<Path>,
@@ -272,6 +298,8 @@ impl LxVolume {
     ///
     /// Alternate data streams are not supported. Use [`PathExt`] to convert Linux filenames.
     /// Nonblocking, direct I/O, no-atime, and synchronization flags are ignored on Windows.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn open(
         &self,
         path: impl AsRef<Path>,
@@ -298,6 +326,7 @@ impl LxVolume {
     }
 
     /// Creates a new directory.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn mkdir(&self, path: impl AsRef<Path>, options: LxCreateOptions) -> lx::Result<()> {
         self.inner.mkdir(path.as_ref(), options)
     }
@@ -313,6 +342,8 @@ impl LxVolume {
     ///
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn mkdir_stat(
         &self,
         path: impl AsRef<Path>,
@@ -330,6 +361,7 @@ impl LxVolume {
     /// This will attempt to create an NTFS symbolic link, but will fall back to a WSL-style link
     /// if this is not possible. With [`LxVolumeOptions::confine_paths`], it always creates a
     /// WSL-style link, which Windows path resolution never follows.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn symlink(
         &self,
         path: impl AsRef<Path>,
@@ -352,6 +384,8 @@ impl LxVolume {
     ///
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn symlink_stat(
         &self,
         path: impl AsRef<Path>,
@@ -368,6 +402,8 @@ impl LxVolume {
     ///
     /// NTFS symlinks will be translated to a Unix-style path. WSL-style symlinks are returned as
     /// is. Use `PathExt` or `PathBufExt` to convert the result to a native path if required.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn read_link(&self, path: impl AsRef<Path>) -> lx::Result<lx::LxString> {
         self.inner.read_link(path.as_ref())
     }
@@ -380,6 +416,8 @@ impl LxVolume {
     /// # Windows
     ///
     /// NTFS directory symbolic links are counted as files, not directories.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn unlink(&self, path: impl AsRef<Path>, flags: i32) -> lx::Result<()> {
         self.inner.unlink(path.as_ref(), flags)
     }
@@ -389,6 +427,7 @@ impl LxVolume {
     /// # Windows
     ///
     /// Only regular files are supported unless metadata is enabled.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn mknod(
         &self,
         path: impl AsRef<Path>,
@@ -412,6 +451,8 @@ impl LxVolume {
     ///
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn mknod_stat(
         &self,
         path: impl AsRef<Path>,
@@ -429,6 +470,8 @@ impl LxVolume {
     ///
     /// This function will use POSIX rename if the file system supports it. No flags are currently
     /// supported.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@), LxVolume::is_share_path(new_path.as_ref_spec()@)))]
     pub fn rename(
         &self,
         path: impl AsRef<Path>,
@@ -439,6 +482,7 @@ impl LxVolume {
     }
 
     /// Creates a new hard link to a file.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub fn link(&self, path: impl AsRef<Path>, new_path: impl AsRef<Path>) -> lx::Result<()> {
         self.inner.link(path.as_ref(), new_path.as_ref())
     }
@@ -454,6 +498,8 @@ impl LxVolume {
     ///
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@), LxVolume::is_share_path(new_path.as_ref_spec()@)))]
     pub fn link_stat(
         &self,
         path: impl AsRef<Path>,
@@ -471,6 +517,8 @@ impl LxVolume {
     ///
     /// The `StatFs::fs_type` and `StatFs::flags` field will not be set as they are not relevant
     /// to Windows.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn stat_fs(&self, path: impl AsRef<Path>) -> lx::Result<lx::StatFs> {
         self.inner.stat_fs(path.as_ref())
     }
@@ -493,6 +541,8 @@ impl LxVolume {
     /// because Windows has to separately check for the attribute's existence. In this case, there
     /// is a small possibility of a race where an attribute created by another thread gets
     /// overwritten.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn set_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -519,6 +569,8 @@ impl LxVolume {
     /// prefixes.
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn get_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -545,6 +597,8 @@ impl LxVolume {
     /// prefixes.
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn list_xattr(&self, path: impl AsRef<Path>, list: Option<&mut [u8]>) -> lx::Result<usize> {
         self.inner.list_xattr(path.as_ref(), list)
     }
@@ -562,6 +616,8 @@ impl LxVolume {
     /// prefixes.
     ///
     /// Security for accessing the various attribute namespaces is not enforced.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
     pub fn remove_xattr(
         &self,
         path: impl AsRef<Path>,
@@ -571,6 +627,7 @@ impl LxVolume {
     }
 
     /// Creates a new instance of `LxVolume` using the specified root path and options.
+    #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     fn new_with_options(
         root_path: impl AsRef<Path>,
         options: &LxVolumeOptions,
@@ -584,6 +641,7 @@ impl LxVolume {
 /// A platform-independent abstraction that allows you to treat a file as if it has Unix semantics.
 ///
 /// `LxFile` instances are created by using `LxVolume::open`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub struct LxFile {
     inner: sys::LxFile,
 }
@@ -1149,6 +1207,8 @@ impl Default for LxVolumeOptions {
 ///
 /// The user ID and group ID are only used on Windows; on Unix platforms, set the thread's effective
 /// user ID and group ID to change the owner of a newly created file.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Default)]
 pub struct LxCreateOptions {
     mode: lx::mode_t,
@@ -1166,6 +1226,8 @@ impl LxCreateOptions {
 }
 
 /// Supplies the attributes to change for `set_attr`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Default, Clone, Copy)]
 pub struct SetAttributes {
     /// Truncate the file.

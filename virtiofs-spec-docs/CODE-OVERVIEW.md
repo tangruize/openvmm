@@ -710,7 +710,7 @@ all of them.
 
 | Property | Status |
 |---|---|
-| 1. Confinement | not started (deferred, 2026-11-09). Does not need the host model: the paths virtio-fs hands to `lxutil` are relative, of plain names (nearly in the spec already), and `lxutil` resolves each beneath the share's root without following symbolic links (on Linux, `openat2` with `RESOLVE_BENEATH \| RESOLVE_NO_SYMLINKS`, which the kernel guarantees whatever is on disk), a trusted contract of `lxutil`. On Windows, Pedro's wrapper does that walk itself (`confine_paths`): the part that a proof would most help |
+| 1. Confinement | started (2026-11-10; open item 9): the precondition half is done (every path virtio-fs hands to `lxutil` is relative, of plain names); the half that `lxutil` then stays beneath the share's root is trusted, in words, until the host model |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |
@@ -874,6 +874,43 @@ all of them.
    `refuses_mknod`: in `mknod`'s success clause, and `mknod_errors`,
    `EPERM`). Still open: host hard links between a writable and a
    read-only path (needs the host model, with item 3).
+9. **Confinement** (property 1; started 2026-11-10). Two halves:
+   - *What virtio-fs hands to `lxutil` (done, checked once proved):* each
+     of the 16 `LxVolume` methods that virtio-fs calls (`lstat`, `statx`,
+     `set_attr_stat`, `open`, `mkdir_stat`, `mknod_stat`, `symlink_stat`,
+     `link_stat`, `read_link`, `unlink`, `rename`, `stat_fs`, `get_xattr`,
+     `set_xattr`, `list_xattr`, `remove_xattr`) requires that each path it
+     is given be a share path (`LxVolume::is_share_path`,
+     `lxutil/src/lib.spec.rs`: relative, every component a plain name; the
+     empty path is the root). The proof of virtio-fs must show it at every
+     call. `lxutil` is now a Verus crate for this (code change 25); its
+     bodies stay unverified (`external_body`). The path's view (vstd
+     patch `vstd-0003`) now says what it holds for every path (the root as
+     `/`, `.` and `..` as themselves), so that the precondition rules them
+     out.
+   - *What `lxutil` then does (trusted, in words only):* a call with share
+     paths touches only objects beneath the volume's root, following no
+     symbolic link on the way (but a final one, for `lstat` and
+     `read_link`). On Linux the kernel guarantees it (`openat2` with
+     `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`, `unix/util.rs`). Written in
+     `lxutil/src/lib.spec.rs`, not as a contract: the spec has no notion of
+     a host object to state it in.
+   - *TODO, with a host model:* state formally that `lxutil` never goes
+     outside the share: the model says what is at each path of the share
+     (and so nothing outside it), and `lxutil`'s trusted contracts say
+     which object of the model a call acts on; confinement then follows in
+     the spec, and the trusted words above become a contract.
+   - *Decisions still open:* (a) mount points inside a share
+     (`RESOLVE_BENEATH` does not stop a path from crossing into a
+     filesystem mounted inside the share): a host assumption ("no mount
+     inside a share"), or a claim of "beneath the root in the namespace"
+     only; (b) Windows (no `openat2`: WSL-style links, which Windows does
+     not follow, and virtio-fs's walk of each path, `validate_confined_paths`,
+     which refuses a symbolic link on the way): trust it and mark it first
+     for a proof, or leave Windows out of the claim; and check that `lstat`
+     on Windows reports an NT symbolic link or junction as a link, which
+     the walk relies on; (c) virtio-fs's own walk on Linux: redundant with
+     `openat2` there (defense in depth, not required by the spec?).
 
 ## The theme of the spec: protecting the host from the guest
 
