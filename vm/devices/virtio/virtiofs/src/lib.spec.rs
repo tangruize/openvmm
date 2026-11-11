@@ -110,6 +110,13 @@ pub struct InodeTable {
     /// entry in the `paths` and `aliases` ghost maps. Hidden from the view,
     /// which is keyed by node id.
     pub keys: Map<u64, int>,
+    /// Each node's host object, by its inode number (`VirtioFsInode`'s
+    /// `inode_nr`): which object on its volume's disk the node is. Hidden
+    /// from the view, like `keys`.
+    pub host_inos: Map<u64, u64>,
+    /// Each volume's `LxVolume` (its identity, `LxVolume::id`), by volume
+    /// id: whose disk the volume's disk value in `g` must be.
+    pub lx_volumes: Map<u32, int>,
     pub paths_id: Loc,
     pub aliases_id: Loc,
     /// The table is an aggregate's (`InodeMap::aggregate`).
@@ -131,6 +138,10 @@ pub tracked struct VirtioFsGhost {
     pub ghost microvm: bool,
     /// An aggregate's shares (`owns` ties them to its registry's lock).
     pub ghost shares: Map<Seq<u8>, VirtioFsShareView>,
+    /// Each volume's disk (the host model, `lxutil/src/host_t.rs`), by
+    /// volume id: what each `lxutil` call on the volume takes. Not in the
+    /// view: the host may change in an operation that then fails.
+    pub tracked disks: Map<u32, lxutil::host::VolumeDisk>,
 }
 
 impl View for VirtioFsGhost {
@@ -245,8 +256,10 @@ impl VirtioFsGhostView {
 /// views).
 ///
 /// SPEC: the core of the rule is part of the spec: the half is the ghost
-/// inode table's (`id`), and its inodes are the real table's (`inodes`). It
-/// is what makes the contracts' nodes the nodes the code holds.
+/// inode table's (`id`), and its inodes are the real table's (`inodes`), with
+/// their host objects (`host_inos`) and their volumes' `LxVolume`s
+/// (`lx_volumes`). It is what makes the contracts' nodes the nodes the code
+/// holds, and ties them to the host model.
 /// TODO (proof agent): the rest (e.g. that the half is a half, that each
 /// table inode's locks' rules have the recorded key and the maps' ids, and
 /// the keys, `InodeTable.keys`, against those rules); it may add facts or
@@ -263,6 +276,13 @@ impl RwLockPredicate<InodeTableLocked> for InodeTableRule {
         &&& v.half@.id() == self.id
         &&& v.half@@.inodes == v.table.inodes_by_node_id.values@.map_values(|i: Arc<VirtioFsInode>| i@)
         &&& v.half@@.aggregate == v.table.aggregate
+        &&& forall|n: u64| #[trigger] v.table.inodes_by_node_id.values@.contains_key(n) ==> {
+            let inode = v.table.inodes_by_node_id.values@[n];
+            &&& v.half@@.host_inos.contains_key(n)
+            &&& v.half@@.host_inos[n] == inode.host_ino()
+            &&& v.half@@.lx_volumes.contains_key(inode@.volume)
+            &&& v.half@@.lx_volumes[inode@.volume] == inode.lx_volume()
+        }
     }
 }
 
@@ -316,6 +336,18 @@ impl FuseGhost for VirtioFsGhost {
             && n1 != n2 && n1 != fuse::protocol::FUSE_ROOT_ID && n2 != fuse::protocol::FUSE_ROOT_ID ==> t.keys[n1] != t.keys[n2]
         &&& forall|k: int| #[trigger] self.paths@.contains_key(k) ==> k < self.next_key
         &&& forall|k: int| #[trigger] self.aliases@.contains_key(k) ==> k < self.next_key
+        // The host model: each volume's disk is its `LxVolume`'s, and every
+        // name of a node names, on its volume's disk, the node's object.
+        &&& forall|v: u32| #[trigger] t.lx_volumes.contains_key(v) ==> {
+            &&& self.disks.contains_key(v)
+            &&& self.disks[v].volume() == t.lx_volumes[v]
+        }
+        &&& forall|n: u64, q: PathView| #[trigger] t.inodes.contains_key(n) && !self@.is_synthetic(n)
+            && #[trigger] self@.names_of(n).contains(q) ==> {
+            let disk = self.disks[t.inodes[n].volume]@;
+            &&& disk.objects.contains_key(q)
+            &&& disk.objects[q].ino == t.host_inos[n]
+        }
     }
 }
 

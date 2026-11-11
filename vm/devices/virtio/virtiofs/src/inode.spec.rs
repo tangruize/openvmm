@@ -118,6 +118,18 @@ impl VirtioFsVolume {
     }
 }
 
+impl VirtioFsInode {
+    /// The inode's host object, by its inode number.
+    pub(crate) closed spec fn host_ino(&self) -> u64 {
+        self.inode_nr
+    }
+
+    /// Its volume's `LxVolume` (the host model's `LxVolume::id`).
+    pub(crate) closed spec fn lx_volume(&self) -> int {
+        self.volume.volume.id()
+    }
+}
+
 /// The inode's plain fields, which never change (its path and names are
 /// behind locks, in `VirtioFsGhostView`'s `paths` and `aliases`).
 impl View for VirtioFsInode {

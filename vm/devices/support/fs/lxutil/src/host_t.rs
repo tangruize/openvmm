@@ -8,14 +8,16 @@
 // assumptions (`lib.spec.rs`): no other host process changes the share, and
 // no two volumes share a host directory, so only the volume's own calls
 // change what its disk holds, and each call's contract (in `lib.rs`) says
-// how. `lxutil`'s method bodies are trusted to meet those contracts (they
+// how; and an object's inode number is the same on every call (always on
+// Linux; on Windows, a share's filesystem must report stable file ids,
+// `supports_stable_file_id`). `lxutil`'s method bodies are trusted to meet those contracts (they
 // are not verified).
 //
 // Paths are share paths in the host's form (`LxVolume::is_share_path`), the
 // same values the volume's methods take; the empty path is the share's root.
 
-use super::super::LxFile;
-use super::super::LxVolume;
+use super::LxFile;
+use super::LxVolume;
 use vstd::prelude::*;
 use vstd::std_specs::path::PathView;
 

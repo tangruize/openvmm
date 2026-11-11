@@ -56,6 +56,8 @@ intended directory, or that no path passes through a link.
   refused, see section 7);
 - no two volumes share a host directory (so only a volume's own calls
   change what its disk holds: the host model);
+- an object's inode number is the same on every call (always on Linux; on
+  Windows, a share's filesystem must report stable file ids);
 - on Windows, paths that differ name for name are different objects: no
   name of a share reaches an object in another case (`SECRET` for
   `secret`) or by an 8.3 short name (`SECRE~1`). lxutil opens every path
@@ -484,6 +486,10 @@ single-file shares (`may_reach`, `is_hidden`).
   (`VolumeDisk`, declared only; `LxVolumeOptions::new_volume` hands it out
   with its volume), and the contracts of `lxutil`'s methods in terms of it
   (`lib.rs`; `LxFile::fstat` too). It rests on the host assumptions.
+  virtio-fs keeps each volume's disk in `g` (`VirtioFsGhost::disks`, not in
+  the view), and `wf` says every name of a node names, on its volume's
+  disk, the node's object (`InodeTable::host_inos`, which the inode table's
+  rule ties to each inode's `inode_nr`).
 - The host assumptions (section 1).
 - `std` facts in the patched vstd: a path's view (`vstd-0003`,
   uninterpreted, what `Path::components` yields), `AsRef::as_ref` for

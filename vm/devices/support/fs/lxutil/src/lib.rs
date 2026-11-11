@@ -36,15 +36,18 @@ use vstd::prelude::proof_with;
 #[cfg(verus_keep_ghost)]
 use vstd::std_specs::convert::AsRefSpec;
 
-/// Verus specification of `LxVolume`'s paths, and the host model.
+/// Verus specification of `LxVolume`'s paths.
 #[cfg(verus_keep_ghost)]
 pub mod spec {
     include!("lib.spec.rs");
+}
 
-    /// The host model: what a share holds on the host disk (TRUSTED).
-    pub mod host {
-        include!("host_t.rs");
-    }
+/// The host model: what a share holds on the host disk (TRUSTED). In every
+/// build, not only under `cfg(verus_keep_ghost)`: its disk value is a field
+/// of virtio-fs's ghost state, which a normal build compiles (its spec
+/// functions are removed there).
+pub mod host {
+    include!("host_t.rs");
 }
 #[cfg(unix)]
 pub use unix::credentials::FsIdentity;
@@ -149,7 +152,7 @@ impl LxVolume {
     /// Retrieves the attributes of a file. Symlinks are not followed.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -166,7 +169,7 @@ impl LxVolume {
     /// Retrieves the statx details of a file. Symlinks are not followed.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -223,7 +226,7 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -336,7 +339,7 @@ impl LxVolume {
     /// Nonblocking, direct I/O, no-atime, and synchronization flags are ignored on Windows.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -398,7 +401,7 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -408,7 +411,7 @@ impl LxVolume {
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: lx::S_IFDIR }),
+                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFDIR }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn mkdir_stat(
@@ -453,7 +456,7 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -463,7 +466,7 @@ impl LxVolume {
             r matches Ok(st) ==> st.mode & lx::S_IFMT == lx::S_IFLNK
                 && !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: lx::S_IFLNK }),
+                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: lx::S_IFLNK }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn symlink_stat(
@@ -484,7 +487,7 @@ impl LxVolume {
     /// is. Use `PathExt` or `PathBufExt` to convert the result to a native path if required.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -505,7 +508,7 @@ impl LxVolume {
     /// NTFS directory symbolic links are counted as files, not directories.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -552,7 +555,7 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -561,7 +564,7 @@ impl LxVolume {
             // A new node at the path, the object the stat describes.
             r matches Ok(st) ==> !old(disk)@.objects.contains_key(path.as_ref_spec()@)
                 && final(disk)@.objects == old(disk)@.objects.insert(
-                    path.as_ref_spec()@, spec::host::HostObject { ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
+                    path.as_ref_spec()@, host::HostObject { ino: st.inode_nr, kind: st.mode & lx::S_IFMT }),
             r is Err ==> old(disk)@.unchanged_or_made(path.as_ref_spec()@, final(disk)@),
     ))]
     pub fn mknod_stat(
@@ -583,7 +586,7 @@ impl LxVolume {
     /// supported.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -607,7 +610,7 @@ impl LxVolume {
                     &&& flags & 1 != 0 ==> !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
                     &&& if flags & 4 != 0 {
                         exists|ino: u64| final(disk)@.objects == #[trigger] old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@).objects.insert(
-                            path.as_ref_spec()@, spec::host::HostObject { ino, kind: lx::S_IFCHR })
+                            path.as_ref_spec()@, host::HostObject { ino, kind: lx::S_IFCHR })
                     } else {
                         final(disk)@ == old(disk)@.renamed(path.as_ref_spec()@, new_path.as_ref_spec()@)
                     }
@@ -643,7 +646,7 @@ impl LxVolume {
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with Tracked(disk): Tracked<&mut spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&mut host::VolumeDisk>
         requires
             old(disk).volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -676,7 +679,7 @@ impl LxVolume {
     /// to Windows.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -705,7 +708,7 @@ impl LxVolume {
     /// overwritten.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -738,7 +741,7 @@ impl LxVolume {
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -771,7 +774,7 @@ impl LxVolume {
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -795,7 +798,7 @@ impl LxVolume {
     /// Security for accessing the various attribute namespaces is not enforced.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(
-        with Tracked(disk): Tracked<&spec::host::VolumeDisk>
+        with Tracked(disk): Tracked<&host::VolumeDisk>
         requires
             disk.volume() == self.id(),
             LxVolume::is_share_path(path.as_ref_spec()@),
@@ -1253,7 +1256,7 @@ impl LxVolumeOptions {
     /// Setup failures retain host capability diagnostics and their underlying OS error.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
     #[cfg_attr(verus_keep_ghost, verus_spec(r =>
-        with -> disk: Tracked<spec::host::VolumeDisk>
+        with -> disk: Tracked<host::VolumeDisk>
         ensures
             // TRUSTED (`host_t.rs`): the new volume's disk, the only one.
             r matches Ok(v) ==> disk@.volume() == v.id(),
