@@ -722,8 +722,12 @@ all of them.
    `lx::Error::EROFS` (a public constant built from a private field).
    Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
    `symlink`, `link`, `open`, `open_dir`, `lookup`, `get_attr`, `set_attr`,
-   `read_link`, `statfs`; `release` and `release_dir` always succeed
-   (`r is Ok`). Shared rule sets: `entry_errors`, `handle_errors` (a
+   `read_link`, `statfs`, `read`, `write`, `fsync`; `release` and
+   `release_dir` always succeed (`r is Ok`). No rules for the operations
+   virtio-fs leaves to the trait's default (`ENOSYS`): `flush`,
+   `fallocate`, `lseek`, `copy_file_range`, and the like. More questions:
+   `buffer_too_large` (virtio-fs: over 1 MiB, `E2BIG`); running out of
+   memory for the buffer (`ENOMEM`) is left under "host". Shared rule sets: `entry_errors`, `handle_errors` (a
    request through a handle), `node_errors`. `is_hidden(n, p)` (virtio-fs:
    the share's policy hides `p`; `child_path` refuses it with `EACCES`
    before the host is asked) is in every rule set that makes a child's

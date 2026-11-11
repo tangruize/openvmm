@@ -161,6 +161,10 @@ pub trait FuseState: Sized {
     /// Path `p` of node `n`'s share is hidden: the guest may not see it.
     spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
 
+    /// The file system refuses a buffer of `size` bytes, to read into or to
+    /// write from.
+    spec fn buffer_too_large(size: nat) -> bool;
+
     /// `code` is an error code the host may fail with.
     spec fn host_error(code: i32) -> bool;
 
@@ -326,6 +330,25 @@ pub trait FuseState: Sized {
                 ||| !self.holds_node(n) && c == lx::EINVAL
                 ||| self.holds_node(n) && changes && !self.node_can_write(n) && c == lx::EROFS
             }
+        })
+    }
+
+    /// The rules of `read` of `size` bytes from node `n` through handle
+    /// `fh`: `handle_errors`, and the size.
+    open spec fn read_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.handle_errors(n, fh).contains(c)
+            ||| Self::buffer_too_large(size) && c == lx::E2BIG
+        })
+    }
+
+    /// The rules of `write` of `size` bytes to node `n` through handle `fh`:
+    /// `handle_errors`, the size, and the guest may change `n`.
+    open spec fn write_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.handle_errors(n, fh).contains(c)
+            ||| Self::buffer_too_large(size) && c == lx::E2BIG
+            ||| self.uses_handle(n, fh) && !self.node_can_write(n) && c == lx::EROFS
         })
     }
 
@@ -523,6 +546,10 @@ impl FuseState for () {
     }
 
     open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
+        false
+    }
+
+    open spec fn buffer_too_large(size: nat) -> bool {
         false
     }
 

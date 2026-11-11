@@ -536,6 +536,11 @@ impl FuseState for VirtioFsGhostView {
         self.inodes[n].policy.visibility(p) == crate::microvm::policy::PathVisibility::Hidden
     }
 
+    /// Over `MAX_GUEST_BUFFER_SIZE` (1 MiB: `guest_buffer`, `write`).
+    closed spec fn buffer_too_large(size: nat) -> bool {
+        size > 1024 * 1024
+    }
+
     /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
     /// a flag `create` does not support either.
     closed spec fn bad_open_flags(flags: u32) -> bool {
