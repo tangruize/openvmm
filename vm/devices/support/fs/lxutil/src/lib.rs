@@ -665,8 +665,10 @@ impl LxVolume {
         ensures
             final(disk).volume() == old(disk).volume(),
             !final(disk).untouched(),
-            // A new path for the object at the old path.
+            // A new path for the object at the old path, never a directory
+            // (Linux refuses a hard link to one, `EPERM`).
             r matches Ok(st) ==> old(disk)@.objects.contains_key(path.as_ref_spec()@)
+                && old(disk)@.objects[path.as_ref_spec()@].kind != lx::S_IFDIR
                 && !old(disk)@.objects.contains_key(new_path.as_ref_spec()@)
                 && st.inode_nr == old(disk)@.objects[path.as_ref_spec()@].ino
                 && final(disk)@.objects == old(disk)@.objects.insert(new_path.as_ref_spec()@, old(disk)@.objects[path.as_ref_spec()@]),

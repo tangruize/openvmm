@@ -803,7 +803,7 @@ index bddfefa9a..e77920ebd 100644
   check of a file's names does not see (`CODE-OVERVIEW.md`, "Changes to a
   file itself, and its other names"). Pedro's guide states the rule ("Do
   not place such aliases inside an export"); the spec takes it as a host
-  assumption (2026-11-11: the axiom `attached_disk_mixes_no_links`,
+  assumption (2026-11-11: the axiom `attached_disk`,
   `lxutil/src/host_t.rs`), so the question is only whether he wants the
   code to check it when a share is attached.
 - **Mount points inside a microVM share.** `openat2` with

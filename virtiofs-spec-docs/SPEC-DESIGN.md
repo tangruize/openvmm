@@ -60,11 +60,12 @@ through a link.
   change what its disk holds: the host model);
 - an object's inode number is the same on every call (always on Linux; on
   Windows, a share's filesystem must report stable file ids);
-- as the share was attached, no host hard link joined a path the guest may
-  write and a visible path it may not (Pedro's setup rule). This one is
-  about what the disk held, not how the host behaves, so it is an axiom
-  (`attached_disk_mixes_no_links`, `lxutil/src/host_t.rs`); the others are
-  built into `lxutil`'s trusted contracts;
+- as the share was attached: no host hard link joined a path the guest may
+  write and a visible path it may not (Pedro's setup rule), and a
+  directory had one path (no directory hard links on Linux or NTFS, and no
+  mount point). These are about what the disk held, not how the host
+  behaves, so they are an axiom (`attached_disk`, `lxutil/src/host_t.rs`);
+  the others are built into `lxutil`'s trusted contracts;
 - on Windows, paths that differ name for name are different objects: no
   name of a share reaches an object in another case (`SECRET` for
   `secret`) or by an 8.3 short name (`SECRE~1`). lxutil opens every path
@@ -495,8 +496,9 @@ single-file shares (`may_reach`, `is_hidden`).
   (`VolumeDisk`, declared only; `LxVolumeOptions::new_volume` hands it out
   with its volume), and the contracts of `lxutil`'s methods in terms of it
   (`lib.rs`; `LxFile::fstat` too). It rests on the host assumptions. Its
-  one axiom, `attached_disk_mixes_no_links`, states the hard-link
-  assumption for a disk no call has changed (`untouched`).
+  one axiom, `attached_disk`, states the assumptions about the share as
+  attached (hard links, one path per directory) for a disk no call has
+  changed (`untouched`).
   virtio-fs keeps each volume's disk in `g` (`VirtioFsGhost::disks`, not in
   the view), and `wf` says every name of a node names, on its volume's
   disk, the node's object (`InodeTable::host_inos`, which the inode table's
@@ -526,9 +528,10 @@ single-file shares (`may_reach`, `is_hidden`).
   approval, and an entry in `CODE-CHANGES.md`. Ghost arguments and ghost
   fields are not executable changes.
 - **Replace every PLACEHOLDER** (section 5), and no new `assume_new`.
-- **At creation, call `attached_disk_mixes_no_links`** once per volume
-  (`VirtioFs::new_microvm`), with the share's policy, for `wf`'s hard-link
-  fact; after that, the operations keep it.
+- **At creation, call `attached_disk`** once per volume
+  (`VirtioFs::new_microvm`), with the share's policy, for `wf`'s facts on
+  hard links and on directories' paths; after that, the operations keep
+  them.
 - **Trusted code stays trusted**: do not add axioms beyond those listed in
   section 8.
 

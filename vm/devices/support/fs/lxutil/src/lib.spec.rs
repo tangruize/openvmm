@@ -37,10 +37,11 @@
 // two volumes share a host directory, so only a volume's own calls change
 // what its disk holds.
 // ASSUMED (a host assumption about the share as attached, decided
-// 2026-11-11; Pedro's setup rule): no host hard link joins a path the guest
-// may write and a visible path it may not. Unlike the others, it is about
-// what the disk holds, not how the host behaves, so it is an axiom
-// (`host_t.rs`, `attached_disk_mixes_no_links`, which says why).
+// 2026-11-11): no host hard link joins a path the guest may write and a
+// visible path it may not (Pedro's setup rule), and a directory has one
+// path. Unlike the others, these are about what the disk holds, not how the
+// host behaves, so they are an axiom (`host_t.rs`, `attached_disk`, which
+// says why).
 // See `virtiofs-spec-docs/CODE-OVERVIEW.md`, property 1 (confinement).
 
 use super::LxVolume;

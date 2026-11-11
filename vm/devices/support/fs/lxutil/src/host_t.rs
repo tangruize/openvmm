@@ -112,6 +112,20 @@ impl HostDisk {
             && writable(x) && visible(y) ==> writable(y)
     }
 
+    /// A directory has one path: no two paths hold the same directory.
+    pub open spec fn directories_have_one_path(self) -> bool {
+        forall|x: PathView, y: PathView|
+            #[trigger] self.objects.contains_key(x) && #[trigger] self.objects.contains_key(y)
+            && self.objects[x].dev == self.objects[y].dev && self.objects[x].ino == self.objects[y].ino
+            && self.objects[x].kind == lx::S_IFDIR ==> x == y
+    }
+
+    /// The host assumptions about the share as attached (`attached_disk`).
+    pub open spec fn as_attached(self, writable: spec_fn(PathView) -> bool, visible: spec_fn(PathView) -> bool) -> bool {
+        &&& self.no_mixed_links(writable, visible)
+        &&& self.directories_have_one_path()
+    }
+
     /// `after` is this disk, or this disk with one new object at path `p`,
     /// where there was none: what a call that may have made `p` before it
     /// failed leaves.
@@ -139,27 +153,33 @@ impl VolumeDisk {
     pub uninterp spec fn untouched(&self) -> bool;
 }
 
-/// HOST ASSUMPTION, as an axiom: as the share was attached, no host hard
-/// link joined a path the guest may write and a visible path it may not.
-/// Pedro's guide states the rule for setting up a share ("A host hard link
-/// ... that makes a read-only object reachable inside a writable path also
-/// makes that object writable ... Do not place such aliases inside an
-/// export").
+/// HOST ASSUMPTIONS about the share as attached, as an axiom. Each is a
+/// fact about what the disk held when the share was attached (`as_attached`):
+///
+/// 1. No host hard link joins a path the guest may write and a visible path
+///    it may not (`no_mixed_links`). Pedro's guide states the rule for
+///    setting up a share ("A host hard link ... that makes a read-only
+///    object reachable inside a writable path also makes that object
+///    writable ... Do not place such aliases inside an export").
+/// 2. A directory has one path (`directories_have_one_path`): neither Linux
+///    nor NTFS lets a directory have hard links, and a share contains no
+///    mount point (the host assumption in `lib.spec.rs`), so no bind mount
+///    gives one a second path either.
 ///
 /// WHY AN AXIOM. The other host assumptions (`lib.spec.rs`) are about how
 /// the host behaves, and are already built into the trusted contracts of
 /// `lxutil`'s methods (`lstat` reports the object the disk has only because
-/// no other process changed it). This one is about what the disk held when
+/// no other process changed it). These are about what the disk held when
 /// the share was attached, before any call: no contract says what is on the
 /// disk then, and no code checks it (it would mean walking the whole share).
-/// So it can only be stated, and is trusted. `untouched` keeps it to the
-/// disk as attached: after a call, the disk is what the calls made it, and
-/// the code's checks (`link`, `rename`) are what keep the rule, which the
-/// proof shows (`VirtioFsGhost::wf`).
+/// So they can only be stated, and are trusted. `untouched` keeps them to
+/// the disk as attached: after a call, the disk is what the calls made it,
+/// and the code's checks and `lxutil`'s contracts are what keep the facts,
+/// which the proof shows (`VirtioFsGhost::wf`).
 ///
 /// USED once per volume, by the proof that a new file system's ghost state
 /// is well formed (`VirtioFs::new_microvm`), with the share's policy.
-pub axiom fn attached_disk_mixes_no_links(
+pub axiom fn attached_disk(
     disk: &VolumeDisk,
     writable: spec_fn(PathView) -> bool,
     visible: spec_fn(PathView) -> bool,
@@ -167,7 +187,7 @@ pub axiom fn attached_disk_mixes_no_links(
     requires
         disk.untouched(),
     ensures
-        disk@.no_mixed_links(writable, visible),
+        disk@.as_attached(writable, visible),
 ;
 
 impl View for VolumeDisk {
