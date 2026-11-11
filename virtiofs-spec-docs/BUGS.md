@@ -522,6 +522,29 @@ index 4842577b2..c8b9a4988 100644
   `confine_paths`, or the microVM's volumes) would let the kernel enforce
   it, and the assumption would go; if a share may contain mounts on
   purpose, the claim is "beneath the root in the host's namespace" only.
+- **Windows: names in another case, and 8.3 short names, reach hidden
+  objects** (found 2026-11-11 by reading the code; not tested, since it
+  needs a Windows host). lxutil opens every path with
+  `OBJ_CASE_INSENSITIVE` (`lxutil/src/windows/util.rs`,
+  `open_relative_file`), so in a directory that is not case-sensitive,
+  `SECRET` opens `secret`; on a volume with 8.3 names, so does `SECRE~1`.
+  The policy compares names exactly (`ensure_path_allowed`,
+  `microvm/inode.rs`). In a read-write Windows microVM share that denies
+  `secret`, `lookup("SECRET")` is still refused (the pinned identity of
+  the denied object), but `unlink(root, "SECRET")` passes every check,
+  since `SECRET` is a visible, writable path, and NTFS deletes the hidden
+  file; `rename` of `SECRET` moves it, and `create` of `SECRET` with
+  `O_EXCL` tells whether it exists. The guide's warnings about host
+  aliases do not cover it. The spec assumes, for now, that different
+  paths are different objects on Windows. Is this a bug to fix in the
+  code, or a rule for how a Windows share is set up (every directory
+  case-sensitive, 8.3 names off)? A fix in the code is not simple:
+  without `OBJ_CASE_INSENSITIVE`, Windows still matches names without
+  case by default (unless the system's `obcaseinsensitive` setting is
+  off); comparing names without case in the policy would need NTFS's own
+  case table, and would still miss short names; checking the identity of
+  the object that a change touches against the pinned identities would
+  cover both.
 - **A directory listing is filtered once, when it starts (a note, not a
   bug).** In the microVM, a directory handle's listing is cached at its
   first read (`VirtioFsFile::directory_snapshot`,

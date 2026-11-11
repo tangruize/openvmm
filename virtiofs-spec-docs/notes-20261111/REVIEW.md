@@ -133,6 +133,8 @@ Findings are ordered by severity.
 
 ## 5. Windows: case-insensitive (and 8.3) host lookup lets a writable path name a hidden object
 
+*Status (2026-11-11): confirmed by reading the code (not tested: it needs a Windows host). Written down as a host assumption (`lxutil/src/lib.spec.rs`, `SPEC-DESIGN.md`, `CODE-OVERVIEW.md`), and a question for Pedro (`BUGS.md`): a fix in the code, or a rule for how a Windows share is set up.*
+
 - Spec: the path-level integrity and confidentiality claim, and the trusted
   text in `lxutil/lib.spec.rs` ("touches only objects beneath the volume's
   root"). The policy is matched component-wise and case-sensitively:

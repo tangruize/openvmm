@@ -53,7 +53,13 @@ intended directory, or that no path passes through a link.
 
 - no other host process changes the share while the device runs;
 - a share contains no mount point (on Linux; on Windows mount points are
-  refused, see section 7).
+  refused, see section 7);
+- on Windows, paths that differ name for name are different objects: no
+  name of a share reaches an object in another case (`SECRET` for
+  `secret`) or by an 8.3 short name (`SECRE~1`). lxutil opens every path
+  case-insensitively, so this holds only for directories that are
+  case-sensitive and volumes without short names (a question for Pedro,
+  `BUGS.md`).
 
 **Every byte the guest writes is untrusted.** No contract requires
 anything of a request's contents (names, flags, node ids, handles): an

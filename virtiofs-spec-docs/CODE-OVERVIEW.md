@@ -48,7 +48,9 @@ not changed through a writable hard link, that the share's root is the
 intended directory, or that a path passes through no symbolic link
 (virtio-fs's own walk, which is defense in depth on top of the kernel's
 guard). And it rests on host assumptions: no other host process changes
-the share, and a share contains no mount point (on Linux).
+the share, a share contains no mount point (on Linux), and different
+paths are different objects (on Windows, where lxutil opens paths
+case-insensitively, and 8.3 short names are other names).
 
 ## How a request travels
 
@@ -745,7 +747,7 @@ all of them.
 
 | Property | Status |
 |---|---|
-| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); that `lxutil` then stays beneath the share's root (the kernel's guard, on Linux and Windows) is trusted, in words. Assumed: no mount point inside a share (on Linux; a question for Pedro). Waits for the host model: the root's identity, pinned identities, the symbolic-link walk, and the trusted half as a contract |
+| 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); that `lxutil` then stays beneath the share's root (the kernel's guard, on Linux and Windows) is trusted, in words. Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Waits for the host model: the root's identity, pinned identities, the symbolic-link walk, and the trusted half as a contract |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
 | 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
 | 4. Limits | not started; needs the lookup counts (open item 2) |
@@ -948,6 +950,16 @@ all of them.
      point, so that "beneath the root" is "inside the share". Pedro's code
      does not state that assumption: a question for him (`BUGS.md`; if he
      confirms, `RESOLVE_NO_XDEV` would let the kernel enforce it).
+   - *Decided 2026-11-11: on Windows, names in another case and 8.3
+     short names.* lxutil opens every path with `OBJ_CASE_INSENSITIVE`
+     (`windows/util.rs`), so `SECRET` or `SECRE~1` can reach the object at
+     the denied path `secret`, while the policy, comparing names exactly,
+     sees a visible, writable path. `lookup` is caught by the pinned
+     identities; `unlink`, `rename` and `create` with `O_EXCL` are not. The
+     claim assumes, as a host assumption, that different paths are
+     different objects (review finding 5, not tested: it needs a Windows
+     host). A question for Pedro (`BUGS.md`): a fix in the code, or a rule
+     for how a Windows share is set up.
    - *Decided (b), 2026-11-10: Windows is in the claim*, trusted as Linux
      is: Windows has its own kernel guard (`OBJ_DONT_REPARSE`, above; found
      2026-11-10 by reading the code; it also refuses a mount point inside

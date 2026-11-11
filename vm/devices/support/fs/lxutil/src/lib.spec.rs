@@ -19,6 +19,14 @@
 // ASSUMED (a host assumption, decided 2026-11-10): a share contains no mount
 // point (on Linux; on Windows they are reparse points, refused), so "beneath the root" is "inside the share" (only the host's setup
 // can put one there; a question for Pedro, `BUGS.md`).
+// ASSUMED (a host assumption, decided 2026-11-11): on Windows, two paths
+// that differ name for name are two objects. `open_relative_file` opens
+// every path with `OBJ_CASE_INSENSITIVE` (`windows/util.rs`), so in a
+// directory that is not case-sensitive, a name in another case (`SECRET`
+// for `secret`), or an 8.3 short name (`SECRE~1`), reaches the same object.
+// The policy compares names exactly, so without the assumption a guest
+// could remove or rename a hidden file by such a name (a question for
+// Pedro, `BUGS.md`).
 // See `virtiofs-spec-docs/CODE-OVERVIEW.md`, property 1 (confinement).
 
 use super::LxVolume;
