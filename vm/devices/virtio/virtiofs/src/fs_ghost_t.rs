@@ -53,7 +53,12 @@
 // A2. Only `process_virtiofs_request` takes and gives back, and the keeper
 //     holds one ghost state per file system: the one its creation kept. So
 //     what a take gives out is what the last give-back (or the creation) left,
-//     and it is this session's file system's.
+//     and it is this session's file system's. Not yet true across a restore:
+//     `restore_microvm_state` (`microvm/fs.rs`) replaces both tables but not
+//     the `g` kept here (virtio-fs's save and restore, property 6, are not
+//     specified yet; the plan, in `virtiofs-spec-docs/notes-20261111/
+//     DESIGN-snapshot.md`, is that restore borrows `g` from the keeper, and
+//     this assumption then names restore too).
 //
 // The contracts say only what the operations need: the `g` given out is this
 // session's file system's (`owns_ghost`) and well formed (`wf`); a
