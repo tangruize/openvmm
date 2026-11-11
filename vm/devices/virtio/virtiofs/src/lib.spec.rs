@@ -604,6 +604,22 @@ impl FuseState for VirtioFsGhostView {
         size > 1024 * 1024
     }
 
+    /// The listing rule (`entry_listable`): the entry's path under `dir`'s
+    /// path now is visible, or traverse-only and a directory (an entry whose
+    /// type the host reported as unknown, `DT_UNK`, is listed only if the
+    /// host says it is a directory: left to the host model). In an
+    /// aggregate's root: a share's name.
+    closed spec fn may_list(&self, dir: u64, name: Seq<u8>, kind: u32) -> bool {
+        if self.is_synthetic(dir) {
+            self.shares.contains_key(name)
+        } else {
+            let visibility = self.inodes[dir].policy.visibility(self.child_path(dir, name));
+            ||| visibility == crate::microvm::policy::PathVisibility::Visible
+            ||| visibility == crate::microvm::policy::PathVisibility::TraverseOnly
+                && (kind == lx::DT_DIR as u32 || kind == lx::DT_UNK as u32)
+        }
+    }
+
     /// In the microVM (whose volumes have strict paths): none of the node's
     /// names, nor its main path, is hidden (`get_inode` ->
     /// `validate_confined_object`, `microvm/inode.rs`). Always, outside the

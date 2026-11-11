@@ -766,10 +766,17 @@ all of them.
    root's main path in the code (`VirtioFsInode::lookup`), while the spec
    keeps the root's path empty; only the host can make a name lead to the
    root's object.
-4. **What a directory listing shows** (`read_dir`, `read_dir_plus`): the
-   reply is an encoded buffer, not yet decoded by the spec; the
-   traverse-only listing rule (only the entries that lead to allowed paths)
-   is part of confidentiality. Decided (2026-11-10): "every name listed
+4. **What a directory listing shows** (`read_dir`, `read_dir_plus`; done
+   2026-11-10). The traverse-only listing rule (only the entries that lead
+   to allowed paths) is part of confidentiality. The contracts now say
+   `lists_only_allowed(dir, buf, plus)`: the reply is the encoding
+   (`ListedEntry::records`, `fuse/src/lib.spec.rs`: for each entry, in a
+   `read_dir_plus` reply the lookup's 128-byte reply, then the 24-byte
+   `fuse_dirent` header, the name, and zeros to 8 bytes) of some entries,
+   each `.`, `..`, or one that the new question `may_list(dir, name, kind)`
+   allows (virtio-fs: `entry_listable` under the directory's path now; in
+   an aggregate's root, a share's name). Left: tying `read_dir_plus`'s
+   lookups (`looked_up_in`) to the names it lists. Decided: "every name listed
    (but `.` and `..`) may be listed now" (`entry_listable`: visible, or
    traverse-only and a directory, under the directory's path at that
    moment). In the microVM the listing is cached at the handle's first

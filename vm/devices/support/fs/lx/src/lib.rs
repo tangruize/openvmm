@@ -57,9 +57,11 @@ pub const S_ISUID: u32 = 0o4000;
 pub const S_ISGID: u32 = 0o2000;
 pub const S_IXGRP: u32 = 0o010;
 
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const DT_UNK: u8 = 0;
 pub const DT_FIFO: u8 = 1;
 pub const DT_CHR: u8 = 2;
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub const DT_DIR: u8 = 4;
 pub const DT_BLK: u8 = 6;
 pub const DT_REG: u8 = 8;

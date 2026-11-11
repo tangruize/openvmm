@@ -76,6 +76,52 @@ impl FuseGhost for () {
     }
 }
 
+/// One entry of a directory listing's reply, as the reply encodes it
+/// (`DirEntryWriter`, `reply.rs`): its inode number, the offset of the entry
+/// after it (the cookie the guest passes to go on), its type (a `DT_*`
+/// value), its name, and, in a `read_dir_plus` reply, the lookup's reply
+/// before it (`fuse_entry_out`, 128 bytes).
+pub ghost struct ListedEntry {
+    pub ino: u64,
+    pub off: u64,
+    pub kind: u32,
+    pub name: Seq<u8>,
+    pub entry_out: Seq<u8>,
+}
+
+impl ListedEntry {
+    /// The entry's bytes in a reply: in a `read_dir_plus` reply, the
+    /// lookup's reply; then the header (`fuse_dirent`: the inode number, the
+    /// offset, the name's length and the type, little-endian), the name, and
+    /// zeros up to a multiple of 8 bytes (`fuse_dirent_align`).
+    pub open spec fn record(self, plus: bool) -> Seq<u8> {
+        let header = vstd::bytes::spec_u64_to_le_bytes(self.ino)
+            + vstd::bytes::spec_u64_to_le_bytes(self.off)
+            + vstd::bytes::spec_u32_to_le_bytes(self.name.len() as u32)
+            + vstd::bytes::spec_u32_to_le_bytes(self.kind);
+        let body = (if plus { self.entry_out } else { Seq::<u8>::empty() }) + header + self.name;
+        body + Seq::new(((8 - body.len() % 8) % 8) as nat, |i: int| 0u8)
+    }
+
+    /// The entry fits its record: a name whose length fits the header, and,
+    /// in a `read_dir_plus` reply, a lookup's reply of 128 bytes.
+    pub open spec fn wf(self, plus: bool) -> bool {
+        &&& self.name.len() <= u32::MAX
+        &&& plus ==> self.entry_out.len() == 128
+    }
+
+    /// The bytes of a reply listing `entries`, in that order.
+    pub open spec fn records(entries: Seq<ListedEntry>, plus: bool) -> Seq<u8>
+        decreases entries.len(),
+    {
+        if entries.len() == 0 {
+            Seq::empty()
+        } else {
+            Self::records(entries.drop_last(), plus) + entries.last().record(plus)
+        }
+    }
+}
+
 /// The questions that the operations' rules ask about a filesystem's state,
 /// and the rules built from them. A question is declared here without a
 /// body, and each file system answers it (virtio-fs: `VirtioFsGhostView`); a
@@ -111,6 +157,10 @@ pub trait FuseState: Sized {
 
     /// Path `p` of node `n`'s share is hidden: the guest may not see it.
     spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
+
+    /// An entry named `name`, of type `kind` (a `DT_*` value), of directory
+    /// `dir` may be listed now (`.` and `..` always may).
+    spec fn may_list(&self, dir: u64, name: Seq<u8>, kind: u32) -> bool;
 
     /// None of node `n`'s names (nor its main path) is hidden now, as the
     /// file system checks before each operation on a node: a node can come
@@ -260,6 +310,21 @@ pub trait FuseState: Sized {
         &&& self.uses_node(n)
         &&& self.holds_file(fh)
         &&& self.file_node(fh) == n
+    }
+
+    /// `buf` is a listing reply (`read_dir`, or `read_dir_plus` with `plus`)
+    /// of directory `dir` that holds only entries the guest may list now
+    /// (`.`, `..`, and those `may_list` allows).
+    open spec fn lists_only_allowed(&self, dir: u64, buf: Seq<u8>, plus: bool) -> bool {
+        exists|entries: Seq<ListedEntry>| {
+            &&& buf == ListedEntry::records(entries, plus)
+            &&& forall|i: int| 0 <= i < entries.len() ==> {
+                let e = #[trigger] entries[i];
+                &&& e.wf(plus)
+                &&& e.name == seq!['.' as u8] || e.name == seq!['.' as u8, '.' as u8]
+                    || self.may_list(dir, e.name, e.kind)
+            }
+        }
     }
 
     /// The common rule of the operations that make a new name `name` in
@@ -593,6 +658,10 @@ impl FuseState for () {
 
     open spec fn names_visible(&self, n: u64) -> bool {
         true
+    }
+
+    open spec fn may_list(&self, dir: u64, name: Seq<u8>, kind: u32) -> bool {
+        false
     }
 
     open spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {

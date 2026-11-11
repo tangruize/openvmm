@@ -811,6 +811,8 @@ where
         ensures
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
+            // Lists only the entries the guest may list now.
+            r matches Ok(buf) ==> g@.lists_only_allowed(_request@.node_id, buf@, false),
             // Fails where one of its rules applies.
             G::V::fails_with(r, g@.read_dir_errors(_request@.node_id, _arg.fh, _arg.size as nat)),
     ))]
@@ -1050,6 +1052,8 @@ where
             final(g).wf(),
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> old(g)@.uses_handle(_request@.node_id, _arg.fh),
+            // Lists only the entries the guest may list now.
+            r matches Ok(buf) ==> old(g)@.lists_only_allowed(_request@.node_id, buf@, true),
             // Each entry listed with its node is looked up, as by `lookup`,
             // in the open directory: the state after is the result of such
             // lookups, each allowed by `lookup`'s rules (also on an error,
