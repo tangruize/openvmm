@@ -174,6 +174,8 @@ Findings are ordered by severity.
 
 ## 7. `mkdir` and `symlink` fix the new node's kind (`S_IFDIR`, `S_IFLNK`), but the code takes it from a by-name stat after creation
 
+*Status (2026-11-11): confirmed (unprovable; false only under a host race, which the host assumptions rule out). Fixed with a first piece of a host model: `lxutil`'s `mkdir_stat` and `symlink_stat` ensure the stat's type (`S_IFDIR`, `S_IFLNK`), trusted (`lxutil/src/lib.spec.rs`); `lx::Stat` and `Timespec` made visible to Verus. The contracts are unchanged. No code change.*
+
 - Spec: `fuse/lib.rs:333` (`after_reach(..., lx::S_IFDIR)`) and
   `fuse/lib.rs:257` (`..., lx::S_IFLNK`). `after_reach` writes `kind` into
   the new inode's view.

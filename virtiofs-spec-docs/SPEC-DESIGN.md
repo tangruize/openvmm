@@ -474,6 +474,10 @@ single-file shares (`may_reach`, `is_hidden`).
 - The keeper's three axioms, and assumptions A1 and A2 (section 6).
 - `lxutil`'s method bodies (`external_body`), and the confinement fact in
   words (section 7).
+- The first piece of a host model, as `lxutil` postconditions:
+  `mkdir_stat` returns the stat of a directory, `symlink_stat` that of a
+  symbolic link (`lxutil/src/lib.spec.rs`). Each makes the object and
+  stats it by name; under the host assumptions, the name still names it.
 - The host assumptions (section 1).
 - `std` facts in the patched vstd: a path's view (`vstd-0003`,
   uninterpreted, what `Path::components` yields), `AsRef::as_ref` for
@@ -481,7 +485,8 @@ single-file shares (`may_reach`, `is_hidden`).
 - Every `external_body` function and type: all production bodies (the
   proof's to replace), and the declarations of external types by name
   (`ExRwLock`, `ExBorrowedFd`, `ExFuseOperation`, `ExAnyhowError`, `lx`'s
-  `Stat`, `StatEx`, `StatFs`, `lxutil`'s `LxVolume`, `LxFile`,
+  `Stat`, `StatEx`, `StatFs` (`Stat` and `Timespec` are now visible to Verus,
+  for the postconditions above), `lxutil`'s `LxVolume`, `LxFile`,
   `LxCreateOptions`, `SetAttributes`, and others).
 - The answers that stand for missing knowledge: `host_error` is "any code";
   a listed entry of unknown type (`DT_UNK`) in a traverse-only directory

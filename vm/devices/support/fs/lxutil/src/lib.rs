@@ -343,7 +343,14 @@ impl LxVolume {
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        requires
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            // TRUSTED (a host fact; `lib.spec.rs`): the stat of the new
+            // directory.
+            r matches Ok(stat) ==> stat.mode & lx::S_IFMT == lx::S_IFDIR,
+    ))]
     pub fn mkdir_stat(
         &self,
         path: impl AsRef<Path>,
@@ -385,7 +392,14 @@ impl LxVolume {
     /// This does the operations separately, and is therefore susceptible to a race if the item is
     /// removed or replaced between creation and retrieving its attributes.
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
-    #[cfg_attr(verus_keep_ghost, verus_spec(requires LxVolume::is_share_path(path.as_ref_spec()@)))]
+    #[cfg_attr(verus_keep_ghost, verus_spec(r =>
+        requires
+            LxVolume::is_share_path(path.as_ref_spec()@),
+        ensures
+            // TRUSTED (a host fact; `lib.spec.rs`): the stat of the new
+            // symbolic link.
+            r matches Ok(stat) ==> stat.mode & lx::S_IFMT == lx::S_IFLNK,
+    ))]
     pub fn symlink_stat(
         &self,
         path: impl AsRef<Path>,

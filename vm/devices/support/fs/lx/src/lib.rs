@@ -285,6 +285,8 @@ pub const UTIME_OMIT: usize = (1 << 30) - 2;
 /// A Linux `timespec` structure.
 ///
 /// This is similar to `Duration` but matches the memory layout of `timespec`.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq)]
 pub struct Timespec {
@@ -435,7 +437,7 @@ const_assert_eq!(size_of::<StatEx>(), 256);
 
 /// A Linux `stat` structure.
 #[cfg(target_arch = "x86_64")] // xtask-fmt allow-target-arch sys-crate
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq)]
@@ -459,7 +461,7 @@ pub struct Stat {
 
 /// A Linux `stat` structure.
 #[cfg(target_arch = "aarch64")] // xtask-fmt allow-target-arch sys-crate
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[repr(C)]
 #[derive(Debug, Eq, PartialEq)]
