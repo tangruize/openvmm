@@ -722,7 +722,8 @@ all of them.
    `lx::Error::EROFS` (a public constant built from a private field).
    Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
    `symlink`, `link`, `open`, `open_dir`, `lookup`, `get_attr`, `set_attr`,
-   `read_link`, `statfs`, `read`, `write`, `fsync`; `release` and
+   `read_link`, `statfs`, `read`, `write`, `fsync`, `read_dir`,
+   `read_dir_plus`, `fsync_dir`; `release` and
    `release_dir` always succeed (`r is Ok`). No rules for the operations
    virtio-fs leaves to the trait's default (`ENOSYS`): `flush`,
    `fallocate`, `lseek`, `copy_file_range`, and the like. More questions:
@@ -744,7 +745,9 @@ all of them.
    names; harmless while `host_error` is "any code", but needed as rules if
    a host model narrows it): the microVM's extra name rules (`\` or `:` in
    a name, `EINVAL`; a path too long, `E2BIG`), the limits (`ENOSPC`, `E2BIG`), and a single-file share
-   (`ENOTDIR`, `EACCES`). Not stated: when an operation must succeed
+   (`ENOTDIR`, `EACCES`), and, in the microVM, a listing's first read at
+   an offset other than 0 (`EINVAL`: whether a listing has started is not
+   in the spec; open item 4). Not stated: when an operation must succeed
    (needs a host model).
 2. **The lookup counts** (`lookup_count`, atomics): `forget` says only that
    it may remove the node, and the limits property needs them. Decided

@@ -95,7 +95,7 @@ pub struct CreateOut {
 /// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`), and
 /// `open` and `open_dir` (`release` and `release_dir` always succeed), and
 /// `lookup`, `get_attr`, `set_attr`, `read_link`, `statfs`, `read`, `write`,
-/// `fsync`.
+/// `fsync`, `read_dir`, `read_dir_plus`, `fsync_dir`.
 ///
 /// The other reasons are not yet in the contracts, so that they do not yet
 /// say when an operation must succeed: a limit reached (the counts and caps
@@ -791,6 +791,8 @@ where
         ensures
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> g@.uses_handle(_request@.node_id, _arg.fh),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.read_dir_errors(_request@.node_id, _arg.fh, _arg.size as nat)),
     ))]
     fn read_dir(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)
@@ -829,6 +831,8 @@ where
         ensures
             // Succeeds only on a directory the guest holds open.
             r is Ok ==> g@.uses_handle(_request@.node_id, _fh),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, g@.handle_errors(_request@.node_id, _fh)),
     ))]
     fn fsync_dir(&self, _request: &Request, _fh: u64, _flags: u32) -> lx::Result<()> {
         Err(lx::Error::ENOSYS)
@@ -1031,6 +1035,8 @@ where
             // lookups, each allowed by `lookup`'s rules (also on an error,
             // which may come after some of them).
             old(g)@.looked_up_in(old(g)@.file_node(_arg.fh), final(g)@),
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.read_dir_errors(_request@.node_id, _arg.fh, _arg.size as nat)),
     ))]
     fn read_dir_plus(&self, _request: &Request, _arg: &fuse_read_in) -> lx::Result<Vec<u8>> {
         Err(lx::Error::ENOSYS)

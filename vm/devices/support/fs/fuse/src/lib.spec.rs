@@ -76,11 +76,21 @@ impl FuseGhost for () {
     }
 }
 
-/// The questions that the operations' rules ask about a filesystem's state.
-/// `Sized`, so that the `after_` functions can return the state.
+/// The questions that the operations' rules ask about a filesystem's state,
+/// and the rules built from them. A question is declared here without a
+/// body, and each file system answers it (virtio-fs: `VirtioFsGhostView`); a
+/// rule has its body here, the same for every file system. In order: the
+/// questions (about nodes and paths, handles, how the operations change the
+/// state, and what the file system refuses), then the rules (names and
+/// flags, when an operation may succeed, when it fails). `Sized`, so that
+/// the `after_` functions can return the state.
 pub trait FuseState: Sized {
+    // ---- The state's invariant.
+
     /// The state's invariant: what every operation keeps.
     spec fn inv(&self) -> bool;
+
+    // ---- Questions about nodes and paths.
 
     /// `n` is a node the guest holds.
     spec fn holds_node(&self, n: u64) -> bool;
@@ -88,8 +98,23 @@ pub trait FuseState: Sized {
     /// `n` is a node the guest holds, and a directory.
     spec fn is_dir(&self, n: u64) -> bool;
 
+    /// `n` is a node the file system made up, not a host object, which the
+    /// guest may not change (virtio-fs: an aggregate's root).
+    spec fn is_synthetic(&self, n: u64) -> bool;
+
+    /// Nodes `a` and `b` are in the same share.
+    spec fn same_share(&self, a: u64, b: u64) -> bool;
+
     /// The path, in its share, of `name` in directory `parent`.
     spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView;
+
+    /// Path `p` of node `n`'s share is hidden: the guest may not see it.
+    spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
+
+    /// The guest may reach an object of file type `kind` at path `p` of
+    /// `parent`'s share, by the path rules. (The rule on pinned identities,
+    /// about which object is at `p`, waits for a model of the host.)
+    spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool;
 
     /// The guest may change path `p` of node `n`'s share.
     spec fn can_write(&self, n: u64, p: PathView) -> bool;
@@ -97,18 +122,27 @@ pub trait FuseState: Sized {
     /// The guest may change node `n` itself: through every name of it.
     spec fn node_can_write(&self, n: u64) -> bool;
 
-    /// The guest may reach an object of file type `kind` at path `p` of
-    /// `parent`'s share, by the path rules. (The rule on pinned identities,
-    /// about which object is at `p`, waits for a model of the host.)
-    spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool;
+    // ---- Questions about open handles.
+
+    /// `fh` is an open handle the guest holds.
+    spec fn holds_file(&self, fh: u64) -> bool;
+
+    /// The node of the file open as `fh`.
+    spec fn file_node(&self, fh: u64) -> u64;
+
+    /// The file open as `fh` was opened for writing.
+    spec fn opened_for_writing(&self, fh: u64) -> bool;
+
+    /// The guest may change the file open as `fh`: through every name of
+    /// its node.
+    spec fn file_can_write(&self, fh: u64) -> bool;
+
+    // ---- Questions about how the operations change the state.
 
     /// The state after node `m` is handed out for the object at path `p` of
     /// `parent`'s share, of file type `kind`: an existing node gets `p` as
     /// its main path and among its names; a new one starts with `p` alone.
     spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self;
-
-    /// Nodes `a` and `b` are in the same share.
-    spec fn same_share(&self, a: u64, b: u64) -> bool;
 
     /// The state after path `p` becomes one more name of node `m` (a hard
     /// link): `p` among its names; its main path stays.
@@ -134,39 +168,14 @@ pub trait FuseState: Sized {
     /// node but the root.
     spec fn after_destroy(&self) -> Self;
 
-    /// `fh` is an open handle the guest holds.
-    spec fn holds_file(&self, fh: u64) -> bool;
+    /// The state after handle `fh` is opened on node `m`, for writing or not.
+    spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self;
 
     /// The state after handle `fh` is released: it is no longer held (no
     /// change if it was not).
     spec fn after_release(&self, fh: u64) -> Self;
 
-    /// The node of the file open as `fh`.
-    spec fn file_node(&self, fh: u64) -> u64;
-
-    /// The file open as `fh` was opened for writing.
-    spec fn opened_for_writing(&self, fh: u64) -> bool;
-
-    /// The guest may change the file open as `fh`: through every name of
-    /// its node.
-    spec fn file_can_write(&self, fh: u64) -> bool;
-
-    /// The state after handle `fh` is opened on node `m`, for writing or not.
-    spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self;
-
-    /// `n` is a node the file system made up, not a host object, which the
-    /// guest may not change (virtio-fs: an aggregate's root).
-    spec fn is_synthetic(&self, n: u64) -> bool;
-
-    /// Path `p` of node `n`'s share is hidden: the guest may not see it.
-    spec fn is_hidden(&self, n: u64, p: PathView) -> bool;
-
-    /// The file system refuses a buffer of `size` bytes, to read into or to
-    /// write from.
-    spec fn buffer_too_large(size: nat) -> bool;
-
-    /// `code` is an error code the host may fail with.
-    spec fn host_error(code: i32) -> bool;
+    // ---- Questions about what the file system refuses (used by the error rules).
 
     /// `create`'s flags `flags` hold one that the file system does not
     /// support.
@@ -180,8 +189,14 @@ pub trait FuseState: Sized {
     /// `code`.
     spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool;
 
-    // The rules built from the questions above, the same for every
-    // filesystem: spec functions with bodies, which every implementor gets.
+    /// The file system refuses a buffer of `size` bytes, to read into or to
+    /// write from.
+    spec fn buffer_too_large(size: nat) -> bool;
+
+    /// `code` is an error code the host may fail with.
+    spec fn host_error(code: i32) -> bool;
+
+    // ---- Rules: names and flags.
 
     /// One plain name: not empty, no `/` and no NUL, not `.` or `..`.
     open spec fn is_plain_name(name: Seq<u8>) -> bool {
@@ -216,6 +231,8 @@ pub trait FuseState: Sized {
         flags & 3u32 == 1u32 || flags & 3u32 == 2u32
     }
 
+    // ---- Rules: when an operation may succeed (with the contracts' `Ok` clauses).
+
     /// A request about node `n` may use handle `fh`: the guest holds both,
     /// and `fh` is `n`'s (a handle is not used after its node is given back,
     /// nor with another node's id).
@@ -223,6 +240,16 @@ pub trait FuseState: Sized {
         &&& self.holds_node(n)
         &&& self.holds_file(fh)
         &&& self.file_node(fh) == n
+    }
+
+    /// The common rule of the operations that make a new name `name` in
+    /// `parent` (`create`, `mkdir`, `mknod`, `symlink`, `link`): it names an
+    /// entry, `parent` is a directory the guest may change, and the new
+    /// name's path is writable.
+    open spec fn may_add_name(&self, parent: u64, name: Seq<u8>) -> bool {
+        &&& self.is_entry(parent, name)
+        &&& self.node_can_write(parent)
+        &&& self.can_write(parent, self.child_path(parent, name))
     }
 
     /// The state after the lookups `steps` in directory `dir`, one after
@@ -247,11 +274,12 @@ pub trait FuseState: Sized {
         }
     }
 
-    // When an operation fails. Each operation's rules are a set of codes:
-    // each rule is a condition and its code, and the set holds the codes of
-    // the rules that apply. The order in which the code checks them does not
-    // matter: when several apply, the operation fails with one of their
-    // codes (`fails_with`).
+    // ---- Rules: when an operation fails. Each operation's rules are a set of
+    // codes: each rule is a condition and its code, and the set holds the
+    // codes of the rules that apply. The order in which the code checks them
+    // does not matter: when several apply, the operation fails with one of
+    // their codes (`fails_with`). First the general rule and the shared
+    // sets, then each operation's.
 
     /// The general rule: if any of the rules applies (`errors` holds a
     /// code), the operation fails, with the code of one of the rules that
@@ -261,6 +289,23 @@ pub trait FuseState: Sized {
             Ok(_) => false,
             Err(e) => errors.contains(e.code()) || Self::host_error(e.code()),
         }
+    }
+
+    /// The rules of a request about node `n` alone (`read_link`, `statfs`):
+    /// the guest holds `n`, or it is a synthetic node (`statfs`, with
+    /// `synthetic_ok`).
+    open spec fn node_errors(&self, n: u64, synthetic_ok: bool) -> ISet<i32> {
+        ISet::new(|c: i32| !self.holds_node(n) && !(synthetic_ok && self.is_synthetic(n)) && c == lx::EINVAL)
+    }
+
+    /// The rules of a request about node `n` through handle `fh`: the guest
+    /// holds `fh` (`EBADF`) and `n` (`EINVAL`), and `fh` is `n`'s (`EBADF`).
+    open spec fn handle_errors(&self, n: u64, fh: u64) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| !self.holds_file(fh) && c == lx::EBADF
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_file(fh) && self.holds_node(n) && self.file_node(fh) != n && c == lx::EBADF
+        })
     }
 
     /// The rules of changing the entry `name` in directory `n`: removing it
@@ -280,6 +325,11 @@ pub trait FuseState: Sized {
         })
     }
 
+    // ---- Rules: when an operation fails, by operation: names, nodes,
+    // opening, file I/O, directories. (`unlink`, `rmdir`, `mkdir`, `mknod`:
+    // `entry_errors`; `read_link`, `statfs`: `node_errors`; `fsync`,
+    // `fsync_dir`: `handle_errors`.)
+
     /// The rules of `lookup` of `name` in directory `n` (not in a synthetic
     /// node: open item 5): the guest holds `n`, a directory; `name` is one
     /// plain name; and its path is not hidden.
@@ -292,71 +342,6 @@ pub trait FuseState: Sized {
                 ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
             }
         })
-    }
-
-    /// The rules of a request about node `n` through handle `fh`: the guest
-    /// holds `fh` (`EBADF`) and `n` (`EINVAL`), and `fh` is `n`'s (`EBADF`).
-    open spec fn handle_errors(&self, n: u64, fh: u64) -> ISet<i32> {
-        ISet::new(|c: i32| {
-            ||| !self.holds_file(fh) && c == lx::EBADF
-            ||| !self.holds_node(n) && c == lx::EINVAL
-            ||| self.holds_file(fh) && self.holds_node(n) && self.file_node(fh) != n && c == lx::EBADF
-        })
-    }
-
-    /// The rules of `get_attr` of node `n` (not a synthetic node: open item
-    /// 5): with `FUSE_GETATTR_FH` (`flags`), `handle_errors` of `fh`; else,
-    /// the guest holds `n`.
-    open spec fn get_attr_errors(&self, n: u64, flags: u32, fh: u64) -> ISet<i32> {
-        ISet::new(|c: i32| !self.is_synthetic(n) && if flags & crate::protocol::FUSE_GETATTR_FH != 0 {
-            self.handle_errors(n, fh).contains(c)
-        } else {
-            !self.holds_node(n) && c == lx::EINVAL
-        })
-    }
-
-    /// The rules of `set_attr` of node `n`, with `valid` (and handle `fh`
-    /// with `FATTR_FH`): a synthetic node is not changed; else, as
-    /// `get_attr`, and a change (anything beyond the handle and the lock
-    /// owner) needs that the guest may change `n`.
-    open spec fn set_attr_errors(&self, n: u64, valid: u32, fh: u64) -> ISet<i32> {
-        let changes = valid & !(crate::protocol::FATTR_FH | crate::protocol::FATTR_LOCKOWNER) != 0;
-        ISet::new(|c: i32| {
-            ||| self.is_synthetic(n) && c == lx::EROFS
-            ||| !self.is_synthetic(n) && if valid & crate::protocol::FATTR_FH != 0 {
-                ||| self.handle_errors(n, fh).contains(c)
-                ||| self.uses_handle(n, fh) && changes && !self.node_can_write(n) && c == lx::EROFS
-            } else {
-                ||| !self.holds_node(n) && c == lx::EINVAL
-                ||| self.holds_node(n) && changes && !self.node_can_write(n) && c == lx::EROFS
-            }
-        })
-    }
-
-    /// The rules of `read` of `size` bytes from node `n` through handle
-    /// `fh`: `handle_errors`, and the size.
-    open spec fn read_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
-        ISet::new(|c: i32| {
-            ||| self.handle_errors(n, fh).contains(c)
-            ||| Self::buffer_too_large(size) && c == lx::E2BIG
-        })
-    }
-
-    /// The rules of `write` of `size` bytes to node `n` through handle `fh`:
-    /// `handle_errors`, the size, and the guest may change `n`.
-    open spec fn write_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
-        ISet::new(|c: i32| {
-            ||| self.handle_errors(n, fh).contains(c)
-            ||| Self::buffer_too_large(size) && c == lx::E2BIG
-            ||| self.uses_handle(n, fh) && !self.node_can_write(n) && c == lx::EROFS
-        })
-    }
-
-    /// The rules of a request about node `n` alone (`read_link`, `statfs`):
-    /// the guest holds `n`, or it is a synthetic node (`statfs`, with
-    /// `synthetic_ok`).
-    open spec fn node_errors(&self, n: u64, synthetic_ok: bool) -> ISet<i32> {
-        ISet::new(|c: i32| !self.holds_node(n) && !(synthetic_ok && self.is_synthetic(n)) && c == lx::EINVAL)
     }
 
     /// The rules of `create` of `name` in directory `n`, with flags
@@ -391,6 +376,54 @@ pub trait FuseState: Sized {
         })
     }
 
+    /// The rules of `rename` of `name` in directory `n` to `new_name` in
+    /// directory `m`.
+    open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
+            ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
+            ||| self.holds_node(n) && self.holds_node(m) && {
+                ||| !self.same_share(n, m) && c == lx::EXDEV
+                ||| (!self.node_can_write(n) || !self.node_can_write(m)) && c == lx::EROFS
+                ||| (!self.is_dir(n) || !self.is_dir(m)) && c == lx::ENOTDIR
+                ||| (!Self::is_plain_name(name) || !Self::is_plain_name(new_name)) && c == lx::EINVAL
+                ||| (!self.can_write(n, self.child_path(n, name))
+                    || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
+                ||| (self.is_hidden(n, self.child_path(n, name))
+                    || self.is_hidden(m, self.child_path(m, new_name))) && c == lx::EACCES
+            }
+        })
+    }
+
+    /// The rules of `get_attr` of node `n` (not a synthetic node: open item
+    /// 5): with `FUSE_GETATTR_FH` (`flags`), `handle_errors` of `fh`; else,
+    /// the guest holds `n`.
+    open spec fn get_attr_errors(&self, n: u64, flags: u32, fh: u64) -> ISet<i32> {
+        ISet::new(|c: i32| !self.is_synthetic(n) && if flags & crate::protocol::FUSE_GETATTR_FH != 0 {
+            self.handle_errors(n, fh).contains(c)
+        } else {
+            !self.holds_node(n) && c == lx::EINVAL
+        })
+    }
+
+    /// The rules of `set_attr` of node `n`, with `valid` (and handle `fh`
+    /// with `FATTR_FH`): a synthetic node is not changed; else, as
+    /// `get_attr`, and a change (anything beyond the handle and the lock
+    /// owner) needs that the guest may change `n`.
+    open spec fn set_attr_errors(&self, n: u64, valid: u32, fh: u64) -> ISet<i32> {
+        let changes = valid & !(crate::protocol::FATTR_FH | crate::protocol::FATTR_LOCKOWNER) != 0;
+        ISet::new(|c: i32| {
+            ||| self.is_synthetic(n) && c == lx::EROFS
+            ||| !self.is_synthetic(n) && if valid & crate::protocol::FATTR_FH != 0 {
+                ||| self.handle_errors(n, fh).contains(c)
+                ||| self.uses_handle(n, fh) && changes && !self.node_can_write(n) && c == lx::EROFS
+            } else {
+                ||| !self.holds_node(n) && c == lx::EINVAL
+                ||| self.holds_node(n) && changes && !self.node_can_write(n) && c == lx::EROFS
+            }
+        })
+    }
+
     /// The rules of `open` of node `n` with flags `flags`: the flags; the
     /// guest holds `n`; and, to open for writing or to truncate, the guest
     /// may change `n`.
@@ -414,33 +447,30 @@ pub trait FuseState: Sized {
         })
     }
 
-    /// The rules of `rename` of `name` in directory `n` to `new_name` in
-    /// directory `m`.
-    open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>) -> ISet<i32> {
+    /// The rules of `read` of `size` bytes from node `n` through handle
+    /// `fh`: `handle_errors`, and the size.
+    open spec fn read_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
         ISet::new(|c: i32| {
-            ||| (self.is_synthetic(n) || self.is_synthetic(m)) && c == lx::EROFS
-            ||| (!self.holds_node(n) || !self.holds_node(m)) && c == lx::EINVAL
-            ||| self.holds_node(n) && self.holds_node(m) && {
-                ||| !self.same_share(n, m) && c == lx::EXDEV
-                ||| (!self.node_can_write(n) || !self.node_can_write(m)) && c == lx::EROFS
-                ||| (!self.is_dir(n) || !self.is_dir(m)) && c == lx::ENOTDIR
-                ||| (!Self::is_plain_name(name) || !Self::is_plain_name(new_name)) && c == lx::EINVAL
-                ||| (!self.can_write(n, self.child_path(n, name))
-                    || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
-                ||| (self.is_hidden(n, self.child_path(n, name))
-                    || self.is_hidden(m, self.child_path(m, new_name))) && c == lx::EACCES
-            }
+            ||| self.handle_errors(n, fh).contains(c)
+            ||| Self::buffer_too_large(size) && c == lx::E2BIG
         })
     }
 
-    /// The common rule of the operations that make a new name `name` in
-    /// `parent` (`create`, `mkdir`, `mknod`, `symlink`, `link`): it names an
-    /// entry, `parent` is a directory the guest may change, and the new
-    /// name's path is writable.
-    open spec fn may_add_name(&self, parent: u64, name: Seq<u8>) -> bool {
-        &&& self.is_entry(parent, name)
-        &&& self.node_can_write(parent)
-        &&& self.can_write(parent, self.child_path(parent, name))
+    /// The rules of `write` of `size` bytes to node `n` through handle `fh`:
+    /// `handle_errors`, the size, and the guest may change `n`.
+    open spec fn write_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.handle_errors(n, fh).contains(c)
+            ||| Self::buffer_too_large(size) && c == lx::E2BIG
+            ||| self.uses_handle(n, fh) && !self.node_can_write(n) && c == lx::EROFS
+        })
+    }
+
+    /// The rules of `read_dir` and `read_dir_plus` of `size` bytes of
+    /// directory `n` through handle `fh` (not of a synthetic node: open item
+    /// 5): `read`'s.
+    open spec fn read_dir_errors(&self, n: u64, fh: u64, size: nat) -> ISet<i32> {
+        ISet::new(|c: i32| !self.is_synthetic(n) && self.read_errors(n, fh, size).contains(c))
     }
 }
 
@@ -461,8 +491,24 @@ impl FuseState for () {
         false
     }
 
+    open spec fn is_synthetic(&self, n: u64) -> bool {
+        false
+    }
+
+    open spec fn same_share(&self, a: u64, b: u64) -> bool {
+        false
+    }
+
     open spec fn child_path(&self, parent: u64, name: Seq<u8>) -> PathView {
         seq![]
+    }
+
+    open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
+        false
+    }
+
+    open spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
+        false
     }
 
     open spec fn can_write(&self, n: u64, p: PathView) -> bool {
@@ -473,23 +519,7 @@ impl FuseState for () {
         false
     }
 
-    open spec fn may_reach(&self, parent: u64, p: PathView, kind: lx::mode_t) -> bool {
-        false
-    }
-
-    open spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self {
-        ()
-    }
-
     open spec fn holds_file(&self, fh: u64) -> bool {
-        false
-    }
-
-    open spec fn file_can_write(&self, fh: u64) -> bool {
-        false
-    }
-
-    open spec fn opened_for_writing(&self, fh: u64) -> bool {
         false
     }
 
@@ -497,20 +527,20 @@ impl FuseState for () {
         0
     }
 
-    open spec fn after_release(&self, fh: u64) -> Self {
-        ()
-    }
-
-    open spec fn after_forget(&self, n: u64) -> Self {
-        ()
-    }
-
-    open spec fn after_destroy(&self) -> Self {
-        ()
-    }
-
-    open spec fn same_share(&self, a: u64, b: u64) -> bool {
+    open spec fn opened_for_writing(&self, fh: u64) -> bool {
         false
+    }
+
+    open spec fn file_can_write(&self, fh: u64) -> bool {
+        false
+    }
+
+    open spec fn after_reach(&self, parent: u64, p: PathView, m: u64, kind: lx::mode_t) -> Self {
+        ()
+    }
+
+    open spec fn after_link(&self, m: u64, p: PathView) -> Self {
+        ()
     }
 
     open spec fn unlinked(&self, n: u64, p: PathView, after: Self) -> bool {
@@ -521,7 +551,11 @@ impl FuseState for () {
         false
     }
 
-    open spec fn after_link(&self, m: u64, p: PathView) -> Self {
+    open spec fn after_forget(&self, n: u64) -> Self {
+        ()
+    }
+
+    open spec fn after_destroy(&self) -> Self {
         ()
     }
 
@@ -529,12 +563,8 @@ impl FuseState for () {
         ()
     }
 
-    open spec fn is_synthetic(&self, n: u64) -> bool {
-        false
-    }
-
-    open spec fn host_error(code: i32) -> bool {
-        true
+    open spec fn after_release(&self, fh: u64) -> Self {
+        ()
     }
 
     open spec fn bad_create_flags(flags: u32) -> bool {
@@ -545,7 +575,7 @@ impl FuseState for () {
         false
     }
 
-    open spec fn is_hidden(&self, n: u64, p: PathView) -> bool {
+    open spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool {
         false
     }
 
@@ -553,8 +583,8 @@ impl FuseState for () {
         false
     }
 
-    open spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool {
-        false
+    open spec fn host_error(code: i32) -> bool {
+        true
     }
 }
 
