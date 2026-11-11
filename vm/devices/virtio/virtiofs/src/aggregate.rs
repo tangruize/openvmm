@@ -22,6 +22,8 @@ use lxutil::LxVolumeOptions;
 use parking_lot::RwLock;
 use std::path::Path;
 use std::sync::Arc;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use zerocopy::FromZeros;
 
 /// Reserved file handle `open_dir` returns for the synthetic aggregate root;
@@ -69,6 +71,7 @@ impl AggregateRegistry {
 ///
 /// When present, node 1 is a synthetic directory whose children are the entries
 /// in `registry`.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 pub(crate) struct AggregateState {
     /// Aggregated children and their lifecycle state.
     registry: RwLock<AggregateRegistry>,

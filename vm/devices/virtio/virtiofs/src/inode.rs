@@ -19,13 +19,13 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use vstd::prelude::Ghost;
+use vstd::prelude::Set;
 use vstd::prelude::Tracked;
 use vstd::prelude::int;
-use vstd::prelude::Set;
-use vstd::resource::map::GhostPointsTo;
-use vstd::std_specs::path::PathView;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
+use vstd::resource::map::GhostPointsTo;
+use vstd::std_specs::path::PathView;
 
 /// Verus specification of the inode: its view.
 /// Verus specification of the inode: its view, and the rule of its path
@@ -135,6 +135,8 @@ impl Deref for VirtioFsVolume {
 /// number as an identity, so they key by `(volume_id, path)` instead — a given
 /// path then maps to one node id across lookups while its file type is unchanged,
 /// even though the host inode number is not reliable.
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) enum DedupKey {
     /// `(volume_id, host_inode_number)`, for stable-id volumes.
@@ -151,9 +153,7 @@ pub(crate) enum DedupKey {
 #[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
 pub(crate) struct InodePath {
     pub(crate) path: PathBuf,
-    pub(crate) piece: Tracked<
-        Option<GhostPointsTo<int, PathView>>,
-    >,
+    pub(crate) piece: Tracked<Option<GhostPointsTo<int, PathView>>>,
 }
 
 /// An inode's names, with their ghost piece: its entry of the ghost
@@ -803,7 +803,7 @@ mod tests {
             let (root_inode, _) = VirtioFsInode::new(Arc::new(volume), PathBuf::new()).unwrap();
             let mut inodes = InodeMap::new(false);
             let (root_inode, _) = inodes.insert(root_inode).unwrap();
-            *fs.inner.inodes.write() = inodes;
+            fs.inner.with_inodes(|table| *table = inodes);
             let root_file = Arc::clone(&root_inode)
                 .open(lx::O_RDONLY | lx::O_DIRECTORY)
                 .unwrap();
@@ -812,7 +812,11 @@ mod tests {
                 entries.keys().map(String::as_str).collect::<Vec<_>>(),
                 [".", "..", "allowed"]
             );
-            assert_eq!(fs.inner.inodes.read().inodes_by_node_id.values.len(), 1);
+            assert_eq!(
+                fs.inner
+                    .with_inodes(|table| table.inodes_by_node_id.values.len()),
+                1
+            );
             let entry = fs.lookup_helper(&root_inode, "allowed".as_ref()).unwrap();
             let inode = fs.get_inode(entry.nodeid).unwrap();
             let file = Arc::clone(&inode)
@@ -828,18 +832,24 @@ mod tests {
                 let attr = inode.lookup_child(name.as_str().as_ref()).unwrap().1;
                 expected.insert(name, (attr.ino, lx::DT_REG as u32));
             }
-            let initial_inodes = fs.inner.inodes.read().inodes_by_node_id.values.len();
+            let initial_inodes = fs
+                .inner
+                .with_inodes(|table| table.inodes_by_node_id.values.len());
             for size in [256, 4096] {
                 for plus in [false, true] {
                     assert_eq!(read_directory(&fs, &file, 0, size, plus), expected);
                     assert_eq!(
-                        fs.inner.inodes.read().inodes_by_node_id.values.len(),
+                        fs.inner
+                            .with_inodes(|table| table.inodes_by_node_id.values.len()),
                         initial_inodes
                     );
                 }
             }
             fs.forget(existing.nodeid, 1);
-            assert!(fs.inner.inodes.read().get(existing.nodeid).is_none());
+            assert!(
+                fs.inner
+                    .with_inodes(|table| table.get(existing.nodeid).is_none())
+            );
 
             let data = file.read_dir(&fs, 0, 96, false).unwrap();
             let mut remaining = data.as_slice();

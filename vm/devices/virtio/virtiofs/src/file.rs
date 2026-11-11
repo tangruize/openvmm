@@ -12,7 +12,11 @@ use fuse::protocol::fuse_statx;
 use lxutil::LxFile;
 use parking_lot::RwLock;
 use std::sync::Arc;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Default)]
 pub(crate) struct DirectorySnapshot {
     pub(crate) built: bool,
@@ -20,10 +24,11 @@ pub(crate) struct DirectorySnapshot {
 }
 
 /// Implements file callbacks for virtio-fs.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioFsFile {
     pub(crate) file: RwLock<LxFile>,
     pub(crate) inode: Arc<VirtioFsInode>,
-    open_flags: u32,
+    pub(crate) open_flags: u32,
     pub(crate) directory_snapshot: RwLock<DirectorySnapshot>,
 }
 

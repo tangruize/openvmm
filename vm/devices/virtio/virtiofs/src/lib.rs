@@ -51,8 +51,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use vstd::map::Map;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
+use vstd::resource::frac::FracGhost;
 
 // FUSE likes to spam getattr a lot, so having a small timeout on the attributes avoids excessive
 // calls. It also means that a lookup/stat sequence can use the attributes returned by lookup
@@ -69,6 +73,8 @@ const MAX_GUEST_BUFFER_SIZE: usize = 1024 * 1024;
 /// Linux's `RENAME_EXCHANGE` flag for `renameat2`, which swaps two names.
 const RENAME_EXCHANGE: u32 = 2;
 
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
 struct FuseNegotiation {
     initialized: bool,
@@ -85,10 +91,71 @@ struct FuseNegotiation {
     time_gran: u32,
 }
 
+/// The inode table, with its ghost piece: the lock's half of the ghost
+/// inode table (`VirtioFsGhost::inodes` holds the other half). The piece is
+/// ghost (`Tracked`): nothing of it exists at runtime.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+// Only Verus reads the ghost piece.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+struct InodeTableLocked {
+    table: InodeMap,
+    half: Tracked<FracGhost<spec::InodeTable>>,
+}
+
+/// The lock of the inode table, with its rule (`spec::InodeTableRule`).
+type InodeTableLock = vstd::rwlock::RwLock<InodeTableLocked, spec::InodeTableRule>;
+
+impl InodeTableLocked {
+    /// The lock of a new inode table.
+    fn new_lock(table: InodeMap) -> InodeTableLock {
+        // PLACEHOLDERS (Verus only; nothing at runtime): the ghost half and
+        // the lock's rule. Their proof gives the half (of the ghost inode
+        // table created with the file system, whose other half goes into
+        // `g`) and the rule (that half's id).
+        vstd::rwlock::RwLock::new(
+            InodeTableLocked {
+                table,
+                half: Tracked::assume_new(),
+            },
+            Ghost::assume_new(),
+        )
+    }
+}
+
+/// The file table, with its ghost piece: the lock's half of the ghost file
+/// table (`VirtioFsGhost::files` holds the other half). The piece is ghost
+/// (`Tracked`): nothing of it exists at runtime.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+// Only Verus reads the ghost piece.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+struct FileTableLocked {
+    table: HandleMap<Arc<VirtioFsFile>>,
+    half: Tracked<FracGhost<Map<u64, spec::VirtioFsFileView>>>,
+}
+
+/// The lock of the file table, with its rule (`spec::FileTableRule`).
+type FileTableLock = vstd::rwlock::RwLock<FileTableLocked, spec::FileTableRule>;
+
+impl FileTableLocked {
+    /// The lock of a new file table.
+    fn new_lock(table: HandleMap<Arc<VirtioFsFile>>) -> FileTableLock {
+        // PLACEHOLDERS (Verus only; nothing at runtime), as for the inode
+        // table's lock.
+        vstd::rwlock::RwLock::new(
+            FileTableLocked {
+                table,
+                half: Tracked::assume_new(),
+            },
+            Ghost::assume_new(),
+        )
+    }
+}
+
 /// Shared mutable state behind a [`VirtioFs`] handle.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct VirtioFsInner {
-    inodes: RwLock<InodeMap>,
-    files: RwLock<HandleMap<Arc<VirtioFsFile>>>,
+    inodes: InodeTableLock,
+    files: FileTableLock,
     mode: VirtioFsMode,
     microvm_profile: Option<MicroVmVirtioFsProfile>,
     /// Set when the microVM profile performs requests as their callers.
@@ -100,12 +167,31 @@ struct VirtioFsInner {
 ///
 /// The read-only setting lives on each volume's inodes, not here, so aggregate
 /// children can differ (see [`AggregateState`]).
+#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
 enum VirtioFsMode {
     /// Single share: node 1 is a real inode at the volume root.
     Direct,
     /// Multi-share: node 1 is a synthetic directory whose children are
     /// independent host folders.
     Aggregate(AggregateState),
+}
+
+/// Test access to the tables, each under its lock.
+#[cfg(test)]
+impl VirtioFsInner {
+    fn with_inodes<R>(&self, f: impl FnOnce(&mut InodeMap) -> R) -> R {
+        let (mut inodes, handle) = self.inodes.acquire_write();
+        let result = f(&mut inodes.table);
+        handle.release_write(inodes);
+        result
+    }
+
+    fn with_files<R>(&self, f: impl FnOnce(&mut HandleMap<Arc<VirtioFsFile>>) -> R) -> R {
+        let (mut files, handle) = self.files.acquire_write();
+        let result = f(&mut files.table);
+        handle.release_write(files);
+        result
+    }
 }
 
 impl VirtioFsInner {
@@ -143,7 +229,7 @@ fn build_volume(
 ///
 /// Symlinks are exposed without host-side traversal.
 /// Symbolic links are resolved by the guest, in both direct and aggregate mode.
-#[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 #[cfg_attr(verus_keep_ghost, verifier::external_derive)]
 #[derive(Clone)]
 pub struct VirtioFs {
@@ -291,13 +377,14 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         }
         // This must be done under lock so an inode can't be resurrected between the lookup count
         // reaching zero and removing it from the list.
-        let mut inodes = self.inner.inodes.write();
-        if let Some(inode) = inodes.get(node_id) {
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
+        if let Some(inode) = inodes.table.get(node_id) {
             if inode.forget(node_id, lookup_count) == 0 {
                 tracing::trace!(node_id, "Removing inode");
-                inodes.remove(node_id);
+                inodes.table.remove(node_id);
             }
         }
+        handle.release_write(inodes);
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external_body))]
@@ -604,13 +691,20 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         let exchange = flags & RENAME_EXCHANGE != 0;
         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
         inode.rename(name, &new_inode, new_name, flags)?;
-        let mut inodes = self.inner.inodes.write();
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
         if exchange {
-            inodes.exchange_alias_prefixes(inode.volume_id(), &old_path, &new_path);
+            inodes
+                .table
+                .exchange_alias_prefixes(inode.volume_id(), &old_path, &new_path);
         } else {
-            inodes.remove_alias_prefix(inode.volume_id(), &new_path);
-            inodes.rename_alias_prefix(inode.volume_id(), &old_path, &new_path);
+            inodes
+                .table
+                .remove_alias_prefix(inode.volume_id(), &new_path);
+            inodes
+                .table
+                .rename_alias_prefix(inode.volume_id(), &old_path, &new_path);
         }
+        handle.release_write(inodes);
         Ok(())
     }
 
@@ -725,8 +819,12 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
     #[cfg_attr(verus_keep_ghost, verus_spec(with Tracked(g): Tracked<&mut spec::VirtioFsGhost>))]
     fn destroy(&self) {
         // To get the file system ready for re-mount, clean out any open files and leaked inodes.
-        self.inner.files.write().clear();
-        self.inner.inodes.write().clear();
+        let (mut files, files_handle) = self.inner.files.acquire_write();
+        files.table.clear();
+        files_handle.release_write(files);
+        let (mut inodes, inodes_handle) = self.inner.inodes.acquire_write();
+        inodes.table.clear();
+        inodes_handle.release_write(inodes);
         *self.inner.negotiation.write() = FuseNegotiation::default();
     }
 }
@@ -778,7 +876,13 @@ impl VirtioFs {
         } else {
             DedupKey::Path(parent.volume_id(), path.to_path_buf())
         };
-        if let Some(existing) = self.inner.inodes.read().find(&key) {
+        let existing = {
+            let handle = self.inner.inodes.acquire_read();
+            let existing = handle.borrow().table.find(&key);
+            handle.release_read();
+            existing
+        };
+        if let Some(existing) = existing {
             if existing.readonly() {
                 return Err(lx::Error::EROFS);
             }
@@ -834,8 +938,8 @@ impl VirtioFs {
         }
         Ok(Self {
             inner: Arc::new(VirtioFsInner {
-                inodes: RwLock::new(inodes),
-                files: RwLock::new(HandleMap::new()),
+                inodes: InodeTableLocked::new_lock(inodes),
+                files: FileTableLocked::new_lock(HandleMap::new()),
                 mode: VirtioFsMode::Direct,
                 microvm_profile: None,
                 caller_identity: None,
@@ -854,8 +958,8 @@ impl VirtioFs {
         Self {
             inner: Arc::new(VirtioFsInner {
                 // `true` enables aggregate mode: node 1 is synthetic (see `InodeMap`).
-                inodes: RwLock::new(InodeMap::new(true)),
-                files: RwLock::new(HandleMap::new()),
+                inodes: InodeTableLocked::new_lock(InodeMap::new(true)),
+                files: FileTableLocked::new_lock(HandleMap::new()),
                 mode: VirtioFsMode::Aggregate(AggregateState::new()),
                 microvm_profile: None,
                 caller_identity: None,
@@ -898,16 +1002,21 @@ impl VirtioFs {
         let path = inode.child_path(name)?;
         self.check_writable_entry(&inode, &path)?;
         inode.unlink(name, flags)?;
-        self.inner
-            .inodes
-            .write()
-            .remove_alias_prefix(inode.volume_id(), &path);
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
+        inodes.table.remove_alias_prefix(inode.volume_id(), &path);
+        handle.release_write(inodes);
         Ok(())
     }
 
     /// Retrieve the inode with the specified node ID.
     fn get_inode(&self, node_id: u64) -> lx::Result<Arc<VirtioFsInode>> {
-        let inode = self.inner.inodes.read().get(node_id).ok_or_else(|| {
+        let inode = {
+            let handle = self.inner.inodes.acquire_read();
+            let inode = handle.borrow().table.get(node_id);
+            handle.release_read();
+            inode
+        };
+        let inode = inode.ok_or_else(|| {
             tracelimit::warn_ratelimited!(node_id, "request for unknown inode");
             lx::Error::EINVAL
         })?;
@@ -920,18 +1029,18 @@ impl VirtioFs {
     /// If the file system supports stable inode numbers and an inode already existed with this
     /// number, the existing inode is returned, not the passed in one.
     fn insert_inode(&self, inode: VirtioFsInode) -> lx::Result<(Arc<VirtioFsInode>, u64)> {
-        let mut inodes = self.inner.inodes.write();
-        microvm::fs::insert_inode(self, &mut inodes, inode)
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
+        let result = microvm::fs::insert_inode(self, &mut inodes.table, inode);
+        handle.release_write(inodes);
+        result
     }
 
     /// Reserve an inode ID before performing an operation that creates a host object.
     fn reserve_inode(&self) -> lx::Result<InodeReservation<'_>> {
-        let reservation = self
-            .inner
-            .inodes
-            .write()
-            .reserve()
-            .ok_or(lx::Error::ENOSPC)?;
+        let (mut inodes, handle) = self.inner.inodes.acquire_write();
+        let reservation = inodes.table.reserve();
+        handle.release_write(inodes);
+        let reservation = reservation.ok_or(lx::Error::ENOSPC)?;
         Ok(InodeReservation {
             inodes: &self.inner.inodes,
             reservation,
@@ -953,11 +1062,13 @@ impl VirtioFs {
     /// path it may not write, or get nodes of the wrong objects.
     fn get_file(&self, node_id: u64, fh: u64) -> lx::Result<Arc<VirtioFsFile>> {
         let file = {
-            let files = self.inner.files.read();
-            Arc::clone(files.get(fh).ok_or_else(|| {
+            let handle = self.inner.files.acquire_read();
+            let file = handle.borrow().table.get(fh).map(Arc::clone);
+            handle.release_read();
+            file.ok_or_else(|| {
                 tracelimit::warn_ratelimited!(fh, "Request for unknown file");
                 lx::Error::EBADF
-            })?)
+            })?
         };
         let inode = self.get_inode(node_id)?;
         if !std::ptr::eq(&*inode, file.inode()) {
@@ -969,12 +1080,10 @@ impl VirtioFs {
 
     /// Reserve a file handle before opening or creating a host file.
     fn reserve_file(&self) -> lx::Result<FileReservation<'_>> {
-        let reservation = self
-            .inner
-            .files
-            .write()
-            .reserve()
-            .ok_or(lx::Error::ENOSPC)?;
+        let (mut files, handle) = self.inner.files.acquire_write();
+        let reservation = files.table.reserve();
+        handle.release_write(files);
+        let reservation = reservation.ok_or(lx::Error::ENOSPC)?;
         Ok(FileReservation {
             files: &self.inner.files,
             reservation,
@@ -991,12 +1100,14 @@ impl VirtioFs {
 
     /// Remove the file with the specified node ID.
     fn remove_file(&self, fh: u64) {
-        self.inner.files.write().remove(fh);
+        let (mut files, handle) = self.inner.files.acquire_write();
+        files.table.remove(fh);
+        handle.release_write(files);
     }
 }
 
 struct InodeReservation<'a> {
-    inodes: &'a RwLock<InodeMap>,
+    inodes: &'a InodeTableLock,
     reservation: HandleReservation,
     committed: bool,
     /// Whether the microVM profile's inode and alias limits apply.
@@ -1005,11 +1116,15 @@ struct InodeReservation<'a> {
 
 impl InodeReservation<'_> {
     fn insert(mut self, inode: VirtioFsInode) -> lx::Result<(Arc<VirtioFsInode>, u64)> {
-        let mut inodes = self.inodes.write();
-        if self.microvm {
-            inodes.preflight_microvm_insert(&inode)?;
+        let (mut inodes, handle) = self.inodes.acquire_write();
+        let result = if self.microvm {
+            inodes.table.preflight_microvm_insert(&inode)
+        } else {
+            Ok(())
         }
-        let result = inodes.insert_reserved(&self.reservation, inode)?;
+        .and_then(|()| inodes.table.insert_reserved(&self.reservation, inode));
+        handle.release_write(inodes);
+        let result = result?;
         self.committed = true;
         Ok(result)
     }
@@ -1018,13 +1133,15 @@ impl InodeReservation<'_> {
 impl Drop for InodeReservation<'_> {
     fn drop(&mut self) {
         if !self.committed {
-            self.inodes.write().release_reservation(&self.reservation);
+            let (mut inodes, handle) = self.inodes.acquire_write();
+            inodes.table.release_reservation(&self.reservation);
+            handle.release_write(inodes);
         }
     }
 }
 
 struct FileReservation<'a> {
-    files: &'a RwLock<HandleMap<Arc<VirtioFsFile>>>,
+    files: &'a FileTableLock,
     reservation: HandleReservation,
     committed: bool,
     /// The most file handles that the map may hold, if bounded.
@@ -1033,16 +1150,20 @@ struct FileReservation<'a> {
 
 impl FileReservation<'_> {
     fn insert(mut self, file: VirtioFsFile) -> lx::Result<u64> {
-        let mut files = self.files.write();
-        if self
+        let (mut files, handle) = self.files.acquire_write();
+        let result = if self
             .max_handles
-            .is_some_and(|max_handles| files.values.len() >= max_handles)
+            .is_some_and(|max_handles| files.table.values.len() >= max_handles)
         {
-            return Err(lx::Error::ENOSPC);
-        }
-        files
-            .insert_reserved(&self.reservation, Arc::new(file))
-            .map_err(|_| lx::Error::ENOSPC)?;
+            Err(lx::Error::ENOSPC)
+        } else {
+            files
+                .table
+                .insert_reserved(&self.reservation, Arc::new(file))
+                .map_err(|_| lx::Error::ENOSPC)
+        };
+        handle.release_write(files);
+        result?;
         self.committed = true;
         Ok(self.reservation.handle)
     }
@@ -1051,7 +1172,9 @@ impl FileReservation<'_> {
 impl Drop for FileReservation<'_> {
     fn drop(&mut self) {
         if !self.committed {
-            self.files.write().release_reservation(&self.reservation);
+            let (mut files, handle) = self.files.acquire_write();
+            files.table.release_reservation(&self.reservation);
+            handle.release_write(files);
         }
     }
 }
@@ -1076,6 +1199,8 @@ fn guest_buffer(size: u32) -> lx::Result<Vec<u8>> {
 }
 
 /// A key/value map where the keys are automatically incremented identifiers.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+#[cfg_attr(verus_keep_ghost, verifier::reject_recursive_types(T))]
 struct HandleMap<T> {
     values: HashMap<u64, T>,
     initial_handle: u64,
@@ -1187,6 +1312,7 @@ impl<T> HandleMap<T> {
 ///   number.
 /// - When we want to support multiple volumes in a single file system, node IDs still need to be
 ///   globally unique, whereas inode numbers are per-volume.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
 struct InodeMap {
     inodes_by_node_id: HandleMap<Arc<VirtioFsInode>>,
     /// Maps a [`DedupKey`] to the registered inode and its FUSE node id, so
@@ -1229,7 +1355,9 @@ impl InodeMap {
 
     /// The inode that the table holds for `key`, if any.
     pub fn find(&self, key: &DedupKey) -> Option<Arc<VirtioFsInode>> {
-        self.inodes_by_key.get(key).map(|(inode, _)| Arc::clone(inode))
+        self.inodes_by_key
+            .get(key)
+            .map(|(inode, _)| Arc::clone(inode))
     }
 
     /// Insert an inode into the map, returning its node ID.
@@ -1519,14 +1647,17 @@ mod tests {
                     let file = Arc::clone(&inode)
                         .open(lx::O_RDONLY | lx::O_DIRECTORY)
                         .unwrap();
-                    let initial_inodes = fs.inner.inodes.read().inodes_by_node_id.values.len();
+                    let initial_inodes = fs
+                        .inner
+                        .with_inodes(|table| table.inodes_by_node_id.values.len());
                     assert_eq!(
                         read_directory(&fs, &file, 0, size, plus),
                         expected,
                         "aggregate={aggregate}, size={size}, plus={plus}"
                     );
                     assert_eq!(
-                        fs.inner.inodes.read().inodes_by_node_id.values.len(),
+                        fs.inner
+                            .with_inodes(|table| table.inodes_by_node_id.values.len()),
                         initial_inodes
                     );
                     assert_eq!(
@@ -1570,7 +1701,10 @@ mod tests {
             assert!(!file.read_dir(&fs, 0, 4096, false).unwrap().is_empty());
         }
         fs.forget(entry.nodeid, 1);
-        assert!(fs.inner.inodes.read().get(entry.nodeid).is_none());
+        assert!(
+            fs.inner
+                .with_inodes(|table| table.get(entry.nodeid).is_none())
+        );
     }
 
     #[test]
@@ -1597,9 +1731,15 @@ mod tests {
         }
         assert!(found);
         fs.forget(entry.nodeid, 1);
-        assert!(fs.inner.inodes.read().get(entry.nodeid).is_some());
+        assert!(
+            fs.inner
+                .with_inodes(|table| table.get(entry.nodeid).is_some())
+        );
         fs.forget(entry.nodeid, 1);
-        assert!(fs.inner.inodes.read().get(entry.nodeid).is_none());
+        assert!(
+            fs.inner
+                .with_inodes(|table| table.get(entry.nodeid).is_none())
+        );
     }
 
     #[cfg(windows)]
@@ -1835,8 +1975,9 @@ mod tests {
     fn unused_reservations_release_on_drop() {
         let root = tempfile::tempdir().unwrap();
         let fs = VirtioFs::new(root.path(), None).unwrap();
-        fs.inner.files.write().next_handle = u64::MAX;
-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
+        fs.inner.with_files(|table| table.next_handle = u64::MAX);
+        fs.inner
+            .with_inodes(|table| table.inodes_by_node_id.next_handle = u64::MAX);
 
         let file = fs.reserve_file().unwrap();
         let inode = fs.reserve_inode().unwrap();
@@ -1905,8 +2046,9 @@ mod tests {
     fn create_releases_inode_when_file_reservation_fails() {
         let root = tempfile::tempdir().unwrap();
         let fs = VirtioFs::new(root.path(), None).unwrap();
-        fs.inner.files.write().next_handle = 0;
-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
+        fs.inner.with_files(|table| table.next_handle = 0);
+        fs.inner
+            .with_inodes(|table| table.inodes_by_node_id.next_handle = u64::MAX);
 
         let result = fs.create(
             &request(FUSE_ROOT_ID),
@@ -1924,8 +2066,9 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         std::fs::write(root.path().join("file"), b"original").unwrap();
         let fs = VirtioFs::new(root.path(), None).unwrap();
-        fs.inner.files.write().next_handle = u64::MAX;
-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
+        fs.inner.with_files(|table| table.next_handle = u64::MAX);
+        fs.inner
+            .with_inodes(|table| table.inodes_by_node_id.next_handle = u64::MAX);
 
         let result = fs.create(
             &request(FUSE_ROOT_ID),
@@ -1956,7 +2099,8 @@ mod tests {
             .lookup_child(lx::LxStr::from_bytes(b"file"))
             .unwrap();
         let (existing, node_id) = fs.insert_inode(inode).unwrap();
-        fs.inner.inodes.write().inodes_by_node_id.next_handle = u64::MAX;
+        fs.inner
+            .with_inodes(|table| table.inodes_by_node_id.next_handle = u64::MAX);
 
         let reservation = fs.reserve_inode().unwrap();
         let (inode, _) = root_inode
@@ -2008,7 +2152,8 @@ mod tests {
     fn clear_rejects_corrupt_root_allocator() {
         let root = tempfile::tempdir().unwrap();
         let fs = VirtioFs::new(root.path(), None).unwrap();
-        fs.inner.inodes.write().inodes_by_node_id.initial_handle = FUSE_ROOT_ID + 1;
+        fs.inner
+            .with_inodes(|table| table.inodes_by_node_id.initial_handle = FUSE_ROOT_ID + 1);
 
         fs.destroy();
     }

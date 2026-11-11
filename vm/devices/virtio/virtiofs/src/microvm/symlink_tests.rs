@@ -211,7 +211,8 @@ fn symlink_target_bounds_match_linux() {
 fn symlink_respects_inode_limits_before_creating_the_link() {
     let fixture = Fixture::new();
     let fs = VirtioFs::new_microvm(&fixture.root, profile(&fixture.root, false, &[])).unwrap();
-    fs.inner.inodes.write().inodes_by_node_id.next_handle = 0;
+    fs.inner
+        .with_inodes(|table| table.inodes_by_node_id.next_handle = 0);
 
     assert_eq!(
         error(fs.symlink(&request(FUSE_ROOT_ID), name(b"link"), name(b"target"))),

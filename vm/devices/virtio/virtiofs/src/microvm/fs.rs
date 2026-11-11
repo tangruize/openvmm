@@ -34,21 +34,17 @@ use super::state::validate_reopenable_alias;
 use super::state::validate_saved_identity;
 use crate::ATTRIBUTE_TIMEOUT;
 use crate::ENTRY_TIMEOUT;
+use crate::FileTableLocked;
 use crate::FuseNegotiation;
 use crate::HandleMap;
 use crate::InodeMap;
+use crate::InodeTableLocked;
 use crate::VirtioFs;
 use crate::VirtioFsInner;
 use crate::VirtioFsMode;
 use crate::aggregate::AggregateState;
 use crate::file::VirtioFsFile;
 use crate::inode::VirtioFsInode;
-#[cfg(verus_keep_ghost)]
-use fuse::spec::FuseGhost;
-#[cfg(verus_keep_ghost)]
-use fuse::spec::FuseOwns;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 use crate::inode::VirtioFsVolume;
 use anyhow::Context;
 use fuse::Session;
@@ -56,6 +52,10 @@ use fuse::SessionInfo;
 use fuse::SessionState;
 use fuse::protocol::FOPEN_DIRECT_IO;
 use fuse::protocol::FUSE_ROOT_ID;
+#[cfg(verus_keep_ghost)]
+use fuse::spec::FuseGhost;
+#[cfg(verus_keep_ghost)]
+use fuse::spec::FuseOwns;
 use lxutil::LxVolumeOptions;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -64,6 +64,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 
 pub(crate) fn attribute_timeout(fs: &VirtioFs) -> Duration {
     fs.microvm_profile().map_or(
@@ -285,8 +287,8 @@ impl VirtioFs {
         }
         Ok(Self {
             inner: Arc::new(VirtioFsInner {
-                inodes: RwLock::new(inodes),
-                files: RwLock::new(HandleMap::new()),
+                inodes: InodeTableLocked::new_lock(inodes),
+                files: FileTableLocked::new_lock(HandleMap::new()),
                 mode: VirtioFsMode::Direct,
                 microvm_profile: Some(profile),
                 caller_identity,
@@ -354,8 +356,8 @@ impl VirtioFs {
         };
         Ok(Self {
             inner: Arc::new(VirtioFsInner {
-                inodes: RwLock::new(InodeMap::new(true)),
-                files: RwLock::new(HandleMap::new()),
+                inodes: InodeTableLocked::new_lock(InodeMap::new(true)),
+                files: FileTableLocked::new_lock(HandleMap::new()),
                 mode: VirtioFsMode::Aggregate(AggregateState::with_children(children)),
                 microvm_profile: Some(profile),
                 caller_identity,
@@ -384,7 +386,10 @@ impl VirtioFs {
     #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_inode_insert(&self, inode: &VirtioFsInode) -> lx::Result<()> {
         if self.is_microvm() {
-            self.inner.inodes.read().preflight_microvm_insert(inode)
+            let handle = self.inner.inodes.acquire_read();
+            let result = handle.borrow().table.preflight_microvm_insert(inode);
+            handle.release_read();
+            result
         } else {
             Ok(())
         }
@@ -393,7 +398,10 @@ impl VirtioFs {
     #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_new_inode_path(&self, path: &Path) -> lx::Result<()> {
         if self.is_microvm() {
-            self.inner.inodes.read().preflight_microvm_new_inode(path)
+            let handle = self.inner.inodes.acquire_read();
+            let result = handle.borrow().table.preflight_microvm_new_inode(path);
+            handle.release_read();
+            result
         } else {
             Ok(())
         }
@@ -419,10 +427,13 @@ impl VirtioFs {
     #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_alias_add(&self, inode: &VirtioFsInode, path: &Path) -> lx::Result<()> {
         if self.is_microvm() {
-            self.inner
-                .inodes
-                .read()
-                .preflight_microvm_alias_add(inode, path)
+            let handle = self.inner.inodes.acquire_read();
+            let result = handle
+                .borrow()
+                .table
+                .preflight_microvm_alias_add(inode, path);
+            handle.release_read();
+            result
         } else {
             Ok(())
         }
@@ -437,10 +448,13 @@ impl VirtioFs {
         exchange: bool,
     ) -> lx::Result<()> {
         if self.is_microvm() {
-            self.inner
-                .inodes
-                .read()
-                .preflight_microvm_rename(volume_id, old, new, exchange)
+            let handle = self.inner.inodes.acquire_read();
+            let result = handle
+                .borrow()
+                .table
+                .preflight_microvm_rename(volume_id, old, new, exchange);
+            handle.release_read();
+            result
         } else {
             Ok(())
         }
@@ -448,8 +462,10 @@ impl VirtioFs {
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external))]
     pub(crate) fn preflight_file_insert(&self) -> lx::Result<()> {
-        let files = self.inner.files.read();
-        validate_file_insert(self, &files)
+        let handle = self.inner.files.acquire_read();
+        let result = validate_file_insert(self, &handle.borrow().table);
+        handle.release_read();
+        result
     }
 
     #[cfg_attr(verus_keep_ghost, verus_verify(external))]
@@ -468,116 +484,128 @@ impl VirtioFs {
         );
 
         let (inodes, node_ids, next_node_id) = {
-            let inodes = self.inner.inodes.read();
-            anyhow::ensure!(inodes.inodes_by_node_id.values.len() <= MAX_INODES);
-            let mut saved = Vec::with_capacity(inodes.inodes_by_node_id.values.len());
-            let mut node_ids = HashMap::with_capacity(inodes.inodes_by_node_id.values.len());
-            let mut alias_count = 0usize;
-            let mut alias_bytes = 0usize;
-            for (&node_id, inode) in &inodes.inodes_by_node_id.values {
-                let aliases = inode.aliases();
-                anyhow::ensure!(
-                    !aliases.is_empty() && aliases.len() <= MAX_ALIASES_PER_INODE,
-                    "inode has no bounded reopenable aliases"
-                );
-                alias_count = alias_count
-                    .checked_add(aliases.len())
-                    .context("saved alias count overflow")?;
-                anyhow::ensure!(alias_count <= MAX_ALIASES, "saved alias table is too large");
-                let volume = inode.volume();
-                let mut relative_aliases = Vec::with_capacity(aliases.len());
-                let mut object_identity = None;
-                for alias in aliases {
-                    validate_relative_path(&alias, true)
-                        .map_err(anyhow::Error::from)
-                        .context("inode has an unsafe relative alias")?;
-                    let stat = validate_reopenable_alias(&volume, &alias)
-                        .context("inode alias cannot be revalidated for save")?;
-                    let identity = saved_identity(&stat);
-                    if let Some(expected) = &object_identity {
-                        validate_saved_identity(&identity, expected)
-                            .context("inode aliases identify different objects")?;
-                    } else {
-                        object_identity = Some(identity);
-                    }
-                    let alias = encode_relative_path(&alias)?;
-                    alias_bytes = alias_bytes
-                        .checked_add(alias.len())
-                        .context("saved alias bytes overflow")?;
+            // The checks below may return early: release the lock first.
+            let handle = self.inner.inodes.acquire_read();
+            let result = (|| -> anyhow::Result<_> {
+                let inodes = &handle.borrow().table;
+                anyhow::ensure!(inodes.inodes_by_node_id.values.len() <= MAX_INODES);
+                let mut saved = Vec::with_capacity(inodes.inodes_by_node_id.values.len());
+                let mut node_ids = HashMap::with_capacity(inodes.inodes_by_node_id.values.len());
+                let mut alias_count = 0usize;
+                let mut alias_bytes = 0usize;
+                for (&node_id, inode) in &inodes.inodes_by_node_id.values {
+                    let aliases = inode.aliases();
                     anyhow::ensure!(
-                        alias_bytes <= MAX_ALIAS_BYTES,
-                        "saved aliases exceed the aggregate byte bound"
+                        !aliases.is_empty() && aliases.len() <= MAX_ALIASES_PER_INODE,
+                        "inode has no bounded reopenable aliases"
                     );
-                    relative_aliases.push(alias);
+                    alias_count = alias_count
+                        .checked_add(aliases.len())
+                        .context("saved alias count overflow")?;
+                    anyhow::ensure!(alias_count <= MAX_ALIASES, "saved alias table is too large");
+                    let volume = inode.volume();
+                    let mut relative_aliases = Vec::with_capacity(aliases.len());
+                    let mut object_identity = None;
+                    for alias in aliases {
+                        validate_relative_path(&alias, true)
+                            .map_err(anyhow::Error::from)
+                            .context("inode has an unsafe relative alias")?;
+                        let stat = validate_reopenable_alias(&volume, &alias)
+                            .context("inode alias cannot be revalidated for save")?;
+                        let identity = saved_identity(&stat);
+                        if let Some(expected) = &object_identity {
+                            validate_saved_identity(&identity, expected)
+                                .context("inode aliases identify different objects")?;
+                        } else {
+                            object_identity = Some(identity);
+                        }
+                        let alias = encode_relative_path(&alias)?;
+                        alias_bytes = alias_bytes
+                            .checked_add(alias.len())
+                            .context("saved alias bytes overflow")?;
+                        anyhow::ensure!(
+                            alias_bytes <= MAX_ALIAS_BYTES,
+                            "saved aliases exceed the aggregate byte bound"
+                        );
+                        relative_aliases.push(alias);
+                    }
+                    saved.push(SavedInode {
+                        node_id,
+                        volume_id: inode.volume_id(),
+                        relative_aliases,
+                        lookup_count: inode.lookup_count(),
+                        guest_inode_id: inode.guest_inode_nr(),
+                        object_identity: object_identity.context("inode has no aliases")?,
+                    });
+                    anyhow::ensure!(
+                        node_ids
+                            .insert(Arc::as_ptr(inode) as usize, node_id)
+                            .is_none(),
+                        "duplicate inode identity in inode table"
+                    );
                 }
-                saved.push(SavedInode {
-                    node_id,
-                    volume_id: inode.volume_id(),
-                    relative_aliases,
-                    lookup_count: inode.lookup_count(),
-                    guest_inode_id: inode.guest_inode_nr(),
-                    object_identity: object_identity.context("inode has no aliases")?,
-                });
-                anyhow::ensure!(
-                    node_ids
-                        .insert(Arc::as_ptr(inode) as usize, node_id)
-                        .is_none(),
-                    "duplicate inode identity in inode table"
-                );
-            }
-            (saved, node_ids, inodes.inodes_by_node_id.next_handle)
+                Ok((saved, node_ids, inodes.inodes_by_node_id.next_handle))
+            })();
+            handle.release_read();
+            result?
         };
 
         let handles = {
-            let files = self.inner.files.read();
-            anyhow::ensure!(files.values.len() <= MAX_HANDLES);
-            let mut saved = Vec::with_capacity(files.values.len());
-            let mut directory_entry_count = 0usize;
-            let mut directory_bytes = 0usize;
-            for (&handle_id, file) in &files.values {
-                let node_id = *node_ids
-                    .get(&(std::ptr::from_ref(file.inode()) as usize))
-                    .context("open handle refers to an untracked inode")?;
-                let stat = file
-                    .object_stat()
-                    .map_err(anyhow::Error::from)
-                    .context("open handle cannot be revalidated for save")?;
-                let snapshot_entries = file.directory_entries();
-                let directory_snapshot_built = file.directory_snapshot_built();
-                anyhow::ensure!(
-                    directory_snapshot_built || snapshot_entries.is_empty(),
-                    "uninitialized directory snapshot retained entries"
-                );
-                VirtioFsFile::validate_directory_entries(&snapshot_entries)
-                    .map_err(anyhow::Error::from)
-                    .context("directory enumeration state is invalid")?;
-                directory_entry_count = directory_entry_count
-                    .checked_add(snapshot_entries.len())
-                    .context("saved directory entry count overflow")?;
-                anyhow::ensure!(
-                    directory_entry_count <= MAX_DIRECTORY_ENTRIES,
-                    "saved directory entries exceed the aggregate bound"
-                );
-                for entry in &snapshot_entries {
-                    directory_bytes = directory_bytes
-                        .checked_add(entry.name.len())
-                        .context("saved directory bytes overflow")?;
+            // The checks below may return early: release the lock first.
+            let handle = self.inner.files.acquire_read();
+            let result = (|| -> anyhow::Result<_> {
+                let files = &handle.borrow().table;
+                anyhow::ensure!(files.values.len() <= MAX_HANDLES);
+                let mut saved = Vec::with_capacity(files.values.len());
+                let mut directory_entry_count = 0usize;
+                let mut directory_bytes = 0usize;
+                for (&handle_id, file) in &files.values {
+                    let node_id = *node_ids
+                        .get(&(std::ptr::from_ref(file.inode()) as usize))
+                        .context("open handle refers to an untracked inode")?;
+                    let stat = file
+                        .object_stat()
+                        .map_err(anyhow::Error::from)
+                        .context("open handle cannot be revalidated for save")?;
+                    let snapshot_entries = file.directory_entries();
+                    let directory_snapshot_built = file.directory_snapshot_built();
+                    anyhow::ensure!(
+                        directory_snapshot_built || snapshot_entries.is_empty(),
+                        "uninitialized directory snapshot retained entries"
+                    );
+                    VirtioFsFile::validate_directory_entries(&snapshot_entries)
+                        .map_err(anyhow::Error::from)
+                        .context("directory enumeration state is invalid")?;
+                    directory_entry_count = directory_entry_count
+                        .checked_add(snapshot_entries.len())
+                        .context("saved directory entry count overflow")?;
+                    anyhow::ensure!(
+                        directory_entry_count <= MAX_DIRECTORY_ENTRIES,
+                        "saved directory entries exceed the aggregate bound"
+                    );
+                    for entry in &snapshot_entries {
+                        directory_bytes = directory_bytes
+                            .checked_add(entry.name.len())
+                            .context("saved directory bytes overflow")?;
+                    }
+                    anyhow::ensure!(
+                        directory_bytes <= MAX_DIRECTORY_BYTES,
+                        "saved directory entries exceed the aggregate byte bound"
+                    );
+                    saved.push(SavedHandle {
+                        handle_id,
+                        node_id,
+                        open_flags: file.open_flags(),
+                        kind: stat.mode & lx::S_IFMT,
+                        object_identity: saved_identity(&stat),
+                        directory_entries: snapshot_entries,
+                        directory_snapshot_built,
+                    });
                 }
-                anyhow::ensure!(
-                    directory_bytes <= MAX_DIRECTORY_BYTES,
-                    "saved directory entries exceed the aggregate byte bound"
-                );
-                saved.push(SavedHandle {
-                    handle_id,
-                    node_id,
-                    open_flags: file.open_flags(),
-                    kind: stat.mode & lx::S_IFMT,
-                    object_identity: saved_identity(&stat),
-                    directory_entries: snapshot_entries,
-                    directory_snapshot_built,
-                });
-            }
-            saved
+                Ok(saved)
+            })();
+            handle.release_read();
+            result?
         };
 
         let negotiation = fuse_negotiation_from_session(session_state);
@@ -611,7 +639,12 @@ impl VirtioFs {
             attribute_cache_timeout_ns: profile.attribute_cache_timeout().as_nanos() as u64,
             negotiation: saved_negotiation(session_state),
             next_node_id,
-            next_handle_id: self.inner.files.read().next_handle,
+            next_handle_id: {
+                let handle = self.inner.files.acquire_read();
+                let next_handle = handle.borrow().table.next_handle;
+                handle.release_read();
+                next_handle
+            },
             inodes,
             handles,
             attachment_root_identity: profile.root_identity().to_vec(),
@@ -775,8 +808,12 @@ impl VirtioFs {
             .restore_state(session_state)
             .map_err(anyhow::Error::from)
             .context("saved FUSE negotiation cannot be restored")?;
-        *self.inner.inodes.write() = restored_inodes;
-        *self.inner.files.write() = restored_files;
+        let (mut inodes, inodes_handle) = self.inner.inodes.acquire_write();
+        inodes.table = restored_inodes;
+        inodes_handle.release_write(inodes);
+        let (mut files, files_handle) = self.inner.files.acquire_write();
+        files.table = restored_files;
+        files_handle.release_write(files);
         *self.inner.negotiation.write() = fuse_negotiation_from_session(session_state);
         Ok(())
     }

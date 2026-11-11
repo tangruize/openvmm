@@ -16,6 +16,15 @@ use vstd::prelude::*;
 use vstd::resource::Loc;
 use vstd::resource::frac::FracGhost;
 use vstd::resource::map::GhostMapAuth;
+use vstd::rwlock::RwLockPredicate;
+#[cfg(verus_keep_ghost)]
+use std::sync::Arc;
+use super::FileTableLocked;
+use super::InodeTableLocked;
+#[cfg(verus_keep_ghost)]
+use crate::file::VirtioFsFile;
+#[cfg(verus_keep_ghost)]
+use crate::inode::VirtioFsInode;
 use vstd::std_specs::path::PathView;
 
 verus! {
@@ -27,6 +36,12 @@ verus! {
 #[verifier::external_type_specification]
 #[verifier::external_body]
 pub struct ExLxVolume(lxutil::LxVolume);
+
+/// The host file of an open file, declared to Verus by name only.
+#[cfg(verus_keep_ghost)]
+#[verifier::external_type_specification]
+#[verifier::external_body]
+pub struct ExLxFile(lxutil::LxFile);
 
 /// `anyhow::Error` (the error of `VirtioFs::new_microvm`), by name only.
 #[cfg(verus_keep_ghost)]
@@ -190,6 +205,64 @@ impl VirtioFsGhostView {
 /// Well formed: the view's invariant, and the ids of the `paths` and
 /// `aliases` maps that the inode table records are those of this state's
 /// `Auth`s.
+/// The rule of the inode table's lock: what the lock's value always is,
+/// given when the lock is created and never changed. The lock holds a half
+/// of the ghost inode table (the one with id `id`; `g` holds the other half),
+/// and the inodes it records, by node id, are the table's inodes (their
+/// views).
+///
+/// SPEC: the core of the rule is part of the spec: the half is the ghost
+/// inode table's (`id`), and its inodes are the real table's (`inodes`). It
+/// is what makes the contracts' nodes the nodes the code holds.
+/// TODO (proof agent): the rest (e.g. that the half is a half, that each
+/// table inode's locks' rules have the recorded key and the maps' ids, and
+/// the keys, `InodeTable.keys`, against those rules); it may add facts or
+/// fields, but must keep the core.
+// Only Verus reads the rule's fields.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+pub ghost struct InodeTableRule {
+    /// The id of the ghost inode table.
+    pub id: Loc,
+}
+
+impl RwLockPredicate<InodeTableLocked> for InodeTableRule {
+    closed spec fn inv(self, v: InodeTableLocked) -> bool {
+        &&& v.half@.id() == self.id
+        &&& v.half@@.inodes == v.table.inodes_by_node_id.values@.map_values(|i: Arc<VirtioFsInode>| i@)
+    }
+}
+
+/// The rule of the file table's lock: the lock holds a half of the ghost
+/// file table (the one with id `id`; `g` holds the other half), whose handles
+/// are the table's, each with its open file's inode (its view) and whether
+/// it was opened for writing (from its open flags).
+///
+/// SPEC: the core, as for `InodeTableRule` (`id`, the handles, and each
+/// handle's inode and writability).
+/// TODO (proof agent): the rest (e.g. that the half is a half, and that each
+/// handle's recorded node, `VirtioFsFileView::node`, is a node whose inode
+/// the file's is, while the node is in the table); it may add facts or
+/// fields, but must keep the core.
+// Only Verus reads the rule's fields.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+pub ghost struct FileTableRule {
+    /// The id of the ghost file table.
+    pub id: Loc,
+}
+
+impl RwLockPredicate<FileTableLocked> for FileTableRule {
+    closed spec fn inv(self, v: FileTableLocked) -> bool {
+        let files = v.table.values@;
+        &&& v.half@.id() == self.id
+        &&& v.half@@.dom() == files.dom()
+        &&& forall|fh: u64| #[trigger] files.contains_key(fh) ==> {
+            let f: VirtioFsFile = *files[fh];
+            &&& v.half@@[fh].inode == f.inode@
+            &&& v.half@@[fh].writable == <VirtioFsGhostView as FuseState>::opens_for_writing(f.open_flags)
+        }
+    }
+}
+
 impl FuseGhost for VirtioFsGhost {
     /// The view's facts (`inv`); the recorded ids are the maps'; each node
     /// in the table but the root has a ghost key, with entries in both maps,
@@ -212,16 +285,18 @@ impl FuseGhost for VirtioFsGhost {
     }
 }
 
-/// `g` is this file system's: `g`'s pieces are the ones its locks hold.
+/// `g` is this file system's: `g`'s halves of the inode table and the file
+/// table are the other halves of the ones this file system's two table locks
+/// hold (their rules pin the ids). Through the inode table, this also
+/// reaches each inode's path and names: the table records the ids of `g`'s
+/// `paths` and `aliases` maps (`wf`), and each inode's locks hold its entries
+/// of them (the locks' rules).
 ///
-/// PLACEHOLDER (`true`): the locks do not hold ghost pieces yet (they are
-/// `parking_lot` locks); the body comes with the locks' rules, next: the id
-/// of `g`'s inode-table half is the one that this file system's inode-table
-/// lock pins, and likewise for the file table. Open item in
-/// `virtiofs-spec-docs/CODE-OVERVIEW.md`.
+/// SPEC.
 impl FuseOwns<VirtioFsGhost> for crate::VirtioFs {
     closed spec fn owns(&self, g: &VirtioFsGhost) -> bool {
-        true
+        &&& self.inner.inodes.pred().id == g.inodes.id()
+        &&& self.inner.files.pred().id == g.files.id()
     }
 }
 

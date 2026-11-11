@@ -126,13 +126,14 @@ fn microvm_runtime_path_and_map_limits_are_enforced() {
         lx::Error::E2BIG
     );
 
-    fs.inner.inodes.write().inodes_by_node_id.next_handle = 0;
+    fs.inner
+        .with_inodes(|table| table.inodes_by_node_id.next_handle = 0);
     assert_eq!(
         fs.preflight_new_inode_path(Path::new("new-entry"))
             .unwrap_err(),
         lx::Error::ENOSPC
     );
-    fs.inner.files.write().next_handle = 0;
+    fs.inner.with_files(|table| table.next_handle = 0);
     assert_eq!(fs.preflight_file_insert().unwrap_err(), lx::Error::ENOSPC);
 }
 

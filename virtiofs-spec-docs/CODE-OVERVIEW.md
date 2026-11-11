@@ -158,7 +158,10 @@ code: vstd's lock spins instead of sleeping (in the microVM it never
 waits, since requests run one at a time), its handles are released by
 an explicit `release_write` / `release_read`, not when dropped, and Verus
 does not check that they are, and the call sites of `get_path()` (about
-20) change to that form. Each is an entry in `CODE-CHANGES.md`.
+20) change to that form. A panic while one of these locks is held leaves it held (a
+`parking_lot` guard was released as the panic unwound), so any later
+request that takes the lock spins forever; accepted (2026-11-10), since a
+panic in a request is already a device failure. Each is an entry in `CODE-CHANGES.md`.
 
 **Who writes what in the locks' rules** (agreed 2026-11-10):
 
@@ -179,9 +182,16 @@ does not check that they are, and the call sites of `get_path()` (about
   and all proofs. It must keep each rule's core. Each rule's comment marks
   its core (SPEC) and what is left (TODO).
 
-The path and aliases locks' rules (`PathRule`, `AliasesRule`,
-`inode.spec.rs`) are written in full, as worked examples; the proof may
-revise all but their core.
+The rules, with their cores: `PathRule` and `AliasesRule`
+(`inode.spec.rs`: the piece is this inode's entry of `paths` / `aliases`,
+and equals its path / names), `InodeTableRule` and `FileTableRule`
+(`lib.spec.rs`: the half is the ghost table's, and its entries are the real
+table's: each node's inode view; each handle's inode view and writability,
+from its open flags). The two inode rules are written in full, as worked
+examples; the proof may revise all but the cores. Left as TODO in the table
+rules: the links across locks (each table inode's locks' rules have the
+recorded key and the maps' ids; each handle's recorded node is one whose
+inode is the file's), and that each lock holds a half.
 
 ## The guest's state in the spec: real data and ghost state (agreed 2026-11-09)
 
@@ -570,8 +580,8 @@ Its contract demands it, so that the proof must create it: on success, a
 root alone, no names, no handles). Its proof creates the `paths` and
 `aliases` `Auth`s and the two tables' `FracGhost`s with a lemma, puts one
 half of each table's into that table's lock, and keeps the rest as `g`;
-once `owns` has its real body, it holds only if the locks hold the matching
-halves, so the creation cannot be skipped. The device's setup
+`owns` holds only if the locks hold the matching halves, so the creation
+cannot be skipped. The device's setup
 (`VirtioFsDevice::new_microvm_hostfs`) then hands `g` to the keeper. Only
 the keeping is trusted. What is assumed, written at
 the top of the file:
@@ -736,15 +746,17 @@ all of them.
    than the code: a confidentiality rule to add ("succeeds only if none of
    the node's names is hidden"). Not an invariant of the state, since the
    code does not keep it between operations; it checks it at each one.
-7. **`owns`'s body in virtio-fs is a placeholder** (`true`). Every
-   operation requires and keeps `self.owns(g)` (the ghost state is this file
-   system's) and `g.wf()` (well formed: its view's `inv()`, and the ids that
-   the inode table records are those of its `Auth`s), both declared at the
-   FUSE level (`FuseOwns`, `FuseGhost`). virtio-fs's `wf()` and `inv()` have
-   their real bodies; `owns` cannot yet, since the locks do not hold ghost
-   pieces (they are `parking_lot` locks): its body comes with the locks'
-   rules (the id of `g`'s inode-table half is the one the inode-table lock
-   pins, and likewise for the file table).
+7. **`owns`'s body in virtio-fs** (done 2026-11-10). Every operation
+   requires and keeps `self.owns(g)` (the ghost state is this file
+   system's) and `g.wf()`, both declared at the FUSE level (`FuseOwns`,
+   `FuseGhost`). `owns` now says that the ids of `g`'s two table halves are
+   the ones the file system's two table locks' rules pin
+   (`inner.inodes.pred().id`, `inner.files.pred().id`); the inode table
+   records the ids of the `paths` and `aliases` maps (`wf`), and each
+   inode's locks hold its entries of them. Left to the proof (TODO): the
+   locks' creation (`InodeTableLocked::new_lock`, `FileTableLocked::new_lock`,
+   `VirtioFsInode::with_attr`) still uses `assume_new()` placeholders, which
+   the proof of `new_microvm` and of the inode builders replaces.
 8. **Pedro's questions** (`BUGS.md`): device nodes from `mknod`; host hard
    links between a writable and a read-only path.
 
