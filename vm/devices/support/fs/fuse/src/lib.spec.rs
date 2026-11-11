@@ -243,8 +243,9 @@ pub trait FuseState: Sized {
     /// The state after handle `fh` is opened on node `m`, for writing or not.
     spec fn after_open(&self, fh: u64, m: u64, writable: bool) -> Self;
 
-    /// The state after handle `fh` is released: it is no longer held (no
-    /// change if it was not).
+    /// The state after handle `fh` is released: it is removed from the open
+    /// files (no change if it was not one; a synthetic node's own handle,
+    /// `is_synthetic_handle`, is not one, and stays held).
     spec fn after_release(&self, fh: u64) -> Self;
 
     // ---- Questions about what the file system refuses (used by the error rules).

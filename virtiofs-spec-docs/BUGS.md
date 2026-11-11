@@ -213,29 +213,41 @@ change must find writable, where a main path moves when one is removed).
 Linux's FUSE driver handles a rename onto the same name itself, so only a
 guest whose kernel an attacker controls can send it.
 
-**The fix.** After the permission checks (so that a rename the guest may not
-do is still refused), a rename of a name onto itself returns at once. Test:
+**The fix.** A rename of a name onto itself still goes to the host, which
+answers it as Linux does (`Ok`; `EEXIST` with `RENAME_NOREPLACE`; `ENOENT`
+if there is no such name), and then skips the name updates, since nothing
+moved. (Corrected 2026-11-11: the first version of this fix returned `Ok`
+at once, without asking the host, so the guest got `Ok` where Linux gives
+`EEXIST` or `ENOENT`; found by an independent review.) Test:
 `microvm/policy_tests.rs`, `renaming_a_name_onto_itself_keeps_its_names`
-(fails without the fix).
+(fails without the fix, and with the first version).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index b6525a8a0..12b8c6f8f 100644
+index b6525a8a0..811df5797 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -533,6 +533,12 @@ fn rename(
-         let new_path = new_inode.child_path(new_name)?;
+@@ -534,8 +534,19 @@ fn rename(
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
-+        // Renaming a name onto itself changes nothing on the host; the name
-+        // updates below would otherwise drop every name at or below it from
-+        // every node (`remove_alias_prefix` of the new path).
-+        if old_path == new_path {
+         let exchange = flags & RENAME_EXCHANGE != 0;
+-        self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
++        // Renaming a name onto itself changes nothing on the host, which still
++        // answers it as Linux does (`EEXIST` with `RENAME_NOREPLACE`, `ENOENT`
++        // if there is no such name); the name updates below would drop every
++        // name at or below it from every node (`remove_alias_prefix` of the
++        // new path), so they are skipped.
++        let onto_itself = old_path == new_path;
++        if !onto_itself {
++            self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
++        }
+         inode.rename(name, &new_inode, new_name, flags)?;
++        if onto_itself {
 +            return Ok(());
 +        }
-         let exchange = flags & RENAME_EXCHANGE != 0;
-         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
-         inode.rename(name, &new_inode, new_name, flags)?;
+         let mut inodes = self.inner.inodes.write();
+         if exchange {
+             inodes.exchange_alias_prefixes(inode.volume_id(), &old_path, &new_path);
 ```
 
 ## 3. A create of an existing file skips `open`'s rule for that file
@@ -270,7 +282,7 @@ link, which is simpler to set up than the link and rename above).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 12b8c6f8f..169cfa414 100644
+index 811df5797..c3a1bc238 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -300,6 +300,7 @@ fn create(
@@ -281,7 +293,7 @@ index 12b8c6f8f..169cfa414 100644
          self.preflight_create_inode(&inode, name, &path)?;
          self.preflight_file_insert()?;
          let inode_reservation = self.reserve_inode()?;
-@@ -671,6 +672,39 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+@@ -676,6 +677,39 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -321,7 +333,7 @@ index 12b8c6f8f..169cfa414 100644
      /// Check whether the open flags are permitted on a read-only filesystem.
      fn check_open_readonly(&self, inode: &VirtioFsInode, options: i32) -> lx::Result<()> {
          if !inode.readonly() {
-@@ -1112,6 +1146,13 @@ pub fn release_reservation(&mut self, reservation: &HandleReservation) {
+@@ -1117,6 +1151,13 @@ pub fn release_reservation(&mut self, reservation: &HandleReservation) {
          self.inodes_by_node_id.release_reservation(reservation);
      }
  
@@ -364,7 +376,7 @@ fix: the host links the new file as `b`).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 2d0ccdd5d..a1b1e24f7 100644
+index c12a04cea..b3875e75e 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -411,6 +411,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
@@ -419,31 +431,24 @@ guest's own. Test: `microvm/policy_tests.rs`, `a_rename_moves_no_hidden_path`
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index a1b1e24f7..92b2b9bc6 100644
+index b3875e75e..b8d7ffcfb 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -542,13 +542,19 @@ fn rename(
+@@ -542,7 +542,13 @@ fn rename(
          let new_path = new_inode.child_path(new_name)?;
          self.check_writable_entry(&inode, &old_path)?;
          self.check_writable_entry(&new_inode, &new_path)?;
 +        // A rename moves every path below the renamed one too (both ways for
 +        // an exchange), and the guest may not change a hidden path.
-+        let exchange = flags & RENAME_EXCHANGE != 0;
+         let exchange = flags & RENAME_EXCHANGE != 0;
 +        self.check_moves_nothing_hidden(&inode, &old_path)?;
 +        if exchange {
 +            self.check_moves_nothing_hidden(&new_inode, &new_path)?;
 +        }
-         // Renaming a name onto itself changes nothing on the host; the name
-         // updates below would otherwise drop every name at or below it from
-         // every node (`remove_alias_prefix` of the new path).
-         if old_path == new_path {
-             return Ok(());
-         }
--        let exchange = flags & RENAME_EXCHANGE != 0;
-         self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
-         inode.rename(name, &new_inode, new_name, flags)?;
-         let mut inodes = self.inner.inodes.write();
-@@ -680,6 +686,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+         // Renaming a name onto itself changes nothing on the host, which still
+         // answers it as Linux does (`EEXIST` with `RENAME_NOREPLACE`, `ENOENT`
+         // if there is no such name); the name updates below would drop every
+@@ -685,6 +691,18 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -525,7 +530,7 @@ the fix too, since the host refuses with the same code).
 
 ```diff
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 92b2b9bc6..26afe0915 100644
+index b8d7ffcfb..ea1fab516 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -467,6 +467,15 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
@@ -589,10 +594,10 @@ index 5b9694132..bbf05e91f 100644
  
  /// A single host folder exposed as a named child of the synthetic aggregate root.
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 26afe0915..b4b5a4435 100644
+index ea1fab516..b58ec56b8 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
-@@ -1106,8 +1106,14 @@ fn is_current(&self, reservation: &HandleReservation) -> bool {
+@@ -1111,8 +1111,14 @@ fn is_current(&self, reservation: &HandleReservation) -> bool {
          Arc::ptr_eq(&self.generation, &reservation.generation)
      }
  

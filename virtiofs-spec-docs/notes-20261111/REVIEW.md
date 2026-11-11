@@ -277,6 +277,8 @@ Findings are ordered by severity.
 
 ## 12. Smaller documentation mismatches
 
+*Status (2026-11-11): all three done. `after_release`'s doc reworded (a synthetic handle stays held). The `aggregate.rs` comment: with finding 10. The rename onto itself: bug fix 2 corrected (the host now answers it, as Linux does; only the name updates are skipped), with its `BUGS.md` entry, code change 16 and patch 0002; patches 0003-0009 rebuilt and rechecked on Pedro's `db42fde04`.*
+
 - `fuse/lib.spec.rs:236-238`: `after_release` "is no longer held". For
   virtio-fs's synthetic handle (`release_dir(1, u64::MAX)`, or `release`
   of `u64::MAX`), `holds_file` stays true. The contracts are fine. Reword

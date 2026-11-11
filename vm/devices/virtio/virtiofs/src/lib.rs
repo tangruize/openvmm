@@ -706,14 +706,19 @@ impl Fuse<spec::VirtioFsGhost> for VirtioFs {
         if exchange {
             self.check_moves_nothing_hidden(&new_inode, &new_path)?;
         }
-        // Renaming a name onto itself changes nothing on the host; the name
-        // updates below would otherwise drop every name at or below it from
-        // every node (`remove_alias_prefix` of the new path).
-        if old_path == new_path {
+        // Renaming a name onto itself changes nothing on the host, which still
+        // answers it as Linux does (`EEXIST` with `RENAME_NOREPLACE`, `ENOENT`
+        // if there is no such name); the name updates below would drop every
+        // name at or below it from every node (`remove_alias_prefix` of the
+        // new path), so they are skipped.
+        let onto_itself = old_path == new_path;
+        if !onto_itself {
+            self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
+        }
+        inode.rename(name, &new_inode, new_name, flags)?;
+        if onto_itself {
             return Ok(());
         }
-        self.preflight_rename_aliases(inode.volume_id(), &old_path, &new_path, exchange)?;
-        inode.rename(name, &new_inode, new_name, flags)?;
         let (mut inodes, handle) = self.inner.inodes.acquire_write();
         if exchange {
             inodes

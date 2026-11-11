@@ -68,10 +68,10 @@ index 4451a5f8a..bddfefa9a 100644
          let stat = self.object_stat()?;
          if stat.mode & lx::S_IFMT != lx::S_IFDIR {
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index cfbfc9ad7..ac99c8212 100644
+index 22892bb56..b4eb519ea 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -788,3 +788,54 @@ fn saved_state_records_the_access_policy() {
+@@ -804,3 +804,54 @@ fn saved_state_records_the_access_policy() {
      dormant.allowed_paths = owned(&["logs/payloads"]);
      assert!(validate_dormant_microvm_state(&dormant, MICROVM_ATTACHMENT_ID).is_err());
  }

@@ -379,13 +379,29 @@ fn a_handle_is_used_only_with_its_node_while_the_guest_holds_it() {
 #[test]
 fn renaming_a_name_onto_itself_keeps_its_names() {
     // A rename onto the same name changes nothing on the host, and must not
-    // drop the names at or below it from the nodes.
+    // drop the names at or below it from the nodes. The host still answers
+    // it, as Linux does.
+    const RENAME_NOREPLACE: u32 = 1;
     let share = Share::new();
     let fs = share.fs(&[], &[], &["out"]);
     let out = lookup(&fs, "out").unwrap();
     let existing = lookup(&fs, "out/existing").unwrap();
     fs.rename(&request(out), name("existing"), out, name("existing"), 0)
         .unwrap();
+    assert_eq!(
+        error(fs.rename(
+            &request(out),
+            name("existing"),
+            out,
+            name("existing"),
+            RENAME_NOREPLACE
+        )),
+        lx::Error::EEXIST
+    );
+    assert_eq!(
+        error(fs.rename(&request(out), name("missing"), out, name("missing"), 0)),
+        lx::Error::ENOENT
+    );
     let names = fs.get_inode(existing).unwrap().aliases();
     assert!(names.contains(&PathBuf::from("out").join("existing")));
     assert_eq!(share.read("out/existing"), "existing");

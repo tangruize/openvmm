@@ -1,5 +1,5 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 12b8c6f8f..169cfa414 100644
+index 811df5797..c3a1bc238 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -300,6 +300,7 @@ fn create(
@@ -10,7 +10,7 @@ index 12b8c6f8f..169cfa414 100644
          self.preflight_create_inode(&inode, name, &path)?;
          self.preflight_file_insert()?;
          let inode_reservation = self.reserve_inode()?;
-@@ -671,6 +672,39 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
+@@ -676,6 +677,39 @@ fn check_writable_entry(&self, parent: &VirtioFsInode, path: &Path) -> lx::Resul
          }
      }
  
@@ -50,7 +50,7 @@ index 12b8c6f8f..169cfa414 100644
      /// Check whether the open flags are permitted on a read-only filesystem.
      fn check_open_readonly(&self, inode: &VirtioFsInode, options: i32) -> lx::Result<()> {
          if !inode.readonly() {
-@@ -1112,6 +1146,13 @@ pub fn release_reservation(&mut self, reservation: &HandleReservation) {
+@@ -1117,6 +1151,13 @@ pub fn release_reservation(&mut self, reservation: &HandleReservation) {
          self.inodes_by_node_id.release_reservation(reservation);
      }
  
@@ -65,10 +65,10 @@ index 12b8c6f8f..169cfa414 100644
      pub fn insert(&mut self, inode: VirtioFsInode) -> lx::Result<(Arc<VirtioFsInode>, u64)> {
          // Reuse an existing node id for the same host file; see `DedupKey`
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index 3b8867fdf..cfbfc9ad7 100644
+index 62c8c0baa..22892bb56 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -391,6 +391,36 @@ fn renaming_a_name_onto_itself_keeps_its_names() {
+@@ -407,6 +407,36 @@ fn renaming_a_name_onto_itself_keeps_its_names() {
      assert_eq!(share.read("out/existing"), "existing");
  }
  

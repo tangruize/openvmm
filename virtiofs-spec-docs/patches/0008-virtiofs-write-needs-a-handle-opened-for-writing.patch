@@ -1,5 +1,5 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 92b2b9bc6..26afe0915 100644
+index b8d7ffcfb..ea1fab516 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -467,6 +467,15 @@ fn write(&self, request: &Request, arg: &fuse_write_in, data: &[u8]) -> lx::Resu
@@ -19,10 +19,10 @@ index 92b2b9bc6..26afe0915 100644
          file.write(data, arg.offset, request.uid())
      }
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index dc61783d4..6341ede88 100644
+index 03c380243..e21a59c90 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -464,6 +464,27 @@ fn a_rename_moves_no_hidden_path() {
+@@ -480,6 +480,27 @@ fn a_rename_moves_no_hidden_path() {
      assert_eq!(share.read("out/existing"), "existing");
  }
  

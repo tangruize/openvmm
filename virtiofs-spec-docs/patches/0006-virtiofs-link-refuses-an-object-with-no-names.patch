@@ -1,5 +1,5 @@
 diff --git a/vm/devices/virtio/virtiofs/src/lib.rs b/vm/devices/virtio/virtiofs/src/lib.rs
-index 2d0ccdd5d..a1b1e24f7 100644
+index c12a04cea..b3875e75e 100644
 --- a/vm/devices/virtio/virtiofs/src/lib.rs
 +++ b/vm/devices/virtio/virtiofs/src/lib.rs
 @@ -411,6 +411,12 @@ fn link(&self, request: &Request, name: &lx::LxStr, target: u64) -> lx::Result<f
@@ -16,10 +16,10 @@ index 2d0ccdd5d..a1b1e24f7 100644
          // link across filesystems, check where the link would go first.
          self.check_writable(&inode)?;
 diff --git a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-index 75b3ef76a..18ccb0d78 100644
+index d586e1e86..8eb9f052b 100644
 --- a/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
 +++ b/vm/devices/virtio/virtiofs/src/microvm/policy_tests.rs
-@@ -391,6 +391,27 @@ fn renaming_a_name_onto_itself_keeps_its_names() {
+@@ -407,6 +407,27 @@ fn renaming_a_name_onto_itself_keeps_its_names() {
      assert_eq!(share.read("out/existing"), "existing");
  }
  
