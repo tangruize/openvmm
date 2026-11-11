@@ -138,6 +138,36 @@ fn microvm_runtime_path_and_map_limits_are_enforced() {
 }
 
 #[test]
+fn a_dedup_key_of_another_file_type_takes_the_new_node_check() {
+    // The insert gives an object whose key's node has another file type a
+    // new node (`dedup_entry`), so its check must be the new node's, which
+    // refuses a full table, not the check for a new name of that node.
+    let temporary_directory = tempdir().unwrap();
+    std::fs::write(temporary_directory.path().join("file"), b"").unwrap();
+    let profile = profile(temporary_directory.path());
+    let fs = VirtioFs::new_microvm(temporary_directory.path(), profile).unwrap();
+    let root = fs.get_inode(FUSE_ROOT_ID).unwrap();
+    let (file, _) = root.lookup_child(lx::LxStr::from_bytes(b"file")).unwrap();
+    fs.insert_inode(file).unwrap();
+    let mut stat = root.volume.lstat(Path::new("file")).unwrap();
+    stat.mode = lx::S_IFDIR | 0o755;
+    let other = crate::inode::VirtioFsInode::with_attr(
+        Arc::clone(&root.volume),
+        PathBuf::from("other"),
+        &stat,
+    );
+    // No room for a new node.
+    fs.inner
+        .with_inodes(|table| table.inodes_by_node_id.next_handle = 0);
+    fs.inner.with_inodes(|table| {
+        assert_eq!(
+            table.preflight_microvm_insert(&other).unwrap_err(),
+            lx::Error::ENOSPC
+        )
+    });
+}
+
+#[test]
 fn microvm_denied_subtree_is_not_lookupable() {
     let temporary_directory = tempdir().unwrap();
     let root_path = temporary_directory.path();

@@ -749,8 +749,8 @@ all of them.
 |---|---|
 | 1. Confinement | done as far as it goes without a host model (2026-11-10; open item 9): every path virtio-fs hands to `lxutil` is relative, of plain names (a precondition of each `lxutil` method); every check of Pedro's that can be stated without a host model is in the contracts (hidden paths, name checks, traverse-only objects, single-file shares, `\` and `:`, path length); with the host model (2026-11-11), every object an `lxutil` call reads, opens or changes is one on the share's disk (in the contracts); that a call changes nothing outside the share (the kernel's guard, on Linux and Windows) is trusted, in words, and could be made a contract (a declared `HostOutside` that every `lxutil` method takes by shared reference; `lxutil/src/lib.spec.rs` says why it is not, for now). Assumed: no mount point inside a share (on Linux), and different paths are different objects (on Windows: no other case, no 8.3 short name); both questions for Pedro. Pinned identities: done 2026-11-11 with the host model (`wf`: a pinned object has a name only at its own path, and pinned objects stay on the disk). The root's identity: done 2026-11-11 (`owns`: the object at each volume's root path is the one the profile's identity names; `wf`: a directory has one path, so no other name leads to the root's object). The symbolic-link walk: done 2026-11-11 (`wf`: each disk is a tree, so no node's name passes through a link; the microVM's walk never fails) |
 | 2. Policy: integrity and confidentiality | done, but the parts that need the host model (open items 3 and 8: which host object a path reaches) |
-| 3. Identity (each request runs as its caller) | not started (deferred, 2026-11-09); rests on `lxutil`'s per-thread credential switching (`unix/credentials.rs`) |
-| 4. Limits | not started; needs the lookup counts (open item 2) |
+| 3. Identity (each request runs as its caller) | done as a spec, with a trusted part (2026-11-11; `microvm/owner.spec.rs`): `CallerIdentity::runs_as` says as whom each request runs, in both owner modes (`Vmm`, the default: as OpenVMM; `Caller`: as the mapped caller, never host root); the mapping is checked (contracts of `for_export_root_owner`, `host_identity`, `accesses_host_files`); `with_fs_identity`'s effect (T1-T4) and that every host call of a request is made inside `session.dispatch` are trusted, in words, until `run_as` takes a generic closure (then a contract) |
+| 4. Limits | done (2026-11-11): in the microVM, `inv` says the caps hold (`within_limits`: nodes, handles, names per node, names in all, name bytes on Linux), and the error rules say when an operation fails for lack of room (`no_room_for_node`, `no_room_for_name`, `no_room_for_handle`); a gap fixed (`BUGS.md` bug 9). Not covered: the listings' caches (checked only at save: a question for Pedro), and `rename`'s byte cap (no rule: weaker, not false). The lookup counts are not needed (open item 2) |
 | 5. The operations' meaning (the bytes read and written) | deferred |
 | 6. Snapshots | virtio-fs's own save and restore (`save_microvm_state`, `restore_microvm_state`, `validate_microvm_state`): not started. (The earlier snapshot spec, on its own branch, is of the VM-level orchestration, `vmm_core/state_unit`, not of virtio-fs's state.) Design prep 2026-11-11 |
 
@@ -802,12 +802,13 @@ all of them.
    in the spec; open item 4). Not stated: when an operation must succeed
    (needs a host model).
 2. **The lookup counts** (`lookup_count`, atomics): `forget` says only that
-   it may remove the node, and the limits property needs them. Decided
-   (2026-11-10): added with the limits property, not before, since
-   integrity and confidentiality do not need them; then each node's count
-   is a ghost piece tied to the atomic (`atomic_with_ghost!`), every
-   operation that hands out a node says "count + 1", and `forget` says that
-   the node is removed exactly when its count reaches 0. Then
+   it may remove the node. Re-scoped (2026-11-11): the limits do not need
+   them (every cap is a table's or a name set's size), so they wait for
+   what does: that `forget` removes a node exactly when its count reaches
+   0 (functional correctness), that room comes back when the guest
+   forgets, and that saved and restored counts agree (snapshots). Adding
+   them needs a code change (vstd's atomics with a ghost piece; `forget`'s
+   update closure as a load and compare-exchange loop). Then
    `read_dir_plus` must also say that it takes a reference only for each
    entry it hands out (bug 8, fixed 2026-11-11, was a case where it did
    not: a reply that failed partway kept the references of the entries

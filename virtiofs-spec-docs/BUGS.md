@@ -5,7 +5,7 @@ Bugs in Pedro Henrique Penna's virtio-fs (`feature/microvm/dev` at
 guest triggers it, and the fix. Fixed on this branch; each fix is also a
 `CODE-CHANGES.md` entry, and a patch in `patches/`, for Pedro.
 
-The patches in `patches/` (0001-0010) are for Pedro's code itself: they
+The patches in `patches/` (0001-0011) are for Pedro's code itself: they
 apply in order to `feature/microvm/dev` at `db42fde04`, and after each
 one, `virtiofs` builds, its tests pass (each patch adds one), and
 `cargo fmt` and `clippy` are clean (checked 2026-11-11). They hold the
@@ -775,6 +775,50 @@ index bddfefa9a..e77920ebd 100644
          if full && buffer.is_empty() {
 ```
 
+## 9. A lookup can add a node past the microVM's node cap
+
+*Found 2026-11-11, in last night's design notes on limits (by reading the
+code). Low severity: it needs a held node whose object is gone and an
+object of another file type with the same inode number. Fixed:
+`patches/0011-virtiofs-microvm-a-retyped-object-takes-the-new-node-check.patch`
+(applies after 0010).*
+
+**What goes wrong.** Before a lookup inserts a node, the microVM checks the
+caps (`preflight_microvm_insert`, `microvm/limits.rs`). If the inode table
+already has a node for the object's key (its inode number), the check is
+the one for a new name of that node, which does not look at the node cap.
+But the insert itself (`dedup_entry`, `lib.rs`) gives the object a **new**
+node when the existing node has another file type: a held node whose
+object is gone, and a new object of another type that the host gave the
+same inode number. So such a lookup, with 4096 nodes, leaves 4097.
+
+**The fix.** The check takes the new node's path in that case too, as the
+insert does: a key whose node has another file type goes to
+`preflight_microvm_new_inode`. Test: `microvm/fs_tests.rs`,
+`a_dedup_key_of_another_file_type_takes_the_new_node_check` (fails
+without the fix).
+
+```diff
+diff --git a/vm/devices/virtio/virtiofs/src/microvm/limits.rs b/vm/devices/virtio/virtiofs/src/microvm/limits.rs
+index b853735cb..0a9542a7e 100644
+--- a/vm/devices/virtio/virtiofs/src/microvm/limits.rs
++++ b/vm/devices/virtio/virtiofs/src/microvm/limits.rs
+@@ -30,7 +30,12 @@ pub(crate) fn insert_microvm(
+     pub(crate) fn preflight_microvm_insert(&self, inode: &VirtioFsInode) -> lx::Result<()> {
+         let path = inode.clone_path();
+         Self::validate_microvm_alias_path(&path)?;
+-        if let Some((existing, _)) = self.inodes_by_key.get(&inode.dedup_key()) {
++        // A key whose node has another file type does not alias it: the
++        // insert evicts the key and adds a new node (`dedup_entry`), so that
++        // case takes the new node's check.
++        if let Some((existing, _)) = self.inodes_by_key.get(&inode.dedup_key())
++            && existing.file_type() == inode.file_type()
++        {
+             return self.preflight_microvm_alias_add(existing, &path);
+         }
+         self.preflight_microvm_new_inode(&path)
+```
+
 ## Questions for Pedro (not bugs, yet)
 
 - **Device nodes from the guest** (answered by Pedro, 2026-11-10, about
@@ -840,6 +884,15 @@ index bddfefa9a..e77920ebd 100644
   case table, and would still miss short names; checking the identity of
   the object that a change touches against the pinned identities would
   cover both.
+- **The listings' caches are bounded in total only at save** (from last
+  night's design notes on limits, 2026-11-11). At run time each directory
+  handle may cache 4096 entries and 64 KiB of names, and there may be 4096
+  handles; the totals (`MAX_DIRECTORY_ENTRIES` 16 Ki,
+  `MAX_DIRECTORY_BYTES` 4 MiB) are checked only when the state is saved
+  (`save_microvm_state`). Five open directories of 4096 entries, each read
+  once, make the save fail, so a guest can stop its own snapshots. Should
+  the totals be checked when a cache is built (failing that read with
+  `E2BIG`)? The spec leaves the caches out for now.
 - **A directory listing is filtered once, when it starts (a note, not a
   bug).** In the microVM, a directory handle's listing is cached at its
   first read (`VirtioFsFile::directory_snapshot`,

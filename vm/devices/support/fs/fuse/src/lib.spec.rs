@@ -261,6 +261,17 @@ pub trait FuseState: Sized {
     /// The file system refuses `rename`'s flags `flags`.
     spec fn refuses_rename(&self, flags: u32) -> bool;
 
+    /// Making a new node at path `p` of node `n`'s share would pass one of
+    /// the file system's caps, which it reports with `code`.
+    spec fn no_room_for_node(&self, n: u64, p: PathView, code: i32) -> bool;
+
+    /// Adding the name `p` to node `m` would pass one of the file system's
+    /// caps, which it reports with `code`.
+    spec fn no_room_for_name(&self, m: u64, p: PathView, code: i32) -> bool;
+
+    /// One more open handle would pass the file system's cap (`ENOSPC`).
+    spec fn no_room_for_handle(&self) -> bool;
+
     /// `open`'s (and `open_dir`'s) flags `flags` hold one that the file
     /// system does not accept.
     spec fn bad_open_flags(flags: u32) -> bool;
@@ -484,30 +495,44 @@ pub trait FuseState: Sized {
     }
 
     /// The rules of `create` of `name` in directory `n`, with flags
-    /// `flags`: `entry_errors`, and the flags.
+    /// `flags`: `entry_errors`, the flags, and room for a handle. (No rule on
+    /// room for a node: whether `create` makes one or opens an existing
+    /// file is the host's to say.)
     open spec fn create_errors(&self, n: u64, name: Seq<u8>, flags: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
             ||| Self::bad_create_flags(flags) && c == lx::EINVAL
+            ||| self.holds_node(n) && self.no_room_for_handle() && c == lx::ENOSPC
+        })
+    }
+
+    /// The rules of `mkdir` of `name` in directory `n`: `entry_errors`, and
+    /// room for a node.
+    open spec fn mkdir_errors(&self, n: u64, name: Seq<u8>) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| self.entry_errors(n, name).contains(c)
+            ||| self.holds_node(n) && self.no_room_for_node(n, self.child_path(n, name), c)
         })
     }
 
     /// The rules of `mknod` of `name` in directory `n`, of mode `mode`:
-    /// `entry_errors`, and the file type (`EPERM`, as Linux reports a device
-    /// node made without `CAP_MKNOD`).
+    /// `entry_errors`, the file type (`EPERM`, as Linux reports a device
+    /// node made without `CAP_MKNOD`), and room for a node.
     open spec fn mknod_errors(&self, n: u64, name: Seq<u8>, mode: u32) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
             ||| self.refuses_mknod(mode) && c == lx::EPERM
+            ||| self.holds_node(n) && self.no_room_for_node(n, self.child_path(n, name), c)
         })
     }
 
     /// The rules of `symlink` of `name` in directory `n`, to `target`:
-    /// `entry_errors`, and the target.
+    /// `entry_errors`, the target, and room for a node.
     open spec fn symlink_errors(&self, n: u64, name: Seq<u8>, target: Seq<u8>) -> ISet<i32> {
         ISet::new(|c: i32| {
             ||| self.entry_errors(n, name).contains(c)
             ||| self.bad_symlink_target(target, c)
+            ||| self.holds_node(n) && self.no_room_for_node(n, self.child_path(n, name), c)
         })
     }
 
@@ -525,6 +550,7 @@ pub trait FuseState: Sized {
             ||| self.holds_node(n) && self.holds_node(target) && !self.same_share(n, target) && c == lx::EXDEV
             ||| self.holds_node(target) && !self.node_can_write(target) && c == lx::EXDEV
             ||| self.holds_node(target) && !self.has_names(target) && c == lx::ENOENT
+            ||| self.holds_node(target) && self.no_room_for_name(target, self.child_path(n, name), c)
         })
     }
 
@@ -599,6 +625,7 @@ pub trait FuseState: Sized {
             ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
+            ||| self.holds_node(n) && !self.is_synthetic(n) && self.no_room_for_handle() && c == lx::ENOSPC
         })
     }
 
@@ -611,6 +638,7 @@ pub trait FuseState: Sized {
             ||| self.hidden_names(n, c)
             ||| self.holds_node(n) && !self.is_synthetic(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
                 && !self.node_can_write(n) && c == lx::EROFS
+            ||| self.holds_node(n) && !self.is_synthetic(n) && self.no_room_for_handle() && c == lx::ENOSPC
         })
     }
 
@@ -794,6 +822,18 @@ impl FuseState for () {
     }
 
     open spec fn refuses_rename(&self, flags: u32) -> bool {
+        false
+    }
+
+    open spec fn no_room_for_node(&self, n: u64, p: PathView, code: i32) -> bool {
+        false
+    }
+
+    open spec fn no_room_for_name(&self, m: u64, p: PathView, code: i32) -> bool {
+        false
+    }
+
+    open spec fn no_room_for_handle(&self) -> bool {
         false
     }
 

@@ -569,8 +569,14 @@ Each is in `CODE-OVERVIEW.md`'s open items or status table.
   in `owns` (`microvm/profile.spec.rs`), the symbolic-link walk (each disk
   is a tree), and `DT_UNK` entries (a directory at each traverse-only
   path).
-- **Limits** (property 4), with the lookup counts (item 2).
-- **Identity** (property 3): each request runs as its caller.
+- **Limits** (property 4): done 2026-11-11 (`within_limits` in `inv`, and
+  error rules for lack of room), but for the listings' caches (checked
+  only at save) and `rename`'s byte cap.
+- **Identity** (property 3): done 2026-11-11 as a spec
+  (`microvm/owner.spec.rs`), with `with_fs_identity`'s effect trusted in
+  words until `run_as` takes a generic closure.
+- **The lookup counts** (item 2): not needed by the limits; they wait for
+  `forget`'s correctness, liveness and snapshots.
 - **virtio-fs's save and restore** (property 6), including a new `g` on
   restore.
 - **`read_dir_plus`**: its lookups and the names it lists are not tied

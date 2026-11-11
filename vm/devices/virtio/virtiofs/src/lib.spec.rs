@@ -216,6 +216,48 @@ impl VirtioFsGhostView {
         }
     }
 
+    /// The number of names of all nodes (`names_of`; the root's one name,
+    /// the empty path, counts, as `microvm_alias_usage` counts it).
+    closed spec fn name_count(self) -> nat {
+        self.inodes.dom().fold(0nat, |total: nat, n: u64| total + self.names_of(n).len())
+    }
+
+    /// The bytes of all nodes' names (`encoded_len` of each).
+    closed spec fn name_bytes(self) -> nat {
+        self.inodes.dom().fold(
+            0nat,
+            |total: nat, n: u64| total + self.names_of(n).fold(0nat, |bytes: nat, q: PathView| bytes + Self::encoded_len(q)),
+        )
+    }
+
+    /// Adding a name of `extra` bytes keeps all names within 1 MiB
+    /// (`MAX_ALIAS_BYTES`). On Linux only, as `path_too_long`: on Windows the
+    /// code counts UTF-16 bytes.
+    #[cfg(unix)]
+    closed spec fn name_bytes_fit(self, extra: nat) -> bool {
+        self.name_bytes() + extra <= 1024 * 1024
+    }
+
+    #[cfg(windows)]
+    closed spec fn name_bytes_fit(self, extra: nat) -> bool {
+        true
+    }
+
+    /// The microVM's caps (`microvm/saved_state.rs`), which keep its state,
+    /// and so its saved state, bounded: at most 4096 nodes (`MAX_INODES`) and
+    /// 4096 open handles (`MAX_HANDLES`), at most 256 names per node
+    /// (`MAX_ALIASES_PER_INODE`), 16 Ki names in all (`MAX_ALIASES`), and
+    /// 1 MiB of names (`MAX_ALIAS_BYTES`). The listings' caches are not in
+    /// the view, so not here (their totals are checked only at save:
+    /// `BUGS.md`).
+    closed spec fn within_limits(self) -> bool {
+        &&& self.inodes.len() <= 4096
+        &&& self.files.len() <= 4096
+        &&& forall|n: u64| #[trigger] self.inodes.contains_key(n) ==> self.names_of(n).len() <= 256
+        &&& self.name_count() <= 16 * 1024
+        &&& self.name_bytes_fit(0)
+    }
+
     /// Node `m` is in the inode table, in volume `v`.
     closed spec fn in_volume(self, m: u64, v: u32) -> bool {
         self.inodes.contains_key(m) && self.inodes[m].volume == v
@@ -500,6 +542,8 @@ impl FuseState for VirtioFsGhostView {
             &&& Self::is_plain_name(k)
             &&& lxutil::LxVolume::is_share_path(self.shares[k].root)
         }
+        // Property 4, limits: the microVM's caps hold (`within_limits`).
+        &&& self.microvm ==> self.within_limits()
     }
 
     /// A node of the inode table, or an aggregate's root (synthetic, not in
@@ -819,6 +863,36 @@ impl FuseState for VirtioFsGhostView {
         let kind = mode & lx::S_IFMT;
         &&& self.microvm
         &&& !(kind == 0 || kind == lx::S_IFREG || kind == lx::S_IFIFO || kind == lx::S_IFSOCK)
+    }
+
+    /// In the microVM (`preflight_microvm_new_inode`): a full node table
+    /// (4096 nodes) or name total (16 Ki names) gives `ENOSPC`; names over
+    /// 1 MiB in all with `p` give `E2BIG`.
+    closed spec fn no_room_for_node(&self, n: u64, p: PathView, code: i32) -> bool {
+        &&& self.microvm
+        &&& {
+            ||| self.inodes.len() >= 4096 && code == lx::ENOSPC
+            ||| self.name_count() >= 16 * 1024 && code == lx::ENOSPC
+            ||| !self.name_bytes_fit(Self::encoded_len(p)) && code == lx::E2BIG
+        }
+    }
+
+    /// In the microVM (`preflight_microvm_alias_add`), unless `m` has the
+    /// name already: 256 names of `m`, or the name total, gives `ENOSPC`;
+    /// names over 1 MiB in all with `p` give `E2BIG`.
+    closed spec fn no_room_for_name(&self, m: u64, p: PathView, code: i32) -> bool {
+        &&& self.microvm
+        &&& !self.names_of(m).contains(p)
+        &&& {
+            ||| self.names_of(m).len() >= 256 && code == lx::ENOSPC
+            ||| self.name_count() >= 16 * 1024 && code == lx::ENOSPC
+            ||| !self.name_bytes_fit(Self::encoded_len(p)) && code == lx::E2BIG
+        }
+    }
+
+    /// In the microVM (`validate_file_insert`): 4096 open handles.
+    closed spec fn no_room_for_handle(&self) -> bool {
+        self.microvm && self.files.len() >= 4096
     }
 
     /// In the microVM (`microvm::fs::validate_rename_flags`): any flag but

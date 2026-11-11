@@ -30,7 +30,12 @@ impl InodeMap {
     pub(crate) fn preflight_microvm_insert(&self, inode: &VirtioFsInode) -> lx::Result<()> {
         let path = inode.clone_path();
         Self::validate_microvm_alias_path(&path)?;
-        if let Some((existing, _)) = self.inodes_by_key.get(&inode.dedup_key()) {
+        // A key whose node has another file type does not alias it: the
+        // insert evicts the key and adds a new node (`dedup_entry`), so that
+        // case takes the new node's check.
+        if let Some((existing, _)) = self.inodes_by_key.get(&inode.dedup_key())
+            && existing.file_type() == inode.file_type()
+        {
             return self.preflight_microvm_alias_add(existing, &path);
         }
         self.preflight_microvm_new_inode(&path)

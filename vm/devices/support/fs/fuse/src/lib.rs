@@ -338,7 +338,7 @@ where
                 Err(_) => final(g)@ == old(g)@,
             },
             // Fails where one of its rules applies.
-            G::V::fails_with(r, old(g)@.entry_errors(_request@.node_id, _name@)),
+            G::V::fails_with(r, old(g)@.mkdir_errors(_request@.node_id, _name@)),
     ))]
     fn mkdir(
         &self,
