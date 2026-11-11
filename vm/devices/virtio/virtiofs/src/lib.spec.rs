@@ -185,6 +185,20 @@ impl VirtioFsGhostView {
         &&& self.files.dom() == Set::<u64>::empty()
     }
 
+    /// A relative path's length in bytes on Linux: its names, and a `/`
+    /// between each two.
+    closed spec fn encoded_len(p: PathView) -> nat
+        decreases p.len(),
+    {
+        if p.len() == 0 {
+            0
+        } else if p.len() == 1 {
+            p[0].len()
+        } else {
+            Self::encoded_len(p.drop_last()) + 1 + p.last().len()
+        }
+    }
+
     /// Node `m` is in the inode table, in volume `v`.
     closed spec fn in_volume(self, m: u64, v: u32) -> bool {
         self.inodes.contains_key(m) && self.inodes[m].volume == v
@@ -602,6 +616,31 @@ impl FuseState for VirtioFsGhostView {
             // In a single-file share, every path but the exposed file.
             ||| inode.exposed matches Some(file) && p != file
         }
+    }
+
+    /// In the microVM (strict paths: `child_name_disallowed`, which
+    /// `child_path` applies to the guest's name before anything else): a
+    /// name with `\` or `:` (refused, so that saved names are valid on any
+    /// host; `lxutil` escapes both on Windows, so neither is a separator
+    /// there).
+    closed spec fn refuses_name(&self, n: u64, name: Seq<u8>) -> bool {
+        self.microvm && (name.contains('\\' as u8) || name.contains(':' as u8))
+    }
+
+    /// In the microVM, on Linux: longer than `MAX_PATH_BYTES` (4096) bytes,
+    /// as the code measures it there (the path's bytes, separators included:
+    /// `relative_path_encoded_len`, which `validate_child_path` applies). On
+    /// Windows the code measures UTF-16 bytes, which may be fewer: no rule
+    /// there.
+    #[cfg(unix)]
+    closed spec fn path_too_long(&self, n: u64, p: PathView) -> bool {
+        self.microvm && Self::encoded_len(p) > 4096
+    }
+
+    /// (Windows: see the Linux version.)
+    #[cfg(not(unix))]
+    closed spec fn path_too_long(&self, n: u64, p: PathView) -> bool {
+        false
     }
 
     /// Over `MAX_GUEST_BUFFER_SIZE` (1 MiB: `guest_buffer`, `write`).

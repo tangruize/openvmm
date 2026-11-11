@@ -259,6 +259,13 @@ pub trait FuseState: Sized {
     /// write from.
     spec fn buffer_too_large(size: nat) -> bool;
 
+    /// The file system refuses `name`, a plain name, as an entry of node
+    /// `n`'s share.
+    spec fn refuses_name(&self, n: u64, name: Seq<u8>) -> bool;
+
+    /// Path `p` of node `n`'s share is longer than the file system accepts.
+    spec fn path_too_long(&self, n: u64, p: PathView) -> bool;
+
     /// `code` is an error code the host may fail with.
     spec fn host_error(code: i32) -> bool;
 
@@ -424,6 +431,8 @@ pub trait FuseState: Sized {
                 ||| !self.node_can_write(n) && c == lx::EROFS
                 ||| !self.is_dir(n) && c == lx::ENOTDIR
                 ||| !Self::is_plain_name(name) && c == lx::EINVAL
+                ||| self.refuses_name(n, name) && c == lx::EINVAL
+                ||| self.path_too_long(n, self.child_path(n, name)) && c == lx::E2BIG
                 ||| !self.can_write(n, self.child_path(n, name)) && c == lx::EROFS
                 ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
             }
@@ -452,6 +461,8 @@ pub trait FuseState: Sized {
                 ||| self.holds_node(n) && {
                     ||| !self.is_dir(n) && c == lx::ENOTDIR
                     ||| !Self::is_plain_name(name) && c == lx::EINVAL
+                    ||| self.refuses_name(n, name) && c == lx::EINVAL
+                    ||| self.path_too_long(n, self.child_path(n, name)) && c == lx::E2BIG
                     ||| self.is_hidden(n, self.child_path(n, name)) && c == lx::EACCES
                 }
             }
@@ -513,6 +524,9 @@ pub trait FuseState: Sized {
                 ||| (!self.node_can_write(n) || !self.node_can_write(m)) && c == lx::EROFS
                 ||| (!self.is_dir(n) || !self.is_dir(m)) && c == lx::ENOTDIR
                 ||| (!Self::is_plain_name(name) || !Self::is_plain_name(new_name)) && c == lx::EINVAL
+                ||| (self.refuses_name(n, name) || self.refuses_name(m, new_name)) && c == lx::EINVAL
+                ||| (self.path_too_long(n, self.child_path(n, name))
+                    || self.path_too_long(m, self.child_path(m, new_name))) && c == lx::E2BIG
                 ||| (!self.can_write(n, self.child_path(n, name))
                     || !self.can_write(m, self.child_path(m, new_name))) && c == lx::EROFS
                 ||| (self.is_hidden(n, self.child_path(n, name))
@@ -755,6 +769,14 @@ impl FuseState for () {
     }
 
     open spec fn buffer_too_large(size: nat) -> bool {
+        false
+    }
+
+    open spec fn refuses_name(&self, n: u64, name: Seq<u8>) -> bool {
+        false
+    }
+
+    open spec fn path_too_long(&self, n: u64, p: PathView) -> bool {
         false
     }
 

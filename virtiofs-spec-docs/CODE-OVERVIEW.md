@@ -794,8 +794,7 @@ all of them.
    implements now has its rules (done 2026-11-10).
    Left out of the rules, for now (failures the code checks that no rule
    names; harmless while `host_error` is "any code", but needed as rules if
-   a host model narrows it): the microVM's extra name rules (`\` or `:` in
-   a name, `EINVAL`; a path too long, `E2BIG`), the limits (`ENOSPC`, `E2BIG`), and a single-file share
+   a host model narrows it): the limits (`ENOSPC`, `E2BIG`), and a single-file share
    (`ENOTDIR`, `EACCES`), and, in the microVM, a listing's first read at
    an offset other than 0 (`EINVAL`: whether a listing has started is not
    in the spec; open item 4). Not stated: when an operation must succeed
@@ -970,8 +969,10 @@ all of them.
      directory. Not depended on: the root's identity at attach, pinned
      identities, the symbolic-link walk (all three need the host model);
      names without `\` or `:` and bounded path lengths (error codes only:
-     `lxutil` already escapes `\` and `:` on Windows; can be added as error
-     rules any time). Single-file shares (only the exposed file is
+     `lxutil` already escapes `\` and `:` on Windows), added as error rules
+     on 2026-11-10 (questions `refuses_name`, `EINVAL`, and `path_too_long`,
+     `E2BIG`, in every rule set that makes a child's path; the length rule
+     on Linux only, since on Windows the code measures UTF-16 bytes). Single-file shares (only the exposed file is
      reachable, and it is a regular file): in the spec since 2026-11-10
      (the inode and share views record the exposed file, `exposed`;
      virtio-fs's `is_hidden` hides every other path, and `may_reach`
