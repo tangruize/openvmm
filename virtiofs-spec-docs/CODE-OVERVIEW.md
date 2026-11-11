@@ -721,7 +721,9 @@ all of them.
    (`e.code() == lx::EROFS`, `lx/src/error.spec.rs`): Verus refuses
    `lx::Error::EROFS` (a public constant built from a private field).
    Done: `unlink`, `rmdir`, `rename`, `create`, `mkdir`, `mknod`,
-   `symlink`, `link`. More FUSE-level questions: `bad_create_flags` (flags
+   `symlink`, `link`, `open`, `open_dir`; `release` and `release_dir`
+   always succeed (`r is Ok`). More FUSE-level questions: `bad_open_flags`
+   (`util::open_flags`: `O_CREAT`, `O_EXCL`, or a flag `create` refuses), `bad_create_flags` (flags
    that `util::create_flags` refuses, from lx's constants, which differ by
    CPU architecture) and `bad_symlink_target` (microVM only: an empty
    target, `ENOENT`; over 4095 bytes, `ENAMETOOLONG`); for it the view
@@ -754,7 +756,11 @@ all of them.
    traverse-only listing rule (only the entries that lead to allowed paths)
    is part of confidentiality.
 5. **The aggregate's synthetic root**: `lookup` in it, `open_dir`'s
-   sentinel handle, `get_attr` on it.
+   sentinel handle, `get_attr` on it. Known wrong until then: `open_dir`'s
+   success clause says the guest holds the node, but on an aggregate's
+   root (not in the inode table) `open_dir` succeeds with a sentinel handle
+   (`SYNTHETIC_ROOT_FH`) that is not in the file table either. Its error
+   rules already allow for it (`open_dir_errors`).
 6. **Visibility at the time of an operation on a node.** Every operation on
    a node the guest holds first re-checks, at that moment, that none of the
    node's names is hidden and that none passes through a symbolic link

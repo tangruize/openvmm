@@ -530,6 +530,13 @@ impl FuseState for VirtioFsGhostView {
         flags & !supported != 0u32
     }
 
+    /// `O_CREAT` or `O_EXCL` (`util::open_flags`: `open` does not create), or
+    /// a flag `create` does not support either.
+    closed spec fn bad_open_flags(flags: u32) -> bool {
+        ||| flags & ((lx::O_CREAT | lx::O_EXCL) as u32) != 0u32
+        ||| Self::bad_create_flags(flags)
+    }
+
     /// In the microVM (`microvm::fs::validate_symlink_target`): an empty
     /// target (`ENOENT`), or one longer than 4095 bytes (`ENAMETOOLONG`,
     /// `MAX_SYMLINK_TARGET_BYTES`), as Linux does.

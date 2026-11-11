@@ -92,7 +92,8 @@ pub struct CreateOut {
 /// `entry_errors`: each a condition and its code) and `fails_with`: if
 /// any rule applies, it fails, with the code of one of the rules that apply,
 /// or a host error. So far for the operations that change names (`unlink`,
-/// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`).
+/// `rmdir`, `rename`, `create`, `mkdir`, `mknod`, `symlink`, `link`), and
+/// `open` and `open_dir` (`release` and `release_dir` always succeed).
 ///
 /// The other reasons are not yet in the contracts, so that they do not yet
 /// say when an operation must succeed: a limit reached (the counts and caps
@@ -514,6 +515,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.open_errors(_request@.node_id, _flags)),
     ))]
     fn open(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
@@ -581,6 +584,8 @@ where
             final(g).wf(),
             // The handle is gone (if the guest held it).
             final(g)@ == old(g)@.after_release(_arg.fh),
+            // Always succeeds.
+            r is Ok,
     ))]
     fn release(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())
@@ -749,6 +754,8 @@ where
                 },
                 Err(_) => final(g)@ == old(g)@,
             },
+            // Fails where one of its rules applies.
+            G::V::fails_with(r, old(g)@.open_dir_errors(_request@.node_id, _flags)),
     ))]
     fn open_dir(&self, _request: &Request, _flags: u32) -> lx::Result<fuse_open_out> {
         Err(lx::Error::ENOSYS)
@@ -787,6 +794,8 @@ where
             final(g).wf(),
             // The handle is gone (if the guest held it).
             final(g)@ == old(g)@.after_release(_arg.fh),
+            // Always succeeds.
+            r is Ok,
     ))]
     fn release_dir(&self, _request: &Request, _arg: &fuse_release_in) -> lx::Result<()> {
         Ok(())

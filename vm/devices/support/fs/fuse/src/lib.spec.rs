@@ -165,6 +165,10 @@ pub trait FuseState: Sized {
     /// support.
     spec fn bad_create_flags(flags: u32) -> bool;
 
+    /// `open`'s (and `open_dir`'s) flags `flags` hold one that the file
+    /// system does not accept.
+    spec fn bad_open_flags(flags: u32) -> bool;
+
     /// The file system refuses `target` as a symbolic link's target, with
     /// `code`.
     spec fn bad_symlink_target(&self, target: Seq<u8>, code: i32) -> bool;
@@ -300,6 +304,29 @@ pub trait FuseState: Sized {
         })
     }
 
+    /// The rules of `open` of node `n` with flags `flags`: the flags; the
+    /// guest holds `n`; and, to open for writing or to truncate, the guest
+    /// may change `n`.
+    open spec fn open_errors(&self, n: u64, flags: u32) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| Self::bad_open_flags(flags) && c == lx::EINVAL
+            ||| !self.holds_node(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
+                && !self.node_can_write(n) && c == lx::EROFS
+        })
+    }
+
+    /// The rules of `open_dir`: `open`'s, but a synthetic node may be opened
+    /// though the guest does not hold it (virtio-fs: an aggregate's root).
+    open spec fn open_dir_errors(&self, n: u64, flags: u32) -> ISet<i32> {
+        ISet::new(|c: i32| {
+            ||| Self::bad_open_flags(flags) && c == lx::EINVAL
+            ||| !self.holds_node(n) && !self.is_synthetic(n) && c == lx::EINVAL
+            ||| self.holds_node(n) && (Self::opens_for_writing(flags) || Self::truncates(flags))
+                && !self.node_can_write(n) && c == lx::EROFS
+        })
+    }
+
     /// The rules of `rename` of `name` in directory `n` to `new_name` in
     /// directory `m`.
     open spec fn rename_errors(&self, n: u64, name: Seq<u8>, m: u64, new_name: Seq<u8>) -> ISet<i32> {
@@ -422,6 +449,10 @@ impl FuseState for () {
     }
 
     open spec fn bad_create_flags(flags: u32) -> bool {
+        false
+    }
+
+    open spec fn bad_open_flags(flags: u32) -> bool {
         false
     }
 
