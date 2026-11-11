@@ -236,6 +236,34 @@ the whole map, and the rest sit where the code protects the data:
 | `aliases` | node id -> every name the code knows | each inode's `aliases` (lock 3) | `GhostMapAuth` + `PointsTo` | the `Auth` in `VirtioFsGhost`; inode n's `PointsTo` in inode n's lock 3 |
 | `files` | handle -> the open file's view: its node, and whether it was opened for writing | the file table (lock 4) | `FracGhost` | two halves: one in lock 4, one in `VirtioFsGhost` |
 
+**Inside `VirtioFsGhost`, `paths` and `aliases` are keyed by a ghost key;
+the contracts never see it** (decided 2026-11-10). The table above is
+what the contracts see (`VirtioFsGhostView`, keyed by node id). Inside
+`VirtioFsGhost`, the two `GhostMapAuth`s are keyed by a per-inode ghost
+key instead, for two reasons:
+
+- an inode's locks are created, with their rules, in
+  `VirtioFsInode::with_attr`, before the inode gets its node id (the inode
+  table assigns it when the inode is inserted), and a lock's rule never
+  changes; so the rule names its entry by a key fixed at creation
+  (`PathRule.key`, `inode.spec.rs`), taken from a ghost counter
+  `next_key`;
+- an inode may be built and then dropped: `InodeMap::insert` drops the new
+  inode when the table already has one for the same host file (a second
+  name of it), and the entry made for it stays in the ghost map (its
+  piece was in the dropped lock).
+
+The inode table's ghost value records each node's key (`InodeTable.keys`),
+and the view is computed through it: node n's path is the entry of n's
+key. So entries of no node's key (dropped inodes, forgotten ones) and
+`next_key` are invisible to the contracts, which therefore read exactly as
+if the maps were keyed by node id. What only the proof needs (each table
+node has a key with entries, keys are distinct, and every key in use is
+below `next_key`) is in `VirtioFsGhost::wf`. Rejected: letting the view
+show the keys, which made `lookup`'s contract unprovable when the host file
+already had a node (the dropped inode's entry and the moved `next_key`
+showed in the view, and the contract said they do not change).
+
 `GhostMapAuth` + `PointsTo` is used only where each entry has its own
 lock: the `Auth` is like a collection of half permissions, one per entry,
 so its holder can read the whole map, and changing entry n also needs

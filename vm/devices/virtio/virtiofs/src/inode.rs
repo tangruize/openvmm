@@ -19,12 +19,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use vstd::prelude::Ghost;
+use vstd::prelude::Tracked;
+use vstd::prelude::int;
+use vstd::resource::map::GhostPointsTo;
+use vstd::std_specs::path::PathView;
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 /// Verus specification of the inode: its view.
-#[cfg(verus_keep_ghost)]
-mod spec {
+/// Verus specification of the inode: its view, and the rule of its path
+/// lock. Included in every build: the rule's type (`PathRule`) is a type
+/// parameter of the `path` field's lock, so a normal build needs it (its
+/// spec functions are removed there).
+pub(crate) mod spec {
     include!("inode.spec.rs");
 }
 
@@ -135,11 +143,29 @@ pub(crate) enum DedupKey {
     Path(u32, PathBuf),
 }
 
+/// An inode's main path, with its ghost piece: its entry of the ghost
+/// `paths` map (`None` for the root, whose path is always empty). The piece
+/// is ghost (`Tracked`): nothing of it exists at runtime.
+#[cfg_attr(verus_keep_ghost, verus_verify)]
+// Only Verus reads the ghost piece.
+#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+pub(crate) struct InodePath {
+    pub(crate) path: PathBuf,
+    pub(crate) piece: Tracked<
+        Option<GhostPointsTo<int, PathView>>,
+    >,
+}
+
 /// Implements inode callbacks for virtio-fs.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 pub struct VirtioFsInode {
     pub(crate) volume: Arc<VirtioFsVolume>,
-    pub(crate) path: RwLock<PathBuf>,
+    /// The main path, with its ghost piece (Verus only: nothing at runtime),
+    /// behind vstd's verified lock, whose rule (`spec::PathRule`) says that
+    /// the piece is this inode's entry of the ghost `paths` map, with this
+    /// path (`virtiofs-spec-docs/CODE-OVERVIEW.md`, "The guest's state in the
+    /// spec").
+    pub(crate) path: vstd::rwlock::RwLock<InodePath, spec::PathRule>,
     pub(crate) aliases: RwLock<BTreeSet<PathBuf>>,
     pub(crate) lookup_count: AtomicU64,
     inode_nr: lx::ino_t,
@@ -165,7 +191,18 @@ impl VirtioFsInode {
         aliases.insert(path.clone());
         Self {
             volume,
-            path: RwLock::new(path),
+            // PLACEHOLDERS (Verus only; nothing at runtime): the ghost piece
+            // and the lock's rule. This body is not verified yet; its proof
+            // gives the piece (from the `paths` map's `Auth`, for a fresh key)
+            // and the rule (that key, the map's id, and whether this is the
+            // root).
+            path: vstd::rwlock::RwLock::new(
+                InodePath {
+                    path,
+                    piece: Tracked::assume_new(),
+                },
+                Ghost::assume_new(),
+            ),
             aliases: RwLock::new(aliases),
             lookup_count: AtomicU64::new(1),
             inode_nr: stat.inode_nr,
@@ -246,8 +283,9 @@ impl VirtioFsInode {
     pub fn lookup(&self, new_path: PathBuf) {
         self.lookup_count.fetch_add(1, Ordering::AcqRel);
         self.aliases.write().insert(new_path.clone());
-        let mut path = self.path.write();
-        *path = new_path;
+        let (mut path, handle) = self.path.acquire_write();
+        path.path = new_path;
+        handle.release_write(path);
     }
 
     /// Increments the lookup count without updating the path.
@@ -501,7 +539,7 @@ impl VirtioFsInode {
 
     /// Gets a clone of the stored path.
     pub fn clone_path(&self) -> PathBuf {
-        self.get_path().clone()
+        self.get_path()
     }
 
     /// Returns all host-relative aliases currently known to the guest.
@@ -517,11 +555,13 @@ impl VirtioFsInode {
     /// Removes all aliases at or below an unlinked directory path.
     pub(crate) fn remove_alias_prefix(&self, path: &Path) {
         let mut aliases = self.aliases.write();
-        let removed_primary = self.path.read().starts_with(path);
+        let removed_primary = self.get_path().starts_with(path);
         aliases.retain(|alias| !alias.starts_with(path));
         if removed_primary {
             if let Some(alias) = aliases.first() {
-                *self.path.write() = alias.clone();
+                let (mut primary, handle) = self.path.acquire_write();
+                primary.path = alias.clone();
+                handle.release_write(primary);
             }
         }
     }
@@ -544,11 +584,12 @@ impl VirtioFsInode {
         }
         drop(aliases);
 
-        let mut path = self.path.write();
-        let suffix = path.strip_prefix(old).ok().map(ToOwned::to_owned);
+        let (mut path, handle) = self.path.acquire_write();
+        let suffix = path.path.strip_prefix(old).ok().map(ToOwned::to_owned);
         if let Some(suffix) = suffix {
-            *path = renamed_path(new, &suffix);
+            path.path = renamed_path(new, &suffix);
         }
+        handle.release_write(path);
     }
 
     /// Swaps two alias prefixes after a successful `RENAME_EXCHANGE`.
@@ -560,8 +601,9 @@ impl VirtioFsInode {
             .collect();
         drop(aliases);
 
-        let mut path = self.path.write();
-        *path = exchanged_path(&path, first, second);
+        let (mut path, handle) = self.path.acquire_write();
+        path.path = exchanged_path(&path.path, first, second);
+        handle.release_write(path);
     }
 
     /// The key used to deduplicate this inode in the `InodeMap`, so that
@@ -577,7 +619,7 @@ impl VirtioFsInode {
         if self.volume.supports_stable_file_id() {
             return DedupKey::Ino(self.volume_id(), self.inode_nr());
         }
-        DedupKey::Path(self.volume_id(), self.get_path().clone())
+        DedupKey::Path(self.volume_id(), self.get_path())
     }
 
     /// Appends a child name to this inode's path.
@@ -602,9 +644,13 @@ impl VirtioFsInode {
         Ok(path)
     }
 
-    /// Locks the path and returns the value.
-    pub(crate) fn get_path(&self) -> parking_lot::RwLockReadGuard<'_, PathBuf> {
-        self.path.read()
+    /// Returns a copy of the main path, read under the path lock (released
+    /// at once: vstd's lock is released explicitly, not when dropped).
+    pub(crate) fn get_path(&self) -> PathBuf {
+        let handle = self.path.acquire_read();
+        let path = handle.borrow().path.clone();
+        handle.release_read();
+        path
     }
 }
 

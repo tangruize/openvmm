@@ -81,6 +81,10 @@ pub struct VirtioFsGhostView {
 /// keeps matching").
 pub struct InodeTable {
     pub inodes: Map<u64, VirtioFsInodeView>,
+    /// Each node's inode's ghost key (the key in its path lock's rule): its
+    /// entry in the `paths` and `aliases` ghost maps. Hidden from the view,
+    /// which is keyed by node id.
+    pub keys: Map<u64, int>,
     pub paths_id: Loc,
     pub aliases_id: Loc,
 }
@@ -89,19 +93,28 @@ pub struct InodeTable {
 /// other pieces are in the locks).
 pub tracked struct VirtioFsGhost {
     pub tracked inodes: FracGhost<InodeTable>,
-    pub tracked paths: GhostMapAuth<u64, PathView>,
-    pub tracked aliases: GhostMapAuth<u64, Set<PathView>>,
+    /// Each inode's main path, by its ghost key.
+    pub tracked paths: GhostMapAuth<int, PathView>,
+    /// Each inode's names, by its ghost key.
+    pub tracked aliases: GhostMapAuth<int, Set<PathView>>,
     pub tracked files: FracGhost<Map<u64, VirtioFsFileView>>,
+    /// The ghost key that the next inode created gets.
+    pub ghost next_key: int,
 }
 
 impl View for VirtioFsGhost {
     type V = VirtioFsGhostView;
 
+    /// The maps by node id: each node in the inode table but the root, with
+    /// the entries of its inode's ghost key. Entries of no node's key (an
+    /// inode built and then dropped, as `InodeMap::insert` does when the
+    /// table already has the host file; or a forgotten inode) are not seen.
     closed spec fn view(&self) -> VirtioFsGhostView {
+        let t = self.inodes@;
         VirtioFsGhostView {
-            inodes: self.inodes@.inodes,
-            paths: self.paths@,
-            aliases: self.aliases@,
+            inodes: t.inodes,
+            paths: Map::new(t.inodes.dom().remove(fuse::protocol::FUSE_ROOT_ID), |n: u64| self.paths@[t.keys[n]]),
+            aliases: Map::new(t.inodes.dom().remove(fuse::protocol::FUSE_ROOT_ID), |n: u64| self.aliases@[t.keys[n]]),
             files: self.files@,
         }
     }
@@ -178,10 +191,24 @@ impl VirtioFsGhostView {
 /// `aliases` maps that the inode table records are those of this state's
 /// `Auth`s.
 impl FuseGhost for VirtioFsGhost {
+    /// The view's facts (`inv`); the recorded ids are the maps'; each node
+    /// in the table but the root has a ghost key, with entries in both maps,
+    /// no two such nodes share one, and every key in use is below `next_key`
+    /// (so the next inode's key is fresh).
     closed spec fn wf(&self) -> bool {
+        let t = self.inodes@;
         &&& self@.inv()
-        &&& self.inodes@.paths_id == self.paths.id()
-        &&& self.inodes@.aliases_id == self.aliases.id()
+        &&& t.paths_id == self.paths.id()
+        &&& t.aliases_id == self.aliases.id()
+        &&& forall|n: u64| #[trigger] t.inodes.contains_key(n) && n != fuse::protocol::FUSE_ROOT_ID ==> {
+            &&& t.keys.contains_key(n)
+            &&& self.paths@.contains_key(t.keys[n])
+            &&& self.aliases@.contains_key(t.keys[n])
+        }
+        &&& forall|n1: u64, n2: u64| #[trigger] t.inodes.contains_key(n1) && #[trigger] t.inodes.contains_key(n2)
+            && n1 != n2 && n1 != fuse::protocol::FUSE_ROOT_ID && n2 != fuse::protocol::FUSE_ROOT_ID ==> t.keys[n1] != t.keys[n2]
+        &&& forall|k: int| #[trigger] self.paths@.contains_key(k) ==> k < self.next_key
+        &&& forall|k: int| #[trigger] self.aliases@.contains_key(k) ==> k < self.next_key
     }
 }
 
@@ -224,17 +251,12 @@ impl FuseState for VirtioFsGhostView {
     /// The structural facts that every operation keeps: every node in the
     /// inode table but the root has a main path and names, and its main path
     /// is among its names when it has any (a node whose names were all
-    /// removed keeps its last main path); every open handle's node has
-    /// names (an open file keeps its inode, and its entries, after `FORGET`).
+    /// removed keeps its last main path).
     closed spec fn inv(&self) -> bool {
-        &&& forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
+        forall|m: u64| #[trigger] self.inodes.contains_key(m) && m != fuse::protocol::FUSE_ROOT_ID ==> {
             &&& self.paths.contains_key(m)
             &&& self.aliases.contains_key(m)
             &&& !self.aliases[m].is_empty() ==> self.aliases[m].contains(self.paths[m])
-        }
-        &&& forall|fh: u64| #[trigger] self.files.contains_key(fh) ==> {
-            let m = self.files[fh].node;
-            m == fuse::protocol::FUSE_ROOT_ID || self.aliases.contains_key(m)
         }
     }
 
@@ -339,8 +361,16 @@ impl FuseState for VirtioFsGhostView {
     /// The node leaves the inode table. Its entries in `paths` and
     /// `aliases` stay (an open file may still hold its inode), and so do its
     /// open files.
+    /// The node leaves the table, with its main path and names (an open
+    /// file of it keeps its inode, but the guest can no longer use the
+    /// handle: `get_file` needs the node).
     closed spec fn after_forget(&self, n: u64) -> Self {
-        VirtioFsGhostView { inodes: self.inodes.remove(n), ..*self }
+        VirtioFsGhostView {
+            inodes: self.inodes.remove(n),
+            paths: self.paths.remove(n),
+            aliases: self.aliases.remove(n),
+            ..*self
+        }
     }
 
     /// The file table is empty, the inode table keeps only the root (if it
@@ -369,9 +399,9 @@ impl FuseState for VirtioFsGhostView {
         self.files[fh].writable
     }
 
-    /// Every name of the file's node is writable under its inode's volume
-    /// (the file's own copy of the inode's view, which holds even when the
-    /// node is no longer in the table).
+    /// The file's node's main path and every name of it are writable under
+    /// its inode's volume (the file's own copy of the inode's view). Used
+    /// with `uses_handle`, so the node is in the table.
     closed spec fn file_can_write(&self, fh: u64) -> bool {
         let f = self.files[fh];
         &&& !f.inode.readonly && f.inode.policy.can_write(self.path_of(f.node))
