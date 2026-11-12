@@ -13,12 +13,12 @@ use bitfield_struct::bitfield;
 use static_assertions::const_assert_eq;
 use std::io;
 use thiserror::Error;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 
 pub use string::LxStr;
 pub use string::LxString;

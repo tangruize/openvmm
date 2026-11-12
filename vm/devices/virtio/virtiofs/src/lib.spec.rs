@@ -313,8 +313,6 @@ impl VirtioFsGhostView {
 /// the keys, `InodeTable.keys`, against those rules; and the dedup index,
 /// `inodes_by_key`, against `host_inos`: a key `Ino(v, ino)` finds the node of
 /// that host object); it may add facts or fields, but must keep the core.
-// Only Verus reads the rule's fields.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
 pub ghost struct InodeTableRule {
     /// The id of the ghost inode table.
     pub id: Loc,
@@ -346,8 +344,6 @@ impl RwLockPredicate<InodeTableLocked> for InodeTableRule {
 /// handle's recorded node, `VirtioFsFileView::node`, is a node whose inode
 /// the file's is, while the node is in the table); it may add facts or
 /// fields, but must keep the core.
-// Only Verus reads the rule's fields.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
 pub ghost struct FileTableRule {
     /// The id of the ghost file table.
     pub id: Loc,

@@ -96,7 +96,7 @@ struct FuseNegotiation {
 /// ghost (`Tracked`): nothing of it exists at runtime.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 // Only Verus reads the ghost piece.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 struct InodeTableLocked {
     table: InodeMap,
     half: Tracked<FracGhost<spec::InodeTable>>,
@@ -127,7 +127,7 @@ impl InodeTableLocked {
 /// (`Tracked`): nothing of it exists at runtime.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 // Only Verus reads the ghost piece.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 struct FileTableLocked {
     table: HandleMap<Arc<VirtioFsFile>>,
     half: Tracked<FracGhost<Map<u64, spec::VirtioFsFileView>>>,

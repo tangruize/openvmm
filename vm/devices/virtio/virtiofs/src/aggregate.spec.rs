@@ -21,7 +21,7 @@ verus! {
 /// TODO (proof agent): the rest; it may add facts or fields, but must keep
 /// the core.
 // Only Verus reads the rule's fields.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 pub ghost struct RegistryRule {
     /// The children never change.
     pub fixed: bool,

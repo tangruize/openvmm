@@ -20,11 +20,11 @@ pub use reply::DirEntryWriter;
 pub use reply::ReplySender;
 pub use request::FuseOperation;
 pub use request::Request;
+pub use request::RequestReader;
+pub use request::check_name;
 /// The view of a `Request` (Verus only).
 #[cfg(verus_keep_ghost)]
 pub use request::spec::RequestView;
-pub use request::RequestReader;
-pub use request::check_name;
 pub use session::Session;
 pub use session::SessionInfo;
 pub use session::saved_state::SessionInfoState;

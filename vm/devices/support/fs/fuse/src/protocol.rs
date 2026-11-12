@@ -10,12 +10,12 @@
 #![expect(unused_parens)]
 
 use bitfield_struct::bitfield;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 
 /*
  * Version negotiation:

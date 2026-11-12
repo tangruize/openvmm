@@ -6,13 +6,13 @@ mod macros;
 
 use crate::protocol::*;
 use std::io;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use zerocopy::FromBytes;
 use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
 use zerocopy::KnownLayout;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 
 /// Verus specification of `Request`.
 #[cfg(verus_keep_ghost)]

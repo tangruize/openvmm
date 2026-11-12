@@ -34,7 +34,7 @@ verus! {
 /// TODO (proof agent): the rest is the proof's to settle (e.g. how the key
 /// is chosen); it may add facts or fields, but must keep the core.
 // Only Verus reads the rule's fields.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 pub ghost struct PathRule {
     /// The inode's ghost key: its entry in the `paths` and `aliases` maps.
     pub key: int,
@@ -73,7 +73,7 @@ impl RwLockPredicate<InodePath> for PathRule {
 /// fact of the inode, or of the inode table's rule); it may add facts or
 /// fields, but must keep the core.
 // Only Verus reads the rule's fields.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 pub ghost struct AliasesRule {
     /// The inode's ghost key: its entry in the `aliases` map.
     pub key: int,

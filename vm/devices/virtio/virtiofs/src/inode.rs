@@ -150,7 +150,7 @@ pub(crate) enum DedupKey {
 /// is ghost (`Tracked`): nothing of it exists at runtime.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 // Only Verus reads the ghost piece.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 pub(crate) struct InodePath {
     pub(crate) path: PathBuf,
     pub(crate) piece: Tracked<Option<GhostPointsTo<int, PathView>>>,
@@ -161,7 +161,7 @@ pub(crate) struct InodePath {
 /// The piece is ghost (`Tracked`): nothing of it exists at runtime.
 #[cfg_attr(verus_keep_ghost, verus_verify)]
 // Only Verus reads the ghost piece.
-#[cfg_attr(not(verus_keep_ghost), allow(dead_code))]
+#[cfg_attr(not(verus_keep_ghost), expect(dead_code))]
 pub(crate) struct InodeAliases {
     pub(crate) aliases: BTreeSet<PathBuf>,
     pub(crate) piece: Tracked<Option<GhostPointsTo<int, Set<PathView>>>>,

@@ -52,11 +52,11 @@ pub mod host {
 #[cfg(unix)]
 pub use unix::credentials::FsIdentity;
 #[cfg(unix)]
-pub use unix::credentials::with_fs_identity;
-#[cfg(unix)]
 pub use unix::credentials::FsIdentityGuard;
 #[cfg(unix)]
 pub use unix::credentials::switch_fs_identity;
+#[cfg(unix)]
+pub use unix::credentials::with_fs_identity;
 
 /// An error initializing a host filesystem volume.
 #[derive(Debug, thiserror::Error)]

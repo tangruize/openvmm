@@ -5,22 +5,22 @@ pub(crate) mod saved_state;
 
 use super::Fuse;
 use super::Mapper;
-use super::spec::FuseGhost;
-use super::spec::FuseState;
 use super::protocol::*;
 use super::reply::ReplySender;
 use super::request::FuseOperation;
 use super::request::Request;
 use super::request::RequestReader;
+use super::spec::FuseGhost;
+use super::spec::FuseState;
 use parking_lot::RwLock;
 use std::io;
 use std::sync::atomic;
 use thiserror::Error;
+#[cfg(verus_keep_ghost)]
+use vstd::prelude::*;
 use zerocopy::FromZeros;
 use zerocopy::Immutable;
 use zerocopy::KnownLayout;
-#[cfg(verus_keep_ghost)]
-use vstd::prelude::*;
 
 // These are the flags that libfuse enables by default when calling init.
 const DEFAULT_FLAGS: u32 = FUSE_ASYNC_READ
