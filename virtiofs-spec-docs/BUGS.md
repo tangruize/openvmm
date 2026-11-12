@@ -884,8 +884,8 @@ index b853735cb..0a9542a7e 100644
   case table, and would still miss short names; checking the identity of
   the object that a change touches against the pinned identities would
   cover both.
-- **The listings' caches are bounded in total only at save** (from last
-  night's design notes on limits, 2026-11-11). At run time each directory
+- **The listings' caches are bounded in total only at save** (from the design notes on limits of 2026-11-11,
+  `notes-20261111/DESIGN-limits.md`). At run time each directory
   handle may cache 4096 entries and 64 KiB of names, and there may be 4096
   handles; the totals (`MAX_DIRECTORY_ENTRIES` 16 Ki,
   `MAX_DIRECTORY_BYTES` 4 MiB) are checked only when the state is saved
