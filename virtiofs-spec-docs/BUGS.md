@@ -777,7 +777,7 @@ index bddfefa9a..e77920ebd 100644
 
 ## 9. A lookup can add a node past the microVM's node cap
 
-*Found 2026-11-11, in last night's design notes on limits (by reading the
+*Found 2026-11-11, in the design notes on limits (`notes-20261111/DESIGN-limits.md`, by reading the
 code). Low severity: it needs a held node whose object is gone and an
 object of another file type with the same inode number. Fixed:
 `patches/0011-virtiofs-microvm-a-retyped-object-takes-the-new-node-check.patch`

@@ -76,8 +76,9 @@ host's `/etc/passwd`.
 **One request at a time.** The microVM runs one request at a time: two
 queues, but both workers are tasks on one thread, and a request runs to
 its end. The code still guards its tables with `RwLock`s, and the spec
-follows the locks, each with a rule (section 5), rather than the order.
-Only the keeper relies on the order (section 6).
+follows the locks, each with a rule (section 5), rather than relying on
+requests running one at a time. Only the keeper relies on that (section
+6).
 
 **Every byte the guest writes is untrusted.** No contract requires
 anything of a request's contents (names, flags, node ids, handles): an
@@ -372,10 +373,11 @@ proved.
 
 ## 5. The locks
 
-Each lock that holds guest state is vstd's verified `RwLock<V, Pred>`,
-with its rule (`Pred`) given at creation and never changed. vstd's locks
-replace `parking_lot`'s for this (a change for verification only,
-`CODE-CHANGES.md`). There are five:
+Each lock that holds guest state is vstd's verified `RwLock<V, Pred>`
+(`vstd::rwlock`, in `verus-patches/vstd/rwlock.rs`), with its rule
+(`Pred`, an `RwLockPredicate`) given at creation and never changed.
+vstd's locks replace `parking_lot`'s for this (a change for verification
+only, `CODE-CHANGES.md`). There are five:
 
 | Lock (field) | Holds | Rule | Rule file |
 |---|---|---|---|
@@ -422,11 +424,18 @@ a lock, the proof changes the ghost piece in it at the same moment, with
 the whole-map piece in `g`, before the lock is released (when Verus checks
 the rule):
 
-- `FracGhost` (the two tables): one half in the lock, one in `g`; both
-  halves together change the value.
-- `GhostMapAuth` + `GhostPointsTo` (paths, names): the `Auth` in `g`, each
+- `FracGhost` (the two tables; `vstd::resource::frac`, in
+  `verus-patches/vstd/resource/combinators/frac.rs`): one half in the lock,
+  one in `g`; both halves together change the value.
+- `GhostMapAuth` + `GhostPointsTo` (paths, names; `vstd::resource::map`,
+  in `verus-patches/vstd/resource/impls/map.rs`): the `Auth` in `g`, each
   inode's entry in its lock; `insert` makes an entry, `agree` reads it
   against the `Auth`, `update` changes it.
+
+For how these ghost resources and locks work, the Verus concurrency
+tutorial's chapters on ghost resources and on locks (a copy in
+`snapshot-spec-docs/verus-concurrency-tutorial/`, on the branch
+`system-proof/snapshot-spec-review-20261023`).
 
 **PLACEHOLDERs.** Where a lock is created, the ghost piece and the rule
 are `Tracked::assume_new()` and `Ghost::assume_new()`; the proof replaces
@@ -766,7 +775,7 @@ Combining virtio-fs's save and restore with the snapshot spec (on
   host facts, which its own checks support (each name reopened, each
   object checked).
 
-Last night's analysis, with the code walk, the trust question (the blob is
-untrusted: policy facts hold for any blob, "same host objects" only for an
-authentic one), the decisions and the sizes:
-`notes-20261111/DESIGN-snapshot.md`.
+The analysis of 2026-11-11 (`notes-20261111/DESIGN-snapshot.md`): the
+code walk, the trust question (the blob is untrusted: policy facts hold
+for any blob, "same host objects" only for an authentic one), the
+decisions and the sizes.
