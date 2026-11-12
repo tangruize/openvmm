@@ -190,7 +190,7 @@ mapped caller.
 ## 5. What is trusted, and what is not done
 
 **Trusted** (Verus does not check it; each is written where it is used,
-and listed in `SPEC-DESIGN.md`, section 8):
+and listed in `SPEC-DESIGN.md`, section 11):
 
 - **The host assumptions:** no other host process changes a share while
   the device runs; no mount point inside a share (Linux); no two volumes
